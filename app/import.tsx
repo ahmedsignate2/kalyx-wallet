@@ -14,7 +14,7 @@ import { isWalletError, unknownWords } from '../src';
 import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Button, Card, Notice } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius, fontSize, radii } from '../ui/tokens';
-import { Orbit, Rise } from '../ui/nova';
+import { Rise } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
@@ -150,7 +150,6 @@ export default function Import() {
           {/* Badge → titre → sous-titre, enchaînés sans vide */}
           <View style={{ alignItems: 'center', marginTop: 12 }}>
             <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
-              <View pointerEvents="none" style={{ position: 'absolute', left: 32, top: 32 }}><Orbit cx={0} cy={0} r={46} /></View>
               <View style={{ width: 60, height: 60, borderRadius: radii.full, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="import" size={26} color={colors.primary} />
               </View>

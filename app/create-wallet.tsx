@@ -8,7 +8,7 @@
  * du premier wallet.
  */
 import { useEffect, useState } from 'react';
-import { View, ScrollView, useWindowDimensions } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { Stack } from 'expo-router';
 import { useResetToHome } from '../lib/nav';
@@ -20,7 +20,7 @@ import { PinPromptModal } from '../ui/PinPromptModal';
 import { Icon } from '../ui/icon';
 import { useTheme, radii } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius } from '../ui/tokens';
-import { FlowDots, IconDisc, Orbit, Rise, SparkBurst, Stardust } from '../ui/nova';
+import { FlowDots, IconDisc, Rise, ScreenOrbit, SparkBurst } from '../ui/nova';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
@@ -33,7 +33,6 @@ export default function CreateWallet() {
   // Fin du parcours : pile vidée jusqu'aux onglets, sans en empiler un second jeu (lib/nav).
   const goHome = useResetToHome();
   const insets = useSafeAreaInsets();
-  const { width: winW, height: winH } = useWindowDimensions();
   const createWallet = useWallet((s) => s.createWallet);
   const pinLength = useSettings((s) => s.pinLength);
   const [label, setLabel] = useState('');
@@ -125,7 +124,7 @@ export default function CreateWallet() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <Stardust width={winW} height={winH} count={10} />
+      <ScreenOrbit top={insets.top + 56} />
       {/* Clavier ouvert (nom du portefeuille) : le bouton « Créer » reste visible, le reste défile. */}
       <KeyboardAvoid style={{ flex: 1 }}>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[4], gap: space[4] }}>
@@ -134,7 +133,6 @@ export default function CreateWallet() {
         {/* Héros : le disque « créer » au centre de son orbite, qui naît puis tourne. */}
         <View style={{ alignItems: 'center', gap: space[3], paddingVertical: space[4] }}>
           <View style={{ width: 88, height: 88, alignItems: 'center', justifyContent: 'center' }}>
-            <View pointerEvents="none" style={{ position: 'absolute', left: 44, top: 44 }}><Orbit cx={0} cy={0} r={64} /></View>
             <IconDisc name="create" tone="gold" size={80} />
             <SparkBurst burstKey="born" count={24} radius={60} />
           </View>

@@ -1,4 +1,4 @@
-import { OptionPill, Orbit, SectionLabel, SettingRow } from '../ui/nova';
+import { OptionPill, SectionLabel, SettingRow } from '../ui/nova';
 import { WalletAvatar, AvatarPicker } from '../ui/avatarArt';
 import { ScreenHeader, Pressable as KPressable, Card, Screen, Switch } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
@@ -124,7 +124,6 @@ export default function Settings() {
       */}
       <View style={{ alignItems: 'center', gap: spacing(1) }}>
         <KPressable onPress={() => setPickAvatar(true)} haptic="light" accessibilityLabel={t('a11yChangeAvatar')} style={{ width: 104, height: 104, alignItems: 'center', justifyContent: 'center' }}>
-          <View pointerEvents="none" style={{ position: 'absolute', left: 52, top: 52 }}><Orbit cx={0} cy={0} r={68} /></View>
           <WalletAvatar size={96} />
           <View style={{ position: 'absolute', right: 2, bottom: 2, width: 30, height: 30, borderRadius: radii.full, backgroundColor: colors.primary, borderWidth: 3, borderColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="image" size={14} color={colors.onPrimary} />
@@ -140,7 +139,7 @@ export default function Settings() {
           accessibilityLabel={t('profile')}
           style={{ color: colors.text, fontSize: fontSize.h3, fontFamily: fonts.bold, textAlign: 'center', minWidth: 200, paddingVertical: 4 }}
         />
-        <Text style={[typography.muted, { fontSize: fontSize.xs, letterSpacing: 1.2, textTransform: 'uppercase' }]}>{t('profile')} · {t('settings')}</Text>
+        <Text style={[typography.muted, { fontSize: fontSize.sm }]}>{t('profile')} · {t('settings')}</Text>
       </View>
 
       {/* Préférences */}

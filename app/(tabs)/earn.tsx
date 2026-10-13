@@ -7,7 +7,7 @@
 import { withWatchOnlyGate } from '../../ui/WatchOnlyGate';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, Text, View } from 'react-native';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
 import { CountUp } from '../../ui/CountUp';
@@ -16,8 +16,8 @@ import { Icon } from '../../ui/icon';
 import { EarnSheet } from '../../ui/EarnSheet';
 import { TonStakingSheet } from '../../ui/TonStakingSheet';
 import { loadStaking, type StakingInfo } from '../../lib/ton/staking';
-import { Pressable as KPressable, Button, Card, RemoteIcon, SkeletonRow } from '../../ui/kit';
-import { Orbit, Pills, Rise, GOLD } from '../../ui/nova';
+import { Pressable as KPressable, IconButton, Button, Card, RemoteIcon, SkeletonRow } from '../../ui/kit';
+import { Pills, Rise } from '../../ui/nova';
 import { fonts, radii, space, spacing, useTheme, fontSize } from '../../ui/theme';
 import { useWallet } from '../../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
@@ -52,7 +52,7 @@ function ChainTag({ chainId }: { chainId: string }) {
 }
 
 function EarnScreenInner() {
-  const { colors, typography } = useTheme();
+  const { colors, typography, tints } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
   const fiat = useSettings((s) => s.fiat);
@@ -129,6 +129,8 @@ function EarnScreenInner() {
       >
         {/* En-tête */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), minHeight: 48 }}>
+          {/* Hors de la barre d'onglets : on y arrive par la tuile « Gagner », on en repart par ici. */}
+          <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/home'))} />
           <View style={{ flex: 1 }}>
             <Text style={typography.title}>{t('earnTitle')}</Text>
           </View>
@@ -139,16 +141,14 @@ function EarnScreenInner() {
         <Text style={[typography.muted, { marginTop: -spacing(1.5) }]}>{t('earnSubtitle')}</Text>
 
         {/*
-          Hero Nova : le total à gauche, en grand, et une orbite d'or à droite —
-          la même lumière que l'accueil, mais c'est l'or qui la parcourt ici,
-          puisque cet écran parle de ce que l'argent rapporte.
+          Le total, dans une carte à la teinte de « Gagner » (sable), comme la
+          tuile de l'accueil qui mène ici : on reconnaît l'endroit.
         */}
-        <Rise style={{ paddingVertical: spacing(1), gap: 4 }}>
-          <View pointerEvents="none" style={{ position: 'absolute', right: 40, top: 50 }}>
-            <Orbit cx={0} cy={0} r={70} />
-            <View style={{ position: 'absolute', left: -5, top: -5, width: 10, height: 10, borderRadius: radii.full, backgroundColor: GOLD, opacity: 0.9 }} />
+        <Rise style={{ padding: spacing(2.5), gap: 4, borderRadius: radii.xl, backgroundColor: tints.earn.bg, borderWidth: 1, borderColor: colors.border }}>
+          <View pointerEvents="none" style={{ position: 'absolute', right: spacing(2.5), top: spacing(2.5), width: 44, height: 44, borderRadius: radii.full, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="staking" size={22} color={tints.earn.ink} />
           </View>
-          <Text style={[typography.muted, { fontSize: fontSize.xxs, letterSpacing: 1.2, textTransform: 'uppercase' }]}>{t('earnTotal')}</Text>
+          <Text style={[typography.muted, { fontSize: fontSize.sm, fontFamily: fonts.semibold }]}>{t('earnTotal')}</Text>
           {initialLoading ? (
             <Text style={typography.hero}>…</Text>
           ) : (

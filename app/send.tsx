@@ -33,7 +33,7 @@ import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { ContactPicker } from '../ui/ContactPicker';
 import { FadeInUp } from '../ui/FadeInUp';
 import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius, radii, monoFont } from '../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii, monoFont, fontFamily } from '../ui/tokens';
 import { useWallet, type Unlock } from '../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
 import { useRecentRecipients, type RecipientFamily } from '../lib/recentRecipientsStore';
@@ -1092,7 +1092,7 @@ function SendInner() {
         {step === 3 ? (
           <FadeInUp style={{ flex: 1, gap: space[4] }}>
             <View style={{ alignItems: 'center', gap: 6, paddingTop: space[2] }}>
-              <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('sendYouSend')}</Text>
+              <Text variant="caption" tone="secondary" style={{ fontFamily: fontFamily.semibold }}>{t('sendYouSend')}</Text>
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit style={{ textAlign: 'center' }}>
                 {formatTokenAmount(amountRaw, decimals)} <Text variant="title2" tone="secondary">{symbol}</Text>
               </Text>

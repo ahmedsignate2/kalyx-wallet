@@ -9,7 +9,7 @@ import React, { useEffect } from 'react';
 import { Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { Text, Divider, TokenRow, Pressable as KPressable, Card } from './kit';
-import { space, radii } from './tokens';
+import { space, radii, fontFamily } from './tokens';
 import { useT } from '../lib/settingsStore';
 import { fill } from '../lib/i18n';
 import { useWallet } from '../lib/walletStore';
@@ -38,7 +38,7 @@ export function TestnetSection({ acct, hidden, refreshTick }: { acct: PortfolioA
   return (
     <View style={{ gap: space[2] }}>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: space[1] }}>
-        <Text variant="caption" tone="secondary" style={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('testnetSectionTitle')}</Text>
+        <Text variant="caption" tone="secondary" style={{ fontFamily: fontFamily.semibold }}>{t('testnetSectionTitle')}</Text>
         <Text variant="micro" tone="tertiary">{t('testnetSectionNote')}</Text>
       </View>
       {balances.length > 0 ? (

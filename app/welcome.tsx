@@ -4,8 +4,9 @@
  * C'est aussi l'OUVERTURE de l'app au premier lancement : aucun splash ne le
  * précède (app/_layout.tsx), donc la séquence complète se joue ici, d'un seul
  * tenant, en ~2,2 s. D'abord la cérémonie, seule à l'écran et en grand : le
- * noyau s'allume, les seize rayons en jaillissent un par un au ressort, le halo
- * naît du même point. Puis, SEULEMENT ensuite, le logo se pose pendant que le
+ * noyau s'allume, les seize rayons en jaillissent un par un au ressort, dans le
+ * CIEL de l'accueil (le paysage à l'heure de l'utilisateur) : dès le premier
+ * écran, on est dans le monde de Kalyx. Puis, SEULEMENT ensuite, le logo se pose pendant que le
  * nom puis la baseline montent, les trois repères arrivent en décalé, enfin les actions. ~900 ms au total, et
  * surtout NON BLOQUANT : chaque élément est touchable dès qu'il est visible.
  *
@@ -15,22 +16,23 @@
  * coché fait trembler la case : on montre ce qui manque au lieu d'offrir un
  * écran mort au tout premier contact.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLoopActive } from '../ui/useLoopActive';
-import Animated, { Easing, cancelAnimation, withSequence, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming, useReducedMotion } from 'react-native-reanimated';
-import { Text, Button, Halo, Pressable, Checkbox, Pressable as KPressable } from '../ui/kit';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming, useReducedMotion } from 'react-native-reanimated';
+import { StatusBar } from 'expo-status-bar';
+import { Text, Button, Pressable, Checkbox, Pressable as KPressable } from '../ui/kit';
+import { Landscape } from '../ui/Landscape';
 import { KalyxLogoIgnite } from '../ui/KalyxLogo';
-import { Icon, type IconName } from '../ui/icon';
-import { useTheme } from '../ui/theme';
-import { space, SCREEN_MARGIN, radius, BRAND_GOLD, fontSize, radii } from '../ui/tokens';
+import { type IconName } from '../ui/icon';
+import { useTheme, OnSky } from '../ui/theme';
+import { space, SCREEN_MARGIN, fontSize, radii, skyPhaseAt } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
 import { isDriveConfigured } from '../lib/googleDrive';
-import { Orbit, Stardust } from '../ui/nova';
+import { IconDisc } from '../ui/nova';
 
 /** Rythme de l'entrée, en millisecondes depuis l'ouverture de l'écran. */
 /*
@@ -50,41 +52,8 @@ const CEREMONY_SCALE = 1.45;
 /** Décalage entre deux arguments (seule cascade autorisée, cf. doctrine §2). */
 const STAGGER = 95;
 
-/**
- * Éclat qui dérive lentement autour du logo. Trois suffisent : Rainbow fait
- * flotter ses pièces, Phantom tout un petit univers — nous, la lumière que
- * dégage le soleil, et rien de plus. Périodes volontairement premières entre
- * elles pour que les trois ne se resynchronisent jamais.
- */
-function Mote({ x, y, size, period, reduced, delay }: { x: number; y: number; size: number; period: number; reduced: boolean; delay: number }) {
-  const v = useSharedValue(0);
-  const inV = useSharedValue(reduced ? 1 : 0);
-  const active = useLoopActive();
-  useEffect(() => {
-    inV.value = withDelay(delay, withTiming(1, { duration: 600 }));
-  }, [inV, delay]);
-  useEffect(() => {
-    if (reduced) return;
-    if (!active) { cancelAnimation(v); return; }
-    const loop = withRepeat(withTiming(1, { duration: period, easing: Easing.inOut(Easing.sin) }), -1, true);
-    v.value = v.value === 0 ? loop : withSequence(withTiming(0, { duration: 400 }), loop);
-    return () => cancelAnimation(v);
-  }, [v, period, reduced, active]);
-  const style = useAnimatedStyle(() => ({
-    opacity: inV.value * (0.22 + v.value * 0.28),
-    transform: [{ translateX: x + v.value * 10 }, { translateY: y - v.value * 16 }, { scale: 0.85 + v.value * 0.3 }],
-  }));
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[{ position: 'absolute', width: size, height: size, borderRadius: size / 2, backgroundColor: BRAND_GOLD.light }, style]}
-    />
-  );
-}
-
 /** Un argument, avec son propre décalage d'entrée. */
 function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title: string; sub: string; delay: number; reduced: boolean }) {
-  const { colors } = useTheme();
   const v = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     if (reduced) { v.value = 1; return; }
@@ -93,9 +62,7 @@ function Argument({ icon, title, sub, delay, reduced }: { icon: IconName; title:
   const style = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ translateY: (1 - v.value) * 14 }] }));
   return (
     <Animated.View style={[{ flexDirection: 'row', alignItems: 'center', gap: space[3] }, style]}>
-      <View style={{ width: 38, height: 38, borderRadius: radius.round, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={19} />
-      </View>
+      <IconDisc name={icon} size={38} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="body">{title}</Text>
         <Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{sub}</Text>
@@ -108,6 +75,17 @@ export default function Welcome() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
+  /** Bas du ciel (mesuré) : la feuille des actions monte dessus. */
+  const [heroH, setHeroH] = useState(0);
+  const phase = skyPhaseAt(new Date().getHours());
+  /*
+   * Barre d'état claire sur le ciel, SEULEMENT tant que l'écran est affiché :
+   * resté monté sous l'écran suivant, son <StatusBar> (le dernier monté gagne)
+   * aurait laissé des icônes blanches sur le Crème.
+   */
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
+
   const t = useT();
   const reduced = useReducedMotion();
   const newDraft = useWallet((s) => s.newDraft);
@@ -146,8 +124,6 @@ export default function Welcome() {
   /** Tap n'importe où : on saute la mise en scène (elle ne bloquait déjà rien). */
   const skip = () => { logo.value = 1; settle.value = 1; name.value = 1; tagline.value = 1; actions.value = 1; };
 
-  // Le halo s'ouvre d'un point ; le logo apparaît dedans, légèrement en retard.
-  const haloStyle = useAnimatedStyle(() => ({ transform: [{ scale: 0.04 + logo.value * 0.96 }], opacity: Math.min(1, logo.value * 1.5) }));
   // La cérémonie : halo ET logo tenus ensemble, en grand, puis posés d'un bloc.
   const ceremonyStyle = useAnimatedStyle(() => ({ transform: [{ scale: CEREMONY_SCALE - settle.value * (CEREMONY_SCALE - 1) }] }));
   // « Punch » emprunté à Rainbow : le bloc dépasse légèrement sa taille finale
@@ -175,8 +151,9 @@ export default function Welcome() {
   return (
     <KPressable onPress={skip} noScale haptic="none" accessible={false} style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      {/* Nova : une poussière de lumière qui monte lentement derrière tout l'écran. */}
-      <Stardust width={winW} height={winH} count={22} />
+      {/* Le ciel de l'accueil, à l'heure de l'utilisateur ; barre d'état claire dessus. */}
+      <Landscape width={winW} height={(heroH || winH * 0.55) + 32} phase={phase} />
+      {focused ? <StatusBar style="light" /> : null}
       {/*
         ScrollView + flexGrow:1 : centré quand tout tient, défilant sinon (petit
         écran, texte légal long, langue verbeuse). Une View flex:1 laissait la
@@ -190,7 +167,7 @@ export default function Welcome() {
         le bas (consentement et actions) est toujours entièrement visible. Sur
         un petit écran, les arguments cèdent leur place plutôt que les actions.
       */}
-      <View style={{ flex: 1, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[4], paddingHorizontal: SCREEN_MARGIN }}>
+      <View style={{ flex: 1, paddingTop: insets.top + space[3], paddingHorizontal: SCREEN_MARGIN }}>
         {/*
           Au tout premier lancement, AUCUN splash ne précède cet écran (cf.
           app/_layout.tsx) : la bienvenue EST l'ouverture de l'app. La cérémonie
@@ -198,20 +175,9 @@ export default function Welcome() {
           jaillissent un par un au ressort, le halo naît du même point au même
           instant, et le tout redescend à sa taille normale quand le nom monte.
         */}
-        <View style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center' }}>
+        <OnSky>
+        <View onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + e.nativeEvent.layout.height); setHeroH((c) => (c === h ? c : h)); }} style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', paddingBottom: space[6] }}>
           <Animated.View style={ceremonyStyle} pointerEvents="none">
-            {/* CENTRÉ sur le logo (84 px) : posé en (0, 0), le halo débordait en bas à droite et noyait le slogan. */}
-            <Animated.View style={[{ position: 'absolute', left: 42 - 170, top: 42 - 170 }, haloStyle]}>
-              <Halo size={340} mood="up" />
-            </Animated.View>
-            {/* L'orbite naît avec le halo ; le point d'or la parcourt ensuite sans fin. */}
-            <Animated.View style={[{ position: 'absolute', left: 42, top: 42 }, haloStyle]}>
-              <Orbit cx={0} cy={0} r={96} />
-            </Animated.View>
-            {/* Trois éclats qui dérivent : l'écran continue de vivre après l'entrée. */}
-            <Mote x={-74} y={-52} size={5} period={7100} reduced={reduced} delay={BEAT.name} />
-            <Mote x={66} y={-18} size={3.5} period={9300} reduced={reduced} delay={BEAT.tagline} />
-            <Mote x={-46} y={58} size={4} period={11500} reduced={reduced} delay={BEAT.props} />
             <KalyxLogoIgnite size={84} reduced={reduced} delay={IGNITE.delay} stagger={IGNITE.stagger} alive />
           </Animated.View>
           <Animated.View style={[{ alignItems: 'center', width: '100%', marginTop: space[4] }, nameStyle]}>
@@ -227,6 +193,10 @@ export default function Welcome() {
             </Text>
           </Animated.View>
         </View>
+        </OnSky>
+
+        {/* LA FEUILLE : arguments, consentement et actions, sur le fond du thème, coins arrondis sur le ciel. */}
+        <View style={{ marginHorizontal: -SCREEN_MARGIN, paddingHorizontal: SCREEN_MARGIN, paddingTop: space[5], paddingBottom: insets.bottom + space[4], backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }}>
 
         {/*
           TROIS repères, pas un.
@@ -273,6 +243,7 @@ export default function Welcome() {
             </Pressable>
           ) : null}
         </Animated.View>
+        </View>
       </View>
     </KPressable>
   );

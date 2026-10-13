@@ -1,16 +1,18 @@
-import { radius, fontSize } from '../ui/tokens';
+import { radius, radii, fontSize, skyPhaseAt } from '../ui/tokens';
 import { isWalletError } from '../src';
 import { friendlyTxError } from '../lib/txError';
-import { Pressable as KPressable, Halo, Sheet, HoldButton, Button } from '../ui/kit';
+import { Pressable as KPressable, Sheet, HoldButton, Button } from '../ui/kit';
+import { Landscape } from '../ui/Landscape';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, useWindowDimensions } from 'react-native';
-import { Orbit, Rise, Stardust } from '../ui/nova';
-import { router, Stack } from 'expo-router';
+import { Rise } from '../ui/nova';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useResetToHome } from '../lib/nav';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
 import { Icon } from '../ui/icon';
-import { fonts, spacing, useTheme } from '../ui/theme';
+import { fonts, spacing, useTheme, skyColors as sky } from '../ui/theme';
 import { useDriveFlow } from '../lib/googleDrive';
 import { useWallet, pinLockRemainingMs } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
@@ -24,7 +26,7 @@ export default function Unlock() {
   const resetToHome = useResetToHome();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winW } = useWindowDimensions();
   const t = useT();
   const unlockWithPin = useWallet((s) => s.unlockWithPin);
   const unlockWithBiometrics = useWallet((s) => s.unlockWithBiometrics);
@@ -40,6 +42,11 @@ export default function Unlock() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Haut de la feuille du clavier (mesuré) : le ciel s'arrête dessous. */
+  const [sheetY, setSheetY] = useState(0);
+  /* Barre d'état claire sur le ciel tant que l'écran est affiché (pas sous l'écran suivant). */
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
   const [bioAvailable, setBioAvailable] = useState(false);
   const [errSignal, setErrSignal] = useState(0);
   /*
@@ -227,22 +234,17 @@ export default function Unlock() {
           et le §2.2 ne tolère aucun dégradé décoratif. */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
       {/*
-        L'AURA vit ici (docs/08 §3.4). C'était le trou laissé par l'étape 1 :
-        walletStore émet bien l'impulsion d'Ouverture au déverrouillage réussi,
-        mais aucun halo n'était monté sur cet écran, donc le moteur l'abandonnait
-        — correctement, mais l'utilisateur ne voyait rien. Le halo est derrière
-        l'anneau : au succès, il s'ouvre depuis le centre, juste avant le fondu
-        vers l'accueil. Pour la biométrie, la fenêtre appartient au système et ne
-        peut pas être animée : la continuité se joue au timing (§3.5).
+        Le CIEL de l'accueil, à l'heure de l'utilisateur : le déverrouillage est
+        la porte, on voit déjà le paysage qu'on va retrouver. Barre d'état claire
+        dessus ; le clavier du code est sur la feuille, en dessous.
       */}
-      <Stardust width={winW} height={winH} count={14} />
-      <Orbit cx={winW / 2} cy={insets.top + 120 + 160} r={132} />
-      <Halo size={320} mood="flat" aura style={{ position: 'absolute', alignSelf: 'center', top: insets.top + 120 }} />
-      <View style={{ flex: 1, paddingTop: insets.top + spacing(3), paddingBottom: insets.bottom + spacing(2), paddingHorizontal: spacing(3), alignItems: 'center' }}>
-        {/* En-tête compact : titre, sous-titre, biométrie */}
-        <Rise style={{ alignItems: 'center', gap: spacing(1.25) }}>
-          <Text style={{ color: colors.text, fontSize: fontSize.xxl, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
-          <Text style={{ color: error && !locked ? colors.danger : colors.textSecondary, fontSize: fontSize.md, textAlign: 'center' }}>{subtitle}</Text>
+      <Landscape width={winW} height={(sheetY || insets.top + 210) + 32} phase={skyPhaseAt(new Date().getHours())} />
+      {focused ? <StatusBar style="light" /> : null}
+      <View style={{ flex: 1, paddingTop: insets.top + spacing(3), alignItems: 'center' }}>
+        {/* En-tête compact, posé sur le ciel : titre, sous-titre, biométrie */}
+        <Rise style={{ alignItems: 'center', gap: spacing(1.25), paddingHorizontal: spacing(3), minHeight: 150 }}>
+          <Text style={{ color: sky.text, fontSize: fontSize.xxl, fontFamily: fonts.bold, textAlign: 'center' }}>{title}</Text>
+          <Text style={{ color: error && !locked ? sky.down : sky.textSecondary, fontSize: fontSize.md, textAlign: 'center' }}>{subtitle}</Text>
           {/*
             Le retour d'appui était un changement d'OPACITÉ (0.6), ce que le
             §3.2 interdit explicitement : c'est le scale qui dit « touché ».
@@ -252,16 +254,21 @@ export default function Unlock() {
               onPress={() => tryBiometrics(true)}
               disabled={busy || locked}
               accessibilityLabel={t('biometrics')}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: spacing(0.5), paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.round, backgroundColor: sky.surface2, borderWidth: 1, borderColor: sky.border }}
             >
-              <Icon name="security" size={18} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
+              <Icon name="security" size={18} color={sky.text} />
+              <Text style={{ color: sky.text, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('biometrics')}</Text>
             </KPressable>
           ) : null}
         </Rise>
 
+        {/* LA FEUILLE : coins arrondis sur le ciel, le clavier du code en bas. */}
+        <View
+          onLayout={(e) => { const y = Math.round(e.nativeEvent.layout.y); setSheetY((c) => (c === y ? c : y)); }}
+          style={{ flex: 1, alignSelf: 'stretch', marginTop: spacing(2), paddingTop: spacing(2), paddingBottom: insets.bottom + spacing(2), backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }}
+        >
         {/* Espace flexible : pousse le clavier vers le bas sans l'étirer */}
-        <View style={{ flex: 1, minHeight: spacing(2) }} />
+        <View style={{ flex: 1, minHeight: spacing(1) }} />
 
         {/* Ronds + clavier + validation, groupés en bas */}
         <View style={{ alignItems: 'center', gap: spacing(2) }}>
@@ -288,6 +295,7 @@ export default function Unlock() {
           <KPressable onPress={() => { setWipeError(null); setRescue('wipe'); }} disabled={busy} hitSlop={8} haptic="light" accessibilityRole="button">
             <Text style={{ color: colors.textSecondary, fontSize: fontSize.sm, fontFamily: fonts.medium }}>{t('forgotCode')}</Text>
           </KPressable>
+        </View>
         </View>
       </View>
 

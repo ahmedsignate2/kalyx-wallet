@@ -1,4 +1,4 @@
-import { GOLD, NovaHero, Rise, SectionLabel } from '../ui/nova';
+import { NovaHero, Rise, SectionLabel } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
@@ -36,7 +36,7 @@ export default function Faq() {
                     <KPressable onPress={() => setOpen(expanded ? null : id)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1.5) }}>
                       <Text style={[typography.bodyStrong, { flex: 1, fontSize: fontSize.base }]}>{qa.q}</Text>
                       <View style={{ width: 28, height: 28, borderRadius: radii.md, backgroundColor: expanded ? 'rgba(221,181,101,0.14)' : colors.surface2, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: expanded ? '90deg' : '0deg' }] }}>
-                        <Icon name="chevron" size={14} color={expanded ? GOLD : colors.textSecondary} />
+                        <Icon name="chevron" size={14} color={expanded ? colors.warm : colors.textSecondary} />
                       </View>
                     </KPressable>
                     {expanded ? <Rise><Text style={[typography.muted, { fontSize: fontSize.md, lineHeight: 21, paddingBottom: spacing(1.5) }]}>{qa.a}</Text></Rise> : null}

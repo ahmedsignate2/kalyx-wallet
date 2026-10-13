@@ -22,12 +22,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme, useAppTheme, radii } from './theme';
 import { Icon, type IconName } from './icon';
 import { Text, Pressable as KPressable } from './kit';
 import { Rise, useEntranceDone } from './kit/entrance';
-import { BRAND_GOLD, springs, fontFamily, type ActionTint } from './tokens';
+import { BRAND_GOLD, springs, fontFamily, skies, skyPhaseAt, type ActionTint } from './tokens';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { withAlpha } from '../lib/tokenColors';
 
@@ -60,13 +60,14 @@ export function Orbit({ cx, cy, r = 150, style }: { cx: number; cy: number; r?: 
   }, [reduce, active, rot]);
   const size = (r + 70) * 2;
   const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }] }));
-  const ink = mode === 'dark' ? '242,244,250' : '6,7,13';
+  const { colors } = useTheme();
+  const ink = mode === 'dark' ? '255,244,230' : '70,48,24';
   return (
     <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: cx - size / 2, top: cy - size / 2, width: size, height: size }, spin, style]}>
       <Svg width={size} height={size}>
         <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`rgba(${ink},0.06)`} strokeWidth={1} />
         <Circle cx={size / 2} cy={size / 2} r={r + 60} fill="none" stroke={`rgba(${ink},0.045)`} strokeWidth={1} strokeDasharray="2 10" />
-        <Circle cx={size / 2 + r} cy={size / 2} r={2.5} fill={GOLD} />
+        <Circle cx={size / 2 + r} cy={size / 2} r={2.5} fill={colors.warm} />
       </Svg>
     </Animated.View>
   );
@@ -96,7 +97,7 @@ export function Stardust({ width, height, count = 18 }: { width: number; height:
   // Jusqu'à 22 boucles par écran : arrêtées dès que l'écran est recouvert ou l'app en arrière-plan.
   const active = useLoopActive();
   const motes = useMemo(() => {
-    const palette = ['#FFFFFF', '#CFE3FF', '#FFD9B8', GOLD];
+    const palette = ['#FFFFFF', '#FFE6D2', '#FFD9B8', '#F2A274'];
     return Array.from({ length: count }, (_, i) => ({
       x: ((i * 73) % 97) / 97 * width,
       size: 1.5 + (i % 3),
@@ -140,13 +141,18 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
   const rise = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - p.value) * 14 }, { scale: 0.9 + 0.1 * p.value }] }));
   const done = useEntranceDone(120 + index * 60 + 1200, reduce, p);
   // Disques secondaires sur la surface la plus claire : actifs, pas éteints.
-  const bg = tone === 'primary' ? colors.primary : colors.surface3;
-  const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
+  // Disque teinté du sujet (comme les tuiles de l'accueil) ; `primary` reste l'encre, `gold` le sable.
+  const { tints } = useTheme();
+  const tone_ = tone === 'gold' ? tints.earn : tints[tintForIcon(icon)];
+  const bg = tone === 'primary' ? colors.primary : mode === 'dark' ? colors.surface2 : tone_.bg;
+  const ink = tone === 'primary' ? colors.onPrimary : tone_.ink;
   return (
     <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
       <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={{ alignItems: 'center', gap: 8 }}>
-        <View style={{ width: 58, height: 58, borderRadius: radii.full, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? (mode === 'dark' ? 'rgba(221,181,101,0.45)' : BRAND_GOLD.deep) : colors.border, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={icon} size={23} color={ink} />
+        <View style={{ width: 58, height: 58, borderRadius: radii.full, backgroundColor: bg, borderWidth: tone === 'primary' ? 0 : 1, borderColor: colors.border, overflow: 'hidden' }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: tone !== 'primary' && mode === 'dark' ? tone_.bg : 'transparent' }}>
+            <Icon name={icon} size={23} color={ink} />
+          </View>
         </View>
         <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
       </KPressable>
@@ -215,27 +221,50 @@ export function Pills<K extends string>({ items, value, onChange, accent }: { it
   );
 }
 
-function TabLabel({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
-  const { colors } = useTheme();
-  const reduce = useReduceMotion();
-  const p = useSharedValue(on ? 1 : 0);
-  useEffect(() => {
-    p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.snappy);
-  }, [on, reduce, p]);
-  const dot = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ scale: p.value }] }));
-  return (
-    <KPressable onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ alignItems: 'center', gap: 6, paddingVertical: 4 }}>
-      <Text variant="title2" style={{ color: on ? colors.text : colors.textTertiary }}>{label}</Text>
-      <Animated.View style={[{ width: 4, height: 4, borderRadius: radii.full, backgroundColor: GOLD }, dot]} />
-    </KPressable>
-  );
-}
-
-/** Onglets en texte, alignés à gauche, un point d'or sous l'actif. */
+/**
+ * Onglets en PILULES, comme la maquette : un rail discret, l'onglet actif posé
+ * dessus en relief (surface claire et ombre douce en Crème, surface plus haute
+ * en Nuit). La pilule active GLISSE d'un onglet à l'autre au ressort.
+ */
 export function TextTabs<K extends string>({ items, value, onChange }: { items: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
+  const { colors, mode, elevation } = useTheme();
+  const reduce = useReduceMotion();
+  /*
+   * Chaque onglet est MESURÉ : la pilule prend sa position et sa largeur. Les
+   * onglets se partagent la largeur quand il y a la place (accueil), et gardent
+   * leur largeur naturelle dans un rail qui défile (Explorer, cinq onglets).
+   */
+  const [lay, setLay] = React.useState<Record<string, { x: number; w: number }>>({});
+  const cur = lay[value];
+  const x = useSharedValue(0);
+  const w = useSharedValue(0);
+  useEffect(() => {
+    if (!cur) return;
+    const first = w.value === 0;
+    x.value = reduce || first ? cur.x : withSpring(cur.x, springs.snappy);
+    w.value = reduce || first ? cur.w : withSpring(cur.w, springs.snappy);
+  }, [cur, reduce, x, w]);
+  const pill = useAnimatedStyle(() => ({ width: w.value, transform: [{ translateX: x.value }] }));
   return (
-    <View style={{ flexDirection: 'row', gap: 22 }} accessibilityRole="tablist">
-      {items.map((it) => <TabLabel key={it.key} label={it.label} on={it.key === value} onPress={() => onChange(it.key)} />)}
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'stretch', padding: 4, borderRadius: radii.full, backgroundColor: colors.surface2 }}>
+      {cur ? (
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 4, left: 0, bottom: 4, borderRadius: radii.full, backgroundColor: mode === 'dark' ? colors.surface3 : colors.surface1 }, mode === 'dark' ? null : elevation, pill]} />
+      ) : null}
+      {items.map((it) => {
+        const on = it.key === value;
+        return (
+          <KPressable
+            key={it.key}
+            onPress={() => onChange(it.key)}
+            onLayout={(e) => { const { x: lx, width } = e.nativeEvent.layout; setLay((m) => (m[it.key]?.x === lx && m[it.key]?.w === width ? m : { ...m, [it.key]: { x: lx, w: width } })); }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            style={{ flexGrow: 1, height: 38, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text variant="caption" numberOfLines={1} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, color: on ? colors.text : colors.textSecondary }}>{it.label}</Text>
+          </KPressable>
+        );
+      })}
     </View>
   );
 }
@@ -244,7 +273,9 @@ export function TextTabs<K extends string>({ items, value, onChange }: { items: 
 /* Pulsation : un point qui émet un anneau (en direct, en attente)      */
 /* ------------------------------------------------------------------ */
 
-export function Pulse({ size = 10, color = GOLD }: { size?: number; color?: string }) {
+export function Pulse({ size = 10, color }: { size?: number; color?: string }) {
+  const warm = useTheme().colors.warm;
+  color = color ?? warm;
   const reduce = useReduceMotion();
   const active = useLoopActive();
   const p = useSharedValue(0);
@@ -274,7 +305,7 @@ function FlowDot({ on, done }: { on: boolean; done: boolean }) {
     p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.standard);
   }, [on, reduce, p]);
   const s = useAnimatedStyle(() => ({ width: 6 + p.value * 16 }));
-  return <Animated.View style={[{ height: 6, borderRadius: radii.full, backgroundColor: on || done ? GOLD : colors.surface3 }, s]} />;
+  return <Animated.View style={[{ height: 6, borderRadius: radii.full, backgroundColor: on || done ? colors.warm : colors.surface3 }, s]} />;
 }
 
 /** Trois points, l'étape en cours s'allonge en or. */
@@ -290,19 +321,39 @@ export function FlowDots({ step, total = 3 }: { step: number; total?: number }) 
 /* Titre de section et icône en disque (listes de réglages)            */
 /* ------------------------------------------------------------------ */
 
-/** Petit titre de section en capitales espacées, au-dessus d'une carte. */
+/** Titre de section au-dessus d'une carte : en casse de phrase, affirmé (plus de capitales espacées). */
 export function SectionLabel({ children }: { children: string }) {
   return (
-    <Text variant="micro" tone="tertiary" style={{ letterSpacing: 1.2, textTransform: 'uppercase', marginLeft: 4, marginBottom: -4 }}>{children}</Text>
+    <Text variant="bodyStrong" style={{ marginLeft: 4, marginBottom: -2 }}>{children}</Text>
   );
 }
 
-/** Icône de ligne posée dans un disque Orbite — la même forme que les disques d'action. */
-export function IconDisc({ name, tone = 'default', size = 36 }: { name: IconName; tone?: 'default' | 'gold' | 'danger'; size?: number }) {
-  const { colors, mode } = useTheme();
-  const ink = tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : tone === 'danger' ? colors.danger : colors.text;
+/**
+ * Teinte d'une icône d'écran : chaque famille de sujets a la sienne, tirée des
+ * teintes des gestes (`tints`) — la sécurité en bleu, l'argent qui rentre en
+ * menthe, les comptes en lavande… Ce qui n'est pas listé prend le sable.
+ */
+const TINT_BY_ICON: Partial<Record<IconName, ActionTint>> = {
+  send: 'send', share: 'send', gift: 'send', invite: 'send',
+  receive: 'receive', import: 'receive', check: 'receive', eye: 'receive', walletconnect: 'receive', dapps: 'receive',
+  exchange: 'swap', convert: 'swap', accounts: 'swap', wallets: 'swap', wallet: 'swap', contacts: 'swap', profile: 'swap', sparkles: 'swap', create: 'swap', extensions: 'swap', networks: 'swap',
+  security: 'buy', lock: 'buy', pin: 'buy', phrase: 'buy', incognito: 'buy', developer: 'buy', language: 'buy', about: 'buy', faq: 'buy', support: 'buy', notifications: 'buy', bell: 'buy',
+  staking: 'earn', star: 'earn', starFilled: 'earn', history: 'earn', clock: 'earn', currency: 'earn', appearance: 'earn',
+} as Partial<Record<IconName, ActionTint>>;
+export const tintForIcon = (icon?: IconName): ActionTint => (icon && TINT_BY_ICON[icon]) || 'earn';
+
+/**
+ * Icône de ligne posée dans un disque teinté — la teinte vient du sujet
+ * (`tintForIcon`), comme les tuiles de l'accueil. `gold` = ce qui rapporte,
+ * `danger` = destructeur ; `neutral` garde la surface (listes très denses).
+ */
+export function IconDisc({ name, tone = 'default', size = 36, tint }: { name: IconName; tone?: 'default' | 'gold' | 'danger' | 'neutral'; size?: number; tint?: ActionTint }) {
+  const { colors, tints, mode } = useTheme();
+  const t = tone === 'gold' ? tints.earn : tone === 'neutral' ? null : tints[tint ?? tintForIcon(name)];
+  const bg = tone === 'danger' ? (mode === 'dark' ? 'rgba(255,77,94,0.14)' : '#F9DCDC') : t ? t.bg : colors.surface2;
+  const ink = tone === 'danger' ? colors.danger : t ? t.ink : colors.text;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Icon name={name} size={Math.round(size * 0.5)} color={ink} />
     </View>
   );
@@ -313,17 +364,29 @@ export function IconDisc({ name, tone = 'default', size = 36 }: { name: IconName
 /* ------------------------------------------------------------------ */
 
 /**
- * La petite orbite en haut à droite, sans halo : la signature de l'accueil,
- * rappelée discrètement sur chaque écran secondaire. `top` = haut du contenu.
+ * LE CIEL EN ÉCHO : en haut des écrans secondaires, une lueur venue du ciel de
+ * l'accueil (même heure, même couleur d'horizon) qui se fond dans le fond.
+ * Discrète — c'est un rappel, pas un décor. `top` = haut du contenu.
  */
 export function ScreenOrbit({ top }: { top: number }) {
+  const { mode } = useTheme();
+  const phase = skyPhaseAt(new Date().getHours());
+  const horizon = skies[phase].sky[2];
+  const h = top + 180;
   return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 220, height: top + 140, overflow: 'hidden' }}>
-      <Orbit cx={190} cy={top + 22} r={64} />
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: h }}>
+      <Svg width="100%" height={h}>
+        <Defs>
+          <SvgLinearGradient id="echo" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={horizon} stopOpacity={mode === 'dark' ? 0.16 : 0.26} />
+            <Stop offset="1" stopColor={horizon} stopOpacity={0} />
+          </SvgLinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width="100%" height={h} fill="url(#echo)" />
+      </Svg>
     </View>
   );
 }
-
 
 /* ------------------------------------------------------------------ */
 /* Trois points qui respirent : quelqu'un écrit                        */
@@ -358,18 +421,28 @@ export function TypingDots() {
 /* ------------------------------------------------------------------ */
 
 /**
- * En-tête d'écran Nova : un grand disque dans son orbite, le titre, une phrase.
- * Remplace le « Titre + texte gris » des écrans secondaires — c'est ce qui les
- * fait appartenir au même monde que l'accueil.
+ * En-tête d'écran : une TUILE teintée (la teinte du sujet, comme les tuiles de
+ * l'accueil), le titre, une phrase. Plus d'orbite ni de disque gris : la même
+ * matière que l'accueil, sur chaque écran secondaire. `children` remplace la
+ * tuile (anneau de score, avatar, logo).
  */
-export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Disque réduit, pour un écran fixe qui manque de hauteur. */ compact?: boolean }) {
-  const box = compact ? 60 : 92;
+export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Tuile réduite, pour un écran fixe qui manque de hauteur. */ compact?: boolean }) {
+  const { tints, elevation, mode, colors } = useTheme();
+  const box = compact ? 60 : 84;
+  const t = tone === 'gold' ? tints.earn : tints[tintForIcon(icon)];
+  const bg = tone === 'danger' ? (mode === 'dark' ? 'rgba(255,77,94,0.14)' : '#F9DCDC') : t.bg;
+  const ink = tone === 'danger' ? colors.danger : t.ink;
   return (
     <View style={{ alignItems: 'center', gap: compact ? 6 : 10, paddingTop: compact ? 0 : 4, paddingBottom: compact ? 4 : 8 }}>
-      <View style={{ width: box, height: box, alignItems: 'center', justifyContent: 'center', marginBottom: compact ? 0 : 4 }}>
-        <View pointerEvents="none" style={{ position: 'absolute', left: box / 2, top: box / 2 }}><Orbit cx={0} cy={0} r={compact ? 40 : 62} /></View>
-        {children ?? (icon ? <IconDisc name={icon} tone={tone} size={compact ? 52 : 80} /> : null)}
-      </View>
+      {children ? (
+        <View style={{ minHeight: box, alignItems: 'center', justifyContent: 'center', marginBottom: compact ? 0 : 4 }}>{children}</View>
+      ) : icon ? (
+        <Rise style={[{ width: box, height: box, borderRadius: compact ? 20 : 26, marginBottom: compact ? 0 : 4, backgroundColor: mode === 'dark' ? colors.surface1 : bg, borderWidth: 1, borderColor: mode === 'dark' ? colors.border : 'rgba(255,255,255,0.8)', borderTopColor: mode === 'dark' ? colors.rim : 'rgba(255,255,255,0.95)' }, elevation]}>
+          <View style={{ flex: 1, borderRadius: compact ? 20 : 26, backgroundColor: mode === 'dark' ? bg : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={icon} size={compact ? 26 : 36} color={ink} />
+          </View>
+        </Rise>
+      ) : null}
       <Rise delay={60}><Text variant="title1" style={{ textAlign: 'center' }}>{title}</Text></Rise>
       {subtitle ? <Rise delay={120}><Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center', maxWidth: 330, lineHeight: 21 }}>{subtitle}</Text></Rise> : null}
     </View>
@@ -395,7 +468,7 @@ export function SettingRow({ icon, title, hint, right, onPress, divider, tone }:
   return onPress ? <KPressable onPress={onPress} noScale accessibilityRole="button" accessibilityLabel={title}>{body}</KPressable> : body;
 }
 
-/** Option à choisir parmi d'autres : pilule, point d'or sur la choisie. */
+/** Option à choisir parmi d'autres : pilule ; la choisie passe à l'encre (comme les filtres de la maquette). */
 export function OptionPill({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return (
@@ -404,10 +477,9 @@ export function OptionPill({ label, selected, onPress }: { label: string; select
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       accessibilityLabel={label}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, height: 38, paddingHorizontal: 14, borderRadius: radii.full, borderWidth: 1, borderColor: selected ? 'rgba(221,181,101,0.55)' : colors.border, backgroundColor: selected ? colors.surface2 : 'transparent' }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, height: 38, paddingHorizontal: 14, borderRadius: radii.full, borderWidth: 1, borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary : colors.surface1 }}
     >
-      {selected ? <View style={{ width: 6, height: 6, borderRadius: radii.full, backgroundColor: GOLD }} /> : null}
-      <Text variant="caption" style={{ fontFamily: fontFamily.semibold, color: selected ? colors.text : colors.textSecondary }}>{label}</Text>
+      <Text variant="caption" style={{ fontFamily: fontFamily.semibold, color: selected ? colors.onPrimary : colors.textSecondary }}>{label}</Text>
     </KPressable>
   );
 }

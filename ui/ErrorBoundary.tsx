@@ -62,13 +62,13 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
   // s'afficher même si le système de thème/le store est la cause du crash.
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#07090F' }}
+      style={{ flex: 1, backgroundColor: '#0B0B10' }}
       contentContainerStyle={{ padding: 24, paddingTop: 72 }}
     >
-      <Text style={{ color: '#FF5C5C', fontSize: fontSize.xxl, fontFamily: fonts.extrabold, marginBottom: 12 }}>
+      <Text style={{ color: '#FF6B5E', fontSize: fontSize.xxl, fontFamily: fonts.extrabold, marginBottom: 12 }}>
         {crashTitle()}
       </Text>
-      <Text style={{ color: '#F5F7FA', fontSize: fontSize.base, marginBottom: 16 }}>
+      <Text style={{ color: '#F5F1EA', fontSize: fontSize.base, marginBottom: 16 }}>
         {error?.message || String(error)}
       </Text>
       {onRetry ? (
@@ -76,18 +76,18 @@ export function ErrorScreen({ error, onRetry }: { error: Error; onRetry?: () => 
           onPress={onRetry}
           style={{
             alignSelf: 'flex-start',
-            backgroundColor: '#7C5CFF',
+            backgroundColor: '#F6EEE2',
             borderRadius: radii.full,
             paddingVertical: 10,
             paddingHorizontal: 20,
             marginBottom: 20,
           }}
         >
-          <Text style={{ color: '#fff', fontFamily: fonts.bold }}>{t("retry")}</Text>
+          <Text style={{ color: '#0B0B10', fontFamily: fonts.bold }}>{t("retry")}</Text>
         </KPressable>
       ) : null}
       {__DEV__ && error?.stack ? (
-        <Text selectable style={{ color: '#8A93A6', fontSize: fontSize.xs, fontFamily: monoFont }}>
+        <Text selectable style={{ color: '#A29D95', fontSize: fontSize.xs, fontFamily: monoFont }}>
           {error.stack}
         </Text>
       ) : null}

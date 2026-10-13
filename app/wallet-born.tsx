@@ -12,7 +12,7 @@
  * retrouvé, afin que l'utilisateur reconnaisse immédiatement ce qu'il récupère.
  */
 import React, { useEffect, useState } from 'react';
-import { View, Pressable as RNPressable, useWindowDimensions } from 'react-native';
+import { View, Pressable as RNPressable } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
@@ -24,7 +24,7 @@ import { useT } from '../lib/settingsStore';
 import { aura } from '../lib/aura';
 import { useResetToHome } from '../lib/nav';
 import { haptic } from '../lib/haptics';
-import { Orbit, SparkBurst, Stardust } from '../ui/nova';
+import { ScreenOrbit, SparkBurst } from '../ui/nova';
 
 /** Rythme, en ms : le glyphe d'abord, le sens ensuite. */
 const BEAT = { glyph: 120, title: 760, body: 960, action: 1200 } as const;
@@ -47,7 +47,6 @@ export default function WalletBorn() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const account = useWallet((s) => s.account);
   const halo = useSharedValue(reduced ? 1 : 0);
-  const { width: winW, height: winH } = useWindowDimensions();
   /** L'éclat part quand le glyphe a fini de se dessiner : 0 = pas encore. */
   const [burst, setBurst] = useState(0);
   useEffect(() => {
@@ -76,14 +75,13 @@ export default function WalletBorn() {
     <RNPressable onPress={go} style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Portefeuille déjà créé : revenir au PIN par balayage n'a plus de sens. */}
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
-      <Stardust width={winW} height={winH} count={16} />
+      <ScreenOrbit top={insets.top + 56} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SCREEN_MARGIN, gap: space[5] }}>
         <View style={{ alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
           <Animated.View style={[{ position: 'absolute' }, haloStyle]} pointerEvents="none">
             <Halo size={300} mood="up" />
           </Animated.View>
           <Animated.View style={[{ position: 'absolute', left: '50%', top: '50%' }, haloStyle]} pointerEvents="none">
-            <Orbit cx={0} cy={0} r={110} />
           </Animated.View>
           {address ? <AddressGlyph address={address} size={104} background={false} draw /> : null}
           {burst ? <SparkBurst burstKey={burst} radius={100} /> : null}

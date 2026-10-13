@@ -139,7 +139,7 @@ export default function Networks() {
       >
         <Card padding="xl" gap="md"
           style={{
-            borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
+            borderColor: active ? colors.warm : colors.border,
             paddingVertical: spacing(1.75),
             flexDirection: 'row',
             alignItems: 'center',

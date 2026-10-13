@@ -1,6 +1,6 @@
 import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText, Button, Card } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { IconDisc, Orbit, Pills, Rise } from '../ui/nova';
+import { IconDisc, Pills, Rise } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { useMemo, useState } from 'react';
@@ -224,7 +224,6 @@ export default function ImportWallet() {
       {/* Héros : le disque « importer » dans son orbite, le titre, ce qui se passe. */}
       <View style={{ alignItems: 'center', gap: spacing(1.5), paddingBottom: spacing(1) }}>
         <View style={{ width: 84, height: 84, alignItems: 'center', justifyContent: 'center' }}>
-          <View pointerEvents="none" style={{ position: 'absolute', left: 42, top: 42 }}><Orbit cx={0} cy={0} r={60} /></View>
           <IconDisc name="import" size={76} />
         </View>
         <Rise delay={80}><Text style={[typography.title, { textAlign: 'center' }]}>{t('importWalletT')}</Text></Rise>

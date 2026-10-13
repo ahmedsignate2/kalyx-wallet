@@ -65,7 +65,7 @@ export function Aurora({ height, mood = 'flat', tint }: {
   const moodColor = mood === 'up' ? '#3CD98A' : mood === 'down' ? '#7FA8FF' : '#B9C8E6';
   const k = dark ? 1 : 0.55;
   const blobs: Blob[] = [
-    { id: 'gold', color: '#DDB565', size: width * 1.1, x: width * 0.12, y: height * 0.3, dx: width * 0.18, dy: height * 0.08, period: 17000, opacity: 0.3 * k },
+    { id: 'gold', color: '#F2A274', size: width * 1.1, x: width * 0.12, y: height * 0.3, dx: width * 0.18, dy: height * 0.08, period: 17000, opacity: 0.3 * k },
     tint
       ? // Teinte de marque : la nappe la plus large, derrière le nom et le prix.
         { id: 'tint', color: tint, size: width * 1.25, x: width * 0.22, y: height * 0.22, dx: width * 0.16, dy: height * 0.1, period: 19000, opacity: 0.42 * k }

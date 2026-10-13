@@ -36,6 +36,8 @@ export const dark = {
   textTertiary: '#6E6A63',
   primary: '#F6EEE2', // bouton principal : une lumière crème
   onPrimary: '#0B0B10',
+  /** Accent chaud (pêche) : sélection, lien, point actif. L'or reste au logo seul. */
+  warm: '#F2A274',
   up: '#3CD98A',
   down: '#FF6B5E',
   warning: '#FFB547',
@@ -61,6 +63,8 @@ export const light: Palette = {
   textTertiary: '#9A9083',
   primary: '#1E1C2A',
   onPrimary: '#FFF8EE',
+  /** Accent chaud (terracotta) : sélection, lien, point actif. */
+  warm: '#BC5A2A',
   up: '#16884F',
   down: '#D2443A',
   warning: '#A8680E',

@@ -30,7 +30,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { fill } from '../lib/i18n';
 import { createTicker, useTicker } from '../lib/ticker';
-import { Rise, GOLD } from '../ui/nova';
+import { Rise } from '../ui/nova';
 import {
   getAdapter,
   withTimeout,
@@ -735,7 +735,7 @@ function SwapInner() {
                     <Text variant="caption" tone="secondary" numberOfLines={1}>{t('availableLabel')} : {t('swapPendingShort')}</Text>
                   ) : (
                     <KPressable onPress={balanceError ? retryBalance : onMax} hitSlop={8} accessibilityLabel={balanceError ? t('retry') : t("chipMax")}>
-                      <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {balanceError ? '—' : balanceUnknown ? '…' : formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: GOLD }}>{balanceError ? t('retry') : t("chipMax")}</Text></Text>
+                      <Text variant="caption" tone="secondary" tabular numberOfLines={1}>{t('availableLabel')} : {balanceError ? '—' : balanceUnknown ? '…' : formatTokenAmount(getAvailable(), fromTok.decimals)} · <Text variant="caption" style={{ color: colors.warm }}>{balanceError ? t('retry') : t("chipMax")}</Text></Text>
                     </KPressable>
                   )
                 }

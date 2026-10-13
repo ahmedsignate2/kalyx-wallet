@@ -1,4 +1,4 @@
-import { GOLD, IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
+import { IconDisc, NovaHero, Pulse, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Button, Card, Screen } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
@@ -91,7 +91,7 @@ export default function Wallets() {
                   {active ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                       <Pulse size={7} />
-                      <Text style={{ color: GOLD, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
+                      <Text style={{ color: colors.warm, fontSize: fontSize.sm, fontFamily: fonts.semibold }}>{t('activeLabel')}</Text>
                     </View>
                   ) : null}
                 </View>

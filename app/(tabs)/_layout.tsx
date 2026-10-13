@@ -1,5 +1,6 @@
 /**
- * Les quatre onglets principaux dans un VRAI navigateur d'onglets.
+ * Les onglets principaux (Accueil, Explorer, Activité, Réglages, et Gagner
+ * hors barre) dans un VRAI navigateur d'onglets.
  *
  * Avant, passer d'un onglet à l'autre faisait un `router.replace` dans la pile :
  * l'écran quitté était détruit, l'arrivant remonté de zéro (listes, graphiques,
@@ -33,8 +34,10 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="browser" />
-      <Tabs.Screen name="earn" />
+      <Tabs.Screen name="activity" />
       <Tabs.Screen name="menu" />
+      {/* Gagner : onglet du navigateur (gardé monté, les tuiles de l'accueil y mènent), hors de la barre. */}
+      <Tabs.Screen name="earn" options={{ href: null }} />
     </Tabs>
   );
 }

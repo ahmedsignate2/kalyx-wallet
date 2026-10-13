@@ -15,7 +15,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text } from './kit';
 import { useTheme } from './theme';
-import { BRAND_GOLD, fontFamily, radii } from './tokens';
+import { fontFamily, radii } from './tokens';
 import { haptic } from '../lib/haptics';
 
 const SNAPS = [0, 25, 50, 75, 100];
@@ -30,7 +30,7 @@ const SLOP = 6;
  */
 export function SnapSlider({ value, onChange, accent, maxLabel, disabled }: { value: number | null; onChange: (pct: number) => void; accent?: string | null; maxLabel: string; /** Inactif (solde pas encore connu) : visible, atténué, sans effet. */ disabled?: boolean }) {
   const { colors } = useTheme();
-  const tint = accent ?? BRAND_GOLD.light;
+  const tint = accent ?? colors.warm;
   const [w, setW] = useState(0);
   const track = Math.max(1, w - THUMB);
   const x = useSharedValue(0);
