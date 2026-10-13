@@ -90,14 +90,16 @@ import { isExpoGoIos } from './expoGo';
  * sans client iOS) → `not_configured`.
  */
 /**
- * Client OAuth iOS par défaut (public, pas un secret) : son schéma inversé est
- * déclaré par app.config.ts dans tout build iOS. Même valeur des deux côtés.
+ * Clients OAuth par défaut (publics, pas des secrets) : leurs schémas inversés
+ * sont déclarés par app.config.ts dans tout build. Mêmes valeurs des deux côtés.
+ * Une variable EXPO_PUBLIC_GOOGLE_* fournie au build reste prioritaire.
  */
+const ANDROID_CLIENT_ID_DEFAULT = '800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com';
 const IOS_CLIENT_ID_DEFAULT = '800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com';
 
 export const GOOGLE_CLIENT_ID = selectGoogleClientId(Platform.OS, {
   ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || IOS_CLIENT_ID_DEFAULT,
-  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() || ANDROID_CLIENT_ID_DEFAULT,
 });
 
 /** Vrai si l'app a été configurée (et donc construite) avec un client Google pour cette plateforme. */
