@@ -2,14 +2,16 @@
  * Tuile de dApp uniforme (rond 58, logo 32) + label d'une ligne.
  *
  * LOGO SANS REQUÊTE TIERCE : l'ancien favicon passait par Google s2, qui
- * apprenait ainsi chaque hôte visité. Dorénavant : monogramme coloré intégré
- * pour les dApps du catalogue, monogramme neutre pour les autres.
+ * apprenait ainsi chaque hôte visité. Dorénavant : le VRAI logo, embarqué dans
+ * l'app (ui/browser/dappLogos), pour les dApps du catalogue ; monogramme coloré
+ * si le catalogue n'en a pas ; monogramme neutre pour les autres sites.
  */
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { Monogram, Pressable, Text } from '../kit';
 import { useTheme } from '../theme';
 import { space, radii } from '../tokens';
 import { catalogEntry } from '../../src/domain/web/dappCatalog';
+import { DAPP_LOGOS } from './dappLogos';
 
 /** Lettre affichée pour un hôte hors catalogue : 1re lettre du nom de domaine (« app.foo.xyz » → F). */
 export function monogramOf(host: string): string {
@@ -21,6 +23,8 @@ export function monogramOf(host: string): string {
 export function DappLogo({ host, size = 32 }: { host: string; size?: number }) {
   const { colors } = useTheme();
   const entry = catalogEntry(host);
+  const logo = entry ? DAPP_LOGOS[entry.host] : undefined;
+  if (logo) return <Image source={logo} style={{ width: size, height: size, borderRadius: size / 2 }} accessibilityIgnoresInvertColors />;
   const label = entry ? entry.icon.monogram : monogramOf(host);
   return <Monogram label={label} size={size} bg={entry ? entry.icon.color : colors.surface3} fg={entry ? '#FFFFFF' : colors.text} />;
 }
@@ -30,7 +34,7 @@ export function DappTile({ host, label, onPress, width = 88, badge }: { host: st
   return (
     <Pressable onPress={onPress} accessibilityLabel={badge ? `${label}, ${badge}` : label} style={{ width, alignItems: 'center', gap: space[1] }}>
       <View style={{ width: 58, height: 58, borderRadius: radii.full, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <DappLogo host={host} />
+        <DappLogo host={host} size={40} />
       </View>
       <Text variant="caption" numberOfLines={2} style={{ textAlign: 'center', maxWidth: '100%', minHeight: badge ? 0 : 32, paddingHorizontal: 2 }}>{label}</Text>
       {badge ? (

@@ -429,7 +429,8 @@ export default function Home() {
   });
   const compactBgStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: interpolate(p, [0.35, 0.9], [0, 0.97], Extrapolation.CLAMP) };
+    // OPAQUE avant que le montant compact n'apparaisse (0,45) : à 0,97 et sur une plage longue, les tuiles se lisaient au travers (iOS).
+    return { opacity: interpolate(p, [0.2, 0.5], [0, 1], Extrapolation.CLAMP) };
   });
   const compactStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
@@ -958,6 +959,7 @@ export default function Home() {
                       networkIcon={chainIconUrl(r.tx.chain)}
                       tokenLogo={logoOfTx(r.tx)}
                       tokenSeed={r.tx.contract}
+                      chainId={r.tx.chain}
                       pendingLabel={t('txPending')}
                       onPress={() => router.push({ pathname: '/tracking', params: { hash: r.tx.hash, chainId: r.tx.chain } })}
                     />

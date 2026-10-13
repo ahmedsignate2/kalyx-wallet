@@ -236,6 +236,7 @@ export default function History({ inTab = false }: { inTab?: boolean } = {}) {
         networkIcon={onlyChain ? undefined : chainIconUrl(r.tx.chain)}
         tokenLogo={logoOf(r.tx)}
         tokenSeed={r.tx.contract}
+        chainId={r.tx.chain}
         pendingLabel={t('txPending')}
         spamText={r.h.spamReason ? t(SPAM_TEXT[r.h.spamReason]) : undefined}
         onPress={() => open(r.tx)}
