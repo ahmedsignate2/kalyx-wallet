@@ -23,11 +23,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import { useTheme, radii } from './theme';
+import { useTheme, useAppTheme, radii } from './theme';
 import { Icon, type IconName } from './icon';
 import { Text, Pressable as KPressable } from './kit';
 import { Rise, useEntranceDone } from './kit/entrance';
-import { BRAND_GOLD, springs, fontFamily } from './tokens';
+import { BRAND_GOLD, springs, fontFamily, type ActionTint } from './tokens';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { withAlpha } from '../lib/tokenColors';
 
@@ -149,6 +149,41 @@ export function ActionDisc({ icon, label, onPress, tone = 'default', index = 0, 
           <Icon name={icon} size={23} color={ink} />
         </View>
         <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ fontFamily: fontFamily.semibold }}>{label}</Text>
+      </KPressable>
+    </Animated.View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Tuile d'action (accueil)                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Une tuile par geste de l'argent, à SA teinte (tokens `tints`) : pastel posé
+ * en Crème avec une ombre douce, lueur translucide en Nuit. L'icône et le mot
+ * sont DANS la tuile — une cible de 76 px de haut, on ne la rate pas du pouce.
+ */
+export function ActionTile({ icon, label, tint, onPress, index = 0, disabled }: { icon: IconName; label: string; tint: ActionTint; onPress: () => void; index?: number; disabled?: boolean }) {
+  const { tints, elevation, mode, colors } = useAppTheme();
+  const reduce = useReduceMotion();
+  const p = useSharedValue(reduce ? 1 : 0);
+  useEffect(() => {
+    if (reduce) return;
+    p.value = withDelay(80 + index * 50, withSpring(1, springs.standard));
+  }, [index, reduce, p]);
+  // Même règle que les disques : aucune opacité dans l'entrée, une entrée interrompue ne « grise » rien.
+  const rise = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - p.value) * 16 }, { scale: 0.92 + 0.08 * p.value }] }));
+  const done = useEntranceDone(80 + index * 50 + 1200, reduce, p);
+  const tone = tints[tint];
+  // En Nuit la teinte est translucide : posée sur la surface, pas sur le ciel qui transparaîtrait.
+  const bg = mode === 'dark' ? colors.surface1 : tone.bg;
+  return (
+    <Animated.View style={[{ flex: 1, opacity: disabled ? 0.4 : 1 }, done ? null : rise]}>
+      <KPressable onPress={onPress} disabled={disabled} haptic="light" overshoot accessibilityRole="button" accessibilityLabel={label} style={[{ height: 78, borderRadius: radii.lg, backgroundColor: bg, borderWidth: 1, borderColor: mode === 'dark' ? colors.border : 'rgba(255,255,255,0.7)', borderTopColor: mode === 'dark' ? colors.rim : 'rgba(255,255,255,0.95)' }, elevation]}>
+        <View style={{ flex: 1, borderRadius: radii.lg, backgroundColor: mode === 'dark' ? tone.bg : 'transparent', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Icon name={icon} size={22} color={tone.ink} />
+          <Text variant="small" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} maxFontSizeMultiplier={1.3} style={{ fontFamily: fontFamily.semibold, color: mode === 'dark' ? colors.text : '#2A241C' }}>{label}</Text>
+        </View>
       </KPressable>
     </Animated.View>
   );

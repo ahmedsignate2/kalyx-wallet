@@ -43,7 +43,7 @@ import { useT } from '../lib/settingsStore';
 import type { Key } from '../lib/i18n';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
-import { durations, springs, BRAND_GOLD, radii, fontFamily } from './tokens';
+import { durations, springs, BRAND_GOLD, radii, fontFamily, type ActionTint } from './tokens';
 import { useTheme } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, Text } from './kit';
@@ -76,11 +76,12 @@ const TABS: { key: MainTab; icon: IconName; label: (t: (k: Key) => string) => st
 const slotOf = (tabIdx: number) => (tabIdx < 2 ? tabIdx : tabIdx + 1);
 
 /** Les quatre gestes de l'argent, en éventail au-dessus de l'orbe. */
-const FAN: { icon: IconName; label: (t: (k: Key) => string) => string; go: () => void; tone?: 'primary' | 'gold' }[] = [
-  { icon: 'send', label: (t) => t('actionSend'), go: () => router.push('/send'), tone: 'primary' },
-  { icon: 'receive', label: (t) => t('actionReceive'), go: () => router.push('/receive') },
-  { icon: 'exchange', label: (t) => t('actionSwap'), go: () => router.push('/swap') },
-  { icon: 'scan', label: (t) => t('scan'), go: () => router.push('/scan'), tone: 'gold' },
+/** Chaque geste garde SA teinte (tokens `tints`) : la même que sur l'accueil. */
+const FAN: { icon: IconName; label: (t: (k: Key) => string) => string; go: () => void; tint: ActionTint }[] = [
+  { icon: 'send', label: (t) => t('actionSend'), go: () => router.push('/send'), tint: 'send' },
+  { icon: 'receive', label: (t) => t('actionReceive'), go: () => router.push('/receive'), tint: 'receive' },
+  { icon: 'exchange', label: (t) => t('actionSwap'), go: () => router.push('/swap'), tint: 'swap' },
+  { icon: 'scan', label: (t) => t('scan'), go: () => router.push('/scan'), tint: 'buy' },
 ];
 /** Arc de l'éventail, au-dessus de l'orbe (angles en degrés, rayon en px). */
 const FAN_R = 132;
@@ -113,8 +114,8 @@ function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boole
  * toucher hors des limites du parent n'est jamais distribué à l'enfant : les
  * boutons s'affichaient, et aucun ne répondait.
  */
-function FanAction({ i, open, cx, cy, label, icon, tone, onPress }: { i: number; open: SharedValue<number>; cx: number; cy: number; label: string; icon: IconName; tone?: 'primary' | 'gold'; onPress: () => void }) {
-  const { colors, mode } = useTheme();
+function FanAction({ i, open, cx, cy, label, icon, tint, onPress }: { i: number; open: SharedValue<number>; cx: number; cy: number; label: string; icon: IconName; tint: ActionTint; onPress: () => void }) {
+  const { colors, mode, tints } = useTheme();
   const a = FAN_ANGLES[i];
   const dx = Math.cos(a) * FAN_R;
   const dy = Math.sin(a) * FAN_R;
@@ -126,13 +127,16 @@ function FanAction({ i, open, cx, cy, label, icon, tone, onPress }: { i: number;
       transform: [{ translateX: -dx * (1 - local) }, { translateY: -dy * (1 - local) }, { scale: 0.4 + 0.6 * local }],
     };
   });
-  const bg = tone === 'primary' ? colors.primary : colors.surface3;
-  const ink = tone === 'primary' ? colors.onPrimary : tone === 'gold' ? (mode === 'dark' ? GOLD : BRAND_GOLD.deep) : colors.text;
+  // En Nuit la teinte est translucide : posée sur une surface pleine, pas sur le voile.
+  const bg = mode === 'dark' ? colors.surface2 : tints[tint].bg;
+  const ink = tints[tint].ink;
   return (
     <Reanimated.View style={[{ position: 'absolute', left: cx + dx - 40, top: cy + dy - 28, width: 80, alignItems: 'center' }, style]}>
       <KPressable onPress={onPress} haptic="light" accessibilityRole="button" accessibilityLabel={label} hitSlop={6} style={{ alignItems: 'center', gap: 6 }}>
-        <View style={{ width: 56, height: 56, borderRadius: radii.full, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', borderWidth: tone === 'primary' ? 0 : 1, borderColor: tone === 'gold' ? 'rgba(221,181,101,0.5)' : 'rgba(255,255,255,0.12)' }}>
-          <Icon name={icon} size={23} color={ink} />
+        <View style={{ width: 56, height: 56, borderRadius: radii.full, backgroundColor: bg, overflow: 'hidden', borderWidth: 1, borderColor: mode === 'dark' ? colors.rim : 'rgba(255,255,255,0.8)' }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: mode === 'dark' ? tints[tint].bg : 'transparent' }}>
+            <Icon name={icon} size={23} color={ink} />
+          </View>
         </View>
         {/* Colonne de 80 px posée sur l'arc : libellé plafonné à 1,2× (Dynamic Type). */}
         <Text variant="micro" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color: colors.text, fontFamily: fontFamily.semibold }}>{label}</Text>
@@ -233,7 +237,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <>
       {/* Voile : assombrit l'écran sous l'éventail, et le referme au toucher. */}
-      <Reanimated.View pointerEvents={fanOpen ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, { backgroundColor: dark ? 'rgba(3,4,8,0.78)' : 'rgba(246,247,250,0.86)' }, scrimStyle]}>
+      <Reanimated.View pointerEvents={fanOpen ? 'auto' : 'none'} style={[StyleSheet.absoluteFill, { backgroundColor: dark ? 'rgba(5,5,8,0.8)' : 'rgba(244,238,229,0.88)' }, scrimStyle]}>
         <KPressable noScale onPress={() => setFan(false)} accessibilityLabel={t('close')} style={{ flex: 1 }}>
           <View />
         </KPressable>
@@ -253,13 +257,13 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         */}
         <View
           onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
-          style={Platform.OS === 'ios' ? { borderRadius: NAV_H / 2, shadowColor: '#000', shadowOpacity: dark ? 0.5 : 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } } : undefined}
+          style={Platform.OS === 'ios' ? { borderRadius: NAV_H / 2, shadowColor: dark ? '#000' : '#5A3A18', shadowOpacity: dark ? 0.5 : 0.14, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } } : undefined}
         >
           <View
             style={{
               height: NAV_H,
               borderRadius: NAV_H / 2,
-              backgroundColor: dark ? 'rgba(12,14,22,0.97)' : 'rgba(255,255,255,0.97)',
+              backgroundColor: dark ? 'rgba(20,21,28,0.97)' : 'rgba(255,251,245,0.97)',
               borderWidth: 1,
               borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.border,
               borderTopColor: dark ? 'rgba(221,181,101,0.28)' : 'rgba(184,134,58,0.25)',
@@ -280,7 +284,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
               style={{ position: 'absolute', left: 0, right: 0, top: 0, height: NAV_H / 2 }}
             />
             {slot ? (
-              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', top: 7, height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(242,244,250,0.075)' : 'rgba(6,7,13,0.05)', overflow: 'hidden' }, glowStyle]}>
+              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', top: 7, height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(255,244,230,0.075)' : 'rgba(70,48,24,0.06)', overflow: 'hidden' }, glowStyle]}>
                 {/* Filet d'or au pied de l'onglet actif. */}
                 <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: radii.full, backgroundColor: GOLD }} />
               </Reanimated.View>
@@ -311,7 +315,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
             <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', width: ORB + 12, height: ORB + 12, borderRadius: (ORB + 12) / 2, borderWidth: 1.5, borderColor: GOLD }, ringStyle]} />
             {/* Même séparation ombre / rognage que la barre (iOS) : la lueur d'or n'était pas dessinée. */}
             <View style={Platform.OS === 'ios' ? { borderRadius: ORB / 2, shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 } } : undefined}>
-              <View style={{ width: ORB, height: ORB, borderRadius: ORB / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(221,181,101,0.55)', alignItems: 'center', justifyContent: 'center', backgroundColor: dark ? '#10131D' : '#FFFFFF', shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 18 }}>
+              <View style={{ width: ORB, height: ORB, borderRadius: ORB / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(221,181,101,0.55)', alignItems: 'center', justifyContent: 'center', backgroundColor: dark ? '#16161E' : '#FFFBF5', shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 18 }}>
                 <LinearGradient pointerEvents="none" colors={dark ? ['rgba(221,181,101,0.22)', 'rgba(221,181,101,0)'] : ['rgba(221,181,101,0.3)', 'rgba(221,181,101,0)']} style={StyleSheet.absoluteFill} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} />
                 <Reanimated.View style={orbIconStyle}>
                   <Reanimated.View style={logoStyle}>
@@ -335,7 +339,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
       >
         {layer.h
           ? FAN.map((f, i) => (
-              <FanAction key={i} i={i} open={open} cx={orbCx} cy={orbCy} label={f.label(t)} icon={f.icon} tone={f.tone} onPress={go(f.go)} />
+              <FanAction key={i} i={i} open={open} cx={orbCx} cy={orbCy} label={f.label(t)} icon={f.icon} tint={f.tint} onPress={go(f.go)} />
             ))
           : null}
       </View>

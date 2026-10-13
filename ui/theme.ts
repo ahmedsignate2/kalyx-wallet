@@ -12,9 +12,10 @@
  *
  * Les deux thèmes sont construits UNE fois (références stables, memo-friendly).
  */
+import { createContext, createElement, useContext, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { useSettings } from '../lib/settingsStore';
-import { dark, light, halo, fontFamily, type, space, spaces, radii, radius, fontSize, lineHeight, textSize, fontWeight, springs, durations, type Palette } from './tokens';
+import { dark, light, halo, tints, elevation, fontFamily, type, space, spaces, radii, radius, fontSize, lineHeight, textSize, fontWeight, springs, durations, type Palette } from './tokens';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -45,8 +46,29 @@ export { space, spaces, radii, radius, fontSize, lineHeight, textSize, fontWeigh
 /* Couleurs : tokens + alias hérités                                   */
 /* ------------------------------------------------------------------ */
 
-function paletteFor(mode: ThemeMode) {
-  const p: Palette = mode === 'dark' ? dark : light;
+/**
+ * Le CIEL de l'accueil : ce qui est posé sur le paysage (solde, en-tête,
+ * périodes) lit cette palette, quel que soit le thème. Texte crème, surfaces
+ * de verre translucide : le ciel reste visible à travers.
+ */
+const sky: Palette = {
+  ...dark,
+  surface1: 'rgba(255,248,238,0.10)',
+  surface2: 'rgba(255,248,238,0.16)',
+  surface3: 'rgba(255,248,238,0.22)',
+  border: 'rgba(255,248,238,0.16)',
+  rim: 'rgba(255,248,238,0.28)',
+  text: '#FFF8EE',
+  textSecondary: 'rgba(255,248,238,0.80)',
+  textTertiary: 'rgba(255,248,238,0.72)',
+  primary: '#FFF8EE',
+  onPrimary: '#1E1C2A',
+  up: '#8BF0BE',
+  down: '#FFB0A6',
+};
+
+function paletteFor(mode: ThemeMode, base?: Palette) {
+  const p: Palette = base ?? (mode === 'dark' ? dark : light);
   return {
     ...p,
     // ── Alias hérités (écrans existants) ──
@@ -75,8 +97,8 @@ export type ThemeColors = ReturnType<typeof paletteFor>;
 /* Construction                                                        */
 /* ------------------------------------------------------------------ */
 
-function buildTheme(mode: ThemeMode) {
-  const colors = paletteFor(mode);
+function buildTheme(mode: ThemeMode, base?: Palette) {
+  const colors = paletteFor(mode, base);
 
   /**
    * Dégradés hérités : NEUTRALISÉS (aucun dégradé décoratif, §2.4). Chaque
@@ -123,12 +145,36 @@ function buildTheme(mode: ThemeMode) {
   /** Ombres : SUPPRIMÉES (§2.4). Conservé pour l'API héritée — objet vide. */
   const shadow = { card: {} } as const;
 
-  return { mode, colors, gradients, typography, shadow, accentGradient: gradients.accent, halo: halo[mode] };
+  return {
+    mode,
+    colors,
+    gradients,
+    typography,
+    shadow,
+    accentGradient: gradients.accent,
+    halo: halo[mode],
+    /** Teintes des gestes de l'argent (Envoyer, Recevoir, Swap, Gagner, Acheter). */
+    tints: tints[mode],
+    /** Ombre douce (Crème) ; vide en Nuit. */
+    elevation: elevation[mode] as (typeof elevation)['light'] | Record<string, never>,
+  };
 }
 
 export type Theme = ReturnType<typeof buildTheme>;
 
 const THEMES: Record<ThemeMode, Theme> = { dark: buildTheme('dark'), light: buildTheme('light') };
+/** Thème « ciel » : mode sombre (logique), palette de verre sur le paysage. */
+const SKY_THEME: Theme = buildTheme('dark', sky);
+
+/** Couleurs du ciel, pour un écran qui dessine lui-même sur le paysage. */
+export const skyColors = SKY_THEME.colors;
+
+const Override = createContext<Theme | null>(null);
+
+/** Tout ce qui est rendu à l'intérieur se dessine pour le ciel de l'accueil. */
+export function OnSky({ children }: { children: ReactNode }) {
+  return createElement(Override.Provider, { value: SKY_THEME }, children);
+}
 
 /* ------------------------------------------------------------------ */
 /* Hooks                                                               */
@@ -136,6 +182,15 @@ const THEMES: Record<ThemeMode, Theme> = { dark: buildTheme('dark'), light: buil
 
 /** Thème actif : préférence utilisateur, « système » suivant l'OS. Sombre par défaut. */
 export function useTheme(): Theme {
+  const override = useContext(Override);
+  const pref = useSettings((s) => s.themePref);
+  const system = useColorScheme();
+  const mode: ThemeMode = pref === 'system' ? (system === 'light' ? 'light' : 'dark') : pref;
+  return override ?? THEMES[mode];
+}
+
+/** Le thème de l'app, en ignorant un éventuel `OnSky` (ce qui sort du ciel). */
+export function useAppTheme(): Theme {
   const pref = useSettings((s) => s.themePref);
   const system = useColorScheme();
   const mode: ThemeMode = pref === 'system' ? (system === 'light' ? 'light' : 'dark') : pref;

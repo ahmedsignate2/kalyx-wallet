@@ -6,9 +6,11 @@
  * ressorts d'animation, retours haptiques. Si une valeur n'est pas ici, on
  * ne l'invente pas dans un écran : on l'ajoute ici, puis on l'utilise.
  *
- * Concept : la lumière comme matière. Interface sombre, presque monochrome ;
- * la seule chose qui brille est le halo derrière le solde et les moments où
- * l'argent bouge. Pas de violet, pas de bleu roi, pas d'orange, pas de vert acide.
+ * Concept : la lumière comme matière, et deux mondes complets — CRÈME (clair,
+ * papier chaud) et NUIT (sombre, chaud). Le seul paysage est celui de
+ * l'accueil, qui suit l'heure ; ailleurs l'interface reste calme. Chaque geste
+ * de l'argent a sa teinte (`tints`), toujours la même. Pas de vert acide, pas
+ * de dégradé décoratif hors du ciel et du halo.
  */
 import { Platform, type TextStyle } from 'react-native';
 
@@ -16,46 +18,102 @@ import { Platform, type TextStyle } from 'react-native';
 /* Couleurs                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Thème SOMBRE — thème principal. Noms de la bible entre parenthèses. */
+/**
+ * Thème NUIT — sombre, chaud. Le noir n'est pas bleu acier : c'est une nuit
+ * d'été, encre tirant vers le brun, blancs légèrement crème. La profondeur
+ * vient des niveaux de surface et d'un liseré de lumière en haut des cartes.
+ */
 export const dark = {
-  bg: '#06070D', // Encre
-  surface1: '#0E1019', // Nuit — conteneurs
-  surface2: '#161926', // Orbite — sheets, inputs
-  surface3: '#1F2333', // Crépuscule — pressé, hover
-  border: 'rgba(255,255,255,0.07)', // Trait
+  bg: '#0B0B10', // Nuit
+  surface1: '#14151C', // conteneurs
+  surface2: '#1C1D26', // sheets, inputs
+  surface3: '#262732', // pressé, survol, disques
+  border: 'rgba(255,244,230,0.07)',
   /** Liseré du HAUT des cartes : la lumière d'en haut accroche l'arête, la carte prend du volume. */
-  rim: 'rgba(255,255,255,0.13)',
-  text: '#F2F4FA', // Lueur
-  textSecondary: '#9499AB', // Brume
-  textTertiary: '#5D6275', // Cendre
-  primary: '#F4F6FF', // Lumière — bouton principal
-  onPrimary: '#06070D', // texte sur Lumière
+  rim: 'rgba(255,244,230,0.13)',
+  text: '#F5F1EA',
+  textSecondary: '#A29D95',
+  textTertiary: '#6E6A63',
+  primary: '#F6EEE2', // bouton principal : une lumière crème
+  onPrimary: '#0B0B10',
   up: '#3CD98A',
-  down: '#FF6363',
+  down: '#FF6B5E',
   warning: '#FFB547',
   danger: '#FF4D5E',
 } as const;
 
 export type Palette = { [K in keyof typeof dark]: string };
 
-/** Thème CLAIR — mêmes rôles. */
+/**
+ * Thème CRÈME — clair, chaud, papier. Jamais de blanc pur en fond : un crème
+ * qui fatigue moins l'œil, des cartes un ton plus claires qui se détachent par
+ * la lumière, une encre presque noire (bleu nuit) pour l'action principale.
+ */
 export const light: Palette = {
-  bg: '#F6F7FA',
-  surface1: '#FFFFFF',
-  surface2: '#EEF0F5',
-  surface3: '#E4E7EF',
-  border: 'rgba(6,7,13,0.08)',
-  rim: 'rgba(6,7,13,0.05)',
-  text: '#0B0D16',
-  textSecondary: '#5A6072',
-  textTertiary: '#9097A8',
-  primary: '#0B0D16',
-  onPrimary: '#FFFFFF',
-  up: '#13A15E',
-  down: '#E23B3B',
-  warning: '#B8791A',
-  danger: '#D93444',
+  bg: '#F4EEE5',
+  surface1: '#FFFBF5',
+  surface2: '#EFE7DB',
+  surface3: '#E6DCCC',
+  border: 'rgba(70,48,24,0.09)',
+  rim: 'rgba(255,255,255,0.9)',
+  text: '#1D1A16',
+  textSecondary: '#6B6358',
+  textTertiary: '#9A9083',
+  primary: '#1E1C2A',
+  onPrimary: '#FFF8EE',
+  up: '#16884F',
+  down: '#D2443A',
+  warning: '#A8680E',
+  danger: '#C9303F',
 };
+
+/**
+ * TEINTES D'ACTION — chaque geste de l'argent a sa couleur, la même partout
+ * (accueil, éventail, activité) : on reconnaît l'action avant de lire le mot.
+ * Pastel en Crème, lueur translucide en Nuit ; `ink` est l'icône posée dessus.
+ */
+export type ActionTint = 'send' | 'receive' | 'swap' | 'earn' | 'buy';
+export const tints: Record<'dark' | 'light', Record<ActionTint, { bg: string; ink: string }>> = {
+  light: {
+    send: { bg: '#FBE2D2', ink: '#C4552A' },
+    receive: { bg: '#D9EEE3', ink: '#257F5A' },
+    swap: { bg: '#E6E0F6', ink: '#6450BE' },
+    earn: { bg: '#F5E7C8', ink: '#9A6C12' },
+    buy: { bg: '#DCE7F6', ink: '#2F64B0' },
+  },
+  dark: {
+    send: { bg: 'rgba(244,150,104,0.15)', ink: '#F6A982' },
+    receive: { bg: 'rgba(84,204,152,0.14)', ink: '#72D9AC' },
+    swap: { bg: 'rgba(160,140,250,0.16)', ink: '#B9ABFF' },
+    earn: { bg: 'rgba(221,181,101,0.16)', ink: '#E6C682' },
+    buy: { bg: 'rgba(110,160,240,0.15)', ink: '#9DBEF5' },
+  },
+};
+
+/**
+ * LE CIEL — le paysage de l'accueil suit l'heure de l'utilisateur : aube,
+ * jour, crépuscule, nuit. Trois arrêts de ciel (haut → horizon), le soleil
+ * (ou la lune) et trois plans de dunes, du plus lointain au plus proche. Le
+ * texte posé dessus est toujours clair : chaque ciel est assez profond en haut.
+ */
+export type SkyPhase = 'dawn' | 'day' | 'dusk' | 'night';
+export const skies: Record<SkyPhase, { sky: readonly [string, string, string]; sun: string; dunes: readonly [string, string, string] }> = {
+  dawn: { sky: ['#2B2A4A', '#8C5C7E', '#F2A88A'], sun: '#FFD9B0', dunes: ['#B0687A', '#7A4566', '#47304F'] },
+  day: { sky: ['#2C4A73', '#5F87B0', '#E9C79C'], sun: '#FFF1D6', dunes: ['#C98E6A', '#9A6450', '#5E3E3E'] },
+  dusk: { sky: ['#1E1D3A', '#6B4A78', '#F09A6E'], sun: '#FFC58A', dunes: ['#A85A66', '#6E3D5C', '#3A2945'] },
+  night: { sky: ['#07070F', '#191A36', '#3A3058'], sun: '#E9E4FF', dunes: ['#2E2848', '#211D36', '#141224'] },
+};
+export const skyPhaseAt = (hour: number): SkyPhase => (hour >= 5 && hour < 9 ? 'dawn' : hour < 17 && hour >= 9 ? 'day' : hour >= 17 && hour < 21 ? 'dusk' : 'night');
+
+/**
+ * Ombre douce, en Crème seulement (une ombre ne se lit pas sur la Nuit : là,
+ * c'est le liseré qui donne le volume). Brune et diffuse, jamais grise.
+ * À poser sur un élément SANS `overflow: hidden` (iOS ne la dessinerait pas).
+ */
+export const elevation = {
+  light: { shadowColor: '#5A3A18', shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
+  dark: {},
+} as const;
 
 /**
  * LE HALO — seul dégradé autorisé de l'app. Radial : blanc au centre → glacier
@@ -329,6 +387,7 @@ export const hapticFor = {
 /* Règles (rappel, cf. §2.4, §13)                                      */
 /* ------------------------------------------------------------------ */
 // - La couleur n'est jamais la seule information (signe + flèche + couleur).
-// - En sombre, la profondeur vient des surfaces, pas des ombres : ZÉRO ombre.
-// - Aucun dégradé ailleurs que le halo. Aucun emoji. Aucun label en majuscules.
+// - En Nuit, la profondeur vient des surfaces, pas des ombres : ZÉRO ombre.
+//   En Crème, une seule ombre, `elevation.light`, douce et brune.
+// - Aucun dégradé ailleurs que le ciel de l'accueil et le halo. Aucun emoji. Aucun label en majuscules.
 // - Listes : une carte par GROUPE, jamais une carte par ligne.

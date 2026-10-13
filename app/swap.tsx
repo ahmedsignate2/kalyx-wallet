@@ -88,7 +88,7 @@ function isNativeTokenAddress(address?: string): boolean {
 }
 
 function SwapInner() {
-  const { colors, mode } = useTheme();
+  const { colors, mode, tints } = useTheme();
   const insets = useSafeAreaInsets();
   const t = useT();
   const activeChain = useWallet((s) => s.activeChain);
@@ -629,6 +629,16 @@ function SwapInner() {
     ? quote.durationSec < 60 ? fill(t('durSeconds'), { n: String(quote.durationSec) }) : fill(t('durMinutes'), { n: String(Math.round(quote.durationSec / 60)) })
     : '';
   const routeSentence = routeTitle ? `${routeTitle}${routeDuration ? ` · ${routeDuration}` : ''}. ` : null;
+  /*
+   * TAUX : « 1 ETH ≈ 3 322,24 USDC ». Ce qu'on regarde d'abord sur un échange,
+   * avant même les frais. Petits taux (USDC → ETH) : quatre chiffres significatifs.
+   */
+  const rate = quote && fromTok && toTok && quote.fromAmount > 0n
+    ? (Number(quote.toAmount) / 10 ** quote.toToken.decimals) / (Number(quote.fromAmount) / 10 ** fromTok.decimals)
+    : null;
+  const rateText = rate != null && Number.isFinite(rate) && rate > 0
+    ? `1 ${fromTok!.symbol} ≈ ${rate >= 1 ? formatFiat(rate) : Number(rate.toPrecision(4)).toString().replace('.', decimalSeparator())} ${toTok!.symbol}`
+    : null;
   const slippagePct = `${(Number(slippage) * 100).toFixed(1).replace('.', decimalSeparator())} %`;
   const [advanced, setAdvanced] = useState(false);
   const [review, setReview] = useState(false);
@@ -674,7 +684,7 @@ function SwapInner() {
       {fromTint || toTint ? (
         <Animated.View key={`${fromTint}-${toTint}`} entering={FadeIn.duration(450)} pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <LinearGradient
-            colors={[withAlpha(fromTint ?? colors.bg, mode === 'dark' ? 0.24 : 0.14), withAlpha(fromTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, mode === 'dark' ? 0.2 : 0.12)]}
+            colors={[withAlpha(fromTint ?? colors.bg, mode === 'dark' ? 0.24 : 0.1), withAlpha(fromTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, 0), withAlpha(toTint ?? colors.bg, mode === 'dark' ? 0.2 : 0.08)]}
             locations={[0, 0.42, 0.62, 1]}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
@@ -763,6 +773,17 @@ function SwapInner() {
                 <Text variant="body" numberOfLines={2} style={{ flex: 1 }}>{routeTitle}</Text>
                 {routeDuration ? <Text variant="caption" tone="secondary">{routeDuration}</Text> : null}
               </View>
+              {rateText ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space[3], paddingVertical: space[2], paddingHorizontal: space[3], borderRadius: radii.md, backgroundColor: colors.surface2 }}>
+                  <Text variant="caption" tabular numberOfLines={1} style={{ flexShrink: 1 }}>{rateText}</Text>
+                  {/* Le devis retenu est le meilleur des routes interrogées (getBestQuote). */}
+                  {!stale ? (
+                    <View style={{ paddingHorizontal: space[2], height: 22, justifyContent: 'center', borderRadius: radii.full, backgroundColor: tints.receive.bg }}>
+                      <Text variant="micro" style={{ color: tints.receive.ink }}>{t('bestPrice')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
               <RouteRow label={t('minReceived')} value={`${formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} ${toTok.symbol}`} />
               <RouteRow label={t('kalyxFee')} value={`${((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %`} />
               <RouteRow label={t('networkFee')} value={quote.gasCostUsd > 0 ? `≈ ${formatFiat(quote.gasCostUsd)} $` : quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : '—'} />
@@ -826,7 +847,12 @@ function SwapInner() {
                 <HoldButton label={t("holdToConfirm")} danger icon="exchange" onComplete={() => { setReview(false); setConfirming(true); }} />
               </>
             ) : (
-              <Button label={isBridge ? t('bridgeAction') : t('swapAction')} onPress={() => { haptic.medium(); setReview(false); setConfirming(true); }} />
+              /*
+                MAINTENIR POUR ÉCHANGER : le geste dit « je le veux vraiment »
+                (un appui distrait ne lance rien), la vibration monte avec
+                l'anneau. Le code ou la biométrie suivent, comme avant.
+              */
+              <HoldButton label={isBridge ? t('holdToBridge') : t('holdToSwap')} icon="exchange" onComplete={() => { setReview(false); setConfirming(true); }} />
             )}
           </>
         ) : null}

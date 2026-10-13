@@ -351,7 +351,7 @@ export default function History() {
         }}
         renderSectionHeader={({ section }) => (
           <View style={{ backgroundColor: colors.bg, paddingTop: space[4], paddingBottom: space[2] }}>
-            <Text variant="caption" tone="secondary">{section.title}</Text>
+            <Text variant="bodyStrong">{section.title}</Text>
           </View>
         )}
         stickySectionHeadersEnabled
