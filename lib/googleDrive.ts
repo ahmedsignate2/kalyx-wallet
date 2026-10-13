@@ -89,8 +89,14 @@ import { isExpoGoIos } from './expoGo';
  * révocation (`revokeToken`) ne prend que le jeton. '' si l'ID manque (iOS
  * sans client iOS) → `not_configured`.
  */
+/**
+ * Client OAuth iOS par défaut (public, pas un secret) : son schéma inversé est
+ * déclaré par app.config.ts dans tout build iOS. Même valeur des deux côtés.
+ */
+const IOS_CLIENT_ID_DEFAULT = '800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com';
+
 export const GOOGLE_CLIENT_ID = selectGoogleClientId(Platform.OS, {
-  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  ios: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || IOS_CLIENT_ID_DEFAULT,
   android: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
 });
 
