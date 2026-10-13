@@ -38,7 +38,7 @@ import { createTicker, useTicker } from '../../lib/ticker';
 import { DappTile, DappLogo, siteName } from '../../ui/browser/DappTile';
 import { useTheme } from '../../ui/theme';
 import { space, SCREEN_MARGIN, radius, radii, springs, fontSize } from '../../ui/tokens';
-import { Rise, TextTabs } from '../../ui/nova';
+import { Rise, TextTabs, ScreenDunes } from '../../ui/nova';
 import { haptic } from '../../lib/haptics';
 import { sound } from '../../lib/sound';
 import { useWallet, type Unlock } from '../../lib/walletStore';
@@ -730,6 +730,7 @@ export default function Browser() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, padding: SCREEN_MARGIN, paddingTop: insets.top + 48, justifyContent: 'center' }}>
         <Stack.Screen options={{ headerShown: false }} />
+        <ScreenDunes />
         <Card><EmptyState icon="dapps" title={t('browserUnavailableTitle')} body={t('browserUnavailableMsg')} actionLabel={t('back')} onAction={() => goBack()} /></Card>
       </View>
     );
@@ -815,7 +816,9 @@ export default function Browser() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={{ height: insets.top, backgroundColor: colors.bg }} />
+      {/* Page d'accueil des onglets : les dunes de scène. Une dApp ouverte occupe l'écran, sans décor. */}
+      {activeTab.url ? null : <ScreenDunes />}
+      <View style={{ height: insets.top, backgroundColor: activeTab.url ? colors.bg : 'transparent' }} />
       <Comet progress={progress} active={!!activeTab.url} />
 
       {/* Contenu : UNE WebView (onglet actif) ou la page nouvel onglet */}

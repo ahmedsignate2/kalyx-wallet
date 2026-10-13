@@ -30,7 +30,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { useT } from '../lib/settingsStore';
 import { fill } from '../lib/i18n';
 import { createTicker, useTicker } from '../lib/ticker';
-import { Rise } from '../ui/nova';
+import { Rise, ScreenDunes } from '../ui/nova';
 import {
   getAdapter,
   withTimeout,
@@ -691,6 +691,7 @@ function SwapInner() {
         </Animated.View>
       ) : null}
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>

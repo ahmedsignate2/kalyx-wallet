@@ -40,6 +40,7 @@ import {
 import { useWallet } from '../lib/walletStore';
 import { usePortfolioStore } from '../lib/portfolio';
 import { useShallow } from 'zustand/react/shallow';
+import { ScreenDunes } from '../ui/nova';
 
 /** Domaines autorisés dans la WebView de capture. */
 const COLLECT_HOST = 'pay.walletconnect.com';
@@ -213,6 +214,7 @@ function PayScreenInner() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
         <Stack.Screen options={{ headerShown: false }} />
+        <ScreenDunes />
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SCREEN_MARGIN, height: 48 }}>
           <IconButton icon="back" label={t('back')} tone="ghost" onPress={close} />
         </View>
@@ -312,6 +314,7 @@ function PayScreenInner() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
         <Stack.Screen options={{ headerShown: false }} />
+        <ScreenDunes />
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
@@ -394,6 +397,7 @@ function PayScreenInner() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <View
         style={{
           paddingTop: insets.top,

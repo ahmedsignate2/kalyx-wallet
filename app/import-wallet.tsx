@@ -1,6 +1,6 @@
 import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText, Button, Card } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { HeroOrb, Pills, Rise } from '../ui/nova';
+import { HeroOrb, Pills, Rise, ScreenDunes } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { useMemo, useState } from 'react';
@@ -210,6 +210,7 @@ export default function ImportWallet() {
 
   return (
     <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScreenDunes />
       <ScrollView
         contentContainerStyle={{
           padding: spacing(3),

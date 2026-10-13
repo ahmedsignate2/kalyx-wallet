@@ -23,6 +23,7 @@ import { submitSolanaSigned } from '../lib/solanaSubmit';
 import { friendlyTxError } from '../lib/txError';
 import { base64 } from '@scure/base';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
+import { ScreenDunes } from '../ui/nova';
 import {
   fetchTxRequestIdentity,
   fetchTxRequestPayload,
@@ -135,6 +136,7 @@ export default function SolanaRequestScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <View
         style={{
           paddingTop: insets.top,

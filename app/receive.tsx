@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { LogoImage, Text, Button, IconButton, AddressGlyph, SegmentedControl, Pressable as KPressable, Card } from '../ui/kit';
-import { Rise } from '../ui/nova';
+import { Rise, ScreenDunes } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius, fontSize, radii, monoFont } from '../ui/tokens';
@@ -106,6 +106,7 @@ function ReceiveInner() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack()} />
         <Text variant="title2" style={{ flex: 1 }}>{t("receive")}</Text>

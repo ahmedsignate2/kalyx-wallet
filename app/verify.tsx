@@ -5,7 +5,7 @@ import { View, ScrollView } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Button, IconButton, Chip, EmptyState, Card } from '../ui/kit';
-import { FlowDots, Rise } from '../ui/nova';
+import { FlowDots, Rise, ScreenDunes } from '../ui/nova';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { useWallet } from '../lib/walletStore';
@@ -59,6 +59,7 @@ export default function Verify() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+      <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack('/welcome')} />
         <Text variant="title2" style={{ flex: 1 }}>{t('verifyBackup')}</Text>

@@ -37,11 +37,11 @@ export function Screen({
   footer,
   tabBarSpace,
   refreshControl,
-  scene,
+  scene = 'top',
 }: {
   children: React.ReactNode;
   /** Décor de dunes (écho du paysage de l'accueil) : derrière l'en-tête, ou au pied de l'écran. */
-  scene?: 'top' | 'bottom';
+  scene?: 'top' | 'bottom' | 'none';
   layout?: 'page' | 'form';
   scroll?: boolean;
   footer?: React.ReactNode;
@@ -67,7 +67,7 @@ export function Screen({
       };
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: form ? topPadding : 0 }}>
-      {scene ? <SceneDunes width={width} height={scene === 'top' ? topPadding + Math.min(320, height * 0.38) : Math.min(260, height * 0.3)} position={scene} mode={mode} /> : null}
+      {scene !== 'none' ? <SceneDunes width={width} height={scene === 'top' ? topPadding + Math.min(320, height * 0.38) : Math.min(260, height * 0.3)} position={scene === 'bottom' ? 'bottom' : 'top'} mode={mode} /> : null}
       <KeyboardAvoid style={{ flex: 1 }}>
         <Reanimated.View style={[{ flex: 1 }, entrance]}>
           {scroll ? (
@@ -108,11 +108,14 @@ export function ScreenList<T>({
 }) {
   const insets = useSafeAreaInsets();
   const topPadding = useTopPadding();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const { width, height } = useWindowDimensions();
   const entrance = useScreenEntrance();
   const gap = spaces.xl;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {/* Les dunes de scène, comme sur tous les écrans (voir Screen). */}
+      <SceneDunes width={width} height={topPadding + Math.min(320, height * 0.38)} position="top" mode={mode} />
       <KeyboardAvoid style={{ flex: 1 }}>
         <Reanimated.View style={[{ flex: 1 }, entrance]}>
           <FlatList<T>
