@@ -56,6 +56,7 @@ import { addressForChain } from '../lib/accountAddress';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { toast } from '../lib/toast';
 import { haptic } from '../lib/haptics';
+import { ScreenDunes } from '../ui/nova';
 
 type Status = 'searching' | 'pending' | 'success' | 'failed';
 
@@ -306,6 +307,7 @@ export default function TrackingScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN }}>
         <ScreenHeader title={t('txTrackingTitle')} />
       </View>

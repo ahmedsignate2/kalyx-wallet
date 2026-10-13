@@ -17,7 +17,7 @@ import { EarnSheet } from '../../ui/EarnSheet';
 import { TonStakingSheet } from '../../ui/TonStakingSheet';
 import { loadStaking, type StakingInfo } from '../../lib/ton/staking';
 import { Pressable as KPressable, IconButton, Button, Card, RemoteIcon, SkeletonRow } from '../../ui/kit';
-import { Pills, Rise } from '../../ui/nova';
+import { Pills, Rise, ScreenDunes } from '../../ui/nova';
 import { fonts, radii, space, spacing, useTheme, fontSize } from '../../ui/theme';
 import { useWallet } from '../../lib/walletStore';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
@@ -120,6 +120,7 @@ function EarnScreenInner() {
     <>
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'flex-start' }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <ScrollView
         style={{ flex: 1, width: '100%' }}
         contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 120, gap: spacing(2.5) }}

@@ -88,6 +88,7 @@ import { useHistoryStore } from '../lib/historyStore';
 import { AntiDrainerBanner } from '../src/components/security/AntiDrainerBanner';
 import { useShallow } from 'zustand/react/shallow';
 import { goBack } from '../lib/nav';
+import { ScreenDunes } from '../ui/nova';
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -878,6 +879,7 @@ function SendInner() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       {/* En-tête + barre de progression */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>

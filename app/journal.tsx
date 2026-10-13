@@ -16,6 +16,7 @@ import { monoFont } from '../ui/tokens';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { clearJournal, formatLine, journalLines, journalText, subscribeJournal, type JournalLine } from '../lib/debugJournal';
+import { ScreenDunes } from '../ui/nova';
 
 const TONE: Partial<Record<JournalLine['k'], 'danger' | 'warning' | 'primary'>> = { crash: 'danger', error: 'danger', warn: 'warning', nav: 'primary', state: 'primary' };
 
@@ -40,6 +41,7 @@ export default function JournalScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingHorizontal: spacing(2) }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <ScreenHeader title={`${t('journalTitle')} (${journalLines().length})`} />
       <Text style={{ color: colors.textSecondary, fontSize: fontSize.xs, marginBottom: spacing(1) }}>{t('journalHint')}</Text>
       {!journalOn ? <Text style={{ color: colors.warning, fontSize: fontSize.xs, marginBottom: spacing(1) }}>{t('dxJournalOff')}</Text> : null}

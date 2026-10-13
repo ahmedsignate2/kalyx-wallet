@@ -6,7 +6,7 @@
  *  - approbations actives (réseau actif) avec « Révoquer »
  *  - sessions WalletConnect ouvertes avec « Déconnecter »
  */
-import { NovaHero, SectionLabel } from '../ui/nova';
+import { NovaHero, SectionLabel, ScreenDunes } from '../ui/nova';
 import { IsMyAddress } from '../ui/IsMyAddress';
 import { useWhitelist } from '../lib/whitelistStore';
 import Svg, { Circle } from 'react-native-svg';
@@ -138,6 +138,7 @@ export default function SecurityCenter() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + space[2], paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6], gap: space[5] }} showsVerticalScrollIndicator={false}>
         <ScreenHeader fallback="/menu" />
         <NovaHero title={t('security')} subtitle={allDone ? t('allGood') : t('pointsToFix')}>

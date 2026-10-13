@@ -10,7 +10,9 @@
  */
 import React, { useEffect, useMemo } from 'react';
 import { useLoopActive } from './useLoopActive';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SceneDunes } from './Landscape';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -22,12 +24,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { useTheme, useAppTheme, radii } from './theme';
 import { Icon, type IconName } from './icon';
 import { Text, Pressable as KPressable } from './kit';
 import { Rise, useEntranceDone } from './kit/entrance';
-import { BRAND_GOLD, springs, fontFamily, skies, skyPhaseAt, type ActionTint } from './tokens';
+import { BRAND_GOLD, springs, fontFamily, type ActionTint } from './tokens';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { withAlpha } from '../lib/tokenColors';
 
@@ -386,28 +388,20 @@ export function IconDisc({ name, tone = 'default', size = 36, tint }: { name: Ic
 /* ------------------------------------------------------------------ */
 
 /**
- * LE CIEL EN ÉCHO : en haut des écrans secondaires, une lueur venue du ciel de
- * l'accueil (même heure, même couleur d'horizon) qui se fond dans le fond.
- * Discrète — c'est un rappel, pas un décor. `top` = haut du contenu.
+ * LES DUNES DE SCÈNE en haut de l'écran (aquarelle pastel en Crème, crépuscule
+ * en Nuit) : l'écho du paysage de l'accueil sur TOUS les écrans. Une ligne à
+ * poser juste après l'ouverture de l'écran, derrière tout le reste.
  */
-export function ScreenOrbit({ top }: { top: number }) {
+export function ScreenDunes() {
   const { mode } = useTheme();
-  const phase = skyPhaseAt(new Date().getHours());
-  const horizon = skies[phase].sky[2];
-  const h = top + 180;
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: h }}>
-      <Svg width="100%" height={h}>
-        <Defs>
-          <SvgLinearGradient id="echo" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={horizon} stopOpacity={mode === 'dark' ? 0.16 : 0.26} />
-            <Stop offset="1" stopColor={horizon} stopOpacity={0} />
-          </SvgLinearGradient>
-        </Defs>
-        <Rect x={0} y={0} width="100%" height={h} fill="url(#echo)" />
-      </Svg>
-    </View>
-  );
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  return <SceneDunes width={width} height={insets.top + Math.min(300, height * 0.36)} mode={mode} />;
+}
+
+/** Ancien nom (écrans qui l'appellent encore) : les mêmes dunes de scène. `top` n'est plus utilisé. */
+export function ScreenOrbit(_: { top?: number }) {
+  return <ScreenDunes />;
 }
 
 /* ------------------------------------------------------------------ */

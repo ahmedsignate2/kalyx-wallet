@@ -28,6 +28,7 @@ import { PinPromptModal } from '../ui/PinPromptModal';
 import { classifyRecoveryPhrase, isWalletError, restoreBackup, type BackupError, type BackupWallet } from '../src';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { useShallow } from 'zustand/react/shallow';
+import { ScreenDunes } from '../ui/nova';
 
 export default function RestoreDriveScreen() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
@@ -177,6 +178,7 @@ export default function RestoreDriveScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <PinPromptModal
         visible={!!pendingWallets?.length}
         title={t('importPinTitle')}

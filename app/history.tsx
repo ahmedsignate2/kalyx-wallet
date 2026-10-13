@@ -351,11 +351,12 @@ export default function History({ inTab = false }: { inTab?: boolean } = {}) {
           );
         }}
         renderSectionHeader={({ section }) => (
-          <View style={{ backgroundColor: colors.bg, paddingTop: space[4], paddingBottom: space[2] }}>
+          <View style={{ paddingTop: space[4], paddingBottom: space[2] }}>
             <Text variant="bodyStrong">{section.title}</Text>
           </View>
         )}
-        stickySectionHeadersEnabled
+        // Titres de jour non collants : un titre collant exige un fond plein, qui coupait les dunes.
+        stickySectionHeadersEnabled={false}
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={footer}

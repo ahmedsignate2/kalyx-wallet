@@ -18,7 +18,7 @@
  * l'activation » et redemande mot de passe puis PIN, sans repasser par Google.
  * Le flux manuel ci-dessus reste disponible tel quel.
  */
-import { NovaHero } from '../ui/nova';
+import { NovaHero, ScreenDunes } from '../ui/nova';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { passwordStrength, MIN_BACKUP_LEVEL } from '../src/security/passwordStrength';
 import { useEffect, useState } from 'react';
@@ -220,6 +220,7 @@ export default function CloudBackupScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
+      <ScreenDunes />
       <KeyboardAvoid style={{ flex: 1, backgroundColor: colors.bg }}>
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: insets.top + space[3], paddingBottom: insets.bottom + space[8], gap: space[5] }}
