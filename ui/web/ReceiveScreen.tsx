@@ -66,7 +66,7 @@ export function ReceiveScreen({ chain, onClose }: { chain: ChainConfig; onClose:
   return (
     <View style={flowRoot}>
       <View style={{ paddingHorizontal: SCREEN_MARGIN, height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t('back')} tone="ghost" onPress={onClose} />
+        <IconButton icon="back" label={t('back')} tone="glass" onPress={onClose} />
         <Text variant="title2" style={{ flex: 1 }}>{t('receive')}</Text>
       </View>
       <ScrollView style={flowScroll} contentContainerStyle={{ padding: SCREEN_MARGIN, paddingBottom: space[6], gap: space[5] }}>

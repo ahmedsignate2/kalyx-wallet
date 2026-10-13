@@ -16,7 +16,7 @@ export function ScreenHeader({ title, right, onBack, fallback = '/home' }: { tit
   const t = useT();
   return (
     <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2], marginLeft: -space[2] }}>
-      <IconButton icon="back" label={t("back")} tone="ghost" onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace(fallback as never)))} />
+      <IconButton icon="back" label={t("back")} tone="glass" onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace(fallback as never)))} />
       {title ? <Text variant="title2" numberOfLines={1} style={{ flex: 1 }}>{title}</Text> : <View style={{ flex: 1 }} />}
       {right}
     </View>

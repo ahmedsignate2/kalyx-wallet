@@ -883,7 +883,7 @@ function SendInner() {
       {/* En-tête + barre de progression */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (leavesOnBack ? goBack() : stepBack())} />
+          <IconButton icon="back" label={t("back")} tone="glass" onPress={() => (leavesOnBack ? goBack() : stepBack())} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             {/* Le titre rétrécit (une ligne) : long (« Vérifie avant d'envoyer »), il poussait la pastille du réseau sur le compteur d'étapes. */}
             <Text variant="title2" numberOfLines={1} style={{ flexShrink: 1 }}>{step === 0 ? t("aiSend") : step === 4 ? t("headerTracking") : step === 3 ? t("verifyBeforeSendTitle") : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>

@@ -57,7 +57,7 @@ export default function Backup() {
       <Stack.Screen options={{ headerShown: false }} />
       <SceneDunes width={winW} height={insets.top + Math.min(280, winH * 0.32)} mode={mode} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack('/welcome')} />
+        <IconButton icon="back" label={t("back")} tone="glass" onPress={() => goBack('/welcome')} />
         <Text variant="title2" style={{ flex: 1 }}>{t('yourRecoveryPhrase')}</Text>
         <FlowDots step={1} />
       </View>

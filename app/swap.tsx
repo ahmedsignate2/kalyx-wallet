@@ -693,7 +693,7 @@ function SwapInner() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+        <IconButton icon="back" label={t("back")} tone="glass" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
         <Text variant="title2" style={{ flex: 1 }}>{isBridge ? t('bridgeAction') : t('swapAction')}</Text>
         {quote && countdownActive && !stale ? <TickerCountdownRing ticker={countdown} total={QUOTE_TTL_S} /> : null}
         {available && account ? (

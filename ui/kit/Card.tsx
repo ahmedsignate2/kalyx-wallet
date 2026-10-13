@@ -68,19 +68,20 @@ const LAYOUT_KEYS = new Set(['margin', 'marginTop', 'marginBottom', 'marginLeft'
  * PROFONDEUR (Crème) : une ombre douce et brune sous chaque carte. Sur iOS,
  * `overflow: 'hidden'` (qui arrondit le contenu, et l'appui des lignes)
  * effacerait l'ombre : elle est donc portée par une ENVELOPPE, la carte garde
- * son rognage à l'intérieur. En Nuit, pas d'ombre (illisible sur le sombre) :
- * c'est le liseré du haut qui donne le volume.
+ * son rognage à l'intérieur. En Nuit, une ombre noire plus profonde : invisible
+ * sur le fond uni, elle détache la carte des dunes et du ciel ; le liseré du haut
+ * accroche la lumière.
  */
 function useDepth(style: StyleProp<ViewStyle>, cardStyle: ViewStyle) {
   const { mode } = useTheme();
-  if (mode === 'dark') return null;
+  const dark = mode === 'dark';
   const flat = (StyleSheet.flatten(style) ?? {}) as Record<string, unknown>;
   const outer: Record<string, unknown> = {};
   const inner: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(flat)) (LAYOUT_KEYS.has(k) ? outer : inner)[k] = v;
   const sized = outer.height !== undefined || outer.flex !== undefined || outer.flexGrow !== undefined || outer.minHeight !== undefined;
   return {
-    outer: [outer, { borderRadius: (inner.borderRadius as number | undefined) ?? cardStyle.borderRadius, backgroundColor: (inner.backgroundColor as string | undefined) ?? cardStyle.backgroundColor, shadowColor: '#5A3A18', shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 2 }] as StyleProp<ViewStyle>,
+    outer: [outer, { borderRadius: (inner.borderRadius as number | undefined) ?? cardStyle.borderRadius, backgroundColor: (inner.backgroundColor as string | undefined) ?? cardStyle.backgroundColor, shadowColor: dark ? '#000000' : '#5A3A18', shadowOpacity: dark ? 0.45 : 0.07, shadowRadius: dark ? 20 : 16, shadowOffset: { width: 0, height: dark ? 10 : 6 }, elevation: dark ? 6 : 2 }] as StyleProp<ViewStyle>,
     inner: [cardStyle, inner, sized ? { flexGrow: 1 } : null] as StyleProp<ViewStyle>,
   };
 }

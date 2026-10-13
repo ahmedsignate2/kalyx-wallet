@@ -442,7 +442,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
       {/* En-tête + barre de progression */}
       <View style={{ paddingHorizontal: SCREEN_MARGIN }}>
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-          <IconButton icon="back" label={t('back')} tone="ghost" onPress={back} />
+          <IconButton icon="back" label={t('back')} tone="glass" onPress={back} />
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
             <Text variant="title2">{step === 0 ? t('aiSend') : step === 4 ? t('headerTracking') : (fill(t('headerSendToken'), { symbol: symbol }) + (chain.testnet ? ` (${chain.name})` : ''))}</Text>
             {step > 0 && chainIconUrl(chain.id) ? (

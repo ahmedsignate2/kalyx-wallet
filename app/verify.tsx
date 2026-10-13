@@ -61,7 +61,7 @@ export default function Verify() {
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
       <ScreenDunes />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack('/welcome')} />
+        <IconButton icon="back" label={t("back")} tone="glass" onPress={() => goBack('/welcome')} />
         <Text variant="title2" style={{ flex: 1 }}>{t('verifyBackup')}</Text>
         <FlowDots step={2} />
       </View>

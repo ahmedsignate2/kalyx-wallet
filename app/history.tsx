@@ -333,7 +333,7 @@ export default function History({ inTab = false }: { inTab?: boolean } = {}) {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenOrbit top={insets.top + 56} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 56, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        {inTab ? null : <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />}
+        {inTab ? null : <IconButton icon="back" label={t('back')} tone="glass" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />}
         <View style={{ flex: 1 }}>
           <Text variant="title2">{t('activity')}</Text>
           <Text variant="micro" tone="tertiary">{onlyChain ? (chainNameOf(onlyChain) ?? onlyChain) : t('filterAllNetworks')}</Text>
