@@ -10,7 +10,9 @@ import type { ExpoConfig } from 'expo/config';
 const GOOGLE_SUFFIX = '.apps.googleusercontent.com';
 const reversedScheme = (id: string): string | null =>
   id.endsWith(GOOGLE_SUFFIX) ? `com.googleusercontent.apps.${id.slice(0, -GOOGLE_SUFFIX.length)}` : null;
-const googleScheme = reversedScheme((process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim());
+/** Client OAuth Android de Kalyx (public, comme l'iOS ci-dessous). Même valeur que ANDROID_CLIENT_ID_DEFAULT dans lib/googleDrive.ts. */
+const GOOGLE_ANDROID_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim() || '800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com';
+const googleScheme = reversedScheme(GOOGLE_ANDROID_CLIENT_ID);
 /**
  * Client OAuth iOS de Kalyx (Google Cloud, projet 800218617528). Un ID client
  * n'est PAS un secret (il voyage en clair dans l'URL d'autorisation) : il est
