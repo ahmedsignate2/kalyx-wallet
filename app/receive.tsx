@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { LogoImage, Text, Button, IconButton, AddressGlyph, SegmentedControl, Pressable as KPressable, Card } from '../ui/kit';
-import { Orbit, Rise } from '../ui/nova';
+import { Rise } from '../ui/nova';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
 import { space, SCREEN_MARGIN, radius, fontSize, radii, monoFont } from '../ui/tokens';
@@ -162,7 +162,6 @@ function ReceiveInner() {
           {address ? (
             <Rise key={address} delay={60}>
             <View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: '50%' }}>
-              <Orbit cx={0} cy={0} r={150} />
             </View>
             <View style={{ padding: space[3], backgroundColor: '#FFFFFF', borderRadius: radius.container }}>
               <QRCode value={address} size={220} ecl="H" backgroundColor="#FFFFFF" color="#06070D" />

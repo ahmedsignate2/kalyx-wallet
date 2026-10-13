@@ -17,7 +17,7 @@ import { Text, Halo } from './kit';
 import { SparkBurst } from './kit/SparkBurst';
 import { Icon } from './icon';
 import { useTheme } from './theme';
-import { BRAND_GOLD, fontSize } from './tokens';
+import { fontSize } from './tokens';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
 import type { TxStage } from './kit';
@@ -57,7 +57,7 @@ export function SendResult({ stage, amount, dest }: { stage: TxStage; amount: st
   const discStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }, { scale: 0.92 + 0.08 * fill.value }] }));
   const markStyle = useAnimatedStyle(() => ({ opacity: fill.value, transform: [{ scale: 0.4 + 0.6 * fill.value }] }));
   const C = 2 * Math.PI * R;
-  const tint = failed ? colors.danger : BRAND_GOLD.light;
+  const tint = failed ? colors.danger : colors.warm;
 
   return (
     <View style={{ alignItems: 'center', gap: 14, paddingTop: 8 }}>
@@ -65,13 +65,13 @@ export function SendResult({ stage, amount, dest }: { stage: TxStage; amount: st
         <View pointerEvents="none" style={{ position: 'absolute' }}>
           <Halo size={260} mood={failed ? 'down' : 'up'} aura />
         </View>
-        {/* Orbite fixe, et la comète d'or qui la parcourt tant que l'envoi est en route. */}
+        {/* Orbite fixe, et la comète chaude qui la parcourt tant que l'envoi est en route. */}
         <Svg width={R * 2 + 8} height={R * 2 + 8} style={{ position: 'absolute' }}>
           <Circle cx={R + 4} cy={R + 4} r={R} stroke={colors.border} strokeWidth={1.5} fill="none" />
         </Svg>
         <Animated.View style={[{ position: 'absolute', width: R * 2 + 8, height: R * 2 + 8 }, arcStyle]}>
           <Svg width={R * 2 + 8} height={R * 2 + 8}>
-            <Circle cx={R + 4} cy={R + 4} r={R} stroke={BRAND_GOLD.light} strokeWidth={3} fill="none" strokeLinecap="round" strokeDasharray={`${C * 0.22} ${C}`} />
+            <Circle cx={R + 4} cy={R + 4} r={R} stroke={colors.warm} strokeWidth={3} fill="none" strokeLinecap="round" strokeDasharray={`${C * 0.22} ${C}`} />
           </Svg>
         </Animated.View>
         <Animated.View style={[{ width: D, height: D, borderRadius: D / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border }, discStyle]}>

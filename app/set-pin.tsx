@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
-import { View, Text, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';
-import { Orbit, Rise, Stardust } from '../ui/nova';
+import { View, Text, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
+import { Rise, ScreenOrbit } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
@@ -38,7 +38,6 @@ export default function SetPin() {
   const { colors } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
-  const { width: winW, height: winH } = useWindowDimensions();
   const shake = useRef(new Animated.Value(0)).current;
   const confirmDraft = useWallet((s) => s.confirmDraft);
   /** Brouillon venu d'un import : le texte de naissance change (§12.1). */
@@ -161,7 +160,7 @@ export default function SetPin() {
       {/* Geste de retour iOS coupé : un balayage abandonnait l'écran au milieu de
           l'écriture du coffre, ou entre les deux saisies du code. Le bouton retour reste. */}
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
-      <Stardust width={winW} height={winH} count={12} />
+      <ScreenOrbit top={insets.top + 56} />
 
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}
       <View>
@@ -209,7 +208,6 @@ export default function SetPin() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Animated.View style={{ transform: [{ translateX: shake }] }}>
           <View pointerEvents="none" style={{ position: 'absolute', left: 52, top: 52 }}>
-            <Orbit cx={0} cy={0} r={86} />
           </View>
           <KalyxRing size={104} progress={progress} error={!!errSignal} />
         </Animated.View>

@@ -37,7 +37,7 @@ import { holdingLabel } from '../../lib/holdingLabel';
 import { holdingIcon } from '../../ui/kit/useFallbackLogo';
 import { LogoImage, Text, IconButton, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, ActivityRow, Pressable as KPressable, Card } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
-import { ActionTile, Pills, TextTabs, GOLD } from '../../ui/nova';
+import { ActionTile, Pills, TextTabs } from '../../ui/nova';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
 import { useWallet } from '../../lib/walletStore';
@@ -649,7 +649,7 @@ export default function Home() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: -space[2] }}>
             <View>
               <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
-              {unread > 0 ? <View style={{ position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: radii.full, borderWidth: 1.5, borderColor: 'rgba(30,28,42,0.6)', backgroundColor: GOLD }} /> : null}
+              {unread > 0 ? <View style={{ position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: radii.full, borderWidth: 1.5, borderColor: 'rgba(30,28,42,0.6)', backgroundColor: sky.warm }} /> : null}
             </View>
             {/* Scanner : seule porte d'entrée pour connecter une dApp ou la webapp par QR. */}
             <IconButton icon="scan" label={t("scanQr")} tone="ghost" onPress={() => router.push('/scan')} />
@@ -658,7 +658,7 @@ export default function Home() {
 
         {/* ── Solde, posé sur le ciel ── */}
         <Animated.View style={[{ gap: space[1] }, bigBalanceStyle]}>
-          <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('homeTotalBalance')}</Text>
+          <Text variant="caption" tone="secondary" style={{ fontFamily: fontFamily.semibold }}>{t('homeTotalBalance')}</Text>
           <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
             {initialLoading ? (
               <Skeleton width={220} height={52} />
@@ -929,7 +929,7 @@ export default function Home() {
                   </FadeInUp>
                 ))}
               </Card>
-              <KPressable onPress={() => router.push('/history')} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
+              <KPressable onPress={() => router.navigate('/activity')} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
                 <Text variant="caption" tone="secondary">{t("fullHistory")}</Text>
               </KPressable>
             </>

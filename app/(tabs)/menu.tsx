@@ -10,7 +10,7 @@ import { useAiStore } from '../../lib/aiStore';
 import { spacing, useTheme } from '../../ui/theme';
 import { useSettings, useT } from '../../lib/settingsStore';
 import { useWallet } from '../../lib/walletStore';
-import { ActionDisc, IconDisc, Orbit, Rise, SectionLabel } from '../../ui/nova';
+import { ActionDisc, IconDisc, Rise, SectionLabel } from '../../ui/nova';
 import { useShallow } from 'zustand/react/shallow';
 
 function Ico({ n, tone }: { n: IconName; tone?: 'gold' | 'danger' }) {
@@ -39,7 +39,7 @@ export default function Menu() {
   return (
     <Screen tabBarSpace>
       <Stack.Screen options={{ headerShown: false }} />
-      <Text style={typography.title}>{t('menu')}</Text>
+      <Text style={typography.title}>{t('settings')}</Text>
 
       {/* Profil : l'avatar dans son orbite, comme le halo de l'accueil. */}
       <Rise>
@@ -51,7 +51,6 @@ export default function Menu() {
           */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
             <KPressable onPress={() => setPickAvatar(true)} hitSlop={6} accessibilityLabel={t('a11yChangeAvatar')} style={{ width: 60, height: 60, alignItems: 'center', justifyContent: 'center' }}>
-              <View pointerEvents="none" style={{ position: 'absolute', left: 30, top: 30 }}><Orbit cx={0} cy={0} r={38} /></View>
               <WalletAvatar size={56} />
             </KPressable>
             <KPressable onPress={() => router.push('/settings')} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing(2) }}>
@@ -109,7 +108,7 @@ export default function Menu() {
         <ListRow wrap divider left={<Ico n="walletconnect" />} title="WalletConnect" subtitle={t('connectedApps')} right={chev} onPress={() => router.push('/walletconnect')} />
         <ListRow wrap divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
         <ListRow wrap divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
-        <ListRow wrap divider left={<Ico n="history" />} title={t("activity")} subtitle={t("allTransactions")} right={chev} onPress={() => router.push('/history')} />
+        <ListRow wrap divider left={<Ico n="history" />} title={t("activity")} subtitle={t("allTransactions")} right={chev} onPress={() => router.navigate('/activity')} />
         {aiEnabled ? <ListRow wrap divider left={<Ico n="sparkles" />} title={t("assistant")} subtitle={t("assistantSubtitle")} right={chev} onPress={() => useAiStore.getState().openChat()} /> : null}
       </Card>
 

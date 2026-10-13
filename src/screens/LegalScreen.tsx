@@ -1,4 +1,3 @@
-import { Orbit } from '../../ui/nova';
 import { View, Text, Linking } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
@@ -26,7 +25,7 @@ export interface LegalScreenProps {
 }
 
 export function LegalScreen({ onBack }: LegalScreenProps = {}) {
-  const { colors, typography } = useTheme();
+  const { colors, typography, tints, elevation, mode } = useTheme();
   const t = useT();
 
   const Application = getApplicationModule();
@@ -79,9 +78,9 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
 
       {/* Identité de l'application */}
       <View style={{ alignItems: 'center', gap: spacing(1), paddingVertical: spacing(1) }}>
-        <View style={{ width: 110, height: 110, alignItems: 'center', justifyContent: 'center' }}>
-          <View pointerEvents="none" style={{ position: 'absolute', left: 55, top: 55 }}><Orbit cx={0} cy={0} r={70} /></View>
-          <KalyxLogo size={80} />
+        {/* Le logo sur une tuile sable (la teinte « or » de l'app), comme les en-têtes d'écran. */}
+        <View style={[{ width: 104, height: 104, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: mode === 'dark' ? colors.surface1 : tints.earn.bg, borderWidth: 1, borderColor: colors.border }, elevation]}>
+          <KalyxLogo size={72} />
         </View>
         <Text
           style={{
@@ -126,7 +125,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         <Text
           style={[
             typography.caption,
-            { color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, textTransform: 'uppercase', letterSpacing: 0.6 },
+            { color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.base },
           ]}
         >
           {t('legalPublisher')}
@@ -238,7 +237,7 @@ export function LegalScreen({ onBack }: LegalScreenProps = {}) {
         <Text
           style={[
             typography.caption,
-            { color: colors.primary, fontFamily: fonts.bold, fontSize: fontSize.sm, textTransform: 'uppercase', letterSpacing: 0.6 },
+            { color: colors.text, fontFamily: fonts.bold, fontSize: fontSize.base },
           ]}
         >
           {t('legalHosting')}

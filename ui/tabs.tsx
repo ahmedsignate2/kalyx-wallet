@@ -1,55 +1,38 @@
 /**
- * Barre d'onglets « Orbit Dock » — la signature de Kalyx.
+ * Barre d'onglets — celle de la maquette.
  *
- * Trois idées, qu'aucun autre wallet n'a ensemble :
+ *   Accueil · Explorer · ( ⇄ ) · Activité · Réglages
  *
- *  1. L'ORBE au centre. Le logo Kalyx, posé en relief au-dessus du dock dans
- *     un disque cerclé d'or, qui respire lentement. Le toucher ouvre un
- *     ÉVENTAIL : Envoyer, Recevoir, Swap, Scanner jaillissent en arc au-dessus
- *     du pouce, en cascade, au ressort. Les quatre gestes de l'argent sont à
- *     un pouce de n'importe quel onglet — sans quitter l'écran où l'on est.
- *
- *  2. L'indicateur ÉLASTIQUE. La lueur de l'onglet actif ne glisse pas d'un
- *     bloc : son bord avant part vite, son bord arrière suit au ressort plus
- *     souple. Elle s'étire pendant le trajet et se reforme à l'arrivée, comme
- *     une goutte de lumière. Un filet d'or souligne l'onglet actif.
- *
- *  3. La MATIÈRE. Verre sombre, reflet en haut, arête dorée très fine : le
- *     dock flotte au-dessus du contenu au lieu d'être une barre posée.
+ *  1. Une barre FLOTTANTE aux coins arrondis, de la matière du thème (papier
+ *     Crème avec une ombre douce, ou Nuit avec un liseré de lumière).
+ *  2. L'onglet actif est posé dans une pastille qui GLISSE d'un onglet à
+ *     l'autre au ressort ; son icône passe à l'encre, son libellé en gras.
+ *  3. Au centre, le bouton SWAP en relief : un disque d'encre cerclé du fond,
+ *     qui dépasse de la barre. Un appui ouvre l'échange ; un appui LONG ouvre
+ *     l'éventail des quatre gestes de l'argent (Envoyer, Recevoir, Swap,
+ *     Scanner), chacun à sa teinte, au-dessus du pouce.
  *
  * Elle appartient au navigateur d'onglets (`app/(tabs)/_layout.tsx`) et reste
- * montée d'un onglet à l'autre.
+ * montée d'un onglet à l'autre. « Gagner » reste un onglet du navigateur (les
+ * tuiles de l'accueil y mènent) mais n'a plus de place dans la barre.
  */
 import { useEffect, useEffectEvent, useState } from 'react';
-import { useForeground } from './useLoopActive';
 import { Platform, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import type { BottomTabBarProps } from 'expo-router/tabs';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Reanimated, {
-  Easing,
-  cancelAnimation,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSpring,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
+import Reanimated, { interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import { create } from 'zustand';
 import { useT } from '../lib/settingsStore';
 import type { Key } from '../lib/i18n';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { haptic } from '../lib/haptics';
-import { durations, springs, BRAND_GOLD, radii, fontFamily, type ActionTint } from './tokens';
+import { durations, springs, radii, fontFamily, BRAND_GOLD, type ActionTint } from './tokens';
 import { useTheme } from './theme';
 import { Icon, type IconName } from './icon';
 import { Pressable as KPressable, Text } from './kit';
-import { KalyxLogo } from './KalyxLogo';
 
-export type MainTab = 'home' | 'browser' | 'earn' | 'menu';
+export type MainTab = 'home' | 'browser' | 'activity' | 'menu';
 
 /** Un onglet peut masquer la barre (le navigateur, quand une dApp occupe l'écran). */
 export const useTabBar = create<{ hidden: boolean; setHidden: (h: boolean) => void }>((set) => ({
@@ -57,25 +40,24 @@ export const useTabBar = create<{ hidden: boolean; setHidden: (h: boolean) => vo
   setHidden: (hidden) => set({ hidden }),
 }));
 
-/** Or de la marque : le seul accent chaud de l'interface (Bible §2). */
+/** Or de la marque (logo) : exporté pour les écrans qui le citent encore. */
 export const GOLD = BRAND_GOLD.light;
-const NAV_H = 68;
-/** Diamètre de l'orbe central, et de combien il dépasse au-dessus du dock. */
-const ORB = 62;
-const ORB_LIFT = 20;
-/** Largeur de la lueur de l'onglet actif (bornée par l'emplacement). */
-const GLOW_W = 64;
+const NAV_H = 70;
+/** Diamètre du bouton central, et de combien il dépasse au-dessus de la barre. */
+const ORB = 60;
+const ORB_LIFT = 18;
+/** Anneau du fond autour du bouton central : il « découpe » la barre. */
+const ORB_RING = 5;
 
 const TABS: { key: MainTab; icon: IconName; label: (t: (k: Key) => string) => string }[] = [
   { key: 'home', icon: 'home', label: (t) => t('navHome') },
   { key: 'browser', icon: 'dapps', label: (t) => t('navExplore') },
-  { key: 'earn', icon: 'staking', label: (t) => t('actionEarn') },
-  { key: 'menu', icon: 'menu', label: (t) => t('menu') },
+  { key: 'activity', icon: 'history', label: (t) => t('activity') },
+  { key: 'menu', icon: 'gear', label: (t) => t('settings') },
 ];
-/** Cinq emplacements : deux onglets, l'orbe, deux onglets. */
+/** Cinq emplacements : deux onglets, le bouton central, deux onglets. */
 const slotOf = (tabIdx: number) => (tabIdx < 2 ? tabIdx : tabIdx + 1);
 
-/** Les quatre gestes de l'argent, en éventail au-dessus de l'orbe. */
 /** Chaque geste garde SA teinte (tokens `tints`) : la même que sur l'accueil. */
 const FAN: { icon: IconName; label: (t: (k: Key) => string) => string; go: () => void; tint: ActionTint }[] = [
   { icon: 'send', label: (t) => t('actionSend'), go: () => router.push('/send'), tint: 'send' },
@@ -83,7 +65,7 @@ const FAN: { icon: IconName; label: (t: (k: Key) => string) => string; go: () =>
   { icon: 'exchange', label: (t) => t('actionSwap'), go: () => router.push('/swap'), tint: 'swap' },
   { icon: 'scan', label: (t) => t('scan'), go: () => router.push('/scan'), tint: 'buy' },
 ];
-/** Arc de l'éventail, au-dessus de l'orbe (angles en degrés, rayon en px). */
+/** Arc de l'éventail, au-dessus du bouton central (angles en degrés, rayon en px). */
 const FAN_R = 132;
 const FAN_ANGLES = [-158, -116, -64, -22].map((d) => (d * Math.PI) / 180);
 
@@ -94,21 +76,21 @@ function NavItem({ icon, label, on }: { icon: IconName; label: string; on: boole
   useEffect(() => {
     p.value = reduce ? (on ? 1 : 0) : withSpring(on ? 1 : 0, springs.snappy);
   }, [on, reduce, p]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -2 * p.value }, { scale: 1 + 0.08 * p.value }] }));
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.06 * p.value }] }));
   return (
-    <View style={{ alignItems: 'center', gap: 4 }}>
+    <View style={{ alignItems: 'center', gap: 3 }}>
       <Reanimated.View style={iconStyle}>
         <Icon name={icon} size={22} color={on ? colors.text : colors.textTertiary} />
       </Reanimated.View>
       {/* Barre de hauteur FIXE (NAV_H) : libellé plafonné à 1,2× sous Dynamic Type. */}
-      <Text variant="micro" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
+      <Text variant="micro" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ fontFamily: on ? fontFamily.bold : fontFamily.medium, letterSpacing: 0.1, color: on ? colors.text : colors.textTertiary }}>{label}</Text>
     </View>
   );
 }
 
 /**
  * Une action de l'éventail. Posée à sa place FINALE dans un calque plein écran,
- * et l'animation la fait venir de l'orbe (translation inverse qui s'annule).
+ * et l'animation la fait venir du bouton central (translation inverse qui s'annule).
  *
  * POURQUOI : elle était dessinée hors du cadre de la barre. Sur Android, un
  * toucher hors des limites du parent n'est jamais distribué à l'enfant : les
@@ -152,12 +134,13 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const reduce = useReduceMotion();
   const hidden = useTabBar((s) => s.hidden);
   const active = state.routes[state.index]?.name as MainTab;
-  const activeIdx = Math.max(0, TABS.findIndex((x) => x.key === active));
+  // « Gagner » (hors barre) : aucune pastille, aucun onglet allumé.
+  const activeIdx = TABS.findIndex((x) => x.key === active);
   const [w, setW] = useState(0);
   const slot = w / 5;
-  const glowW = Math.min(GLOW_W, slot - 6);
   const dark = mode === 'dark';
-  const bottom = Math.max(insets.bottom, 12) + 8;
+  const bottom = Math.max(insets.bottom, 12) + 6;
+  const pillW = Math.max(0, Math.min(76, slot - 4));
 
   const y = useSharedValue(hidden ? 1 : 0);
   useEffect(() => {
@@ -165,46 +148,19 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   }, [hidden, y]);
   const dockStyle = useAnimatedStyle(() => ({ transform: [{ translateY: y.value * 160 }], opacity: 1 - y.value }));
 
-  /*
-   * INDICATEUR ÉLASTIQUE : deux bords, deux ressorts. Le bord du côté où l'on
-   * va est raide (il part tout de suite), l'autre est souple (il traîne) :
-   * la lueur s'étire pendant le trajet puis se referme sur l'onglet.
-   */
-  const left = useSharedValue(0);
-  const right = useSharedValue(0);
+  /* PASTILLE de l'onglet actif : elle glisse au ressort d'un onglet à l'autre. */
+  const pillX = useSharedValue(-1);
+  const pillOn = useSharedValue(activeIdx >= 0 ? 1 : 0);
   useEffect(() => {
     if (!slot) return;
-    const l = slotOf(activeIdx) * slot + (slot - glowW) / 2;
-    const r = l + glowW;
-    if (reduce || right.value === 0) {
-      left.value = l;
-      right.value = r;
-      return;
-    }
-    const goingRight = l > left.value;
-    const lead = { damping: 18, stiffness: 320, mass: 0.6 };
-    const trail = { damping: 16, stiffness: 120, mass: 0.9 };
-    left.value = withSpring(l, goingRight ? trail : lead);
-    right.value = withSpring(r, goingRight ? lead : trail);
-  }, [activeIdx, slot, glowW, reduce, left, right]);
-  /*
-   * left/width animés et non scaleX : la pilule est en position absolue (aucun
-   * voisin à remettre en page, coût négligeable), et un scaleX étirait ses bouts
-   * arrondis en ellipses — et le filet d'or avec — pendant tout le trajet.
-   */
-  const glowStyle = useAnimatedStyle(() => ({ left: left.value, width: Math.max(8, right.value - left.value) }));
+    pillOn.value = withTiming(activeIdx >= 0 ? 1 : 0, { duration: 160 });
+    if (activeIdx < 0) return;
+    const x = slotOf(activeIdx) * slot + (slot - pillW) / 2;
+    pillX.value = reduce || pillX.value < 0 ? x : withSpring(x, { damping: 20, stiffness: 260, mass: 0.8 });
+  }, [activeIdx, slot, pillW, reduce, pillX, pillOn]);
+  const pillStyle = useAnimatedStyle(() => ({ opacity: pillOn.value, transform: [{ translateX: Math.max(0, pillX.value) }] }));
 
-  /* ORBE : respiration lente du cercle d'or, éventail à l'appui. */
-  const breath = useSharedValue(0);
-  // La barre reste à l'écran : la respiration ne s'arrête qu'en arrière-plan.
-  const foreground = useForeground();
-  useEffect(() => {
-    if (reduce || !foreground) return;
-    breath.value = withRepeat(withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }), -1, true);
-    return () => cancelAnimation(breath);
-  }, [reduce, foreground, breath]);
-  const ringStyle = useAnimatedStyle(() => ({ opacity: 0.35 + 0.35 * breath.value, transform: [{ scale: 1 + 0.06 * breath.value }] }));
-
+  /* ÉVENTAIL : appui long sur le bouton central. */
   const open = useSharedValue(0);
   const [fanOpen, setFanOpen] = useState(false);
   const setFan = (o: boolean) => {
@@ -220,11 +176,11 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
     closeFan();
   }, [activeIdx]);
   const scrimStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, open.value) }));
-  const orbIconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${open.value * 135}deg` }, { scale: 1 - 0.12 * Math.min(1, open.value) }] }));
-  const closeStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, open.value), transform: [{ rotate: `${(1 - open.value) * -90}deg` }] }));
-  const logoStyle = useAnimatedStyle(() => ({ opacity: 1 - Math.min(1, open.value) }));
+  const orbIconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${open.value * 90}deg` }] }));
+  const swapIconStyle = useAnimatedStyle(() => ({ opacity: 1 - Math.min(1, open.value) }));
+  const closeStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, open.value) }));
 
-  // Taille de l'écran (calque de l'éventail) : le centre de l'orbe s'en déduit.
+  // Taille de l'écran (calque de l'éventail) : le centre du bouton s'en déduit.
   const [layer, setLayer] = useState({ w: 0, h: 0 });
   const orbCx = layer.w / 2;
   const orbCy = layer.h - bottom - NAV_H - ORB_LIFT + ORB / 2 - 14;
@@ -244,55 +200,41 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
       </Reanimated.View>
 
       {/*
-        Le cadre de la barre COMMENCE au sommet de l'orbe : un parent qui
-        s'arrêtait au dock laissait le haut de l'orbe hors limites, donc mort
+        Le cadre de la barre COMMENCE au sommet du bouton central : un parent qui
+        s'arrêtait à la barre laissait le haut du bouton hors limites, donc mort
         au toucher sur Android.
       */}
-      <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 16, right: 16, bottom, paddingTop: ORB_LIFT }, dockStyle]}>
+      <Reanimated.View pointerEvents={hidden ? 'none' : 'box-none'} style={[{ position: 'absolute', left: 14, right: 14, bottom, paddingTop: ORB_LIFT }, dockStyle]}>
         {/*
           Ombre et rognage sur DEUX vues : sur iOS, `overflow: 'hidden'` rogne
-          aussi l'ombre de la vue qui le porte — la barre n'en avait aucune.
-          La vue externe porte l'ombre (iOS seulement) ; l'interne, inchangée,
-          rogne le reflet et garde l'`elevation` : Android reste identique.
+          aussi l'ombre de la vue qui le porte. L'externe porte l'ombre (iOS),
+          l'interne rogne et garde l'`elevation` (Android).
         */}
         <View
           onLayout={(e: LayoutChangeEvent) => setW(e.nativeEvent.layout.width)}
-          style={Platform.OS === 'ios' ? { borderRadius: NAV_H / 2, shadowColor: dark ? '#000' : '#5A3A18', shadowOpacity: dark ? 0.5 : 0.14, shadowRadius: 24, shadowOffset: { width: 0, height: 10 } } : undefined}
+          style={Platform.OS === 'ios' ? { borderRadius: radii.xxl, shadowColor: dark ? '#000' : '#5A3A18', shadowOpacity: dark ? 0.5 : 0.14, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } } : undefined}
         >
           <View
             style={{
               height: NAV_H,
-              borderRadius: NAV_H / 2,
-              backgroundColor: dark ? 'rgba(20,21,28,0.97)' : 'rgba(255,251,245,0.97)',
+              borderRadius: radii.xxl,
+              backgroundColor: colors.surface1,
               borderWidth: 1,
-              borderColor: dark ? 'rgba(255,255,255,0.08)' : colors.border,
-              borderTopColor: dark ? 'rgba(221,181,101,0.28)' : 'rgba(184,134,58,0.25)',
+              borderColor: colors.border,
+              borderTopColor: colors.rim,
               flexDirection: 'row',
               alignItems: 'center',
               overflow: 'hidden',
-              shadowColor: '#000',
-              shadowOpacity: dark ? 0.5 : 0.12,
-              shadowRadius: 24,
-              shadowOffset: { width: 0, height: 10 },
-              elevation: 16,
+              elevation: 14,
             }}
           >
-            {/* Reflet du verre : la lumière tombe d'en haut. */}
-            <LinearGradient
-              pointerEvents="none"
-              colors={dark ? ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
-              style={{ position: 'absolute', left: 0, right: 0, top: 0, height: NAV_H / 2 }}
-            />
             {slot ? (
-              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', top: 7, height: NAV_H - 14, borderRadius: (NAV_H - 14) / 2, backgroundColor: dark ? 'rgba(255,244,230,0.075)' : 'rgba(70,48,24,0.06)', overflow: 'hidden' }, glowStyle]}>
-                {/* Filet d'or au pied de l'onglet actif. */}
-                <View style={{ position: 'absolute', bottom: 0, left: '30%', right: '30%', height: 2, borderRadius: radii.full, backgroundColor: GOLD }} />
-              </Reanimated.View>
+              <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 8, height: NAV_H - 16, width: pillW, borderRadius: radii.lg, backgroundColor: colors.surface2 }, pillStyle]} />
             ) : null}
             {TABS.slice(0, 2).map((it) => (
               <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
             ))}
-            {/* Place de l'orbe (dessiné au-dessus, en relief). */}
+            {/* Place du bouton central (dessiné au-dessus, en relief). */}
             <View style={{ flex: 1 }} />
             {TABS.slice(2).map((it) => (
               <TabButton key={it.key} it={it} active={active} t={t} onPress={() => navigation.navigate(it.key)} />
@@ -300,34 +242,34 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
           </View>
         </View>
 
-        {/* ── L'ORBE ── */}
-        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, alignItems: 'center' }}>
-          <KPressable
-            onPress={() => setFan(!fanOpen)}
-            haptic="light"
-            overshoot
-            accessibilityRole="button"
-            accessibilityState={{ expanded: fanOpen }}
-            accessibilityLabel={fanOpen ? t('close') : 'Kalyx'}
-            style={{ width: ORB, height: ORB, alignItems: 'center', justifyContent: 'center' }}
-          >
-            {/* Cercle d'or qui respire autour de l'orbe. */}
-            <Reanimated.View pointerEvents="none" style={[{ position: 'absolute', width: ORB + 12, height: ORB + 12, borderRadius: (ORB + 12) / 2, borderWidth: 1.5, borderColor: GOLD }, ringStyle]} />
-            {/* Même séparation ombre / rognage que la barre (iOS) : la lueur d'or n'était pas dessinée. */}
-            <View style={Platform.OS === 'ios' ? { borderRadius: ORB / 2, shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 } } : undefined}>
-              <View style={{ width: ORB, height: ORB, borderRadius: ORB / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(221,181,101,0.55)', alignItems: 'center', justifyContent: 'center', backgroundColor: dark ? '#16161E' : '#FFFBF5', shadowColor: GOLD, shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }, elevation: 18 }}>
-                <LinearGradient pointerEvents="none" colors={dark ? ['rgba(221,181,101,0.22)', 'rgba(221,181,101,0)'] : ['rgba(221,181,101,0.3)', 'rgba(221,181,101,0)']} style={StyleSheet.absoluteFill} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} />
+        {/* ── LE BOUTON SWAP ── */}
+        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: -ORB_RING, alignItems: 'center' }}>
+          <View style={{ width: ORB + ORB_RING * 2, height: ORB + ORB_RING * 2, borderRadius: radii.full, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={Platform.OS === 'ios' ? { borderRadius: ORB / 2, shadowColor: dark ? '#000' : '#1E1C2A', shadowOpacity: dark ? 0.45 : 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } } : undefined}>
+              <KPressable
+                onPress={() => (fanOpen ? setFan(false) : router.push('/swap'))}
+                onLongPress={() => setFan(!fanOpen)}
+                delayLongPress={320}
+                haptic="light"
+                overshoot
+                accessibilityRole="button"
+                accessibilityState={{ expanded: fanOpen }}
+                accessibilityLabel={fanOpen ? t('close') : t('actionSwap')}
+                accessibilityActions={[{ name: 'longpress', label: `${t('actionSend')} · ${t('actionReceive')} · ${t('scan')}` }]}
+                onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'longpress') setFan(!fanOpen); }}
+                style={{ width: ORB, height: ORB, borderRadius: ORB / 2, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', elevation: 16 }}
+              >
                 <Reanimated.View style={orbIconStyle}>
-                  <Reanimated.View style={logoStyle}>
-                    <KalyxLogo size={34} />
+                  <Reanimated.View style={swapIconStyle}>
+                    <Icon name="exchange" size={25} color={colors.onPrimary} />
                   </Reanimated.View>
                 </Reanimated.View>
                 <Reanimated.View pointerEvents="none" style={[{ position: 'absolute' }, closeStyle]}>
-                  <Icon name="close" size={24} color={colors.text} />
+                  <Icon name="close" size={24} color={colors.onPrimary} />
                 </Reanimated.View>
-              </View>
+              </KPressable>
             </View>
-          </KPressable>
+          </View>
         </View>
       </Reanimated.View>
 

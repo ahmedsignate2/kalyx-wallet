@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Halo } from '../../ui/kit/Halo';
-import { ActionDisc, GOLD, Orbit, Pills, Rise, SectionLabel } from '../../ui/nova';
+import { ActionDisc, Pills, Rise, SectionLabel } from '../../ui/nova';
 import { Aurora } from '../../ui/Aurora';
 import { tokenTint } from '../../lib/tokenColors';
 import { CHAIN_LOGO_SVG } from '../../src/domain/chains/chainLogos.generated';
@@ -342,7 +342,6 @@ export default function TokenDetail() {
         <Aurora height={520} mood={detail ? (up ? 'up' : 'down') : 'flat'} tint={accent} />
       </View>
       <View pointerEvents="none" style={{ position: 'absolute', top: 0, right: 0, width: 300, height: 300 }}>
-        <Orbit cx={210} cy={60} r={120} />
         <Halo
           size={260}
           mood={detail ? (up ? 'up' : 'down') : 'flat'}
@@ -365,7 +364,7 @@ export default function TokenDetail() {
               accessibilityState={{ checked: isFav }}
               accessibilityLabel={t('favorites')}
             >
-              <Icon name={isFav ? 'starFilled' : 'star'} size={23} color={isFav ? GOLD : colors.textSecondary} />
+              <Icon name={isFav ? 'starFilled' : 'star'} size={23} color={isFav ? colors.warm : colors.textSecondary} />
             </KPressable>
           </View>
         }
@@ -521,7 +520,7 @@ export default function TokenDetail() {
                 <Text numberOfLines={aboutExpanded ? undefined : 5} style={[typography.muted, { lineHeight: 21 }]}>{detail.description}</Text>
                 {detail.description.length > 320 ? (
                   <KPressable onPress={() => setAboutExpanded((v) => !v)} hitSlop={8} accessibilityLabel={aboutExpanded ? t('readLess') : t('readMore')}>
-                    <Text style={{ color: GOLD, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text>
+                    <Text style={{ color: colors.warm, marginTop: spacing(1), fontFamily: fonts.semibold }}>{aboutExpanded ? t("readLess") : t("readMore")}</Text>
                   </KPressable>
                 ) : null}
               </Card>

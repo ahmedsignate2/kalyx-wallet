@@ -6,7 +6,7 @@
  *  - approbations actives (réseau actif) avec « Révoquer »
  *  - sessions WalletConnect ouvertes avec « Déconnecter »
  */
-import { GOLD, NovaHero, SectionLabel } from '../ui/nova';
+import { NovaHero, SectionLabel } from '../ui/nova';
 import { IsMyAddress } from '../ui/IsMyAddress';
 import { useWhitelist } from '../lib/whitelistStore';
 import Svg, { Circle } from 'react-native-svg';
@@ -144,7 +144,7 @@ export default function SecurityCenter() {
           <View style={{ width: 80, height: 80, alignItems: 'center', justifyContent: 'center', borderRadius: radii.full, backgroundColor: colors.surface1 }}>
             <Svg width={80} height={80} style={{ position: 'absolute' }}>
               <Circle cx={40} cy={40} r={R} stroke={colors.surface3} strokeWidth={6} fill="none" />
-              <Circle cx={40} cy={40} r={R} stroke={allDone ? colors.up : GOLD} strokeWidth={6} fill="none" strokeLinecap="round" strokeDasharray={`${C * (checks.length ? score / checks.length : 0)} ${C}`} transform="rotate(-90 40 40)" />
+              <Circle cx={40} cy={40} r={R} stroke={allDone ? colors.up : colors.warm} strokeWidth={6} fill="none" strokeLinecap="round" strokeDasharray={`${C * (checks.length ? score / checks.length : 0)} ${C}`} transform="rotate(-90 40 40)" />
             </Svg>
             <Text variant="title2" tabular>{score}<Text variant="caption" tone="secondary">/{checks.length}</Text></Text>
           </View>

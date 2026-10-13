@@ -63,6 +63,7 @@ const sky: Palette = {
   textTertiary: 'rgba(255,248,238,0.72)',
   primary: '#FFF8EE',
   onPrimary: '#1E1C2A',
+  warm: '#FFD2B0',
   up: '#8BF0BE',
   down: '#FFB0A6',
 };

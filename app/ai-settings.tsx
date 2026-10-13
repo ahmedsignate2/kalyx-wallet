@@ -1,8 +1,8 @@
 import { Button, Chip, Input, ScreenHeader, Pressable as KPressable, Text as KText, Card, Screen, Switch } from '../ui/kit';
-import { GOLD, IconDisc, NovaHero, Rise, SectionLabel } from '../ui/nova';
+import { IconDisc, NovaHero, Rise, SectionLabel } from '../ui/nova';
 import { useState, useEffect } from 'react';
 import { View, Alert, Linking } from 'react-native';
-import { spacing } from '../ui/theme';
+import { spacing, useTheme } from '../ui/theme';
 import { useSettings } from '../lib/settingsStore';
 import { useT } from '../lib/settingsStore';
 import { Icon } from '../ui/icon';
@@ -14,6 +14,7 @@ import { goBack } from '../lib/nav';
 
 export default function AiSettings() {
   const t = useT();
+  const { colors } = useTheme();
   const aiToolsEnabled = useSettings((st) => st.aiToolsEnabled);
   const setAiToolsEnabled = useSettings((st) => st.setAiToolsEnabled);
   const { isEnabled, provider, apiKey, setApiKey, disableAi, loadInitialState } = useAiStore(useShallow((s) => ({ isEnabled: s.isEnabled, provider: s.provider, apiKey: s.apiKey, setApiKey: s.setApiKey, disableAi: s.disableAi, loadInitialState: s.loadInitialState })));
@@ -96,8 +97,8 @@ export default function AiSettings() {
         <Input label={t('aiApiKey')} placeholder="sk-…" value={inputKey} onChangeText={setInputKey} secureTextEntry sensitive />
         {PROVIDER_DEFAULTS[selectedProvider]?.helperUrl ? (
           <KPressable onPress={() => Linking.openURL(PROVIDER_DEFAULTS[selectedProvider].helperUrl!)} hitSlop={8} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="forward" size={14} color={GOLD} />
-            <KText variant="caption" style={{ color: GOLD }}>{t('aiFreeKeyHelp')}</KText>
+            <Icon name="forward" size={14} color={colors.warm} />
+            <KText variant="caption" style={{ color: colors.warm }}>{t('aiFreeKeyHelp')}</KText>
           </KPressable>
         ) : null}
         {selectedProvider === 'custom' ? (

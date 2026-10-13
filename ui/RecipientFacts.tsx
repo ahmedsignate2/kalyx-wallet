@@ -47,7 +47,7 @@ export function RecipientFacts({ to, chainId, from, facts }: { to: string; chain
   return (
     <View style={{ gap: 8, padding: 14, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase', flex: 1 }}>{t('recipientFactsTitle')}</Text>
+        <Text variant="micro" tone="secondary" style={{ fontFamily: fontFamily.semibold, flex: 1 }}>{t('recipientFactsTitle')}</Text>
         {probe === null ? <ActivityIndicator size="small" color={colors.textTertiary} /> : null}
       </View>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

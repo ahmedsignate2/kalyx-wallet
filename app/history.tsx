@@ -59,7 +59,8 @@ type Row = { tx: TxSummary; h: HumanTx };
 
 const SPAM_TEXT = { poisoning: 'spamPoisoning', scamName: 'spamScamName', zeroValue: 'spamZeroValue', unverifiedToken: 'spamUnverified' } as const;
 
-export default function History() {
+/** `inTab` : rendu comme ONGLET de la barre (pas de retour, place pour la barre flottante). */
+export default function History({ inTab = false }: { inTab?: boolean } = {}) {
   const t = useT();
   const activityT = useActivityT();
   const language = useSettings((s) => s.language);
@@ -329,7 +330,7 @@ export default function History() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenOrbit top={insets.top + 56} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 56, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
-        <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />
+        {inTab ? null : <IconButton icon="back" label={t('back')} tone="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/home'))} />}
         <View style={{ flex: 1 }}>
           <Text variant="title2">{t('activity')}</Text>
           <Text variant="micro" tone="tertiary">{onlyChain ? (chainNameOf(onlyChain) ?? onlyChain) : t('filterAllNetworks')}</Text>
@@ -358,7 +359,7 @@ export default function History() {
         ListHeaderComponent={header}
         ListEmptyComponent={empty}
         ListFooterComponent={footer}
-        contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + space[6] }}
+        contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, paddingBottom: insets.bottom + (inTab ? 120 : space[6]) }}
         initialNumToRender={14}
         /*
          * STABILITÉ EN BAS DE LISTE (Android). Le retrait des lignes hors écran

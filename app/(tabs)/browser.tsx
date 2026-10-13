@@ -38,7 +38,7 @@ import { createTicker, useTicker } from '../../lib/ticker';
 import { DappTile, DappLogo, siteName } from '../../ui/browser/DappTile';
 import { useTheme } from '../../ui/theme';
 import { space, SCREEN_MARGIN, radius, radii, springs, fontSize } from '../../ui/tokens';
-import { Orbit, Rise, TextTabs } from '../../ui/nova';
+import { Rise, TextTabs } from '../../ui/nova';
 import { haptic } from '../../lib/haptics';
 import { sound } from '../../lib/sound';
 import { useWallet, type Unlock } from '../../lib/walletStore';
@@ -756,7 +756,6 @@ export default function Browser() {
         {/* En-tête : le titre, et la même orbite que l'accueil, en petit, en haut à droite. */}
         <View style={{ height: 76, justifyContent: 'center' }}>
           <View pointerEvents="none" style={{ position: 'absolute', right: 34, top: 38 }}>
-            <Orbit cx={0} cy={0} r={46} />
           </View>
           <Rise><Text variant="title1">{t('navExplore')}</Text></Rise>
         </View>

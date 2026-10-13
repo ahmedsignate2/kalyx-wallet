@@ -85,7 +85,7 @@ export function HomeNudge() {
     setSnoozed((s) => ({ ...s, [n.id]: true }));
   };
   return (
-    <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: 'rgba(255,181,71,0.28)' }}>
+    <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: radii.xl, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
       <IconDisc name={n.icon} tone="gold" size={40} />
       <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
         <Text variant="body" style={{ fontFamily: fontFamily.semibold }}>{n.title}</Text>

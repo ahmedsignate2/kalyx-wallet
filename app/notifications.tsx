@@ -1,4 +1,4 @@
-import { GOLD, NovaHero, Rise } from '../ui/nova';
+import { NovaHero, Rise } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { useEffect } from 'react';
 import { View, Text } from 'react-native';
@@ -51,7 +51,7 @@ export default function Notifications() {
           {items.map((n, i) => (
             <Rise key={n.id} delay={Math.min(i, 10) * 40} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.5), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.border }}>
               <View style={{ width: 42, height: 42, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : GOLD} />
+                <Icon name={ICON[n.type]} size={19} color={n.type === 'tx' ? colors.up : colors.warm} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={typography.bodyStrong} numberOfLines={1}>{n.title}</Text>
