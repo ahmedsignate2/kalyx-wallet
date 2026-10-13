@@ -8,7 +8,8 @@ import { useT } from "../lib/settingsStore";
  * Sauter la sauvegarde = bandeau permanent sur l'accueil + point dans Sécurité.
  */
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Platform } from 'react-native';
+import { View, ScrollView, Platform, useWindowDimensions } from 'react-native';
+import { SceneDunes } from '../ui/Landscape';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
@@ -24,7 +25,8 @@ import { goBack } from '../lib/nav';
 
 export default function Backup() {
   const t = useT();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const { width: winW, height: winH } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const draft = useWallet((s) => s.draftMnemonic);
   const [held, setHeld] = useState(false);
@@ -53,6 +55,7 @@ export default function Backup() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
+      <SceneDunes width={winW} height={insets.top + Math.min(280, winH * 0.32)} mode={mode} />
       <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
         <IconButton icon="back" label={t("back")} tone="ghost" onPress={() => goBack('/welcome')} />
         <Text variant="title2" style={{ flex: 1 }}>{t('yourRecoveryPhrase')}</Text>

@@ -44,7 +44,7 @@ export default function Invite() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <Screen>
+      <Screen scene="top">
       <ScreenHeader />
       <NovaHero icon="gift" tone="gold" title={t('discoverKalyx')} subtitle={t('shareWithFriends')} />
 

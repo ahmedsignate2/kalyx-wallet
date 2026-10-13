@@ -1,6 +1,6 @@
 import { ScreenHeader, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Text as KText, Button, Card } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
-import { IconDisc, Pills, Rise } from '../ui/nova';
+import { HeroOrb, Pills, Rise } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { useMemo, useState } from 'react';
@@ -221,11 +221,9 @@ export default function ImportWallet() {
         showsVerticalScrollIndicator={false}
       >
       <ScreenHeader />
-      {/* Héros : le disque « importer » dans son orbite, le titre, ce qui se passe. */}
+      {/* Héros : l'orbe « importer », le titre, ce qui se passe. */}
       <View style={{ alignItems: 'center', gap: spacing(1.5), paddingBottom: spacing(1) }}>
-        <View style={{ width: 84, height: 84, alignItems: 'center', justifyContent: 'center' }}>
-          <IconDisc name="import" size={76} />
-        </View>
+        <HeroOrb icon="import" size={68} />
         <Rise delay={80}><Text style={[typography.title, { textAlign: 'center' }]}>{t('importWalletT')}</Text></Rise>
         <Rise delay={150}><Text style={[typography.muted, { textAlign: 'center', maxWidth: 320 }]}>{t('walletsCohabit')}</Text></Rise>
       </View>

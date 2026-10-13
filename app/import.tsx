@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
-import { View, Text, TextInput, Platform, StatusBar, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Platform, StatusBar, StyleSheet, useWindowDimensions } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -14,7 +14,8 @@ import { isWalletError, unknownWords } from '../src';
 import { Text as KText, SENSITIVE_INPUT_PROPS, Pressable as KPressable, Button, Card, Notice } from '../ui/kit';
 import { PinPromptModal } from '../ui/PinPromptModal';
 import { radius, fontSize, radii } from '../ui/tokens';
-import { Rise } from '../ui/nova';
+import { HeroOrb, Rise } from '../ui/nova';
+import { SceneDunes } from '../ui/Landscape';
 import { fill } from '../lib/i18n';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 
@@ -27,7 +28,8 @@ import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 export default function Import() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
   useNoScreenCapture('import');
-  const { colors, typography } = useTheme();
+  const { colors, typography, mode } = useTheme();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   const insets = useSafeAreaInsets();
   const setImportedDraft = useWallet((s) => s.setImportedDraft);
@@ -130,6 +132,8 @@ export default function Import() {
       {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
           et le §2.2 ne tolère aucun dégradé décoratif. */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
+      {/* Les dunes du paysage, au pied de l'écran, sous l'action principale. */}
+      <SceneDunes width={winW} height={Math.min(280, winH * 0.32)} position="bottom" mode={mode} />
 
       <KeyboardAvoid style={{ flex: 1, paddingTop: topPadding }}>
         {/* Header unique, calé sous la barre d'état */}
@@ -149,11 +153,7 @@ export default function Import() {
         <View style={{ flex: 1, paddingHorizontal: spacing(2.5) }}>
           {/* Badge → titre → sous-titre, enchaînés sans vide */}
           <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <View style={{ width: 64, height: 64, alignItems: 'center', justifyContent: 'center' }}>
-              <View style={{ width: 60, height: 60, borderRadius: radii.full, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="import" size={26} color={colors.primary} />
-              </View>
-            </View>
+            <HeroOrb icon="import" size={64} />
             <Rise delay={80}><Text style={[typography.title, { marginVertical: 8, textAlign: 'center' }]}>{t('importWalletT')}</Text></Rise>
             <Rise delay={160}><Text style={[typography.muted, { textAlign: 'center', marginBottom: 20 }]}>{t('pastePhraseHint')}</Text></Rise>
           </View>

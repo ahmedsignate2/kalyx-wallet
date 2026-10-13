@@ -788,7 +788,7 @@ export default function Browser() {
         ) : null}
         <Rise delay={160} style={{ gap: space[4] }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: space[4] }}>
-            <TextTabs items={VERIFIED_DAPPS.map((c) => ({ key: c.category, label: c.category }))} value={category} onChange={(k) => { haptic.selection(); setCategory(k); }} />
+            <TextTabs variant="underline" items={VERIFIED_DAPPS.map((c) => ({ key: c.category, label: c.category }))} value={category} onChange={(k) => { haptic.selection(); setCategory(k); }} />
           </ScrollView>
           {/* Trois par ligne : à deux colonnes, la carte laissait un grand vide à droite. */}
           <View style={[card, { flexDirection: 'row', flexWrap: 'wrap', rowGap: space[4], paddingVertical: space[4], paddingHorizontal: space[2] }]}>

@@ -114,7 +114,7 @@ export default function Settings() {
   const hapticsOn = useSettings((s) => s.hapticsEnabled);
 
   return (
-    <Screen>
+    <Screen scene="top">
       <AvatarPicker walletId={activeWalletId} visible={pickAvatar} onClose={() => setPickAvatar(false)} />
       <ScreenHeader />
 

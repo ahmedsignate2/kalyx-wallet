@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
 import { usePendingRestore } from '../lib/pendingRestore';
-import { View, Text, Animated, ActivityIndicator, Platform, StatusBar } from 'react-native';
-import { Rise, ScreenOrbit } from '../ui/nova';
+import { View, Text, Animated, ActivityIndicator, Platform, StatusBar, useWindowDimensions } from 'react-native';
+import { SceneDunes } from '../ui/Landscape';
+import { IconDisc, Rise } from '../ui/nova';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
@@ -35,7 +36,8 @@ import { ensureInstallMarker } from '../lib/installMarker';
 export default function SetPin() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
   useNoScreenCapture('set-pin');
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const { width: winW, height: winH } = useWindowDimensions();
   const t = useT();
   const insets = useSafeAreaInsets();
   const shake = useRef(new Animated.Value(0)).current;
@@ -160,7 +162,8 @@ export default function SetPin() {
       {/* Geste de retour iOS coupé : un balayage abandonnait l'écran au milieu de
           l'écriture du coffre, ou entre les deux saisies du code. Le bouton retour reste. */}
       <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
-      <ScreenOrbit top={insets.top + 56} />
+      {/* Les dunes du paysage derrière l'en-tête : dès la création, on est chez Kalyx. */}
+      <SceneDunes width={winW} height={insets.top + Math.min(300, winH * 0.36)} mode={mode} />
 
       {/* ── HAUT : header unique (retour à gauche, langue à droite) + titre ── */}
       <View>
@@ -186,19 +189,20 @@ export default function SetPin() {
           </KPressable>
         </View>
 
-        <Rise key={step} style={{ paddingHorizontal: 24, marginTop: 8 }}>
-          <Text style={{ fontSize: fontSize.h3, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8 }}>
+        <Rise key={step} style={{ paddingHorizontal: 24, marginTop: 8, alignItems: 'center' }}>
+          <Text style={{ fontSize: fontSize.h3, fontFamily: fonts.bold, color: colors.text, letterSpacing: -0.3, marginBottom: 8, textAlign: 'center' }}>
             {step === 'create' ? t('choosePinTitle') : t('confirmPinTitle')}
           </Text>
-          <Text style={{ fontSize: fontSize.md, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 12 }}>
+          <Text style={{ fontSize: fontSize.md, fontFamily: fonts.regular, color: colors.textSecondary, marginBottom: 16, textAlign: 'center' }}>
             {step === 'create' ? t('choosePinSub') : t('confirmPinSub')}
           </Text>
         </Rise>
 
         {/* Ligne biométrie : conteneur dédié + marge basse nette → jamais sur l'anneau. */}
         {step === 'create' && bioAvailable ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 24, marginBottom: 24 }}>
-            <Text style={{ color: colors.text, fontSize: fontSize.md, fontFamily: fonts.medium }}>{t('biometricUnlock')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 24, marginBottom: 16, paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.container, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
+            <IconDisc name="security" size={34} />
+            <Text style={{ flex: 1, color: colors.text, fontSize: fontSize.md, fontFamily: fonts.medium }}>{t('biometricUnlock')}</Text>
             <Switch value={useBio} onValueChange={setUseBio} />
           </View>
         ) : null}

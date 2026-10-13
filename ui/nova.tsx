@@ -10,7 +10,7 @@
  */
 import React, { useEffect, useMemo } from 'react';
 import { useLoopActive } from './useLoopActive';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -226,7 +226,7 @@ export function Pills<K extends string>({ items, value, onChange, accent }: { it
  * dessus en relief (surface claire et ombre douce en Crème, surface plus haute
  * en Nuit). La pilule active GLISSE d'un onglet à l'autre au ressort.
  */
-export function TextTabs<K extends string>({ items, value, onChange }: { items: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
+export function TextTabs<K extends string>({ items, value, onChange, variant = 'pill' }: { items: { key: K; label: string }[]; value: K; onChange: (k: K) => void; /** `underline` : onglets texte soulignés (catégories de l'Explorer, comme la maquette). */ variant?: 'pill' | 'underline' }) {
   const { colors, mode, elevation } = useTheme();
   const reduce = useReduceMotion();
   /*
@@ -245,6 +245,28 @@ export function TextTabs<K extends string>({ items, value, onChange }: { items: 
     w.value = reduce || first ? cur.w : withSpring(cur.w, springs.snappy);
   }, [cur, reduce, x, w]);
   const pill = useAnimatedStyle(() => ({ width: w.value, transform: [{ translateX: x.value }] }));
+  if (variant === 'underline') {
+    return (
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', gap: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {cur ? <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, bottom: -1, height: 2.5, borderRadius: radii.full, backgroundColor: colors.text }, pill]} /> : null}
+        {items.map((it) => {
+          const on = it.key === value;
+          return (
+            <KPressable
+              key={it.key}
+              onPress={() => onChange(it.key)}
+              onLayout={(e) => { const { x: lx, width } = e.nativeEvent.layout; setLay((m) => (m[it.key]?.x === lx && m[it.key]?.w === width ? m : { ...m, [it.key]: { x: lx, w: width } })); }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              style={{ height: 40, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text variant="body" numberOfLines={1} style={{ fontFamily: on ? fontFamily.semibold : fontFamily.medium, color: on ? colors.text : colors.textTertiary }}>{it.label}</Text>
+            </KPressable>
+          );
+        })}
+      </View>
+    );
+  }
   return (
     <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'stretch', padding: 4, borderRadius: radii.full, backgroundColor: colors.surface2 }}>
       {cur ? (
@@ -421,27 +443,46 @@ export function TypingDots() {
 /* ------------------------------------------------------------------ */
 
 /**
- * En-tête d'écran : une TUILE teintée (la teinte du sujet, comme les tuiles de
- * l'accueil), le titre, une phrase. Plus d'orbite ni de disque gris : la même
- * matière que l'accueil, sur chaque écran secondaire. `children` remplace la
+ * L'ORBE : un disque en dégradé pêche → lavande (le crépuscule de l'accueil),
+ * icône claire, cerclé d'un anneau de lumière. Rouge pour ce qui détruit. Le
+ * même sur chaque écran qui a un en-tête : c'est la marque.
+ */
+export function HeroOrb({ icon, size = 76, danger }: { icon: IconName; size?: number; danger?: boolean }) {
+  const { elevation, mode, colors } = useTheme();
+  const id = danger ? 'orb-danger' : 'orb';
+  return (
+    <View style={{ width: size + 16, height: size + 16, borderRadius: (size + 16) / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: mode === 'dark' ? 'rgba(255,244,230,0.06)' : 'rgba(255,255,255,0.55)', borderWidth: 1, borderColor: mode === 'dark' ? colors.border : 'rgba(255,255,255,0.8)' }}>
+      <View style={[{ width: size, height: size, borderRadius: size / 2 }, elevation]}>
+        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <SvgLinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0" stopColor={danger ? '#FF8A7A' : '#F6A57C'} />
+              <Stop offset="1" stopColor={danger ? '#C9303F' : '#9C83EC'} />
+            </SvgLinearGradient>
+          </Defs>
+          <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${id})`} />
+        </Svg>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={icon} size={Math.round(size * 0.45)} color="#FFFFFF" />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * En-tête d'écran : l'ORBE (HeroOrb), le titre, une phrase. Plus d'orbite ni
+ * de disque gris : la même matière que l'accueil, sur chaque écran secondaire. `children` remplace la
  * tuile (anneau de score, avatar, logo).
  */
 export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Tuile réduite, pour un écran fixe qui manque de hauteur. */ compact?: boolean }) {
-  const { tints, elevation, mode, colors } = useTheme();
-  const box = compact ? 60 : 84;
-  const t = tone === 'gold' ? tints.earn : tints[tintForIcon(icon)];
-  const bg = tone === 'danger' ? (mode === 'dark' ? 'rgba(255,77,94,0.14)' : '#F9DCDC') : t.bg;
-  const ink = tone === 'danger' ? colors.danger : t.ink;
+  const box = compact ? 56 : 76;
   return (
     <View style={{ alignItems: 'center', gap: compact ? 6 : 10, paddingTop: compact ? 0 : 4, paddingBottom: compact ? 4 : 8 }}>
       {children ? (
         <View style={{ minHeight: box, alignItems: 'center', justifyContent: 'center', marginBottom: compact ? 0 : 4 }}>{children}</View>
       ) : icon ? (
-        <Rise style={[{ width: box, height: box, borderRadius: compact ? 20 : 26, marginBottom: compact ? 0 : 4, backgroundColor: mode === 'dark' ? colors.surface1 : bg, borderWidth: 1, borderColor: mode === 'dark' ? colors.border : 'rgba(255,255,255,0.8)', borderTopColor: mode === 'dark' ? colors.rim : 'rgba(255,255,255,0.95)' }, elevation]}>
-          <View style={{ flex: 1, borderRadius: compact ? 20 : 26, backgroundColor: mode === 'dark' ? bg : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={icon} size={compact ? 26 : 36} color={ink} />
-          </View>
-        </Rise>
+        <Rise style={{ marginBottom: compact ? 0 : 4 }}><HeroOrb icon={icon} size={box} danger={tone === 'danger'} /></Rise>
       ) : null}
       <Rise delay={60}><Text variant="title1" style={{ textAlign: 'center' }}>{title}</Text></Rise>
       {subtitle ? <Rise delay={120}><Text variant="bodySecondary" tone="secondary" style={{ textAlign: 'center', maxWidth: 330, lineHeight: 21 }}>{subtitle}</Text></Rise> : null}

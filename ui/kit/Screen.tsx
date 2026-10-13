@@ -13,13 +13,14 @@
  * `ScreenList` : variante virtualisée de `page` pour les longues listes.
  */
 import React from 'react';
-import { FlatList, Platform, ScrollView, StatusBar, View } from 'react-native';
+import { FlatList, Platform, ScrollView, StatusBar, View, useWindowDimensions } from 'react-native';
 import Reanimated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoid } from '../KeyboardAvoid';
 import { useScreenEntrance } from './entrance';
 import { useTheme } from '../theme';
 import { SCREEN_MARGIN, spaces } from '../tokens';
+import { SceneDunes } from '../Landscape';
 
 /** Hauteur réservée sous le contenu quand un pied ou la barre d'onglets le recouvre. */
 const OVERLAY_SPACE = 120;
@@ -36,8 +37,11 @@ export function Screen({
   footer,
   tabBarSpace,
   refreshControl,
+  scene,
 }: {
   children: React.ReactNode;
+  /** Décor de dunes (écho du paysage de l'accueil) : derrière l'en-tête, ou au pied de l'écran. */
+  scene?: 'top' | 'bottom';
   layout?: 'page' | 'form';
   scroll?: boolean;
   footer?: React.ReactNode;
@@ -48,7 +52,8 @@ export function Screen({
 }) {
   const insets = useSafeAreaInsets();
   const topPadding = useTopPadding();
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  const { width, height } = useWindowDimensions();
   const entrance = useScreenEntrance();
   const form = layout === 'form';
   const content = form
@@ -62,6 +67,7 @@ export function Screen({
       };
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: form ? topPadding : 0 }}>
+      {scene ? <SceneDunes width={width} height={scene === 'top' ? topPadding + Math.min(320, height * 0.38) : Math.min(260, height * 0.3)} position={scene} mode={mode} /> : null}
       <KeyboardAvoid style={{ flex: 1 }}>
         <Reanimated.View style={[{ flex: 1 }, entrance]}>
           {scroll ? (

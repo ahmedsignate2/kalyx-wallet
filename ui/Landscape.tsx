@@ -47,7 +47,7 @@ function Layer({ scrollY, speed, height, pull = true, children }: { scrollY?: Sh
   return <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>{children}</Animated.View>;
 }
 
-export const Landscape = memo(function Landscape({ width, height, phase, scrollY }: { width: number; height: number; phase: SkyPhase; scrollY?: SharedValue<number> }) {
+export const Landscape = memo(function Landscape({ width, height, phase, scrollY, sunAt }: { width: number; height: number; phase: SkyPhase; scrollY?: SharedValue<number>; /** Hauteur de l'astre (fraction de `height`) : un paysage plein écran le pose sur l'horizon, loin du texte. */ sunAt?: number }) {
   const sky = skies[phase];
   const reduce = useReduceMotion();
   const active = useLoopActive();
@@ -64,7 +64,7 @@ export const Landscape = memo(function Landscape({ width, height, phase, scrollY
   // sans jamais se trouver derrière le solde (le texte occupe le haut).
   const sunR = night ? width * 0.04 : width * 0.065;
   const sunX = width * 0.8;
-  const sunY = height * (night ? 0.5 : 0.6);
+  const sunY = height * (sunAt ?? (night ? 0.5 : 0.6));
   const glowSize = width * 0.9;
   const paths = useMemo(() => ({
     far: dunePath(width, height, height * 0.62, height * 0.05, 2.2, 5.1, 0.6),
@@ -125,6 +125,73 @@ export const Landscape = memo(function Landscape({ width, height, phase, scrollY
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={height} fill="url(#veil)" />
+      </Svg>
+    </View>
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* Dunes de scène — le décor des écrans secondaires                   */
+/* ------------------------------------------------------------------ */
+
+/** Une vague : crête inclinée (de `y0` à gauche à `y1` à droite), deux sinusoïdes, remplie jusqu'au bas. */
+function wavePath(w: number, h: number, y0: number, y1: number, amp: number, f: number, phase: number): string {
+  const n = 28;
+  let d = `M 0 ${h}`;
+  for (let i = 0; i <= n; i++) {
+    const u = i / n;
+    const y = y0 + (y1 - y0) * u + amp * (0.7 * Math.sin(u * Math.PI * f + phase) + 0.3 * Math.sin(u * Math.PI * f * 2.3 + phase * 1.6));
+    d += ` L ${(u * w).toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return `${d} L ${w} ${h} Z`;
+}
+
+/**
+ * Palettes des dunes de scène. CRÈME : aquarelle pastel (pêche, rose, lavande)
+ * posée sur le papier — le texte sombre reste lisible par-dessus. NUIT : le
+ * crépuscule de l'accueil (encre bleue, pêche, mauve) — le texte crème aussi.
+ */
+const SCENE = {
+  light: { wash: '#FBE3D3', waves: [['#F7C9AF', 0.75], ['#F2B6C6', 0.6], ['#D7C7F4', 0.55]] as const },
+  dark: { wash: '#231D3E', waves: [['#E58C6A', 0.5], ['#8E4F88', 0.55], ['#3B2E62', 0.75]] as const },
+};
+
+/**
+ * DUNES DE SCÈNE : le paysage de l'accueil, en écho, sur les écrans de
+ * l'onboarding et les écrans de marque (réglages, soutien, communauté…).
+ * `top` : derrière l'en-tête, les vagues se fondent vers le bas dans le fond.
+ * `bottom` : posées au pied de l'écran, sous l'action principale. Immobiles :
+ * c'est un décor, pas une animation (doctrine : une seule ambiance par écran).
+ */
+export const SceneDunes = memo(function SceneDunes({ width, height, position = 'top', mode }: { width: number; height: number; position?: 'top' | 'bottom'; mode: 'light' | 'dark' }) {
+  const p = SCENE[mode];
+  const top = position === 'top';
+  const paths = useMemo(() => {
+    const h = height;
+    // Trois vagues qui montent vers la droite, du plan lointain au plan proche.
+    return top
+      ? [wavePath(width, h, h * 0.42, h * 0.22, h * 0.05, 1.6, 0.4), wavePath(width, h, h * 0.58, h * 0.36, h * 0.06, 1.3, 2.2), wavePath(width, h, h * 0.74, h * 0.52, h * 0.05, 1.1, 4.1)]
+      : [wavePath(width, h, h * 0.42, h * 0.18, h * 0.06, 1.5, 1.0), wavePath(width, h, h * 0.6, h * 0.38, h * 0.06, 1.2, 2.8), wavePath(width, h, h * 0.8, h * 0.6, h * 0.05, 1.0, 4.6)];
+  }, [width, height, top]);
+  if (!width || !height) return null;
+  return (
+    <View pointerEvents="none" style={[{ position: 'absolute', left: 0, width, height }, top ? { top: 0 } : { bottom: 0 }]}>
+      <Svg width={width} height={height}>
+        <Defs>
+          <LinearGradient id="scene-wash" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={p.wash} stopOpacity={top ? 1 : 0} />
+            <Stop offset="1" stopColor={p.wash} stopOpacity={top ? 0 : 0.8} />
+          </LinearGradient>
+          {p.waves.map(([c, o], i) => (
+            <LinearGradient key={i} id={`scene-w${i}`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={c} stopOpacity={o} />
+              {/* En haut d'écran, chaque vague se fond dans le fond avant le contenu. */}
+              <Stop offset="1" stopColor={c} stopOpacity={top ? 0 : o * 0.8} />
+            </LinearGradient>
+          ))}
+        </Defs>
+        <Rect x={0} y={0} width={width} height={height} fill="url(#scene-wash)" />
+        {paths.map((d, i) => <Path key={i} d={d} fill={`url(#scene-w${i})`} />)}
       </Svg>
     </View>
   );
