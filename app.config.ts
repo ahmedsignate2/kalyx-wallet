@@ -11,7 +11,15 @@ const GOOGLE_SUFFIX = '.apps.googleusercontent.com';
 const reversedScheme = (id: string): string | null =>
   id.endsWith(GOOGLE_SUFFIX) ? `com.googleusercontent.apps.${id.slice(0, -GOOGLE_SUFFIX.length)}` : null;
 const googleScheme = reversedScheme((process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '').trim());
-const googleIosScheme = reversedScheme((process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '').trim());
+/**
+ * Client OAuth iOS de Kalyx (Google Cloud, projet 800218617528). Un ID client
+ * n'est PAS un secret (il voyage en clair dans l'URL d'autorisation) : il est
+ * écrit ici pour que tout build iOS ait la sauvegarde Drive sans dépendre d'une
+ * variable d'environnement oubliée. La variable reste prioritaire. Même valeur
+ * que IOS_CLIENT_ID_DEFAULT dans lib/googleDrive.ts.
+ */
+const GOOGLE_IOS_CLIENT_ID = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '').trim() || '800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com';
+const googleIosScheme = reversedScheme(GOOGLE_IOS_CLIENT_ID);
 const schemes = ['kalyx', ...(googleScheme ? [googleScheme] : [])];
 
 /**
