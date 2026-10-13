@@ -19,9 +19,9 @@
  * l'adresse du portefeuille : il se reconnecte ensuite sans redemander
  * (« sites mémorisés », révocable dans Sites connectés).
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { Screen, ScreenHeader, Card, Text, Button, Pressable, Divider, Input } from '../ui/kit';
 import { NovaHero, Pills, SectionLabel, IconDisc } from '../ui/nova';
@@ -35,7 +35,9 @@ import { useT, useSettings } from '../lib/settingsStore';
 import { haptic } from '../lib/haptics';
 import { useCardPrefs, type CardTheme } from '../lib/cardPrefs';
 import { useDappActivity } from '../lib/dappActivity';
-import { usePortfolioStore } from '../lib/portfolio/portfolioStore';
+import { usePortfolioStore, type Holding } from '../lib/portfolio/portfolioStore';
+import { useWallet } from '../lib/walletStore';
+import { cardAccountBalance, checkCardAccount, type CardBalanceLine } from '../lib/cardAccount';
 import { CARD_ISSUERS, cardIssuer, cardChainFor, spendableOn, type CardIssuer } from '../src/domain/card/cardIssuers';
 import { chainIconUrl, findAdapterV2 } from '../src';
 import { decimalSeparator } from '../src/domain/validation/format';
@@ -45,6 +47,129 @@ const THEME_LABEL: Record<CardTheme, Key> = { holo: 'cardThemeHolo', noir: 'card
 const REGION_LABEL: Record<'eu' | 'uk' | 'us', Key> = { eu: 'cardRegionEu', uk: 'cardRegionUk', us: 'cardRegionUs' };
 const chainName = (id: string) => findAdapterV2(id)?.config.name ?? id;
 const fmt = (n: number) => n.toFixed(2).replace('.', decimalSeparator());
+
+/**
+ * Carte À COMPTE ON-CHAIN (Gnosis Pay) : tout ce qui peut se faire sans API,
+ * en natif. Solde réel de la carte lu sur la blockchain ; « Recharger » ouvre
+ * l'envoi Kalyx vers le compte de la carte, pré-rempli (réseau, jeton,
+ * destinataire), avec l'aperçu et la confirmation habituels. Seuls les numéros
+ * et Apple Pay / Google Pay restent sur le site de l'émetteur — et le bouton
+ * le dit.
+ */
+function OnchainCardPanel({ issuer, holdings, onOpenSite }: { issuer: CardIssuer; holdings: readonly Holding[]; onOpenSite: () => void }) {
+  const t = useT();
+  const { account, setAccount } = useCardPrefs(useShallow((s) => ({ account: s.account, setAccount: s.setAccount })));
+  const own = useWallet(useShallow((s) => s.accounts.map((a) => a.evmAddress).filter(Boolean)));
+  const chain = issuer.chainIds[0];
+  const [input, setInput] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [lines, setLines] = useState<CardBalanceLine[] | null>(null);
+  const [readFailed, setReadFailed] = useState(false);
+  const [noStable, setNoStable] = useState(false);
+
+  const refresh = useCallback(() => {
+    if (!account) return;
+    setReadFailed(false);
+    cardAccountBalance(account, issuer).then(setLines, () => setReadFailed(true));
+  }, [account, issuer]);
+  useFocusEffect(refresh);
+
+  const link = async () => {
+    setChecking(true);
+    setErr(null);
+    const r = await checkCardAccount(input, issuer, own);
+    setChecking(false);
+    if (r.ok) {
+      haptic.success();
+      setAccount(r.address);
+      setInput('');
+    } else {
+      haptic.warning();
+      setErr(t(({ format: 'cardLinkErrFormat', ownWallet: 'cardLinkErrOwn', notContract: 'cardLinkErrContract', network: 'cardLinkErrNetwork' } as const)[r.reason]));
+    }
+  };
+
+  // Recharger : le stablecoin le mieux fourni du portefeuille, sur le réseau de la carte.
+  const topUp = () => {
+    const best = spendableOn(holdings, issuer, chain).parts.slice().sort((a, b) => b.amount - a.amount)[0];
+    if (!best || !account) {
+      haptic.warning();
+      setNoStable(true);
+      return;
+    }
+    haptic.light();
+    router.push({ pathname: '/send', params: { to: account, chain, ...(best.contract ? { contract: best.contract } : {}), symbol: best.symbol, decimals: String(best.decimals) } });
+  };
+
+  if (!account) {
+    return (
+      <Card style={{ gap: space[3] }}>
+        <Text variant="bodyStrong">{t('cardLinkTitle').replace('{issuer}', issuer.dapp.name)}</Text>
+        <Text variant="caption" tone="secondary">{t('cardLinkHint').replace(/\{issuer\}/g, issuer.dapp.name)}</Text>
+        <Input value={input} onChangeText={(v) => { setInput(v); setErr(null); }} placeholder="0x…" autoCapitalize="none" autoCorrect={false} sensitive error={err} accessibilityLabel={t('cardLinkTitle').replace('{issuer}', issuer.dapp.name)} />
+        <Button label={t('cardLinkAction')} loading={checking} disabled={!input.trim() || checking} onPress={() => void link()} />
+        <Button label={t('cardOrder').replace('{issuer}', issuer.dapp.name)} variant="secondary" onPress={onOpenSite} />
+      </Card>
+    );
+  }
+
+  const short = `${account.slice(0, 6)}…${account.slice(-4)}`;
+  return (
+    <>
+      <Card style={{ gap: space[2] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text variant="caption" tone="secondary">{t('cardBalanceTitle')}</Text>
+          <Pressable onPress={refresh} accessibilityRole="button" accessibilityLabel={t('refresh')} hitSlop={8}>
+            <Icon name="refresh" size={18} tone="muted" />
+          </Pressable>
+        </View>
+        {readFailed ? (
+          <Text variant="body" tone="secondary">{t('cardBalanceError')}</Text>
+        ) : lines === null ? (
+          <Text variant="title2" tone="secondary">…</Text>
+        ) : lines.length === 0 ? (
+          <Text variant="title2" tabular>{fmt(0)} {issuer.stables[0] === 'EURE' ? 'EURe' : 'USDC'}</Text>
+        ) : (
+          lines.map((l) => <Text key={l.contract} variant="title2" tabular>{fmt(l.amount)} {l.symbol}</Text>)
+        )}
+        <Text variant="micro" tone="secondary">{t('cardAccountOn').replace('{address}', short).replace('{chain}', chainName(chain))}</Text>
+      </Card>
+
+      <View style={{ flexDirection: 'row', gap: space[2] }}>
+        <ActionCell icon="add" label={t('cardTopUp')} onPress={topUp} primary />
+        <ActionCell icon="eye" label={t('cardManage')} sub={issuer.dapp.name} onPress={onOpenSite} />
+        <ActionCell icon="card" label={Platform.OS === 'android' ? 'Google Pay' : 'Apple Pay'} sub={issuer.dapp.name} onPress={onOpenSite} />
+      </View>
+      {noStable ? (
+        <Card style={{ gap: space[2] }}>
+          <Text variant="body">{t('cardNoStable').replace('{chain}', chainName(chain))}</Text>
+          <Button label={t('cardGetStable')} variant="secondary" onPress={() => router.push('/swap')} />
+        </Card>
+      ) : null}
+      <Pressable onPress={() => { haptic.selection(); setAccount(null); setLines(null); }} accessibilityRole="button" style={{ alignSelf: 'center', padding: space[2] }}>
+        <Text variant="caption" tone="secondary">{t('cardUnlink')}</Text>
+      </Pressable>
+    </>
+  );
+}
+
+/** Une action de la carte. `sub` : où elle se passe (le site de l'émetteur), écrit sous le libellé. */
+function ActionCell({ icon, label, sub, onPress, primary }: { icon: 'add' | 'eye' | 'card'; label: string; sub?: string; onPress: () => void; primary?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={sub ? `${label}, ${sub}` : label} style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: space[3], borderRadius: radii.lg, backgroundColor: primary ? colors.primary : colors.surface1, borderWidth: 1, borderColor: primary ? colors.primary : colors.border }}>
+      <Icon name={icon} size={22} color={primary ? colors.onPrimary : colors.text} />
+      <Text variant="caption" numberOfLines={1} style={{ textAlign: 'center', color: primary ? colors.onPrimary : colors.text }}>{label}</Text>
+      {sub ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <Text variant="micro" tone="secondary" numberOfLines={1}>{sub}</Text>
+          <Icon name="arrowUpRight" size={10} tone="faint" />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
 
 export default function CardScreen() {
   const t = useT();
@@ -105,26 +230,24 @@ export default function CardScreen() {
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
           {chainIconUrl(chain) ? <LogoImage uri={chainIconUrl(chain)!} size={36} /> : null}
           <View style={{ flex: 1 }}>
-            <Text variant="caption" tone="secondary">{t('cardSpendable').replace('{chain}', chainName(chain))}</Text>
+            <Text variant="caption" tone="secondary">{t(chosen.topUp === 'onchain' ? 'cardInWallet' : 'cardSpendable').replace('{chain}', chainName(chain))}</Text>
             <Text variant="title2" tabular>{fmt(spend?.total ?? 0)} {spend?.parts.length === 1 ? spend.parts[0].symbol : chosen.stables[0] === 'EURE' ? 'EURe' : 'USDC'}</Text>
           </View>
         </Card>
 
-        <Button label={t('cardOrder').replace('{issuer}', chosen.dapp.name)} onPress={() => void open(chosen)} />
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          {([
-            ['add', t('cardTopUp')],
-            ['eye', t('cardManage')],
-            // Nom de marque, non traduit : celui du téléphone.
-            ['card', Platform.OS === 'android' ? 'Google Pay' : 'Apple Pay'],
-          ] as const).map(([icon, label]) => (
-            <Pressable key={label} onPress={() => void open(chosen)} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1, alignItems: 'center', gap: space[1], paddingVertical: space[3], borderRadius: radii.lg, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border }}>
-              <Icon name={icon} size={22} color={colors.text} />
-              <Text variant="caption" numberOfLines={1} style={{ textAlign: 'center' }}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-        <Text variant="micro" tone="secondary" style={{ textAlign: 'center' }}>{t('cardSessionKept').replace('{issuer}', chosen.dapp.name)}</Text>
+        {chosen.topUp === 'onchain' ? (
+          <OnchainCardPanel issuer={chosen} holdings={holdings} onOpenSite={() => void open(chosen)} />
+        ) : (
+          <>
+            {/*
+              Émetteur SANS accès public (Holyheld exige une clé d'API partenaire,
+              Spritz aussi) : un seul bouton, qui dit ce qu'il fait. Plus de faux
+              « Recharger / Mes numéros » qui ouvraient tous la même page.
+            */}
+            <Button label={t('cardOrder').replace('{issuer}', chosen.dapp.name)} onPress={() => void open(chosen)} />
+            <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{t('cardSiteOnly').replace('{issuer}', chosen.dapp.name)}</Text>
+          </>
+        )}
 
         {stylePicker}
 

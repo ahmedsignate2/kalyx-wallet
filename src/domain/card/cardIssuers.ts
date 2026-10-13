@@ -36,6 +36,14 @@ export interface CardIssuer {
   chainIds: readonly string[];
   /** Stablecoins comptés comme « prêts à dépenser » (symboles). */
   stables: readonly string[];
+  /**
+   * Recharge NATIVE possible ? `onchain` : la carte dépense depuis un compte
+   * on-chain à l'utilisateur (Gnosis Pay : un Safe sur Gnosis Chain). Recharger
+   * = lui envoyer des stablecoins, et son solde se lit sur la blockchain — sans
+   * API ni contrat. `site` : l'émetteur n'expose rien de public (Holyheld exige
+   * une clé d'API partenaire) ; tout se fait sur son site.
+   */
+  topUp: 'onchain' | 'site';
 }
 
 const entry = (host: string): CatalogDapp => {
@@ -46,11 +54,11 @@ const entry = (host: string): CatalogDapp => {
 
 export const CARD_ISSUERS: readonly CardIssuer[] = [
   // Dépense des stablecoins depuis un Safe à soi, sans recharge préalable.
-  { id: 'gnosispay', dapp: entry('app.gnosispay.com'), regions: ['eu', 'uk'], chains: ['Gnosis'], modelKey: 'cardModelSafe', chainIds: ['gnosis'], stables: ['EURE', 'USDC', 'USDC.E', 'USDCE', 'GBPE'] },
+  { id: 'gnosispay', dapp: entry('app.gnosispay.com'), regions: ['eu', 'uk'], chains: ['Gnosis'], modelKey: 'cardModelSafe', chainIds: ['gnosis'], stables: ['EURE', 'USDC', 'USDC.E', 'USDCE', 'GBPE'], topUp: 'onchain' },
   // Recharge depuis le portefeuille sur plusieurs réseaux EVM.
-  { id: 'holyheld', dapp: entry('app.holyheld.com'), regions: ['eu'], chains: ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon'], modelKey: 'cardModelTopUp', chainIds: ['base', 'arbitrum', 'optimism', 'polygon', 'ethereum'], stables: ['USDC', 'USDC.E', 'USDT', 'EURC'] },
+  { id: 'holyheld', dapp: entry('app.holyheld.com'), regions: ['eu'], chains: ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon'], modelKey: 'cardModelTopUp', chainIds: ['base', 'arbitrum', 'optimism', 'polygon', 'ethereum'], stables: ['USDC', 'USDC.E', 'USDT', 'EURC'], topUp: 'site' },
   // Carte virtuelle, surtout aux États-Unis ; Solana par WalletConnect.
-  { id: 'spritz', dapp: entry('app.spritz.finance'), regions: ['us'], chains: ['Ethereum', 'Base', 'Polygon', 'Arbitrum', 'Solana'], modelKey: 'cardModelVirtual', chainIds: ['base', 'polygon', 'arbitrum', 'ethereum'], stables: ['USDC', 'USDC.E', 'USDT'] },
+  { id: 'spritz', dapp: entry('app.spritz.finance'), regions: ['us'], chains: ['Ethereum', 'Base', 'Polygon', 'Arbitrum', 'Solana'], modelKey: 'cardModelVirtual', chainIds: ['base', 'polygon', 'arbitrum', 'ethereum'], stables: ['USDC', 'USDC.E', 'USDT'], topUp: 'site' },
 ];
 
 export function cardIssuer(id: string | null | undefined): CardIssuer {
