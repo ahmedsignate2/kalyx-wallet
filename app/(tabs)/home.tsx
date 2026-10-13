@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useStat
 import { decimalSeparator } from '../../src';
 import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
-import Animated, { interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
+import Animated, { interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,16 +27,17 @@ import { HomeNudge } from '../../ui/HomeNudge';
 import { NftDetailModal } from '../../ui/NftDetailModal';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
-import { useTheme } from '../../ui/theme';
-import { space, SCREEN_MARGIN, radius, radii } from '../../ui/tokens';
+import { useTheme, OnSky, skyColors as sky } from '../../ui/theme';
+import { Landscape } from '../../ui/Landscape';
+import { StatusBar } from 'expo-status-bar';
+import { space, SCREEN_MARGIN, radius, radii, skyPhaseAt, fontFamily } from '../../ui/tokens';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
 import { holdingLabel } from '../../lib/holdingLabel';
-import { Aurora } from '../../ui/Aurora';
 import { holdingIcon } from '../../ui/kit/useFallbackLogo';
-import { LogoImage, Text, IconButton, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, Halo, ActivityRow, Pressable as KPressable, Card } from '../../ui/kit';
+import { LogoImage, Text, IconButton, Divider, TokenRow, TokenIcon, AmountDisplay, Skeleton, EmptyState, ActivityRow, Pressable as KPressable, Card } from '../../ui/kit';
 import { WalletAvatar } from '../../ui/avatarArt';
-import { ActionDisc, Orbit, Pills, TextTabs, GOLD } from '../../ui/nova';
+import { ActionTile, Pills, TextTabs, GOLD } from '../../ui/nova';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
 import { useWallet } from '../../lib/walletStore';
@@ -100,12 +101,12 @@ const LIST_PAGE = 25;
 const NFT_PAGE = 12;
 
 export default function Home() {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const t = useT();
   const online = useNetwork((s) => s.online);
   const activityT = useActivityT();
   const insets = useSafeAreaInsets();
-  const { width: windowW } = useWindowDimensions();
+  const { width: windowW, height: windowH } = useWindowDimensions();
   // Largeur RÉELLE du conteneur (mesurée) : ne dépend pas de la fenêtre système
   // (edge-to-edge, écrans pliables, zoom d'affichage…) → rien ne déborde ni ne se fait clipper.
   const [layoutW, setLayoutW] = useState(0);
@@ -418,20 +419,23 @@ export default function Home() {
     const show = interpolate(p, [0.45, 1], [0, 1], Extrapolation.CLAMP);
     return { opacity: show, transform: [{ translateY: (1 - show) * -8 }] };
   });
-  /**
-   * Halo : se resserre en un POINT de lumière (§9). Seul le calque
-   * s'efface ; l'ÉCHELLE s'applique au halo lui-même. Mettre l'échelle sur le
-   * calque (qui clippe au bord de l'écran) faisait rétrécir sa zone de coupe
-   * avec lui : un carré aux bords nets apparaissait au milieu de l'écran.
-   */
-  const haloStyle = useAnimatedStyle(() => {
-    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { opacity: 1 - p * 0.72 };
-  });
-  const haloCoreStyle = useAnimatedStyle(() => {
-    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    return { transform: [{ scale: 1 - p * 0.7 }] };
-  });
+  /** Barre d'état : opaque seulement quand le contenu passe dessous (le ciel, lui, y monte). */
+  const statusBgStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP) }));
+  /** Hauteur du paysage : jusqu'au milieu des tuiles d'action (mesuré). */
+  const [heroH, setHeroH] = useState(0);
+  /** Le ciel change avec l'heure : relu à chaque retour sur l'accueil. */
+  const [phase, setPhase] = useState(() => skyPhaseAt(new Date().getHours()));
+  const [focused, setFocused] = useState(true);
+  const [overSky, setOverSky] = useState(true);
+  useAnimatedReaction(
+    () => scrollY.value < MORPH.to * 0.6,
+    (cur, prev) => { if (cur !== prev) runOnJS(setOverSky)(cur); },
+  );
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    setPhase(skyPhaseAt(new Date().getHours()));
+    return () => setFocused(false);
+  }, []));
   /*
    * RÉVÉLATION DU SOLDE : la première fois qu'il apparaît dans la session
    * (après le déverrouillage), chaque chiffre fait un tour et se pose, de
@@ -537,19 +541,19 @@ export default function Home() {
   return (
     <View style={{ flex: 1, alignSelf: 'stretch', backgroundColor: colors.bg }} onLayout={(e) => setLayoutW(e.nativeEvent.layout.width)}>
       <Stack.Screen options={{ headerShown: false }} />
-      {/* Halo HORS du ScrollView (sinon Android le clippe au bord droit) — derrière le solde. */}
-      {/* Entièrement DANS l'écran horizontalement : Android clippe au bord → un halo qui
-          déborde y laissait une coupure verticale nette (« boîte centrale »). */}
-      {!hidden ? (
-        <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 0, height: insets.top + 420, overflow: 'hidden' }, haloStyle]} pointerEvents="none">
-          {/* L'aurore : or, glacier et la teinte du jour, qui dérivent derrière le solde. */}
-          <Aurora height={insets.top + 420} mood={mood} />
-          <Orbit cx={screenW - 90} cy={insets.top + 110} r={150} />
-          <Animated.View style={[{ position: 'absolute', left: screenW - 90 - 150, top: insets.top + 110 - 150 }, haloCoreStyle]}>
-            <Halo size={300} mood={mood} aura />
-          </Animated.View>
-        </Animated.View>
-      ) : null}
+      {/*
+        LE PAYSAGE, hors du ScrollView : il reste derrière, ses plans glissent
+        chacun à sa vitesse (parallaxe), et la feuille de contenu monte dessus.
+        Il reste visible quand le solde est masqué : il ne dit rien du montant
+        (le graphique, lui, disparaît).
+      */}
+      <Landscape width={screenW} height={(heroH || insets.top + 380) + 40} phase={phase} scrollY={scrollY} />
+      {/*
+        Sur le ciel, la barre d'état est claire quel que soit le thème ; dès que
+        l'en-tête compact (fond de l'app) la recouvre, elle reprend la teinte du
+        thème — des icônes blanches sur le Crème seraient invisibles.
+      */}
+      {focused ? <StatusBar style={overSky || mode === 'dark' ? 'light' : 'dark'} /> : null}
 
       {/*
         En-tête compact : « 12 482,91 $ · +1,5 % ». Il n'apparaît pas, il PREND
@@ -607,14 +611,17 @@ export default function Home() {
              décalerait l'origine du défilement lue par l'en-tête compact et le
              halo (interpolations sur `y`).
           */
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} progressViewOffset={insets.top} tintColor={colors.textTertiary} colors={[colors.textTertiary]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} progressViewOffset={insets.top} tintColor={sky.textSecondary} colors={[colors.textTertiary]} />
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Tout ce qui est posé sur le ciel se dessine pour lui (texte crème, verre). */}
+        <OnSky>
+        <View style={{ gap: space[6] }}>
         {/* ── En-tête : compte ▾ · réseau ▾ · notifications · scanner (le menu est dans la barre) ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
           <KPressable onPress={() => router.push('/accounts')} accessibilityLabel={t("a11ySwitchAccount")} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space[3], height: 48, paddingRight: space[1] }}>
-            <View style={{ width: 42, height: 42, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 42, height: 42, borderRadius: radii.full, borderWidth: 1, borderColor: sky.border, backgroundColor: sky.surface1, alignItems: 'center', justifyContent: 'center' }}>
               <WalletAvatar size={32} />
             </View>
             <View style={{ flexShrink: 1, minWidth: 0 }}>
@@ -634,7 +641,7 @@ export default function Home() {
               réduisait le nom du compte à « Co… ». Le nom reste dans le libellé
               (lecteur d'écran) et sur l'écran Réseaux.
             */
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingLeft: 7, paddingRight: 8, borderRadius: radius.round, backgroundColor: colors.surface1, borderWidth: 1, borderColor: colors.border, flexShrink: 0 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 34, paddingLeft: 7, paddingRight: 8, borderRadius: radius.round, backgroundColor: sky.surface1, borderWidth: 1, borderColor: sky.border, flexShrink: 0 }}
           >
             {chainIconUrl(activeChain) ? <LogoImage uri={chainIconUrl(activeChain)!} size={20} /> : <Text variant="caption" numberOfLines={1}>{getAdapter(activeChain).config.name}</Text>}
             <Icon name="caretDown" size={12} tone="muted" />
@@ -642,13 +649,72 @@ export default function Home() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: -space[2] }}>
             <View>
               <IconButton icon="bell" label={t("labelNotifications")} tone="ghost" onPress={() => router.push('/notifications')} />
-              {unread > 0 ? <View style={{ position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: radii.full, borderWidth: 1.5, borderColor: colors.bg, backgroundColor: GOLD }} /> : null}
+              {unread > 0 ? <View style={{ position: 'absolute', top: 11, right: 11, width: 8, height: 8, borderRadius: radii.full, borderWidth: 1.5, borderColor: 'rgba(30,28,42,0.6)', backgroundColor: GOLD }} /> : null}
             </View>
             {/* Scanner : seule porte d'entrée pour connecter une dApp ou la webapp par QR. */}
             <IconButton icon="scan" label={t("scanQr")} tone="ghost" onPress={() => router.push('/scan')} />
           </View>
         </View>
 
+        {/* ── Solde, posé sur le ciel ── */}
+        <Animated.View style={[{ gap: space[1] }, bigBalanceStyle]}>
+          <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('homeTotalBalance')}</Text>
+          <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
+            {initialLoading ? (
+              <Skeleton width={220} height={52} />
+            ) : hidden ? (
+              <Text variant="balance">••••••</Text>
+            ) : scrub ? (
+              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.35}>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
+            ) : (
+              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} reveal={reveal} />
+            )}
+          </KPressable>
+          <View style={{ height: 28, justifyContent: 'center', alignItems: 'flex-start', marginTop: space[1] }}>
+            {scrub ? (
+              <Text variant="caption" tone="secondary">{fmtDate(scrub.t, period, locale)}</Text>
+            ) : hidden || initialLoading ? null : pf.pnl24h != null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 28, paddingHorizontal: space[3], borderRadius: radii.full, backgroundColor: sky.surface2 }}>
+                <Icon name={pnlUp ? 'trendUp' : 'trendDown'} size={14} color={pnlUp ? sky.up : sky.down} />
+                {/* Sur le ciel, le texte reste crème (lisible sur tout ciel) : le sens est dans le signe et la flèche colorée. */}
+                <Text variant="caption" tabular style={{ fontFamily: fontFamily.semibold }}>
+                {pnlUp ? '+' : '−'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %)` : ''}
+                </Text>
+              </View>
+            ) : (
+              <Text variant="caption" tone="tertiary">{pf.fromCache ? t("updating") : ' '}</Text>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* ── Graphique + périodes ── */}
+        <View style={{ gap: space[3] }}>
+          {points.length > 1 && !hidden ? (
+            <InteractiveChart points={points} color={mood === 'down' ? '#FFC9BF' : '#FFF1DC'} width={chartWidth} height={110} onScrub={(p) => { if (p && scrub?.t !== p.t) haptic.selection(); setScrub(p); }} />
+          ) : (
+            <View style={{ height: 110, alignItems: 'center', justifyContent: 'center' }}>
+              {chartLoading || initialLoading ? <Skeleton width="100%" height={110} /> : <Text variant="caption" tone="tertiary">{hidden ? ' ' : t("noHistoryYet")}</Text>}
+            </View>
+          )}
+          <Pills items={PERIODS.map((p) => ({ key: p, label: periodLabels[p] || p }))} value={period} onChange={setPeriod} />
+        </View>
+
+        </View>
+        </OnSky>
+
+        {/*
+          LA FEUILLE : les tuiles d'action sont à cheval sur le bord du ciel,
+          puis tout le reste monte sur un fond plein aux coins arrondis.
+        */}
+        <View style={{ marginHorizontal: -SCREEN_MARGIN, minHeight: windowH }} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + 39); setHeroH((cur) => (cur === h ? cur : h)); }}>
+          <View pointerEvents="none" style={{ position: 'absolute', top: 39, left: 0, right: 0, bottom: -(insets.bottom + 120), backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }} />
+          <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: SCREEN_MARGIN }}>
+            <ActionTile index={0} tint="send" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
+            <ActionTile index={1} tint="receive" icon="receive" label={t("actionReceive")} onPress={() => router.push('/receive')} />
+            <ActionTile index={2} tint="swap" icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
+            <ActionTile index={3} tint="earn" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />
+          </View>
+          <View style={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: space[6], gap: space[6] }}>
         {/* Sauvegarde sautée : bandeau permanent (§4.9) */}
         {!backupVerified && !watchOnly ? (
           <KPressable onPress={() => router.push('/reveal-phrase')} style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], padding: space[3], borderRadius: radii.md, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.warning }}>
@@ -670,56 +736,6 @@ export default function Home() {
             <Icon name="chevron" size={12} tone="muted" />
           </KPressable>
         ) : null}
-
-        {/* ── Solde (le halo est derrière, au niveau de l'écran) ── */}
-        <Animated.View style={[{ gap: space[1] }, bigBalanceStyle]}>
-          <Text variant="micro" tone="secondary" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('homeTotalBalance')}</Text>
-          <KPressable onLongPress={toggleHidden} delayLongPress={350} accessibilityLabel={hidden ? t("a11yHiddenBalance") : t("a11yVisibleBalance")}>
-            {initialLoading ? (
-              <Skeleton width={220} height={52} />
-            ) : hidden ? (
-              <Text variant="balance">••••••</Text>
-            ) : scrub ? (
-              <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.35}>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
-            ) : (
-              <AmountDisplay value={formatFiat(pf.total)} suffix={sym} direction={rollDir} reveal={reveal} />
-            )}
-          </KPressable>
-          <View style={{ height: 22, justifyContent: 'center', marginTop: space[1] }}>
-            {scrub ? (
-              <Text variant="caption" tone="secondary">{fmtDate(scrub.t, period, locale)}</Text>
-            ) : hidden || initialLoading ? null : pf.pnl24h != null ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Icon name={pnlUp ? 'trendUp' : 'trendDown'} size={14} color={pnlUp ? colors.up : colors.down} />
-                <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-                {pnlUp ? '+' : '−'}{formatFiat(Math.abs(pf.pnl24h))} {sym} · {t("today")}{pf.pnl24hPct != null ? ` (${pnlUp ? '+' : '−'}${Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %)` : ''}
-                </Text>
-              </View>
-            ) : (
-              <Text variant="caption" tone="tertiary">{pf.fromCache ? t("updating") : ' '}</Text>
-            )}
-          </View>
-        </Animated.View>
-
-        {/* ── Graphique + périodes ── */}
-        <View style={{ gap: space[3] }}>
-          {points.length > 1 && !hidden ? (
-            <InteractiveChart points={points} color={mood === 'down' ? colors.down : colors.up} width={chartWidth} height={150} onScrub={(p) => { if (p && scrub?.t !== p.t) haptic.selection(); setScrub(p); }} />
-          ) : (
-            <View style={{ height: 150, alignItems: 'center', justifyContent: 'center' }}>
-              {chartLoading || initialLoading ? <Skeleton width="100%" height={150} /> : <Text variant="caption" tone="tertiary">{hidden ? ' ' : t("noHistoryYet")}</Text>}
-            </View>
-          )}
-          <Pills items={PERIODS.map((p) => ({ key: p, label: periodLabels[p] || p }))} value={period} onChange={setPeriod} />
-        </View>
-
-        {/* ── Actions : quatre disques, Envoyer en Lumière, Gagner en or ── */}
-        <View style={{ flexDirection: 'row', gap: space[2] }}>
-          <ActionDisc index={0} tone="primary" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
-          <ActionDisc index={1} icon="receive" label={t("actionReceive")} onPress={() => router.push('/receive')} />
-          <ActionDisc index={2} icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
-          <ActionDisc index={3} tone="gold" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />
-        </View>
 
         {/* Le point de sécurité le plus important qui reste à régler (un seul à la fois). */}
         <HomeNudge />
@@ -919,9 +935,11 @@ export default function Home() {
             </>
           )}
         </View>
+          </View>
+        </View>
       </Animated.ScrollView>
       {/* Fond opaque sous la barre d'état : le contenu ne passe plus « dessous » au scroll. */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }} />
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }, statusBgStyle]} />
       <NftDetailModal
         nft={openNft as NftItem | null}
         explorerUrl={openNft ? getAdapter(openNft.chainId).config.explorerUrl : undefined}
