@@ -1,13 +1,63 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "preview": {
-      "credentialsSource": "local",
+      "environment": "preview",
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false,
+        "credentialsSource": "local"
+      },
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com",
+        "EXPO_PUBLIC_APP_STAGE": "beta"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview-ios": {
+      "extends": "preview",
       "ios": {
         "simulator": false
+      }
+    },
+    "ios-sim": {
+      "extends": "preview",
+      "ios": {
+        "simulator": true
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {
+        "ascAppId": "A_REMPLIR_ID_app_App_Store_Connect",
+        "appleTeamId": "A_REMPLIR_TEAM_ID_APPLE"
       }
     }
   }
