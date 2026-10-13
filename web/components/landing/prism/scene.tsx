@@ -50,23 +50,36 @@ type Pose = {
   light: number;
   bg: THREE.Color;
   accent: THREE.Color;
+  /** Image du monde (plein écran, derrière la gemme : elle la réfracte). */
+  img: WorldImage;
+  /** Luminosité de l'image (les textes clairs restent lisibles par-dessus). */
+  dim: number;
 };
 
-const NUMERIC = ['x', 'y', 'scale', 'ring', 'cage', 'tilt', 'glow', 'bars', 'floor', 'light'] as const;
+/*
+ * Images des mondes : photographies générées pour Kalyx (Figma AI), servies depuis
+ * public/worlds. Chacune passe DERRIÈRE le verre : la gemme les réfracte réellement.
+ */
+const WORLD_IMAGES = ['night', 'crystal', 'studio', 'vault', 'water', 'gold', 'dawn'] as const;
+type WorldImage = (typeof WORLD_IMAGES)[number];
+/** Luminosité par image : assez sombre pour que le texte clair garde son contraste. */
+const DIM: Record<WorldImage, number> = { night: 0.95, crystal: 0.5, studio: 0.85, vault: 0.55, water: 0.42, gold: 0.3, dawn: 0.36 };
 
-type PoseSpec = Omit<Pose, 'bg' | 'accent' | 'bars' | 'floor' | 'light'> & Partial<Pick<Pose, 'bars' | 'floor' | 'light'>> & { bg: string; accent: string };
-const pose = (p: PoseSpec): Pose => ({ bars: 0, floor: 0, light: 0, ...p, bg: new THREE.Color(p.bg), accent: new THREE.Color(p.accent) });
+const NUMERIC = ['x', 'y', 'scale', 'ring', 'cage', 'tilt', 'glow', 'bars', 'floor', 'light', 'dim'] as const;
+
+type PoseSpec = Omit<Pose, 'bg' | 'accent' | 'bars' | 'floor' | 'light' | 'dim'> & Partial<Pick<Pose, 'bars' | 'floor' | 'light' | 'dim'>> & { bg: string; accent: string };
+const pose = (p: PoseSpec): Pose => ({ bars: 0, floor: 0, light: 0, dim: DIM[p.img], ...p, bg: new THREE.Color(p.bg), accent: new THREE.Color(p.accent) });
 
 const POSES: Record<string, Pose> = {
   // Nuit : la gemme au-dessus du titre, seule sa pointe le réfracte (titre lisible).
-  open: pose({ x: 0, y: 0.13, scale: 0.92, ring: 2.35, cage: 0, tilt: 0.35, glow: 1, bg: '#060807', accent: SAGE }),
+  open: pose({ img: 'night', x: 0, y: 0.13, scale: 0.92, ring: 2.35, cage: 0, tilt: 0.35, glow: 1, bg: '#060807', accent: SAGE }),
   // Les douze mots : une nuit bleutée, irisée.
-  words: pose({ x: 0, y: 0, scale: 0.72, ring: 3.1, cage: 0, tilt: 0.9, glow: 0.55, bars: 0.12, bg: '#06070c', accent: '#8ea2ff' }),
+  words: pose({ img: 'crystal', x: 0, y: 0, scale: 0.72, ring: 3.1, cage: 0, tilt: 0.9, glow: 0.55, bars: 0.12, bg: '#06070c', accent: '#8ea2ff' }),
   // Fin de l'ouverture : la caméra PLONGE dans le cristal, l'écran n'est plus que réfraction.
-  dive: pose({ x: 0, y: 0, scale: 3.4, ring: 4.2, cage: 0, tilt: 0.2, glow: 1, bars: 0.3, bg: '#0a0c0b', accent: '#cfeedd' }),
+  dive: pose({ img: 'crystal', x: 0, y: 0, scale: 3.4, ring: 4.2, cage: 0, tilt: 0.2, glow: 1, bars: 0.3, bg: '#0a0c0b', accent: '#cfeedd' }),
   // Studio : néons sauge derrière la gemme, sol miroir — la gemme comme un produit.
-  prologue: pose({ x: 0.5, y: 0.02, scale: 0.95, ring: 1.75, cage: 0, tilt: 0.5, glow: 1, bars: 1, floor: 1, bg: '#070a08', accent: SAGE }),
-  fonctionnement: pose({ x: -0.55, y: 0, scale: 0.78, ring: 2.1, cage: 0, tilt: 1.1, glow: 0.7, bars: 0.35, floor: 0.6, bg: '#080b0a', accent: SAGE }),
+  prologue: pose({ img: 'studio', x: 0.5, y: 0.02, scale: 0.95, ring: 1.75, cage: 0, tilt: 0.5, glow: 1, bars: 1, floor: 1, bg: '#070a08', accent: SAGE }),
+  fonctionnement: pose({ img: 'studio', x: -0.55, y: 0, scale: 0.78, ring: 2.1, cage: 0, tilt: 1.1, glow: 0.7, bars: 0.35, floor: 0.6, bg: '#080b0a', accent: SAGE }),
   /*
    * Trajectoire : la gemme ne change de BORD que derrière une section opaque (papier) ou
    * des cartes (voler) — jamais en travers d'un texte.
@@ -74,17 +87,18 @@ const POSES: Record<string, Pose> = {
    * se mélangeait, au fil du défilement, sous les textes clairs des sections voisines
    * (contraste ~1:1). Derrière, la scène reste sombre : jamais de bascule clair/sombre.
    */
-  perdre: pose({ x: -0.88, y: 0.3, scale: 0.5, ring: 2, cage: 0, tilt: 0.6, glow: 0.5, bg: '#080b0a', accent: SAGE }),
+  perdre: pose({ img: 'studio', x: -0.88, y: 0.3, scale: 0.5, ring: 2, cage: 0, tilt: 0.6, glow: 0.5, bg: '#080b0a', accent: SAGE }),
   // « Ne jamais se faire voler » : alerte rouge, la cage se referme.
-  voler: pose({ x: 0.9, y: 0, scale: 0.86, ring: 1.4, cage: 1, tilt: 0.2, glow: 1, bars: 1, floor: 1, bg: '#120304', accent: '#ff2b2b' }),
+  voler: pose({ img: 'vault', x: 0.9, y: 0, scale: 0.86, ring: 1.4, cage: 1, tilt: 0.2, glow: 1, bars: 1, floor: 1, bg: '#120304', accent: '#ff2b2b' }),
   // Le copilote : eau turquoise.
   // Chapitres en tableau : la gemme et ses néons se rangent au bord, le texte reste net.
-  copilote: pose({ x: -0.96, y: 0.04, scale: 0.55, ring: 2.2, cage: 0.15, tilt: 0.8, glow: 0.8, bars: 0.7, floor: 0.7, bg: '#03100f', accent: '#3fd6c8' }),
+  copilote: pose({ img: 'water', x: -0.96, y: 0.04, scale: 0.55, ring: 2.2, cage: 0.15, tilt: 0.8, glow: 0.8, bars: 0.7, floor: 0.7, bg: '#03100f', accent: '#3fd6c8' }),
   // Les frais : l'or.
-  frais: pose({ x: -0.96, y: 0.04, scale: 0.55, ring: 2.4, cage: 0, tilt: 1.2, glow: 0.7, bars: 0.7, floor: 0.7, bg: '#0e0a03', accent: '#f0b54a' }),
-  vision: pose({ x: -0.96, y: 0.28, scale: 0.5, ring: 2.2, cage: 0, tilt: 0.6, glow: 0.5, bg: '#0e0a03', accent: '#f0b54a' }),
+  frais: pose({ img: 'gold', x: -0.96, y: 0.04, scale: 0.55, ring: 2.4, cage: 0, tilt: 1.2, glow: 0.7, bars: 0.7, floor: 0.7, bg: '#0e0a03', accent: '#f0b54a' }),
+  vision: pose({ img: 'gold', x: -0.96, y: 0.28, scale: 0.5, ring: 2.2, cage: 0, tilt: 0.6, glow: 0.5, bg: '#0e0a03', accent: '#f0b54a' }),
   // Épilogue : retour à la nuit, le studio sauge.
-  telecharger: pose({ x: 0, y: 0.06, scale: 1.05, ring: 1.9, cage: 0, tilt: 0.4, glow: 1, bars: 0.6, floor: 1, bg: '#060807', accent: SAGE }),
+  // Au-dessus du titre de l'épilogue (centré) : la gemme ne passe pas derrière le texte.
+  telecharger: pose({ img: 'dawn', x: 0, y: 0.34, scale: 0.55, ring: 1.9, cage: 0, tilt: 0.4, glow: 1, bars: 0.6, floor: 1, bg: '#060807', accent: SAGE }),
 };
 
 type Anchor = { at: number; pose: Pose };
@@ -136,6 +150,19 @@ function measureAnchors(reduce: boolean): { anchors: Anchor[]; titleEnd: number 
   }
   anchors.sort((a, b) => a.at - b.at);
   return { anchors, titleEnd };
+}
+
+/** Les deux repères qui encadrent `center`, et l'avancement entre eux (images : fondu enchaîné). */
+function segmentAt(anchors: Anchor[], center: number): { a: Pose; b: Pose; t: number } {
+  if (anchors.length === 0) return { a: POSES.open, b: POSES.open, t: 0 };
+  if (center <= anchors[0].at) return { a: anchors[0].pose, b: anchors[0].pose, t: 0 };
+  for (let i = 1; i < anchors.length; i++) {
+    const a = anchors[i - 1];
+    const b = anchors[i];
+    if (center <= b.at) return { a: a.pose, b: b.pose, t: ease(clamp01((center - a.at) / Math.max(1, b.at - a.at))) };
+  }
+  const last = anchors[anchors.length - 1].pose;
+  return { a: last, b: last, t: 0 };
 }
 
 function poseAt(anchors: Anchor[], center: number): Pose {
@@ -230,7 +257,22 @@ uniform float uAspect;
 uniform vec2 uGem;
 uniform float uGemSize;
 uniform sampler2D uWords;
+uniform sampler2D uImgA;
+uniform sampler2D uImgB;
+uniform float uOnA;
+uniform float uOnB;
+uniform float uImgT;
+uniform float uDim;
 varying vec2 vUv;
+
+// Image « cover » (remplit l'écran sans déformer), avec une lente respiration.
+vec3 photo(sampler2D tex, float zoom) {
+  float imgAspect = 16.0 / 9.0;
+  vec2 uv = vUv - 0.5;
+  if (uAspect > imgAspect) uv.y *= imgAspect / uAspect;
+  else uv.x *= uAspect / imgAspect;
+  return texture2D(tex, uv / zoom + 0.5).rgb;
+}
 
 // Néons verticaux : un cœur fin et éclatant, un halo large ; trois tubes autour de la gemme.
 float neon(vec2 q) {
@@ -256,7 +298,14 @@ void main() {
   vec2 g = p - uGem;
   float r2 = dot(g, g) / (uGemSize * uGemSize);
   // Valeurs LINÉAIRES (converties en sRGB à la sortie).
-  vec3 col = uBg;
+  // Le monde : sa photographie (fondu enchaîné d'un chapitre à l'autre), sinon sa couleur.
+  float zoom = 1.04 + 0.025 * sin(uTime * 0.05);
+  vec3 pa = mix(uBg, photo(uImgA, zoom) * uDim, uOnA);
+  vec3 pb = mix(uBg, photo(uImgB, zoom) * uDim, uOnB);
+  vec3 col = mix(pa, pb, uImgT);
+  float photoOn = mix(uOnA, uOnB, uImgT);
+  // Vignette : les bords (et donc les marges de texte) s'assombrissent.
+  col *= mix(1.0, 0.5, smoothstep(0.35, 1.05, length(p * vec2(0.85, 1.3))) * photoOn);
   // Halo de la couleur du monde autour de la gemme.
   col += uAccent * exp(-r2 * 0.35) * mix(0.05, 0.02, uLight);
   // Sol : sous la gemme, un plan qui assombrit et REFLÈTE les néons.
@@ -265,8 +314,9 @@ void main() {
   vec2 mirrored = vec2(p.x, 2.0 * horizon - p.y);
   float n = neon(p) * (1.0 - below);
   float reflection = neon(mirrored) * below * 0.32 * exp(-(horizon - p.y) * 6.0);
-  col = mix(col, col * mix(0.55, 0.88, uLight), below * 0.8);
-  col += uAccent * (n + reflection) * uBars * mix(1.0, 0.25, uLight);
+  col = mix(col, col * mix(0.55, 0.88, uLight), below * 0.8 * (1.0 - photoOn));
+  // Les photos ont leur propre lumière : néons et reflets synthétiques s'effacent devant elles.
+  col += uAccent * (n + reflection) * uBars * mix(1.0, 0.25, uLight) * (1.0 - 0.8 * photoOn);
   // Ligne d'horizon, très fine.
   float hy = (p.y - horizon) / 0.0025; // pas de pow() sur une base négative (indéfini en GLSL)
   col += uAccent * exp(-hy * hy) * 0.12 * uFloor * smoothstep(0.9, 0.1, abs(g.x));
@@ -338,7 +388,7 @@ function paintTitle(ctx: CanvasRenderingContext2D, el: HTMLElement, title: strin
  * Le titre y est peint à la place exacte du titre de la page (police, taille, position).
  */
 function Backdrop({ title, state }: { title: string; state: React.MutableRefObject<SceneState> }) {
-  const { camera, size, viewport } = useThree();
+  const { camera, size, viewport, invalidate } = useThree();
   const DEPTH = -4;
   const vp = viewport.getCurrentViewport(camera, new THREE.Vector3(0, 0, DEPTH));
   const canvas = useMemo(() => document.createElement('canvas'), []);
@@ -347,6 +397,37 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
   }, [canvas]);
   const textureRef = useRef(texture);
   const words = useMemo(() => wordsTexture(), []);
+  const blank = useMemo(() => {
+    const tx = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+    tx.needsUpdate = true;
+    return tx;
+  }, []);
+  // Images des mondes : celle de l'ouverture d'abord, les autres juste après (sans bloquer).
+  const images = useMemo(() => new Map<WorldImage, THREE.Texture>(), []);
+  const fade = useMemo(() => new Map<WorldImage, number>(), []);
+  useEffect(() => {
+    let alive = true;
+    const loader = new THREE.TextureLoader();
+    const load = (name: WorldImage) =>
+      loader.load(`/worlds/${name}.webp`, (tx) => {
+        if (!alive) return tx.dispose();
+        tx.colorSpace = THREE.SRGBColorSpace;
+        tx.minFilter = THREE.LinearFilter;
+        tx.generateMipmaps = false;
+        images.set(name, tx);
+        invalidate();
+      });
+    load('night');
+    const later = window.setTimeout(() => WORLD_IMAGES.filter((n) => n !== 'night').forEach(load), 800);
+    return () => {
+      alive = false;
+      window.clearTimeout(later);
+      images.forEach((tx) => tx.dispose());
+      images.clear();
+      fade.clear();
+      blank.dispose();
+    };
+  }, [images, fade, blank, invalidate]);
   useEffect(() => () => words.dispose(), [words]);
   const uniforms = useMemo(
     () => ({
@@ -364,6 +445,12 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
       uGem: { value: new THREE.Vector2() },
       uGemSize: { value: 0.2 },
       uWords: { value: words },
+      uImgA: { value: blank as THREE.Texture },
+      uImgB: { value: blank as THREE.Texture },
+      uOnA: { value: 0 },
+      uOnB: { value: 0 },
+      uImgT: { value: 0 },
+      uDim: { value: 1 },
     }),
     [texture, words],
   );
@@ -427,6 +514,22 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
     uniforms.uBars.value = size.width < size.height ? 0 : w.bars;
     uniforms.uFloor.value = w.floor;
     uniforms.uLight.value = w.light;
+    const ia = images.get(state.current.imgA);
+    const ib = images.get(state.current.imgB);
+    uniforms.uImgA.value = ia ?? blank;
+    uniforms.uImgB.value = ib ?? blank;
+    // Une image qui arrive apparaît en fondu (jamais d'apparition brusque sous le texte).
+    for (const name of images.keys()) {
+      const f = fade.get(name) ?? 0;
+      if (f < 1) {
+        fade.set(name, state.current.reduce ? 1 : Math.min(1, f + dt * 1.5));
+        if (state.current.reduce) invalidate();
+      }
+    }
+    uniforms.uOnA.value = ia ? (fade.get(state.current.imgA) ?? 0) : 0;
+    uniforms.uOnB.value = ib ? (fade.get(state.current.imgB) ?? 0) : 0;
+    uniforms.uImgT.value = state.current.imgT;
+    uniforms.uDim.value = w.dim;
   });
 
   return (
@@ -441,7 +544,7 @@ function Backdrop({ title, state }: { title: string; state: React.MutableRefObje
 
 // ---------------------------------------------------------------- gemme et éclats
 
-type SceneState = { pose: Pose; /** Pose lissée, partagée par la gemme et le fond. */ world: Pose; titleFade: number; pointer: THREE.Vector2; reduce: boolean; /** Position de la gemme à l'écran, -1..1. */ gemScreen: THREE.Vector2; /** Rayon apparent de la gemme, en hauteurs d'écran. */ gemRadius: number; gemPos: THREE.Vector3; gemScale: number };
+type SceneState = { pose: Pose; /** Pose lissée, partagée par la gemme et le fond. */ world: Pose; titleFade: number; pointer: THREE.Vector2; reduce: boolean; /** Position de la gemme à l'écran, -1..1. */ gemScreen: THREE.Vector2; /** Rayon apparent de la gemme, en hauteurs d'écran. */ gemRadius: number; gemPos: THREE.Vector3; gemScale: number; imgA: WorldImage; imgB: WorldImage; imgT: number };
 
 type Quality = { samples: number; resolution: number };
 
@@ -625,6 +728,10 @@ function Driver({ state }: { state: React.MutableRefObject<SceneState> }) {
     const read = () => {
       const center = window.scrollY + window.innerHeight / 2;
       state.current.pose = poseAt(anchors, center);
+      const seg = segmentAt(anchors, center);
+      state.current.imgA = seg.a.img;
+      state.current.imgB = seg.b.img;
+      state.current.imgT = seg.t;
       state.current.titleFade = 1 - ease(clamp01(window.scrollY / Math.max(1, titleEnd)));
       const hidden = covers.some((el) => {
         const r = el.getBoundingClientRect();
@@ -688,7 +795,7 @@ const TIERS = [
 export default function PrismScene({ title }: { title: string }) {
   const reduce = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
   const coarse = useMemo(() => window.matchMedia('(pointer: coarse)').matches, []);
-  const state = useRef<SceneState>({ pose: clonePose(POSES.open), world: clonePose(POSES.open), titleFade: 1, pointer: new THREE.Vector2(), reduce, gemScreen: new THREE.Vector2(), gemRadius: 0.2, gemPos: new THREE.Vector3(), gemScale: 1 });
+  const state = useRef<SceneState>({ pose: clonePose(POSES.open), world: clonePose(POSES.open), titleFade: 1, pointer: new THREE.Vector2(), reduce, gemScreen: new THREE.Vector2(), gemRadius: 0.2, gemPos: new THREE.Vector3(), gemScale: 1, imgA: 'night', imgB: 'night', imgT: 0 });
   const wrap = useRef<HTMLDivElement>(null);
   // Plafond : jamais plus de pixels que l'écran n'en a (un écran ×1 ne rend pas en ×2).
   const screenDpr = window.devicePixelRatio || 1;
