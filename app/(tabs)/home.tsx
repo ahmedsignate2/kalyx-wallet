@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useStat
 import { decimalSeparator } from '../../src';
 import { isDecoySession } from '../../lib/sessionMode';
 import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
-import Animated, { FadeInDown, interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, Extrapolation } from 'react-native-reanimated';
+import Animated, { FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,7 +28,7 @@ import { NftDetailModal } from '../../ui/NftDetailModal';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
 import { useTheme, OnSky, skyColors as sky } from '../../ui/theme';
-import { Landscape } from '../../ui/Landscape';
+import { Landscape, SkyHeader } from '../../ui/Landscape';
 import { StatusBar } from 'expo-status-bar';
 import { space, SCREEN_MARGIN, radius, radii, fontFamily } from '../../ui/tokens';
 import { useSkyPhase } from '../../ui/sky';
@@ -438,18 +438,11 @@ export default function Home() {
     const show = interpolate(p, [0.45, 1], [0, 1], Extrapolation.CLAMP);
     return { opacity: show, transform: [{ translateY: (1 - show) * -8 }] };
   });
-  /** Barre d'état : opaque seulement quand le contenu passe dessous (le ciel, lui, y monte). */
-  const statusBgStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP) }));
   /** Hauteur du paysage : jusqu'au milieu des tuiles d'action (mesuré). */
   const [heroH, setHeroH] = useState(0);
   /** Le ciel suit le vrai soleil du jour, et change en direct (ui/sky). */
   const phase = useSkyPhase();
   const [focused, setFocused] = useState(true);
-  const [overSky, setOverSky] = useState(true);
-  useAnimatedReaction(
-    () => scrollY.value < MORPH.to * 0.6,
-    (cur, prev) => { if (cur !== prev) runOnJS(setOverSky)(cur); },
-  );
   useFocusEffect(useCallback(() => {
     setFocused(true);
     return () => setFocused(false);
@@ -578,12 +571,8 @@ export default function Home() {
         (le graphique, lui, disparaît).
       */}
       <Landscape width={screenW} height={(heroH || insets.top + 380) + 40} phase={phase} scrollY={scrollY} sunAt={0.55} veil balanceGlow={mode === 'dark' ? 0.32 : 0.18} />
-      {/*
-        Sur le ciel, la barre d'état est claire quel que soit le thème ; dès que
-        l'en-tête compact (fond de l'app) la recouvre, elle reprend la teinte du
-        thème — des icônes blanches sur le Crème seraient invisibles.
-      */}
-      {focused ? <StatusBar style={overSky || mode === 'dark' ? 'light' : 'dark'} /> : null}
+      {/* Ciel ou bandeau de ciel : la barre d'état reste claire, quel que soit le thème. */}
+      {focused ? <StatusBar style="light" /> : null}
 
       {/*
         En-tête compact : « 12 482,91 $ · +1,5 % ». Il n'apparaît pas, il PREND
@@ -592,29 +581,34 @@ export default function Home() {
       */}
       {/*
         FOND de l'en-tête compact : sans lui, le montant flottait par-dessus les
-        libellés des disques et des tokens qui défilaient dessous. Il apparaît
-        avec l'en-tête, couvre la barre d'état, et se termine par un trait fin.
+        libellés des disques et des tokens qui défilaient dessous. C'est le haut
+        du ciel replié en bandeau (pas un aplat noir) : il couvre la barre
+        d'état et se fond vers le bas, sans arête.
       */}
-      {!hidden && !initialLoading ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + space[2] + 56, zIndex: 4, backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.border }, compactBgStyle]}
-        />
-      ) : null}
+      <Animated.View
+        pointerEvents="none"
+        style={[{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 4 }, compactBgStyle]}
+      >
+        <SkyHeader width={screenW} height={insets.top + space[2] + 52} phase={phase} />
+      </Animated.View>
       {!hidden && !initialLoading ? (
         <Animated.View
           pointerEvents="none"
           style={[
-            { position: 'absolute', top: insets.top + space[2], left: SCREEN_MARGIN, right: SCREEN_MARGIN, zIndex: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], height: 48 },
+            { position: 'absolute', top: insets.top + space[2], left: SCREEN_MARGIN, right: SCREEN_MARGIN, zIndex: 5, alignItems: 'center', justifyContent: 'center', height: 48 },
             compactStyle,
           ]}
         >
-          <Text variant="body" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
-          {pf.pnl24hPct != null ? (
-            <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
-            </Text>
-          ) : null}
+          <OnSky>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], height: 34, paddingHorizontal: space[4], borderRadius: radii.full, backgroundColor: sky.surface1, borderWidth: 1, borderColor: sky.border }}>
+              <Text variant="body" tabular numberOfLines={1} style={{ fontFamily: fontFamily.semibold }}>{formatFiat(pf.total)} {sym}</Text>
+              {pf.pnl24hPct != null ? (
+                <Text variant="caption" tabular style={{ color: pnlUp ? sky.up : sky.down, fontFamily: fontFamily.semibold }}>
+                  {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
+                </Text>
+              ) : null}
+            </View>
+          </OnSky>
         </Animated.View>
       ) : null}
 
@@ -980,8 +974,6 @@ export default function Home() {
           </View>
         </View>
       </Animated.ScrollView>
-      {/* Fond opaque sous la barre d'état : le contenu ne passe plus « dessous » au scroll. */}
-      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }, statusBgStyle]} />
       <NftDetailModal
         nft={openNft as NftItem | null}
         explorerUrl={openNft ? getAdapter(openNft.chainId).config.explorerUrl : undefined}

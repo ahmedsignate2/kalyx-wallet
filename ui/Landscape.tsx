@@ -260,6 +260,52 @@ export const Landscape = memo(function Landscape({ width, height, phase, scrollY
 });
 
 /* ------------------------------------------------------------------ */
+/* Bandeau du haut — le ciel replié au défilement                     */
+/* ------------------------------------------------------------------ */
+
+function mix(a: string, b: string, t: number) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ch = (s: number) => Math.round(((pa >> s) & 255) * (1 - t) + ((pb >> s) & 255) * t);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
+}
+
+/**
+ * BANDEAU DU HAUT de l'accueil : le haut du ciel, plié en une bande. Il
+ * prolonge le paysage au lieu de le couper d'un aplat noir, et se fond vers le
+ * bas (`fade`) : pas d'arête nette sur les collines ni sur la liste.
+ */
+export const SkyHeader = memo(function SkyHeader({ width, height, phase, fade = 32 }: { width: number; height: number; phase: SkyPhase; fade?: number }) {
+  const sc = SCENES[phase];
+  const total = height + fade;
+  const solid = height / total;
+  const top = sc.sky[0];
+  const low = mix(sc.sky[0], sc.sky[1], 0.35);
+  const starList = useMemo(() => (sc.stars ? stars(width, height * 2).filter((s) => s.y < height - 6) : []), [sc.stars, width, height]);
+  if (!width || !height) return null;
+  const id = `sh-${phase}`;
+  return (
+    <Svg width={width} height={total}>
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={top} />
+          <Stop offset={solid * 0.85} stopColor={low} />
+          <Stop offset={solid} stopColor={low} stopOpacity={0.92} />
+          <Stop offset="1" stopColor={low} stopOpacity={0} />
+        </LinearGradient>
+        <RadialGradient id={`${id}-glow`} cx="28%" cy="100%" rx="60%" ry="90%">
+          <Stop offset="0" stopColor={sc.glow} stopOpacity={0.14} />
+          <Stop offset="1" stopColor={sc.glow} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x={0} y={0} width={width} height={total} fill={`url(#${id})`} />
+      <Rect x={0} y={0} width={width} height={height} fill={`url(#${id}-glow)`} />
+      {starList.map((s, i) => <Circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={phase === 'night' ? s.o * 0.8 : s.o * 0.35} />)}
+    </Svg>
+  );
+});
+
+/* ------------------------------------------------------------------ */
 /* Dunes de scène — le décor des écrans secondaires                   */
 /* ------------------------------------------------------------------ */
 
