@@ -76,6 +76,7 @@ import { DotsThreeVerticalIcon } from 'phosphor-react-native/src/icons/DotsThree
 import { ArrowRightIcon } from 'phosphor-react-native/src/icons/ArrowRight';
 import { ShareNetworkIcon } from 'phosphor-react-native/src/icons/ShareNetwork';
 import { ScanIcon } from 'phosphor-react-native/src/icons/Scan';
+import { BankIcon } from 'phosphor-react-native/src/icons/Bank';
 import { CreditCardIcon } from 'phosphor-react-native/src/icons/CreditCard';
 import { FlashlightIcon } from 'phosphor-react-native/src/icons/Flashlight';
 import { PenNibIcon } from 'phosphor-react-native/src/icons/PenNib';
@@ -124,7 +125,7 @@ export type IconName =
   | 'trendUp' | 'trendDown' | 'arrowUpRight' | 'arrowsDownUp' | 'cross' | 'backspace'
   // Cadre du compteur d'onglets (le nombre est posé dessus)
   | 'tabFrame'
-  | 'card'
+  | 'card' | 'bank'
   // Onglets de la barre du bas (glyphes maison, voir LINE)
   | 'tabHome' | 'tabExplore' | 'tabActivity' | 'tabSettings';
 
@@ -185,6 +186,7 @@ const MAP: Record<IconName, { icon: PhosphorIcon; weight?: IconWeight }> = {
   forward: { icon: ArrowRightIcon },
   share: { icon: ShareNetworkIcon },
   scan: { icon: ScanIcon },
+  bank: { icon: BankIcon },
   card: { icon: CreditCardIcon },
   flash: { icon: FlashlightIcon, weight: 'fill' },
   flashOff: { icon: FlashlightIcon },
