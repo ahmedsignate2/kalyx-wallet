@@ -22,7 +22,7 @@ import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { fill, isPluralOne } from '../../lib/i18n';
-import { View, TextInput, ScrollView, Share, Alert, useWindowDimensions, Linking, Platform } from 'react-native';
+import { View, TextInput, ScrollView, Share, Alert, useWindowDimensions, Linking, Platform, BackHandler } from 'react-native';
 import { Stack, useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,6 +53,7 @@ import { saveTabs, loadTabs } from '../../lib/browserTabs';
 import { useBrowserPresence } from '../../lib/browserPresence';
 import { useWalletConnect } from '../../lib/walletconnect';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
+import { extractWcUri, isWcPairingUri } from '../../src/domain/qr/deeplink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, RpcProxyError, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
 import { phishingSiteStatus, type PhishingVerdict } from '../../src/domain/security/goplus';
@@ -214,6 +215,21 @@ export default function Browser() {
   const [linkBusy, setLinkBusy] = useState(false);
   // Revenir sur le navigateur = il n'est plus « de côté ».
   useFocusEffect(useCallback(() => { useBrowserPresence.getState().clear(); }, []));
+  // Retour Android : page précédente, puis sortie vers l'accueil SANS fermer la page.
+  const hardwareBack = useRef<() => boolean>(() => false);
+  hardwareBack.current = () => {
+    const tab = tabsRef.current.find((x) => x.id === activeRef.current);
+    if (!tab?.url) return false;
+    if (tab.canBack) webref.current?.goBack();
+    else leaveBrowser();
+    return true;
+  };
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => hardwareBack.current());
+      return () => sub.remove();
+    }, []),
+  );
   const [connSheet, setConnSheet] = useState(false);
   const [findSheet, setFindSheet] = useState(false);
   const [findQ, setFindQ] = useState('');
@@ -377,6 +393,17 @@ export default function Browser() {
     if (id === activeRef.current) setActiveId(next[Math.min(idx, next.length - 1)].id);
   };
   const goHome = () => updateTab(activeRef.current, { url: null, title: '' });
+  /*
+   * QUITTER SANS PERDRE LA PAGE. Au début de l'historique, « retour » vidait
+   * l'onglet (la dApp rechargeait à la visite suivante) ; il fallait passer
+   * par « Mettre de côté ». Désormais on revient à l'accueil et la page reste
+   * vivante, connectée — la pastille de l'accueil y ramène.
+   */
+  const leaveBrowser = () => {
+    const tab = tabsRef.current.find((x) => x.id === activeRef.current);
+    if (tab?.url) useBrowserPresence.getState().park({ url: tab.url, title: tab.title || tab.url });
+    router.navigate('/home');
+  };
   const isFav = !!origin && favorites.some((f) => f.host === origin);
   const toggleCurrentFav = () => {
     if (!origin) return;
@@ -410,6 +437,32 @@ export default function Browser() {
         tabsRef.current = next;
         setTabsState(next);
       }
+      return false;
+    }
+    /*
+     * CONNEXION PAR LIEN, DEPUIS LA PAGE. Un site qui n'utilise pas le
+     * fournisseur injecté (Ethereum) — Jupiter et les dApps Solana, par
+     * exemple — passe par WalletConnect et ouvre un lien `wc:` (ou un lien de
+     * portefeuille qui l'enveloppe). Il partait vers « une autre app » et
+     * échouait : la connexion se fait maintenant ici, par-dessus la page.
+     */
+    const wcUri = extractWcUri(u);
+    if (wcUri) {
+      if (isWcPairingUri(wcUri)) {
+        useWalletConnect
+          .getState()
+          .pair(wcUri)
+          .catch((e) => toast.error(t('connectionFailed'), /expired/i.test(String(e)) ? t('linkExpiredBody') : t('linkUnusable')));
+      }
+      return false;
+    }
+    if (!/^https:\/\//i.test(u) && looksLikeTonConnect(u)) {
+      void useTonConnect
+        .getState()
+        .openLink(u)
+        .then((err) => {
+          if (err) toast.error(t('connectionFailed'), t(err as never));
+        });
       return false;
     }
     if (/^https:\/\//i.test(u) || /^about:(blank|srcdoc)$/i.test(u)) {
@@ -998,7 +1051,7 @@ export default function Browser() {
             </>
           ) : (
             <>
-              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? goHome() : goBack())} />
+              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? leaveBrowser() : goBack())} />
               <AddressBar
                 host={origin}
                 secure={!!activeTab.url?.startsWith('https://')}

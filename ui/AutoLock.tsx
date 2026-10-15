@@ -15,7 +15,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useWallet } from '../lib/walletStore';
 import { useSettings } from '../lib/settingsStore';
-import { monoNow, shouldAutoLock } from '../lib/autoLockPolicy';
+import { monoNow, shouldAutoLock, LOCK_IMMEDIATELY_ON } from '../lib/autoLockPolicy';
 
 export function AutoLock() {
   const backgroundedAt = useRef<{ wall: number; mono: number; pathname: string } | null>(null);
@@ -45,7 +45,15 @@ export function AutoLock() {
       const w = useWallet.getState();
       if (w.hasWallet && w.isUnlocked && lockNow) {
         w.lock();
-        router.replace('/unlock');
+        /*
+         * L'ÉCRAN DE CODE SE POSE PAR-DESSUS, il ne remplace plus l'écran
+         * courant. Remplacer démontait les onglets — le navigateur perdait sa
+         * page, et le déverrouillage ramenait à l'accueil au milieu de ce qu'on
+         * faisait. Au déverrouillage, on retrouve l'écran tel quel.
+         * Exception : un écran qui AFFICHAIT un secret n'est jamais rendu.
+         */
+        if (LOCK_IMMEDIATELY_ON.has(since.pathname)) router.replace('/unlock');
+        else router.push({ pathname: '/unlock', params: { resume: '1' } });
       }
     });
     return () => sub.remove();

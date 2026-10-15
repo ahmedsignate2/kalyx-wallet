@@ -6,9 +6,9 @@ import { Pressable as KPressable, Sheet, HoldButton, Button } from '../ui/kit';
 import { Landscape } from '../ui/Landscape';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, Animated, StyleSheet, useWindowDimensions, BackHandler } from 'react-native';
 import { Rise } from '../ui/nova';
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useResetToHome } from '../lib/nav';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PinPad } from '../ui/PinPad';
@@ -25,6 +25,19 @@ import { recordTechnicalLog } from '../lib/technicalLogger';
 export default function Unlock() {
   // Pile vidée jusqu'aux onglets : un replace('/home') empilait un second jeu d'onglets sous lequel le balayage iOS revenait.
   const resetToHome = useResetToHome();
+  /*
+   * `resume` : verrouillage au retour dans l'app. L'écran de code est posé
+   * PAR-DESSUS ce que faisait l'utilisateur (navigateur, envoi…) ; le
+   * déverrouillage le referme et on retrouve l'écran intact.
+   */
+  const { resume } = useLocalSearchParams<{ resume?: string }>();
+  // Retour Android : jamais « derrière » l'écran de code tant qu'il est là.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+      return () => sub.remove();
+    }, []),
+  );
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowDimensions();
@@ -142,12 +155,14 @@ export default function Unlock() {
         flushPendingIntent();
         return;
       }
-      resetToHome();
+      // Reprise : on referme l'écran de code, l'écran d'avant est là, intact.
+      if (resume === '1' && router.canGoBack()) router.back();
+      else resetToHome();
       // Lien de paiement reçu pendant que l'app était verrouillée : c'est la
       // raison pour laquelle l'utilisateur vient de déverrouiller.
       flushPendingIntent();
     });
-  }, [screenOp, resetToHome]);
+  }, [screenOp, resetToHome, resume]);
 
   // UNE seule demande d'empreinte : la lecture du coffre biométrique
   // (SecureStore requireAuthentication) EST déjà le prompt de l'OS. On
@@ -232,7 +247,7 @@ export default function Unlock() {
     <Animated.View style={{ flex: 1, backgroundColor: colors.bg, opacity: screenOp }}>
       {/* Plein écran : pas de barre d'en-tête vide. */}
       {/* Écran de verrouillage : aucun balayage iOS ne doit le contourner. */}
-      <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
       {/* `gradients.screen` rend une couleur unie (flat()) : une View suffit,
           et le §2.2 ne tolère aucun dégradé décoratif. */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
