@@ -4,7 +4,7 @@ import { Stack, router } from 'expo-router';
 import { EmptyState, ScreenHeader, Avatar, RemoteIcon, Card, CardCell, Input, ListRow, MarketRow, ScreenList, SegmentedControl, SkeletonRow } from '../ui/kit';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
-import { getMarkets, getMarketsByIds, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
+import { getMarkets, getMarketsByIds, peekMarkets, peekMarketsByIds, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
 import { useShallow } from 'zustand/react/shallow';
 
 const money = formatFiat;
@@ -47,7 +47,8 @@ export default function Market() {
   const t = useT();
   const { fiat } = useSettings(useShallow((s) => ({ fiat: s.fiat })));
   const favorites = useSettings((s) => s.favorites);
-  const [coins, setCoins] = useState<MarketCoin[]>([]);
+  // Dernières valeurs connues tout de suite (cache), puis le réseau.
+  const [coins, setCoins] = useState<MarketCoin[]>(() => peekMarkets(useSettings.getState().fiat, 50) ?? []);
   // Onglet Favoris par défaut SEULEMENT s'il y en a : sinon on ouvrirait sur un vide.
   const [tab, setTab] = useState(() => (useSettings.getState().favorites.length ? 'favorites' : 'top'));
   /*
@@ -55,7 +56,10 @@ export default function Market() {
    * choisis (étoile de la fiche token). On lit maintenant ces coins-là, même
    * hors du top 50.
    */
-  const [favCoins, setFavCoins] = useState<MarketCoin[] | null>(null);
+  const [favCoins, setFavCoins] = useState<MarketCoin[] | null>(() => {
+    const s = useSettings.getState();
+    return s.favorites.length ? peekMarketsByIds(s.fiat, s.favorites) ?? null : null;
+  });
   const favKey = favorites.join(',');
   const fetchFavorites = useEffectEvent(() => (favorites.length ? getMarketsByIds(fiat, favorites) : null));
   useEffect(() => {
@@ -70,7 +74,8 @@ export default function Market() {
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    getMarkets(fiat, 50).then(setCoins).catch(() => setCoins([]));
+    // En échec, on GARDE ce qui est affiché (valeurs réelles, datées) plutôt qu'un écran vide.
+    getMarkets(fiat, 50).then((l) => l.length && setCoins(l)).catch(() => {});
   }, [fiat]);
 
   // Balayer vers le bas pour rafraîchir le marché.

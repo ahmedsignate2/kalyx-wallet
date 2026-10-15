@@ -24,6 +24,7 @@ import { usePriceAlerts } from '../../lib/priceAlertsStore';
 import {
   getCoinDetail,
   getMarketChartPoints,
+  peekMarketChartPoints,
   CHART_PERIODS,
   ALL_CHAINS,
   type CoinDetail,
@@ -217,11 +218,14 @@ export default function TokenDetail() {
     if (!id) return;
     // Période changée (1J → 1S…) avant la réponse : l'ancienne courbe est ignorée.
     let alive = true;
-    setLoadingChart(true);
     const days = CHART_PERIODS.find((p) => p.key === period)?.days ?? '7';
+    // Dernière courbe connue tout de suite ; le chargement ne s'affiche que s'il n'y en a pas.
+    const known = peekMarketChartPoints(id, fiat, days);
+    if (known && known.length > 1) setChart(known);
+    setLoadingChart(!known || known.length < 2);
     getMarketChartPoints(id, fiat, days)
-      .then((pts) => alive && setChart(pts))
-      .catch(() => alive && setChart([]))
+      .then((pts) => alive && (pts.length > 1 || !known) && setChart(pts))
+      .catch(() => alive && !known && setChart([]))
       .finally(() => alive && setLoadingChart(false));
     return () => { alive = false; };
   }, [id, period, fiat]);

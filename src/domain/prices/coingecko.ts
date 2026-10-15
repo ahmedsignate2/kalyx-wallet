@@ -404,6 +404,11 @@ export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promis
   }
 }
 
+/** Dernière courbe connue pour cette période (cache, sans réseau) — cf. peekMarkets. */
+export function peekMarketChartPoints(id: string, vs = 'eur', days = '7'): ChartPoint[] | undefined {
+  return cacheGetStale<ChartPoint[]>(`chart:${id}:${vs}:${effectiveDays(days)}`);
+}
+
 /** Comme getMarketChart mais avec les timestamps (graphique scrubable). */
 export async function getMarketChartPoints(id: string, vs = 'eur', days = '7'): Promise<ChartPoint[]> {
   const d = effectiveDays(days);
@@ -490,6 +495,22 @@ export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]
       return cacheGetStale<MarketCoin[]>(key) ?? [];
     }
   });
+}
+
+/*
+ * AFFICHAGE IMMÉDIAT (« d'abord le cache, puis le réseau »). Les écrans
+ * attendaient CoinGecko à chaque ouverture, même quand l'appareil avait les
+ * valeurs d'il y a quelques minutes. Ces lectures rendent la DERNIÈRE valeur
+ * connue, quel que soit son âge, sans réseau ; l'appel normal suit et la
+ * remplace. Des données réelles, seulement datées — jamais inventées.
+ */
+export function peekMarkets(vs = 'eur', perPage = 20): MarketCoin[] | undefined {
+  return cacheGetStale<MarketCoin[]>(`markets:${vs}:${perPage}`);
+}
+export function peekMarketsByIds(vs: string, ids: string[]): MarketCoin[] | undefined {
+  const list = [...new Set(ids.filter(Boolean))].slice(0, 100);
+  if (!list.length) return undefined;
+  return cacheGetStale<MarketCoin[]>(`markets:${vs}:ids:${list.slice().sort().join(',')}`);
 }
 
 /**
