@@ -100,3 +100,115 @@ export function payCoverageLines(nameOf: (evmChainId: number) => string | undefi
     networks: a.chainIds.map((id) => nameOf(id)).filter((n): n is string => !!n),
   })).filter((l) => l.networks.length > 0);
 }
+
+/* ── Réseaux ACCEPTÉS par le marchand ─────────────────────────────────────
+ *
+ * L'écran listait tous les soldes « réglables » et toute la couverture du
+ * service : on y lisait de l'USDC sur Base alors que le marchand n'acceptait
+ * qu'Ethereum. Ce qui pilote l'affichage, ce sont les réseaux de CE paiement.
+ *
+ * Le SDK ne rend pas de liste « réseaux acceptés » à part : on les lit là où ils
+ * figurent réellement —
+ *  - chaque option proposée : son compte (CAIP-10 `eip155:1:0x…`), son unité
+ *    (CAIP-19 `eip155:1/erc20:0x…`) et la chaîne de ses actions à signer ;
+ *  - le lien lui-même, quand le terminal du marchand y joint ses réseaux
+ *    (`chains=["eip155:1"]`, `chains=eip155:1,eip155:8453`…).
+ * Le compte du PAYEUR (`info.buyer`) n'en fait pas partie : c'est nous.
+ * Rien trouvé = inconnu, et l'écran le dit au lieu de deviner.
+ */
+
+/** `eip155:N` (seul, ou en tête d'un CAIP-10 / CAIP-19) → N. */
+export function evmChainOfCaip(s: string | null | undefined): number | undefined {
+  const m = /(?:^|\/)eip155:(\d{1,12})(?=$|[:/])/.exec(String(s ?? '').trim());
+  if (!m) return undefined;
+  const n = Number(m[1]);
+  return Number.isSafeInteger(n) && n > 0 ? n : undefined;
+}
+
+/** Paramètres du lien qui peuvent porter les réseaux acceptés. */
+const LINK_CHAIN_KEYS = ['chains', 'chainids', 'networks', 'acceptedchains', 'accepted_chains'];
+
+function chainsFromLink(link: string | null | undefined): number[] {
+  const q = String(link ?? '').split('#')[0].split('?')[1];
+  if (!q) return [];
+  const out: number[] = [];
+  for (const pair of q.split('&')) {
+    const [k, v = ''] = pair.split('=');
+    if (!LINK_CHAIN_KEYS.includes(k.toLowerCase())) continue;
+    let raw = v;
+    try {
+      raw = decodeURIComponent(v.replace(/\+/g, ' '));
+    } catch {
+      // Encodage cassé : on lit la valeur telle quelle.
+    }
+    let items: unknown[] = raw.split(',');
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) items = parsed;
+    } catch {
+      // Pas du JSON : liste séparée par des virgules.
+    }
+    for (const it of items) {
+      const n = typeof it === 'string' ? evmChainOfCaip(it) : undefined;
+      if (n !== undefined) out.push(n);
+    }
+  }
+  return out;
+}
+
+/** Ce qu'on lit d'une option : rien d'autre. */
+export interface PayOptionLike {
+  account?: string;
+  amount?: { unit?: string };
+  actions?: readonly { walletRpc?: { chainId?: string } }[];
+}
+
+/** Réseaux EVM acceptés pour CE paiement, triés ; vide = inconnus. */
+export function payAcceptedChains(src: { link?: string | null; options?: readonly PayOptionLike[] | null }): number[] {
+  const set = new Set<number>(chainsFromLink(src.link));
+  for (const o of src.options ?? []) {
+    for (const s of [o.account, o.amount?.unit, ...(o.actions ?? []).map((a) => a.walletRpc?.chainId)]) {
+      const n = evmChainOfCaip(s);
+      if (n !== undefined) set.add(n);
+    }
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/** Les soldes réglables, partagés entre réseaux acceptés et les autres. */
+export function splitByAcceptance<T extends { chainId: string }>(
+  eligible: readonly T[],
+  accepted: readonly number[],
+  evmChainIdOf: (chainId: string) => number | undefined,
+): { onAccepted: T[]; elsewhere: T[] } {
+  const onAccepted: T[] = [];
+  const elsewhere: T[] = [];
+  for (const h of eligible) {
+    const evm = evmChainIdOf(h.chainId);
+    if (evm !== undefined && accepted.includes(evm)) onAccepted.push(h);
+    else elsewhere.push(h);
+  }
+  return { onAccepted, elsewhere };
+}
+
+/** Stablecoins indexés sur le dollar : seuls comparables à un montant en USD. */
+const USD_STABLES = new Set(['USDC', 'USDT', 'USDT0', 'PYUSD', 'USDG']);
+
+/**
+ * Montant demandé en dollars, s'il est exprimé en dollars (`iso4217/USD`), sinon
+ * `undefined` : on ne compare pas des euros à de l'USDC.
+ */
+export function payRequestedUsd(amount: { unit?: string; value?: string; display?: { decimals?: number; assetSymbol?: string } } | null | undefined): number | undefined {
+  if (!amount) return undefined;
+  const usd = /iso4217\/usd$/i.test(amount.unit ?? '') || (amount.display?.assetSymbol ?? '').toUpperCase() === 'USD';
+  if (!usd) return undefined;
+  const v = Number(amount.value ?? '');
+  const d = amount.display?.decimals ?? 0;
+  if (!Number.isFinite(v) || !Number.isInteger(d) || d < 0 || d > 30) return undefined;
+  return v / 10 ** d;
+}
+
+/** Un solde en stablecoin dollar SOUS le montant demandé : « solde insuffisant ». */
+export function isShortForPayment(h: { symbol: string; amount: number }, requestedUsd: number | undefined): boolean {
+  return requestedUsd !== undefined && USD_STABLES.has(h.symbol.toUpperCase()) && h.amount < requestedUsd;
+}
