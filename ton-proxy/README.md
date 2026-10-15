@@ -38,3 +38,33 @@ curl https://kalyx-ton-proxy.<ton-sous-domaine>.workers.dev/health
 npm test        # liste blanche et corps POST (node --test)
 npm run typecheck
 ```
+
+## Achat de crypto (MoonPay)
+
+Le même worker signe les URL du widget MoonPay : la **clé secrète** reste ici.
+
+```
+GET  /moonpay/currencies                → devises et actifs (cache 1 h)
+GET  /moonpay/quote?currencyCode=eth&baseCurrencyCode=eur&baseCurrencyAmount=100
+POST /moonpay/url  { currencyCode, walletAddress, baseCurrencyCode, baseCurrencyAmount, paymentMethod, theme }
+                                         → { url } signée
+```
+- Le worker **construit** l'URL (liste fermée de paramètres validés) : ce n'est pas un signeur ouvert.
+- URL liée à l'IP de l'appareil (`allowedIpAddress`, obligatoire chez MoonPay pour la production).
+- Aucun paramètre de commission : Kalyx n'ajoute aucun frais.
+- Signature vérifiée contre le vecteur de test officiel (`src/moonpay.test.ts`).
+
+### Mode test (bac à sable)
+```bash
+# 1. wrangler.toml : MOONPAY_ENV = "sandbox" et MOONPAY_PUBLISHABLE_KEY = "pk_test_…"
+# 2. la clé secrète de test, jamais dans un fichier :
+npx wrangler secret put MOONPAY_SECRET_KEY      # sk_test_…
+npx wrangler deploy
+curl https://kalyx-ton-proxy.<ton-sous-domaine>.workers.dev/moonpay/currencies | head -c 300
+```
+Cartes de test : https://dev.moonpay.com/widget/sandbox-testing — jamais hors du bac à sable.
+
+### Production
+`MOONPAY_ENV = "production"`, `pk_live_…`, `wrangler secret put MOONPAY_SECRET_KEY` (sk_live_…).
+Une clé de test avec `production` (ou l'inverse) est refusée net.
+Ajouter `kalyxwallet.com` aux domaines autorisés du tableau de bord MoonPay.

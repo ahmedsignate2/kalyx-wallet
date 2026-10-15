@@ -27,8 +27,4 @@ export const DAPP_LOGOS: Readonly<Record<string, ImageSourcePropType>> = {
   'stake.rocketpool.net': require('../../assets/dapps/stake-rocketpool-net.png'),
   'stargate.finance': require('../../assets/dapps/stargate-finance.png'),
   'www.jito.network': require('../../assets/dapps/www-jito-network.png'),
-  // Émetteurs de cartes (avatars officiels de leurs organisations GitHub : gnosispay, holyheld, spritz-finance)
-  'app.gnosispay.com': require('../../assets/dapps/app-gnosispay-com.png'),
-  'app.holyheld.com': require('../../assets/dapps/app-holyheld-com.png'),
-  'app.spritz.finance': require('../../assets/dapps/app-spritz-finance.png'),
 };

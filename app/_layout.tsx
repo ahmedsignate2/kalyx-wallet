@@ -329,6 +329,7 @@ export default function RootLayout() {
           <Stack.Screen name="send" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
           <Stack.Screen name="receive" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
           <Stack.Screen name="swap" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
+          <Stack.Screen name="buy" options={{ animation: 'slide_from_bottom', animationDuration: 320, gestureDirection: 'vertical' }} />
         </Stack>
         <WalletConnectHost />
         <TonConnectHost />

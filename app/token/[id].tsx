@@ -434,10 +434,11 @@ export default function TokenDetail() {
 
           {/* Actions : les mêmes disques que l'accueil. */}
           <View style={{ flexDirection: 'row', gap: spacing(1) }}>
-            <ActionDisc index={0} tone="primary" icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
-            <ActionDisc index={1} icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
-            <ActionDisc index={2} icon="exchange" label={t('actionSwap')} onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
-            <ActionDisc index={3} tone="gold" icon="bell" label={t('actionAlert')} onPress={openAlert} />
+            <ActionDisc index={0} tone="primary" icon="buy" label={t('buy')} onPress={() => router.push({ pathname: '/buy', params: { symbol: detail?.symbol ?? '', chain: chain?.id ?? '' } })} />
+            <ActionDisc index={1} icon="send" label={t('send')} disabled={chain?.family === 'bitcoin'} onPress={() => goSendReceive('/send')} />
+            <ActionDisc index={2} icon="receive" label={t('receive')} onPress={() => goSendReceive('/receive')} />
+            <ActionDisc index={3} icon="exchange" label={t('actionSwap')} onPress={() => router.push({ pathname: '/swap', params: { to: detail?.symbol ?? '' } })} />
+            <ActionDisc index={4} tone="gold" icon="bell" label={t('actionAlert')} onPress={openAlert} />
           </View>
 
           {/* Ta position : valeur, puis le détail par réseau. */}

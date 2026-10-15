@@ -5,6 +5,11 @@ compatibility_date = "2025-01-01"
 [vars]
 # Origines web autorisées (l'app native n'envoie pas d'en-tête Origin).
 ALLOWED_ORIGINS = "https://app.kalyxwallet.com,https://kalyxwallet.com"
+# MoonPay (achat de crypto) — MODE TEST. La clé publique pk_test_… se colle ici
+# (elle n'est pas secrète). Passage en production : pk_live_… + MOONPAY_ENV.
+MOONPAY_ENV = "sandbox"
+MOONPAY_PUBLISHABLE_KEY = ""
+MOONPAY_REDIRECT_URL = "https://kalyxwallet.com/buy/complete"
 
 # Lectures : 30 requêtes / 10 s par IP (le cache absorbe l'essentiel).
 [[ratelimits]]
@@ -22,4 +27,6 @@ namespace_id = "7302"
   limit = 10
   period = 60
 
-# SECRET, jamais ici : npx wrangler secret put TONAPI_KEY
+# SECRETS, jamais ici :
+#   npx wrangler secret put TONAPI_KEY
+#   npx wrangler secret put MOONPAY_SECRET_KEY   (sk_test_… en mode test)
