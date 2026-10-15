@@ -54,7 +54,7 @@ import { haptic } from '../../lib/haptics';
 import { toast } from '../../lib/toast';
 import { isDeviceCompromised } from '../../lib/deviceSecurity';
 import { IS_BETA } from '../../lib/appStage';
-import { getAdapter, getMarketsByIds, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
+import { getAdapter, getMarketsByIds, peekMarketsByIds, nativeOfChain, chainNameOf, chainIconUrl, formatFiat, formatTokenAmount, humanizeTx, type ChartPoint, type NftItem } from '../../src';
 import {
   useHistoryStore,
   useHistoryCache,
@@ -181,6 +181,9 @@ export default function Home() {
   useEffect(() => {
     if (!sparkIds) return;
     let alive = true;
+    // Les dernières courbes connues tout de suite, puis les fraîches.
+    const known = peekMarketsByIds(fiat, sparkIds.split(','));
+    if (known) setSparks(Object.fromEntries(known.filter((m) => m.sparkline.length > 1).map((m) => [m.id, m.sparkline])));
     getMarketsByIds(fiat, sparkIds.split(','))
       .then((list) => { if (alive) setSparks(Object.fromEntries(list.filter((m) => m.sparkline.length > 1).map((m) => [m.id, m.sparkline]))); })
       .catch(() => {});
