@@ -411,7 +411,7 @@ function BuyScreenInner() {
   const validAmount = Number.isFinite(amount) && amount > 0 && !problem;
   const money = (v: number) => `${formatFiat(v)} ${fiatSym}`;
   const amountLabel = `${amountText || '0'} ${fiatSym}`;
-  const cryptoLabel = (n: number | null | undefined) => `${formatNumber(n ?? 0)} ${asset?.symbol ?? ''}`;
+  const cryptoLabel = (n: number | null | undefined) => `${n == null ? '—' : formatNumber(n)} ${asset?.symbol ?? ''}`;
 
   // Devis réel, recalculé à chaque changement (avec un léger délai de frappe).
   const seq = useRef(0);
@@ -637,7 +637,7 @@ function BuyScreenInner() {
             <AmountText label={amountLabel} empty={!amountText} size={big} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 18 }}>
               {quoting ? <ActivityIndicator size="small" color={colors.textTertiary} /> : null}
-              <Text variant="body" tone="secondary" tabular>{`≈ ${cryptoLabel(quote?.quoteCurrencyAmount ?? 0)}`}</Text>
+              <Text variant="body" tone="secondary" tabular>{validAmount ? `≈ ${cryptoLabel(quote?.quoteCurrencyAmount)}` : ' '}</Text>
             </View>
             <KPressable
               onPress={() => setSheet('method')}
@@ -753,7 +753,7 @@ function BuyScreenInner() {
             </View>
           </View>
           <Text variant="title2" style={{ textAlign: 'center' }}>{t('buySuccessTitle')}</Text>
-          <Text style={{ fontFamily: fontFamily.bold, fontSize: 28, color: colors.text, textAlign: 'center' }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount ?? quote?.quoteCurrencyAmount)}`}</Text>
+          <Text style={{ fontFamily: fontFamily.bold, fontSize: 28, color: colors.text, textAlign: 'center' }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
           <View style={{ height: space[4] }} />
           <Button label={t('buySeeWallet')} onPress={() => router.dismissTo('/home')} />
           <Button label={t('buyDetailsTitle')} variant="secondary" onPress={() => setStep('details')} />
@@ -772,7 +772,7 @@ function BuyScreenInner() {
               <AssetIcon asset={asset} size={48} />
               <View>
                 <Text style={{ fontFamily: fontFamily.bold, fontSize: 24, color: colors.text }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
-                <Text variant="caption" tone="secondary" tabular>{`≈ ${money(tx?.baseCurrencyAmount ?? amount)}`}</Text>
+                <Text variant="caption" tone="secondary" tabular>{tx?.baseCurrencyAmount != null ? `≈ ${money(tx.baseCurrencyAmount)}` : '—'}</Text>
               </View>
             </View>
             <View style={{ borderTopWidth: 1, borderTopColor: colors.border }} />
