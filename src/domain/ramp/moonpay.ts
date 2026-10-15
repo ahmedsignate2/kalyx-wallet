@@ -44,8 +44,8 @@ export interface BuyAsset {
 /** Réseaux non EVM : code réseau MoonPay → réseau Kalyx. */
 const NON_EVM: Record<string, string> = { bitcoin: 'bitcoin', solana: 'solana', ton: 'ton' };
 
-/** Les plus demandés d'abord ; le reste par ordre alphabétique. */
-const POPULAR = ['ETH', 'BTC', 'USDC', 'USDT', 'SOL', 'TON', 'POL', 'BNB'];
+/** Stablecoins puis les plus demandés ; le reste par ordre alphabétique. */
+const POPULAR = ['USDC', 'USDT', 'BTC', 'ETH', 'SOL', 'TON', 'POL', 'BNB'];
 
 /**
  * Actifs MoonPay qu'on peut recevoir : réseau reconnu (identifiant EVM, ou
@@ -140,4 +140,84 @@ export function buyTrackerUrl(env: 'sandbox' | 'production', transactionId: stri
 export function isMoonpayHost(host: string): boolean {
   const h = host.toLowerCase();
   return h === 'moonpay.com' || h.endsWith('.moonpay.com');
+}
+
+/* ── Parcours : token, puis réseau ─────────────────────────────────────── */
+
+const USD_STABLES = new Set(['USDC', 'USDT', 'PYUSD', 'DAI', 'EURC']);
+export const isStablecoin = (symbol: string) => USD_STABLES.has(symbol.toUpperCase());
+
+/** Un token achetable, et les réseaux où on peut le recevoir (ordre du catalogue). */
+export interface BuyToken {
+  symbol: string;
+  name: string;
+  networks: BuyAsset[];
+}
+
+/** Regroupe les actifs par token : « USDC » une fois, ses réseaux ensuite. */
+export function groupBuyTokens(assets: readonly BuyAsset[]): BuyToken[] {
+  const out: BuyToken[] = [];
+  for (const a of assets) {
+    const g = out.find((x) => x.symbol === a.symbol);
+    if (g) g.networks.push(a);
+    else out.push({ symbol: a.symbol, name: a.name.replace(/\s*\(.*\)\s*$/, ''), networks: [a] });
+  }
+  // Le réseau « d'origine » d'abord (Ethereum pour ETH et les stablecoins).
+  for (const g of out) g.networks.sort((x, y) => Number(y.chainId === 'ethereum') - Number(x.chainId === 'ethereum'));
+  return out;
+}
+
+/** Ordre de grandeur des frais d'un réseau, pour aider à choisir. */
+export function networkFeeTier(chainId: string): 'high' | 'low' | 'variable' {
+  if (chainId === 'ethereum') return 'high';
+  if (chainId === 'bitcoin') return 'variable';
+  return 'low';
+}
+
+/* ── Suivi : de la commande MoonPay aux 4 étapes affichées ─────────────── */
+
+export type BuyStepState = 'done' | 'active' | 'todo' | 'failed';
+
+export interface RampTxLike {
+  status: string;
+  stages?: readonly { stage: string; status: string }[];
+}
+
+/**
+ * Quatre étapes : paiement validé, achat en cours, crypto envoyée,
+ * finalisation. Lues dans les étapes de MoonPay quand il les donne, sinon
+ * déduites de son statut.
+ */
+export function buyProgress(tx: RampTxLike): { steps: BuyStepState[]; outcome: 'pending' | 'completed' | 'failed' } {
+  const outcome = tx.status === 'completed' ? 'completed' : tx.status === 'failed' ? 'failed' : 'pending';
+  const st = (name: string): BuyStepState | null => {
+    const s = tx.stages?.find((x) => x.stage === name)?.status;
+    if (!s) return null;
+    return s === 'success' ? 'done' : s === 'in_progress' ? 'active' : s === 'failed' ? 'failed' : 'todo';
+  };
+  let steps: BuyStepState[];
+  if (tx.stages && tx.stages.length) {
+    const order = st('stage_one_ordering');
+    const verif = st('stage_two_verification');
+    const pay: BuyStepState = order === 'failed' || verif === 'failed' ? 'failed' : verif === 'done' ? 'done' : 'active';
+    steps = [pay, st('stage_three_processing') ?? 'todo', st('stage_four_delivery') ?? 'todo', outcome === 'completed' ? 'done' : 'todo'];
+    // Une seule étape « en cours » à la fois : la première qui n'est pas finie.
+    if (outcome === 'pending' && !steps.some((s) => s === 'active' || s === 'failed')) {
+      const i = steps.findIndex((s) => s === 'todo');
+      if (i >= 0) steps[i] = 'active';
+    }
+  } else if (outcome === 'completed') {
+    steps = ['done', 'done', 'done', 'done'];
+  } else if (outcome === 'failed') {
+    steps = ['failed', 'todo', 'todo', 'todo'];
+  } else if (tx.status === 'pending') {
+    steps = ['done', 'active', 'todo', 'todo'];
+  } else {
+    steps = ['active', 'todo', 'todo', 'todo'];
+  }
+  if (outcome === 'failed' && !steps.includes('failed')) {
+    const i = steps.findIndex((s) => s !== 'done');
+    steps[i < 0 ? 3 : i] = 'failed';
+  }
+  return { steps, outcome };
 }

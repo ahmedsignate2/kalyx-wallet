@@ -277,3 +277,65 @@ export function quoteQuery(sp: URLSearchParams, apiKey: string): { code: string;
   if (pm) p.push(['paymentMethod', pm]);
   return { code, query: queryOf(p) };
 }
+
+/* ── Suivi d'une commande ──────────────────────────────────────────────── */
+
+export interface RampTxStage {
+  stage: string;
+  status: string;
+}
+
+export interface RampTx {
+  id: string;
+  status: string;
+  createdAt: string | null;
+  baseCurrencyAmount: number | null;
+  quoteCurrencyAmount: number | null;
+  feeAmount: number | null;
+  networkFeeAmount: number | null;
+  cryptoTransactionId: string | null;
+  walletAddress: string | null;
+  currencyCode: string | null;
+  failureReason: string | null;
+  stages: RampTxStage[];
+}
+
+const TX_ID = /^[A-Za-z0-9-]{8,64}$/;
+export const isTxId = (s: string | null | undefined) => TX_ID.test(String(s ?? ''));
+
+/** Commande MoonPay réduite à ce que l'écran de suivi affiche. */
+export function trimTx(raw: unknown): RampTx | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const t = raw as Record<string, unknown>;
+  if (typeof t.id !== 'string' || typeof t.status !== 'string') return null;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const str = (v: unknown, max = 200) => (typeof v === 'string' ? v.slice(0, max) : null);
+  const cur = (t.currency ?? {}) as Record<string, unknown>;
+  const stages = Array.isArray(t.stages)
+    ? (t.stages as Record<string, unknown>[])
+        .filter((s) => s && typeof s.stage === 'string' && typeof s.status === 'string')
+        .map((s) => ({ stage: s.stage as string, status: s.status as string }))
+    : [];
+  return {
+    id: t.id,
+    status: t.status,
+    createdAt: str(t.createdAt, 40),
+    baseCurrencyAmount: num(t.baseCurrencyAmount),
+    quoteCurrencyAmount: num(t.quoteCurrencyAmount),
+    feeAmount: num(t.feeAmount),
+    networkFeeAmount: num(t.networkFeeAmount),
+    cryptoTransactionId: str(t.cryptoTransactionId, 120),
+    walletAddress: str(t.walletAddress, 120),
+    currencyCode: str(cur.code, 30),
+    failureReason: str(t.failureReason),
+    stages,
+  };
+}
+
+/** Pays de l'appareil : l'achat y est-il permis ? */
+export function trimRegion(raw: unknown): { country: string | null; isBuyAllowed: boolean } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.isBuyAllowed !== 'boolean') return null;
+  return { country: typeof r.alpha2 === 'string' ? r.alpha2.slice(0, 3) : null, isBuyAllowed: r.isBuyAllowed && r.isAllowed !== false };
+}

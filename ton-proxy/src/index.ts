@@ -11,7 +11,7 @@
  * Aucune donnée n'est journalisée : ni adresse, ni message, ni IP.
  */
 import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
-import { API_HOST, buyParams, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, type MoonpayEnvName } from './moonpay';
+import { API_HOST, buyParams, canonicalIp, isTxId, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, trimRegion, trimTx, type MoonpayEnvName } from './moonpay';
 
 export interface Env {
   /** Clé TonAPI — SECRET : `wrangler secret put TONAPI_KEY`. */
@@ -181,6 +181,23 @@ async function moonpay(request: Request, url: URL, env: Env, ctx: ExecutionConte
       // Montant hors limites, actif indisponible… : le message de MoonPay est relayé tel quel.
       if (!quote) return json(r.status >= 400 && r.status < 500 ? 400 : 502, { error: upstreamError(r.body) }, corsHeaders);
       return json(200, quote, corsHeaders);
+    }
+    if (request.method === 'GET' && url.pathname === '/moonpay/tx') {
+      // Suivi d'une commande : l'identifiant vient du retour du widget.
+      const id = url.searchParams.get('id');
+      if (!isTxId(id)) return json(400, { error: 'bad id' }, corsHeaders);
+      const r = await upstreamJson(`/v1/transactions/${id}?apiKey=${encodeURIComponent(pk)}`, 0);
+      const tx = r.status === 200 ? trimTx(r.body) : null;
+      if (!tx) return json(r.status === 404 ? 404 : 502, { error: upstreamError(r.body) }, corsHeaders);
+      return json(200, tx, { ...corsHeaders, 'cache-control': 'no-store' });
+    }
+    if (request.method === 'GET' && url.pathname === '/moonpay/region') {
+      // Le pays de l'APPAREIL (pas celui du worker) : on transmet son IP.
+      const cip = canonicalIp(ip);
+      const r = await upstreamJson(`/v4/ip_address?apiKey=${encodeURIComponent(pk)}${cip ? `&ipAddress=${encodeURIComponent(cip)}` : ''}`, 0);
+      const region = r.status === 200 ? trimRegion(r.body) : null;
+      if (!region) return json(502, { error: upstreamError(r.body) }, corsHeaders);
+      return json(200, region, { ...corsHeaders, 'cache-control': 'no-store' });
     }
     if (request.method === 'POST' && url.pathname === '/moonpay/url') {
       const secret = env.MOONPAY_SECRET_KEY?.trim();
