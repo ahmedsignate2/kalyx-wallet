@@ -74,3 +74,35 @@ export function rampWidgetUrl(p: {
 }): Promise<{ url: string; env: RampEnv }> {
   return call<{ url: string; env: RampEnv }>('/moonpay/url', { method: 'POST', body: JSON.stringify(p) });
 }
+
+export interface RampTx {
+  id: string;
+  status: string;
+  createdAt: string | null;
+  baseCurrencyAmount: number | null;
+  quoteCurrencyAmount: number | null;
+  feeAmount: number | null;
+  networkFeeAmount: number | null;
+  cryptoTransactionId: string | null;
+  walletAddress: string | null;
+  currencyCode: string | null;
+  failureReason: string | null;
+  stages: { stage: string; status: string }[];
+}
+
+/** État d'une commande (après le retour du widget). */
+export function rampTransaction(id: string): Promise<RampTx> {
+  return call<RampTx>(`/moonpay/tx?id=${encodeURIComponent(id)}`);
+}
+
+/**
+ * L'achat est-il permis dans le pays de l'appareil ? `null` si on ne sait pas
+ * (service muet) : dans le doute on laisse essayer, le widget tranchera.
+ */
+export async function rampRegion(): Promise<{ country: string | null; isBuyAllowed: boolean } | null> {
+  try {
+    return await call<{ country: string | null; isBuyAllowed: boolean }>('/moonpay/region', undefined, 8_000);
+  } catch {
+    return null;
+  }
+}

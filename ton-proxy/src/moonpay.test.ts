@@ -76,3 +76,22 @@ test('devis et devises : champs utiles seulement, validés', () => {
   assert.equal(c.length, 2);
   assert.equal(c[0].networkCode, 'base');
 });
+
+import { isTxId, trimRegion, trimTx } from './moonpay.ts';
+
+test('suivi de commande : champs utiles, identifiant contrôlé', () => {
+  assert.equal(isTxId('45751523-c3e2-47a5-ad0f-e5cb89e94037'), true);
+  assert.equal(isTxId('../admin'), false);
+  const tx = trimTx({
+    id: 'abc12345', status: 'pending', createdAt: '2026-10-13T19:52:00Z', baseCurrencyAmount: 95, quoteCurrencyAmount: 108.42,
+    feeAmount: 1.2, networkFeeAmount: 0.3, cryptoTransactionId: null, walletAddress: '0xabc', currency: { code: 'usdc' },
+    stages: [{ stage: 'stage_one_ordering', status: 'success', actions: [] }, { bad: 1 }], cardId: 'secret',
+  });
+  assert.equal(tx?.currencyCode, 'usdc');
+  assert.deepEqual(tx?.stages, [{ stage: 'stage_one_ordering', status: 'success' }]);
+  assert.equal('cardId' in (tx ?? {}), false);
+  assert.equal(trimTx({ status: 'x' }), null);
+  assert.deepEqual(trimRegion({ alpha2: 'FR', isAllowed: true, isBuyAllowed: true }), { country: 'FR', isBuyAllowed: true });
+  assert.deepEqual(trimRegion({ alpha2: 'US', isAllowed: false, isBuyAllowed: true }), { country: 'US', isBuyAllowed: false });
+  assert.equal(trimRegion({}), null);
+});

@@ -25,9 +25,9 @@ describe('achat MoonPay', () => {
       chains,
       { sandbox: true },
     );
-    expect(list.map((a) => `${a.symbol}@${a.chainId}`)).toEqual(['ETH@ethereum', 'BTC@bitcoin', 'USDC@base']);
-    expect(list[2].contract).toMatch(/^0x8335/);
-    expect(list[0].contract).toBeNull();
+    expect(list.map((a) => `${a.symbol}@${a.chainId}`)).toEqual(['USDC@base', 'BTC@bitcoin', 'ETH@ethereum']);
+    expect(list[0].contract).toMatch(/^0x8335/);
+    expect(list[2].contract).toBeNull();
   });
 
   it('hors bac à sable, les actifs sans mode test restent proposés', () => {
@@ -65,5 +65,44 @@ describe('achat MoonPay', () => {
     expect(buyTrackerUrl('sandbox', 'abc-123')).toBe('https://buy-sandbox.moonpay.com/transaction_receipt?transactionId=abc-123');
     expect(isMoonpayHost('buy-sandbox.moonpay.com')).toBe(true);
     expect(isMoonpayHost('moonpay.com.evil.io')).toBe(false);
+  });
+});
+
+import { buyProgress, groupBuyTokens, networkFeeTier, isStablecoin } from './moonpay';
+
+describe('parcours d’achat', () => {
+  it('un token, ses réseaux — Ethereum en premier', () => {
+    const g = groupBuyTokens([
+      { code: 'usdc_base', symbol: 'USDC', name: 'USD Coin (Base)', chainId: 'base', contract: '0x1' },
+      { code: 'eth', symbol: 'ETH', name: 'Ethereum', chainId: 'ethereum', contract: null },
+      { code: 'usdc', symbol: 'USDC', name: 'USD Coin', chainId: 'ethereum', contract: '0x2' },
+    ]);
+    expect(g.map((x) => x.symbol)).toEqual(['USDC', 'ETH']);
+    expect(g[0].name).toBe('USD Coin');
+    expect(g[0].networks.map((n) => n.chainId)).toEqual(['ethereum', 'base']);
+    expect(networkFeeTier('ethereum')).toBe('high');
+    expect(networkFeeTier('base')).toBe('low');
+    expect(isStablecoin('usdc')).toBe(true);
+  });
+
+  it('progression depuis le statut seul', () => {
+    expect(buyProgress({ status: 'waitingPayment' })).toEqual({ steps: ['active', 'todo', 'todo', 'todo'], outcome: 'pending' });
+    expect(buyProgress({ status: 'pending' }).steps).toEqual(['done', 'active', 'todo', 'todo']);
+    expect(buyProgress({ status: 'completed' })).toEqual({ steps: ['done', 'done', 'done', 'done'], outcome: 'completed' });
+    expect(buyProgress({ status: 'failed' }).steps[0]).toBe('failed');
+  });
+
+  it('progression depuis les étapes MoonPay', () => {
+    const S = (a: string, b: string, c: string, d: string) => [
+      { stage: 'stage_one_ordering', status: a },
+      { stage: 'stage_two_verification', status: b },
+      { stage: 'stage_three_processing', status: c },
+      { stage: 'stage_four_delivery', status: d },
+    ];
+    expect(buyProgress({ status: 'pending', stages: S('success', 'success', 'in_progress', 'not_started') }).steps).toEqual(['done', 'active', 'todo', 'todo']);
+    expect(buyProgress({ status: 'pending', stages: S('success', 'success', 'success', 'not_started') }).steps).toEqual(['done', 'done', 'active', 'todo']);
+    expect(buyProgress({ status: 'completed', stages: S('success', 'success', 'success', 'success') }).steps).toEqual(['done', 'done', 'done', 'done']);
+    expect(buyProgress({ status: 'failed', stages: S('success', 'failed', 'not_started', 'not_started') })).toEqual({ steps: ['failed', 'todo', 'todo', 'todo'], outcome: 'failed' });
+    expect(buyProgress({ status: 'failed', stages: S('success', 'success', 'success', 'not_started') }).steps).toEqual(['done', 'done', 'failed', 'todo']);
   });
 });
