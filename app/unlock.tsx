@@ -183,6 +183,10 @@ export default function Unlock() {
          * le rend comme une annulation, et le bouton ne faisait plus rien, sans
          * un mot. Sondé sans invite ; dit aussi au lancement, sinon on le cherche.
          */
+        if (code === 'PIN_REQUIRED') {
+          setError(t('errPinRequired'));
+          return;
+        }
         if (code === 'BIOMETRIC_REFUSED' && (await isBiometricLockedOut())) {
           setError(t('bioLockedOut'));
           return;

@@ -189,13 +189,13 @@ describe('Sauvegarde automatique : clés locales et crochets', () => {
       if (k === 'kalyx.backupKeys.bdk' && !dead) dead = true;
       return dead && (k === 'kalyx.backupKeys.bdk' || k.startsWith('nova.vault'));
     };
-    await expect(W().changePin(NEW_PIN, '111222')).rejects.toThrow('disk');
+    await expect(W().changePin(NEW_PIN, '640735')).rejects.toThrow('disk');
     expect(mockKv.has('nova.pinChangeJournal')).toBe(true); // journal resté : opération non aboutie
     // Relancement.
     mockFailWrite = () => false;
     expect(await rollbackPinChange()).toBe(true);
     expect(await opensWith(NEW_PIN)).toBe(true);
-    expect(await opensWith('111222')).toBe(false);
+    expect(await opensWith('640735')).toBe(false);
     const primary = await loadVault('primary');
     expect(await decryptSecret(primary!, NEW_PIN)).toBe(PHRASE);
   });

@@ -113,6 +113,10 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 const en = {
+  errPinRequired: "For your security, enter your Kalyx code (required at least every 3 days, even with biometrics).",
+  linkSiteTitle: "Open this site?",
+  linkSiteBody: "A link wants to open this site in Kalyx's browser. Only continue if you trust it.",
+  linkSiteLookalike: "Warning: this name looks like {site} but is NOT the official site. It could be a trap to empty your wallet.",
   buyTitleToken: "Buy {token}",
   buyOnNetwork: "on {network}",
   buyPoweredBy: "Powered by {provider}",
@@ -2491,6 +2495,10 @@ export type Key = keyof typeof en;
 const dict: Record<Lang, Partial<Record<Key, string>>> = {
   en,
   fr: {
+  errPinRequired: "Pour ta sécurité, saisis ton code Kalyx (exigé au moins tous les 3 jours, même avec la biométrie).",
+  linkSiteTitle: "Ouvrir ce site ?",
+  linkSiteBody: "Un lien veut ouvrir ce site dans le navigateur de Kalyx. Continue seulement si tu lui fais confiance.",
+  linkSiteLookalike: "Attention : ce nom ressemble à {site} mais ce n'est PAS le site officiel. Ce peut être un piège pour vider ton portefeuille.",
   buyTitleToken: "Acheter des {token}",
   buyOnNetwork: "sur {network}",
   buyPoweredBy: "Propulsé par {provider}",
@@ -4849,6 +4857,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   es: {
+  errPinRequired: "Por tu seguridad, introduce tu código de Kalyx (obligatorio al menos cada 3 días, incluso con biometría).",
+  linkSiteTitle: "¿Abrir este sitio?",
+  linkSiteBody: "Un enlace quiere abrir este sitio en el navegador de Kalyx. Continúa solo si confías en él.",
+  linkSiteLookalike: "Atención: este nombre se parece a {site} pero NO es el sitio oficial. Podría ser una trampa para vaciar tu cartera.",
   buyTitleToken: "Comprar {token}",
   buyOnNetwork: "en {network}",
   buyPoweredBy: "Con la tecnología de {provider}",
@@ -7197,6 +7209,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   pt: {
+  errPinRequired: "Para sua segurança, digite seu código Kalyx (exigido pelo menos a cada 3 dias, mesmo com biometria).",
+  linkSiteTitle: "Abrir este site?",
+  linkSiteBody: "Um link quer abrir este site no navegador da Kalyx. Continue apenas se confiar nele.",
+  linkSiteLookalike: "Atenção: este nome parece {site}, mas NÃO é o site oficial. Pode ser uma armadilha para esvaziar sua carteira.",
   buyTitleToken: "Comprar {token}",
   buyOnNetwork: "na {network}",
   buyPoweredBy: "Com tecnologia {provider}",
@@ -9526,6 +9542,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   de: {
+  errPinRequired: "Zu deiner Sicherheit gib deinen Kalyx-Code ein (mindestens alle 3 Tage nötig, auch mit Biometrie).",
+  linkSiteTitle: "Diese Seite öffnen?",
+  linkSiteBody: "Ein Link möchte diese Seite im Kalyx-Browser öffnen. Fahre nur fort, wenn du ihr vertraust.",
+  linkSiteLookalike: "Achtung: Dieser Name ähnelt {site}, ist aber NICHT die offizielle Seite. Es könnte eine Falle sein, um deine Wallet zu leeren.",
   buyTitleToken: "{token} kaufen",
   buyOnNetwork: "auf {network}",
   buyPoweredBy: "Bereitgestellt von {provider}",
@@ -11872,6 +11892,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} Min.",
   },
   it: {
+  errPinRequired: "Per la tua sicurezza, inserisci il codice Kalyx (richiesto almeno ogni 3 giorni, anche con la biometria).",
+  linkSiteTitle: "Aprire questo sito?",
+  linkSiteBody: "Un link vuole aprire questo sito nel browser di Kalyx. Continua solo se ti fidi.",
+  linkSiteLookalike: "Attenzione: questo nome somiglia a {site} ma NON è il sito ufficiale. Potrebbe essere una trappola per svuotare il tuo portafoglio.",
   buyTitleToken: "Acquista {token}",
   buyOnNetwork: "su {network}",
   buyPoweredBy: "Fornito da {provider}",
@@ -14204,6 +14228,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   nl: {
+  errPinRequired: "Voor je veiligheid: voer je Kalyx-code in (minstens elke 3 dagen nodig, ook met biometrie).",
+  linkSiteTitle: "Deze site openen?",
+  linkSiteBody: "Een link wil deze site openen in de browser van Kalyx. Ga alleen verder als je hem vertrouwt.",
+  linkSiteLookalike: "Let op: deze naam lijkt op {site} maar is NIET de officiële site. Het kan een val zijn om je wallet leeg te halen.",
   buyTitleToken: "{token} kopen",
   buyOnNetwork: "op {network}",
   buyPoweredBy: "Mogelijk gemaakt door {provider}",
@@ -16562,6 +16590,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   pl: {
+  errPinRequired: "Dla bezpieczeństwa wpisz kod Kalyx (wymagany co najmniej co 3 dni, nawet z biometrią).",
+  linkSiteTitle: "Otworzyć tę stronę?",
+  linkSiteBody: "Link chce otworzyć tę stronę w przeglądarce Kalyx. Kontynuuj tylko, jeśli jej ufasz.",
+  linkSiteLookalike: "Uwaga: ta nazwa przypomina {site}, ale to NIE jest oficjalna strona. To może być pułapka, by opróżnić twój portfel.",
   buyTitleToken: "Kup {token}",
   buyOnNetwork: "w sieci {network}",
   buyPoweredBy: "Obsługiwane przez {provider}",
@@ -18911,6 +18943,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   tr: {
+  errPinRequired: "Güvenliğin için Kalyx kodunu gir (biyometriyle bile en az 3 günde bir gerekir).",
+  linkSiteTitle: "Bu site açılsın mı?",
+  linkSiteBody: "Bir bağlantı bu siteyi Kalyx tarayıcısında açmak istiyor. Yalnızca güveniyorsan devam et.",
+  linkSiteLookalike: "Dikkat: bu ad {site} adına benziyor ama resmi site DEĞİL. Cüzdanını boşaltmak için bir tuzak olabilir.",
   buyTitleToken: "{token} satın al",
   buyOnNetwork: "{network} ağında",
   buyPoweredBy: "{provider} altyapısıyla",
@@ -21255,6 +21291,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} dk",
   },
   ru: {
+  errPinRequired: "Для безопасности введи код Kalyx (нужен минимум раз в 3 дня, даже с биометрией).",
+  linkSiteTitle: "Открыть этот сайт?",
+  linkSiteBody: "Ссылка хочет открыть этот сайт в браузере Kalyx. Продолжай, только если доверяешь ему.",
+  linkSiteLookalike: "Внимание: это имя похоже на {site}, но это НЕ официальный сайт. Это может быть ловушка, чтобы опустошить твой кошелёк.",
   buyTitleToken: "Купить {token}",
   buyOnNetwork: "в сети {network}",
   buyPoweredBy: "На базе {provider}",
@@ -23640,6 +23680,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} мин",
   },
   ar: {
+  errPinRequired: "لأمانك، أدخل رمز Kalyx (مطلوب مرة كل 3 أيام على الأقل، حتى مع البصمة).",
+  linkSiteTitle: "فتح هذا الموقع؟",
+  linkSiteBody: "يريد رابط فتح هذا الموقع في متصفح Kalyx. تابع فقط إذا كنت تثق به.",
+  linkSiteLookalike: "تحذير: هذا الاسم يشبه {site} لكنه ليس الموقع الرسمي. قد يكون فخًا لإفراغ محفظتك.",
   buyTitleToken: "شراء {token}",
   buyOnNetwork: "على {network}",
   buyPoweredBy: "بدعم من {provider}",
@@ -25972,6 +26016,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} د",
   },
   hi: {
+  errPinRequired: "आपकी सुरक्षा के लिए अपना Kalyx कोड डालें (बायोमेट्रिक के साथ भी कम से कम हर 3 दिन में ज़रूरी)।",
+  linkSiteTitle: "यह साइट खोलें?",
+  linkSiteBody: "एक लिंक इस साइट को Kalyx ब्राउज़र में खोलना चाहता है। केवल तभी जारी रखें जब आपको इस पर भरोसा हो।",
+  linkSiteLookalike: "सावधान: यह नाम {site} जैसा दिखता है पर आधिकारिक साइट नहीं है। यह आपका वॉलेट खाली करने का जाल हो सकता है।",
   buyTitleToken: "{token} खरीदें",
   buyOnNetwork: "{network} पर",
   buyPoweredBy: "{provider} द्वारा संचालित",
@@ -28339,6 +28387,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} मिनट",
   },
   zh: {
+  errPinRequired: "为了你的安全，请输入 Kalyx 密码（即使使用生物识别，也至少每 3 天需要一次）。",
+  linkSiteTitle: "打开此网站？",
+  linkSiteBody: "一个链接想在 Kalyx 浏览器中打开此网站。仅在你信任它时继续。",
+  linkSiteLookalike: "注意：此名称看起来像 {site}，但并非官方网站。这可能是清空你钱包的陷阱。",
   buyTitleToken: "购买 {token}",
   buyOnNetwork: "在 {network} 上",
   buyPoweredBy: "由 {provider} 提供支持",
@@ -30631,6 +30683,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} 分钟",
   },
   ja: {
+  errPinRequired: "安全のため Kalyx のコードを入力してください（生体認証でも少なくとも 3 日ごとに必要です）。",
+  linkSiteTitle: "このサイトを開きますか？",
+  linkSiteBody: "リンクがこのサイトを Kalyx のブラウザで開こうとしています。信頼できる場合のみ続けてください。",
+  linkSiteLookalike: "注意：この名前は {site} に似ていますが公式サイトではありません。ウォレットを空にする罠の可能性があります。",
   buyTitleToken: "{token} を購入",
   buyOnNetwork: "{network} 上",
   buyPoweredBy: "{provider} 提供",
@@ -32988,6 +33044,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} 分",
   },
   ko: {
+  errPinRequired: "보안을 위해 Kalyx 코드를 입력하세요 (생체 인증을 써도 최소 3일마다 필요합니다).",
+  linkSiteTitle: "이 사이트를 열까요?",
+  linkSiteBody: "링크가 이 사이트를 Kalyx 브라우저에서 열려고 합니다. 신뢰할 때만 계속하세요.",
+  linkSiteLookalike: "주의: 이 이름은 {site}와 비슷하지만 공식 사이트가 아닙니다. 지갑을 비우려는 함정일 수 있습니다.",
   buyTitleToken: "{token} 구매",
   buyOnNetwork: "{network}에서",
   buyPoweredBy: "{provider} 제공",
