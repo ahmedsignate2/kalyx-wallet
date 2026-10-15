@@ -65,6 +65,7 @@ export interface PayAmountDisplay {
   assetName: string;
   decimals: number;
   iconUrl?: string;
+  networkIconUrl?: string;
   networkName?: string;
 }
 
@@ -82,6 +83,8 @@ export interface PayCollectData {
 
 export interface PayOption {
   id: string;
+  /** Compte CAIP-10 qui paierait (`eip155:1:0x…`) : dit le RÉSEAU de l'option. */
+  account?: string;
   amount: PayAmount;
   etaS: number;
   collectData?: PayCollectData | null;

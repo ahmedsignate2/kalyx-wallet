@@ -3,7 +3,7 @@ import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { useReduceMotion } from '../lib/reduceMotion';
 import { sound } from "../lib/sound";
 import React, { useEffect, useEffectEvent, useState, useRef } from 'react';
-import { decimalSeparator } from '../src';
+import { decimalSeparator, listChains } from '../src';
 import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -189,7 +189,18 @@ function SwapInner() {
   const [held, setHeld] = useState<Tok[]>([]);
   /** Branché plus bas sur useSwapBalances (déclaré après le choix du jeton source). */
   const seedHeldRef = useRef<{ seed: (chainId: string, owner: string, list: { token: string; raw: bigint }[], gen: number) => void; gen: () => number }>({ seed: () => {}, gen: () => 0 });
-  const params = useLocalSearchParams<{ contract?: string; to?: string }>();
+  const params = useLocalSearchParams<{ contract?: string; to?: string; toChain?: string }>();
+  /*
+   * Réseau d'arrivée imposé par l'appelant (paiement marchand : « Transférer des
+   * fonds vers Ethereum »), appliqué UNE fois et seulement s'il existe.
+   */
+  const paramChainApplied = useRef(false);
+  useEffect(() => {
+    const c = String(params.toChain ?? '');
+    if (paramChainApplied.current || !c) return;
+    paramChainApplied.current = true;
+    if (listChains({ includeTestnets: false }).some((x) => x.id === c)) setToChain(c);
+  }, [params.toChain]);
 
   // Tokens réellement détenus sur la chaîne active → swappables même hors liste curée.
   useEffect(() => {

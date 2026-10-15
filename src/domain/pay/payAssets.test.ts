@@ -101,3 +101,58 @@ describe('payCoverageLines', () => {
     expect(lines).toHaveLength(PAY_SUPPORTED_ASSETS.length);
   });
 });
+
+import { evmChainOfCaip, payAcceptedChains, splitByAcceptance, payRequestedUsd, isShortForPayment } from './payAssets';
+
+describe('réseaux acceptés par le marchand', () => {
+  it('lit eip155 dans CAIP-2, CAIP-10 et CAIP-19', () => {
+    expect(evmChainOfCaip('eip155:1')).toBe(1);
+    expect(evmChainOfCaip('eip155:8453:0xabc')).toBe(8453);
+    expect(evmChainOfCaip('caip19/eip155:42161/erc20:0xaf88')).toBe(42161);
+    expect(evmChainOfCaip('solana:5eykt')).toBeUndefined();
+    expect(evmChainOfCaip('eip155:0')).toBeUndefined();
+    expect(evmChainOfCaip(undefined)).toBeUndefined();
+  });
+
+  it('options : compte, unité, actions — sans doublon, trié', () => {
+    expect(
+      payAcceptedChains({
+        options: [
+          { account: 'eip155:8453:0x1', amount: { unit: 'caip19/eip155:8453/erc20:0x2' } },
+          { amount: { unit: 'caip19/eip155:1/erc20:0x3' }, actions: [{ walletRpc: { chainId: 'eip155:1' } }] },
+        ],
+      }),
+    ).toEqual([1, 8453]);
+  });
+
+  it('le lien peut porter les réseaux (JSON ou liste)', () => {
+    expect(payAcceptedChains({ link: 'https://pay.walletconnect.com/?pid=x&chains=%5B%22eip155%3A1%22%5D' })).toEqual([1]);
+    expect(payAcceptedChains({ link: 'https://x/?networks=eip155:1,eip155:10' })).toEqual([1, 10]);
+    expect(payAcceptedChains({ link: 'https://x/?pid=1' })).toEqual([]);
+    expect(payAcceptedChains({ link: 'https://x/?chains=%E0%A4%A' })).toEqual([]);
+  });
+
+  it('rien trouvé = inconnu (liste vide), jamais deviné', () => {
+    expect(payAcceptedChains({ options: [] })).toEqual([]);
+  });
+
+  it('partage les soldes : réseau accepté / ailleurs', () => {
+    const ids: Record<string, number> = { ethereum: 1, base: 8453 };
+    const r = splitByAcceptance(
+      [{ chainId: 'base', symbol: 'USDC', amount: 2 }, { chainId: 'ethereum', symbol: 'USDC', amount: 0.001 }],
+      [1],
+      (c) => ids[c],
+    );
+    expect(r.onAccepted.map((h) => h.chainId)).toEqual(['ethereum']);
+    expect(r.elsewhere.map((h) => h.chainId)).toEqual(['base']);
+  });
+
+  it('solde insuffisant : seulement comparé en dollars', () => {
+    const usd = payRequestedUsd({ unit: 'iso4217/USD', value: '1', display: { decimals: 2, assetSymbol: 'USD' } });
+    expect(usd).toBeCloseTo(0.01);
+    expect(isShortForPayment({ symbol: 'USDC', amount: 0.005 }, usd)).toBe(true);
+    expect(isShortForPayment({ symbol: 'USDC', amount: 2 }, usd)).toBe(false);
+    expect(isShortForPayment({ symbol: 'EURC', amount: 0.001 }, usd)).toBe(false);
+    expect(payRequestedUsd({ unit: 'iso4217/EUR', value: '100', display: { decimals: 2, assetSymbol: 'EUR' } })).toBeUndefined();
+  });
+});
