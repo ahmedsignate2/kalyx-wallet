@@ -517,8 +517,26 @@ export function HeroOrb({ icon, size = 76, danger }: { icon: IconName; size?: nu
  * de disque gris : la même matière que l'accueil, sur chaque écran secondaire. `children` remplace la
  * tuile (anneau de score, avatar, logo).
  */
-export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact, align = 'center' }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Tuile réduite, pour un écran fixe qui manque de hauteur. */ compact?: boolean; /** `left` : grand titre aligné à gauche, sans orbe (écrans de lecture : FAQ, tickets — comme la maquette). */ align?: 'center' | 'left' }) {
+export function NovaHero({ icon, title, subtitle, tone = 'default', children, compact, align = 'center', hero }: { icon?: IconName; title: string; subtitle?: string; tone?: 'default' | 'gold' | 'danger'; children?: React.ReactNode; /** Tuile réduite, pour un écran fixe qui manque de hauteur. */ compact?: boolean; /** `left` : grand titre aligné à gauche, sans orbe (écrans de lecture : FAQ, tickets — comme la maquette). */ align?: 'center' | 'left'; /** Grand en-tête centré (orbe + titre), réservé aux écrans d'ENTRÉE. */ hero?: boolean }) {
   const box = compact ? 56 : 76;
+  /*
+   * UN SEUL SYSTÈME D'ÉCRAN. Le grand en-tête centré (orbe de 76 px, titre
+   * géant) revenait sur chaque écran fonctionnel et mangeait le tiers de la
+   * hauteur avant le moindre contenu. Par défaut : une ligne — petite orbe,
+   * titre et phrase à gauche. Le grand format reste pour les écrans d'entrée
+   * (`hero`) et pour un visuel fonctionnel (`children` : anneau du code…).
+   */
+  if (!hero && !children && align !== 'left') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 2, paddingBottom: 10 }}>
+        {icon ? <Rise><HeroOrb icon={icon} size={40} danger={tone === 'danger'} /></Rise> : null}
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Rise delay={40}><Text variant="title2">{title}</Text></Rise>
+          {subtitle ? <Rise delay={80}><Text variant="caption" tone="secondary" style={{ lineHeight: 18 }}>{subtitle}</Text></Rise> : null}
+        </View>
+      </View>
+    );
+  }
   if (align === 'left') {
     return (
       <View style={{ gap: 6, paddingTop: 4, paddingBottom: 6 }}>
