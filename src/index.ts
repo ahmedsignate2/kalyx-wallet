@@ -485,3 +485,18 @@ export {
   type WhitelistEntry,
   type Verdict as WhitelistVerdict,
 } from './domain/security/whitelist';
+
+// Achat de crypto (MoonPay) — choix des actifs, moyens de paiement, retour du widget
+export {
+  buyableAssets,
+  pickFiat,
+  amountProblem,
+  paymentMethodsFor,
+  needsSystemBrowser,
+  parseBuyRedirect,
+  buyTrackerUrl,
+  isMoonpayHost,
+  type RampCurrency,
+  type BuyAsset,
+  type BuyPaymentMethod,
+} from './domain/ramp/moonpay';

@@ -69,10 +69,6 @@ export const DAPP_CATALOG: readonly CatalogDapp[] = [
   { name: 'Across', host: 'app.across.to', url: 'https://app.across.to', category: 'Bridges', families: ['evm'], icon: { monogram: 'A', color: '#2D9C7F' } },
   { name: 'Stargate', host: 'stargate.finance', url: 'https://stargate.finance', category: 'Bridges', families: ['evm'], icon: { monogram: 'S', color: '#3B3B3B' } },
   { name: 'Jumper', host: 'jumper.exchange', url: 'https://jumper.exchange', category: 'Bridges', families: ['evm'], icon: { monogram: 'J', color: '#6A3FD8' } },
-  // Cartes : émetteurs de cartes crypto (KYC chez l'émetteur ; voir src/domain/card/cardIssuers)
-  { name: 'Gnosis Pay', host: 'app.gnosispay.com', url: 'https://app.gnosispay.com', category: 'Cards', families: ['evm'], icon: { monogram: 'G', color: '#133629' } },
-  { name: 'Holyheld', host: 'app.holyheld.com', url: 'https://app.holyheld.com', category: 'Cards', families: ['evm'], icon: { monogram: 'H', color: '#3B3B46' } },
-  { name: 'Spritz', host: 'app.spritz.finance', url: 'https://app.spritz.finance', category: 'Cards', families: ['evm', 'solana'], icon: { monogram: 'S', color: '#FF6B2C' } },
 ];
 
 /** Catégories, dans l'ordre du catalogue. */
@@ -112,7 +108,7 @@ export function splitHostRoot(host: string): { sub: string; root: string } {
 }
 
 /** Noms de domaine connus : un nom À UNE LETTRE près est un sosie probable. */
-export const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible', 'jup', 'morpho', 'magiceden', 'across', 'stargate', 'jumper', 'rocketpool', 'jito', 'eigenlayer', 'gnosispay', 'holyheld', 'spritz'];
+export const SAFE_ROOTS = ['uniswap', 'opensea', 'aave', 'pancakeswap', 'lido', 'ens', 'curve', '1inch', 'compound', 'blur', 'rarible', 'jup', 'morpho', 'magiceden', 'across', 'stargate', 'jumper', 'rocketpool', 'jito', 'eigenlayer'];
 
 function levenshtein1(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;

@@ -40,7 +40,6 @@ import { LogoImage, Text, IconButton, Divider, TokenRow, TokenIcon, AmountDispla
 import { WalletAvatar } from '../../ui/avatarArt';
 import { KalyxLogo } from '../../ui/KalyxLogo';
 import { ActionTile, Pills, TextTabs } from '../../ui/nova';
-import { CardShortcut } from '../../ui/card/CardShortcut';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
 import { useWallet } from '../../lib/walletStore';
@@ -745,10 +744,11 @@ export default function Home() {
         <View style={{ marginHorizontal: -SCREEN_MARGIN, minHeight: windowH }} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.y + 46); setHeroH((cur) => (cur === h ? cur : h)); }}>
           <View pointerEvents="none" style={{ position: 'absolute', top: 46, left: 0, right: 0, bottom: -(insets.bottom + 120), backgroundColor: colors.bg, borderTopLeftRadius: radii.xxl, borderTopRightRadius: radii.xxl }} />
           <View style={{ flexDirection: 'row', gap: space[2], paddingHorizontal: SCREEN_MARGIN }}>
-            <ActionTile index={0} primary tint="send" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
-            <ActionTile index={1} tint="receive" icon="receive" label={t("actionReceive")} onPress={() => router.push('/receive')} />
-            <ActionTile index={2} tint="swap" icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
-            <ActionTile index={3} tint="earn" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />
+            <ActionTile index={0} primary tint="buy" icon="buy" label={t("buy")} onPress={() => router.push('/buy')} />
+            <ActionTile index={1} tint="send" icon="send" label={t("actionSend")} onPress={() => router.push('/send')} />
+            <ActionTile index={2} tint="receive" icon="receive" label={t("actionReceive")} onPress={() => router.push('/receive')} />
+            <ActionTile index={3} tint="swap" icon="exchange" label={t("actionSwap")} onPress={() => router.push('/swap')} />
+            <ActionTile index={4} tint="earn" icon="staking" label={t("actionEarn")} onPress={() => router.navigate('/earn')} />
           </View>
           <View style={{ paddingHorizontal: SCREEN_MARGIN, paddingTop: space[6], gap: space[6] }}>
         {/* Sauvegarde sautée : bandeau permanent (§4.9) */}
@@ -775,8 +775,6 @@ export default function Home() {
 
         {/* Le point de sécurité le plus important qui reste à régler (un seul à la fois). */}
         <HomeNudge />
-        {/* La carte à un toucher (onglet Carte), juste sous les gestes de l'argent. */}
-        <CardShortcut />
 
         {/* ── Tokens · NFT · Activité ── */}
         <View style={{ gap: space[3] }}>
