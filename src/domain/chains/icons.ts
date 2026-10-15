@@ -1,4 +1,5 @@
 import { CHAIN_LOGO_SVG } from './chainLogos.generated';
+import { TOKEN_LOGO_SVG } from '../ramp/buyLogos.generated';
 
 /**
  * URL d'icône par réseau, via le CDN DefiLlama (standard de facto, stable).
@@ -19,10 +20,23 @@ import { CHAIN_LOGO_SVG } from './chainLogos.generated';
  * dessine le SVG au lieu d'aller sur le réseau.
  */
 export const CHAIN_LOGO_PREFIX = 'kalyx-chain:';
+/** Préfixe des logos de JETONS embarqués (scripts/gen-buy-logos.mjs). */
+export const TOKEN_LOGO_PREFIX = 'kalyx-token:';
 
-/** SVG du logo embarqué désigné par `uri`, ou undefined si ce n'en est pas un. */
+/** SVG du logo embarqué (réseau ou jeton) désigné par `uri`, ou undefined. */
 export function embeddedChainLogo(uri: string | null | undefined): string | undefined {
+  if (uri?.startsWith(TOKEN_LOGO_PREFIX)) return TOKEN_LOGO_SVG[uri.slice(TOKEN_LOGO_PREFIX.length)];
   return uri?.startsWith(CHAIN_LOGO_PREFIX) ? CHAIN_LOGO_SVG[uri.slice(CHAIN_LOGO_PREFIX.length)] : undefined;
+}
+
+/**
+ * Logo embarqué d'un jeton connu (USDC, BTC…), ou undefined.
+ * À réserver aux actifs dont le CONTRAT est vérifié (achat MoonPay, pièces
+ * natives) : un jeton quelconque nommé « USDC » ne doit pas hériter du logo.
+ */
+export function embeddedTokenLogo(symbol: string | null | undefined): string | undefined {
+  const s = String(symbol ?? '').toUpperCase();
+  return TOKEN_LOGO_SVG[s] ? TOKEN_LOGO_PREFIX + s : undefined;
 }
 
 const SLUG_OVERRIDE: Record<string, string> = {

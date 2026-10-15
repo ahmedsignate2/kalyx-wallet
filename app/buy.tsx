@@ -24,6 +24,8 @@ import Svg, { Circle } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Text, Button, IconButton, Card, Sheet, TokenIcon, Skeleton, Pressable as KPressable } from '../ui/kit';
 import { haptic } from '../lib/haptics';
+import { Image } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 import { useBuyHistory, type BuyRecord } from '../lib/buyHistory';
 import { useFallbackLogo, nativeCoinLogo } from '../ui/kit/useFallbackLogo';
 import { useTheme } from '../ui/theme';
@@ -58,6 +60,8 @@ import {
   formatFiat,
   formatNumber,
   buildExplorerTxUrl,
+  embeddedTokenLogo,
+  PAY_LOGO_PATH,
   decimalSeparator,
   buyableAssets,
   groupBuyTokens,
@@ -95,9 +99,53 @@ const PM: Record<BuyPaymentMethod, { key: 'pmCard' | 'pmApplePay' | 'pmGooglePay
 
 /** Logo du token ; la pastille du réseau si ce n'est pas sa chaîne d'origine. */
 function AssetIcon({ asset, size = 40, badge = true }: { asset: BuyAsset; size?: number; badge?: boolean }) {
-  const logo = useFallbackLogo(asset.chainId, asset.contract ?? undefined, asset.contract ? null : nativeCoinLogo(asset.chainId));
+  // Vrai logo embarqué (actif vérifié par MoonPay), sinon celui de la liste du réseau.
+  const fallback = useFallbackLogo(asset.chainId, asset.contract ?? undefined, asset.contract ? null : nativeCoinLogo(asset.chainId));
+  const logo = embeddedTokenLogo(asset.symbol) ?? fallback;
   const home = asset.chainId === 'ethereum' || (!asset.contract && ['bitcoin', 'solana', 'ton'].includes(asset.chainId));
   return <TokenIcon symbol={asset.symbol} logo={logo} seed={asset.contract ?? asset.code} size={size} badge={badge && !home ? chainIconUrl(asset.chainId) : null} />;
+}
+
+const MOONPAY_LOGO = require('../assets/brands/moonpay.png');
+
+/** Logo MoonPay (avatar officiel de l'organisation). */
+function MoonPayLogo({ size = 36 }: { size?: number }) {
+  return <Image source={MOONPAY_LOGO} style={{ width: size, height: size, borderRadius: size * 0.28 }} accessibilityIgnoresInvertColors />;
+}
+
+/** Vrais logos des moyens de paiement (tracés officiels, couleur selon le thème). */
+function PayLogo({ method, height = 24 }: { method: BuyPaymentMethod; height?: number }) {
+  const { colors, mode } = useTheme();
+  const glyph = (d: string, fillColor: string, w = height) => (
+    <SvgXml xml={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${fillColor}" d="${d}"/></svg>`} width={w} height={w} />
+  );
+  const frame = (child: React.ReactNode) => (
+    <View style={{ width: 44, height: 30, borderRadius: 7, borderWidth: 1, borderColor: colors.border, backgroundColor: mode === 'dark' ? colors.surface2 : '#FFFFFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 1 }}>
+      {child}
+    </View>
+  );
+  switch (method) {
+    case 'apple_pay':
+      return frame(glyph(PAY_LOGO_PATH.applepay, mode === 'dark' ? '#FFFFFF' : '#000000', 30));
+    case 'google_pay':
+      return frame(glyph(PAY_LOGO_PATH.googlepay, mode === 'dark' ? '#FFFFFF' : '#3C4043', 30));
+    case 'sepa_bank_transfer':
+      return frame(glyph(PAY_LOGO_PATH.sepa, mode === 'dark' ? '#8EA6FF' : '#2350A9', 30));
+    case 'credit_debit_card':
+      return frame(
+        <>
+          {glyph(PAY_LOGO_PATH.visa, mode === 'dark' ? '#FFFFFF' : '#1A1F71', 20)}
+          {/* Mastercard : deux disques et leur intersection */}
+          <SvgXml
+            xml={'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 20"><circle cx="11" cy="10" r="8" fill="#EB001B"/><circle cx="21" cy="10" r="8" fill="#F79E1B"/><path fill="#FF5F00" d="M16 3.75a8 8 0 0 1 0 12.5 8 8 0 0 1 0-12.5"/></svg>'}
+            width={18}
+            height={12}
+          />
+        </>,
+      );
+    default:
+      return frame(<Icon name="bank" size={18} color={colors.text} />);
+  }
 }
 
 function Radio({ on }: { on: boolean }) {
@@ -597,7 +645,7 @@ function BuyScreenInner() {
               accessibilityLabel={t('buyPaymentMethod')}
               style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingHorizontal: space[4], paddingVertical: space[2], borderRadius: radii.full, backgroundColor: colors.surface2, marginTop: space[2] }}
             >
-              {PM[method].badge ? <Text style={{ fontFamily: fontFamily.bold, fontSize: 12, color: colors.text }}>{PM[method].badge.trim()}</Text> : <Icon name={PM[method].icon ?? 'card'} size={18} color={colors.text} />}
+              <PayLogo method={method} />
               <Text variant="bodyStrong">{t(PM[method].key)}</Text>
               <Icon name="caretDown" size={14} color={colors.textSecondary} />
             </KPressable>
@@ -619,7 +667,10 @@ function BuyScreenInner() {
               </KPressable>
             ))}
           </View>
-          <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{fill(t('buyPoweredBy'), { provider: 'MoonPay' })}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <MoonPayLogo size={16} />
+            <Text variant="caption" tone="tertiary">{fill(t('buyPoweredBy'), { provider: 'MoonPay' })}</Text>
+          </View>
           <Button label={t('continueWord')} disabled={!validAmount || !address} onPress={() => setStep('review')} />
           {!address ? <Text variant="micro" tone="warning" style={{ textAlign: 'center' }}>{t('buyNoAddress')}</Text> : null}
           <BoxKeypad value={amountText} onChange={setAmountText} />
@@ -652,9 +703,7 @@ function BuyScreenInner() {
           <KPressable onPress={() => setProviderInfo(true)} accessibilityRole="button" accessibilityLabel="MoonPay">
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#7D00FE', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#FFFFFF', fontFamily: fontFamily.bold, fontSize: 15 }}>M</Text>
-              </View>
+              <MoonPayLogo size={36} />
               <View style={{ flex: 1 }}>
                 <Text variant="micro" tone="secondary">{t('buyProvider')}</Text>
                 <Text variant="bodyStrong">MoonPay</Text>
@@ -839,9 +888,7 @@ function BuyScreenInner() {
                   </View>
                 }
                 left={
-                  <View style={{ width: 40, height: 28, borderRadius: 6, borderWidth: PM[m].badge ? 1 : 0, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
-                    {PM[m].badge ? <Text style={{ fontFamily: fontFamily.bold, fontSize: 11, color: colors.text }}>{PM[m].badge}</Text> : <Icon name={PM[m].icon ?? 'card'} size={24} color={colors.text} />}
-                  </View>
+                  <PayLogo method={m} />
                 }
               />
               );
@@ -877,7 +924,10 @@ function BuyScreenInner() {
 
       {/* Fournisseur : qui fait quoi, et ce que coûte l'achat */}
       <Sheet visible={providerInfo} onClose={() => setProviderInfo(false)}>
-        <Text variant="title2">MoonPay</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
+          <MoonPayLogo size={40} />
+          <Text variant="title2">MoonPay</Text>
+        </View>
         <Text variant="body" tone="secondary">{t('buyKycNote')}</Text>
         {quote ? (
           <Card padded={false}>
