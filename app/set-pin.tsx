@@ -154,7 +154,8 @@ export default function SetPin() {
 
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : insets.top;
   const expected = step === 'confirm' ? firstPin.length : undefined;
-  const progress = pin.length === 0 ? 0.001 : pin.length / (expected ?? 12);
+  // Plein dès que le code est valable (6 chiffres) — et non à moitié, calé sur 12.
+  const progress = pin.length === 0 ? 0.001 : Math.min(1, pin.length / (expected ?? PIN_MIN));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPadding, justifyContent: 'space-between' }}>

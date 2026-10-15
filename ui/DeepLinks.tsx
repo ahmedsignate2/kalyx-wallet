@@ -59,6 +59,13 @@ function whenWalletReady(fn: () => void): void {
   });
 }
 
+/**
+ * Lien de lancement déjà traité. `getInitialURL()` rend le MÊME lien tant que
+ * l'app vit : si ce composant est recréé, le lien rejoué relançait l'action
+ * (connexion WalletConnect proposée à nouveau, paiement rouvert…).
+ */
+let initialHandled = false;
+
 export function DeepLinks() {
   useEffect(() => {
     /** Exécute maintenant, ou met en attente si le portefeuille est verrouillé. */
@@ -191,7 +198,10 @@ export function DeepLinks() {
         if (target) act({ kind: 'url', url: target });
       }
     };
-    Linking.getInitialURL().then((u) => handle(u, true));
+    if (!initialHandled) {
+      initialHandled = true;
+      Linking.getInitialURL().then((u) => handle(u, true));
+    }
     const sub = Linking.addEventListener('url', (e) => handle(e.url));
     return () => sub.remove();
   }, []);
