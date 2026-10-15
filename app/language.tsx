@@ -1,11 +1,13 @@
-import { NovaHero, Pulse, Rise } from '../ui/nova';
+import { NovaHero } from '../ui/nova';
 import { ScreenHeader, Pressable as KPressable, Card, Screen } from '../ui/kit';
 import { Text, ScrollView, View } from 'react-native';
 import { spacing, useTheme, fontSize } from '../ui/theme';
+import { Icon } from '../ui/icon';
 import { useSettings, useT } from '../lib/settingsStore';
 import { LANGUAGES } from '../lib/i18n';
 import { goBack } from '../lib/nav';
 
+/** Langues : une liste compacte dans une carte (même système que Réseaux), coche sur la langue choisie. */
 export default function Language() {
   const { colors, typography } = useTheme();
   const t = useT();
@@ -16,35 +18,44 @@ export default function Language() {
     <Screen layout="form">
       <ScreenHeader />
       <NovaHero icon="language" title={t('language')} />
-      <ScrollView contentContainerStyle={{ gap: spacing(1), paddingVertical: spacing(1) }}>
-        {LANGUAGES.map((l, i) => {
-          const active = l.code === language;
-          return (
-            <Rise key={l.code} delay={Math.min(i, 10) * 30}>
-            <KPressable
-              onPress={() => {
-                setLanguage(l.code);
-                goBack();
-              }}
-            >
-              <Card padding="xl" gap="md"
+      <ScrollView contentContainerStyle={{ paddingVertical: spacing(1) }} showsVerticalScrollIndicator={false}>
+        <Card padded={false}>
+          {LANGUAGES.map((l, i) => {
+            const active = l.code === language;
+            return (
+              <KPressable
+                key={l.code}
+                onPress={() => {
+                  setLanguage(l.code);
+                  goBack();
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={l.name}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderColor: active ? 'rgba(221,181,101,0.45)' : colors.border,
+                  gap: spacing(1.5),
+                  paddingHorizontal: spacing(2),
+                  paddingVertical: spacing(1.5),
+                  borderTopWidth: i > 0 ? 1 : 0,
+                  borderTopColor: colors.border,
+                  backgroundColor: active ? colors.surface2 : 'transparent',
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-                  <Text style={{ fontSize: fontSize.xxl }}>{l.flag}</Text>
-                  <Text style={typography.body}>{l.name}</Text>
-                </View>
-                {active ? <Pulse size={8} /> : null}
-              </Card>
-            </KPressable>
-            </Rise>
-          );
-        })}
+                <Text style={{ fontSize: fontSize.xl }}>{l.flag}</Text>
+                <Text style={[typography.body, { flex: 1 }]}>{l.name}</Text>
+                {active ? (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="checkmark" size={12} color={colors.bg} weight="bold" />
+                  </View>
+                ) : (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.textTertiary }} />
+                )}
+              </KPressable>
+            );
+          })}
+        </Card>
       </ScrollView>
     </Screen>
   );
