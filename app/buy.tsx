@@ -75,6 +75,9 @@ import {
   type RampCurrency,
 } from '../src';
 
+/** Place laissée aux dunes au-dessus des cartes (comme la maquette). */
+const TOP_GAP = 96;
+
 type Step = 'amount' | 'method' | 'review' | 'widget' | 'processing' | 'success' | 'details' | 'failed' | 'unavailable';
 
 const UNSUPPORTED_URL = 'https://support.moonpay.com/customers/docs/moonpays-unsupported-countries';
@@ -504,6 +507,7 @@ function BuyScreenInner() {
               ) : null}
             </View>
           </Card>
+          <View style={{ flex: 1, minHeight: space[4] }} />
           <AmountKeypad value={amountText} onChange={(v) => setAmountText(v.slice(0, 9))} maxDecimals={2} />
           {quoteError ? <Text variant="caption" style={{ color: colors.danger, textAlign: 'center' }}>{quoteError}</Text> : null}
           <Button label={t('continueWord')} disabled={!validAmount || !address} onPress={() => setStep('method')} />
@@ -535,6 +539,7 @@ function BuyScreenInner() {
               ))}
             </View>
           </Card>
+          <View style={{ flex: 1, minHeight: space[4] }} />
           <Button label={t('continueWord')} onPress={() => setStep('review')} />
         </>
       );
@@ -574,6 +579,7 @@ function BuyScreenInner() {
             </View>
           </Card>
           {quoteError ? <Text variant="caption" style={{ color: colors.danger, textAlign: 'center' }}>{quoteError}</Text> : null}
+          <View style={{ flex: 1, minHeight: space[4] }} />
           <Button label={fill(t('buyCta'), { amount: amountLabel })} loading={opening} disabled={!quote || opening} onPress={() => void openWidget()} />
           <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{env === 'sandbox' ? t('buyTestNote') : t('buyKycNote')}</Text>
         </>
@@ -688,7 +694,7 @@ function BuyScreenInner() {
         </View>
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, gap: space[3], paddingBottom: insets.bottom + space[6] }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, paddingTop: step === 'amount' || step === 'method' || step === 'review' || step === 'details' ? TOP_GAP : SCREEN_MARGIN, gap: space[3], paddingBottom: insets.bottom + space[5] }}>
         {body}
       </ScrollView>
 
