@@ -55,11 +55,13 @@ import { useWalletConnect } from '../../lib/walletconnect';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { extractWcUri, isWcPairingUri } from '../../src/domain/qr/deeplink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
+import { buildSolanaProvider, parseSolTxParams, solMessageParam, solAccountPayload, sigToBase64, solEmitJs, type SolTxMode } from '../../lib/solanaProvider';
 import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, RpcProxyError, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
 import { phishingSiteStatus, type PhishingVerdict } from '../../src/domain/security/goplus';
 import { catalogEntry, dappCompat, isLookalike, lookalikeOf, siteShield, type DappCompat } from '../../src/domain/web/dappCatalog';
 import {
   getAdapter,
+  describeSolanaTransaction,
   formatTokenAmount,
   listChains,
   hexToText,
@@ -79,6 +81,9 @@ import {
   type Simulation
 } from '../../src';
 import { useHistoryStore } from '../../lib/historyStore';
+import { solanaMessageBytes } from '../../lib/solanaMessage';
+import { submitSolanaSigned } from '../../lib/solanaSubmit';
+import { bytesToHex } from '@noble/hashes/utils';
 import { useKeyboardHeight } from '../../ui/useKeyboardHeight';
 import { goBack } from '../../lib/nav';
 
@@ -108,7 +113,12 @@ function mkTab(chainId: string, url: string | null = null, incognito = false): T
 }
 
 type Pending =
-  | { kind: 'connect'; tabId: string; id: number; origin: string }
+  /** `sol` : connexion du fournisseur Solana injecté (window.solana / Wallet Standard), pas d'`window.ethereum`. */
+  | { kind: 'connect'; tabId: string; id: number; origin: string; sol?: boolean }
+  /** Message Solana : `b58` = octets en base58 (ce que signe `signSolanaMessage`), `text` = lecture affichée. */
+  | { kind: 'solMessage'; tabId: string; id: number; origin: string; b58: string; text: string }
+  /** Transaction(s) Solana en base64, réseau FIGÉ à la demande. */
+  | { kind: 'solTx'; tabId: string; id: number; origin: string; txs: string[]; mode: SolTxMode; chainId: 'solana' | 'solana-devnet'; desc: ReturnType<typeof describeSolanaTransaction> }
   | { kind: 'sign'; tabId: string; id: number; origin: string; text: string | null; siwe: ReturnType<typeof parseSiwe>; hex: string }
   | { kind: 'typedData'; tabId: string; id: number; origin: string; summary: ReturnType<typeof summarizeTypedData>; data: unknown; evmChainId: number }
   /** `chainId` : réseau Kalyx FIGÉ à la demande — celui du Chain ID signé dans `raw`. */
@@ -141,6 +151,8 @@ const DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/
 const isLoadingProgress = (v: number) => v > 0 && v < 1;
 
 const connKey = (origin: string, incognito?: boolean) => (incognito ? `incognito:${origin}` : origin);
+/** Connexion Solana : séparée de l'EVM (un site connecté en EVM ne voit pas l'adresse Solana, et inversement). */
+const solKey = (origin: string, incognito?: boolean) => connKey(`sol:${origin}`, incognito);
 
 function bytesToHexToken(): string {
   return Array.from(randomBytes(16), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -161,6 +173,8 @@ export default function Browser() {
    * ACTIF de l'app : sur Solana, une dApp EVM recevait l'adresse Solana.
    */
   const evmAddress = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex)?.evmAddress);
+  /** Adresse Solana du compte actif : celle que voit le fournisseur Solana injecté. */
+  const solAddress = useWallet((s) => s.accounts.find((a) => a.index === s.activeAccountIndex)?.solAddress);
   /** Adresse SUIVIE (lecture seule) : jamais présentée à un site comme celle de l'utilisateur. */
   const watchOnly = useIsWatchOnly();
   /*
@@ -522,13 +536,14 @@ export default function Browser() {
   // Fournisseur EVM + pont TON Connect (le site TON demande la connexion directement au wallet).
   // Jeton de page, tiré une fois : seuls les scripts injectés dans la page principale le connaissent.
   const pageToken = useMemo(() => bytesToHexToken(), []);
-  const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken), [chainIdHex, pageToken]);
+  const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildSolanaProvider(pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken), [chainIdHex, pageToken]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
   // Passage sur une adresse suivie : les sites connectés perdent le compte (ils ne doivent pas voir l'adresse suivie).
   useEffect(() => {
     if (!watchOnly) return;
     connected.current.clear();
     inject(emitJs('accountsChanged', []));
+    inject(solEmitJs('disconnect', null));
   }, [watchOnly, inject]);
   const revoked = useDappActivity((s) => s.revoked);
   useEffect(() => {
@@ -536,12 +551,15 @@ export default function Browser() {
     for (const host of revoked.hosts) {
       connected.current.delete(connKey(host, false));
       connected.current.delete(connKey(host, true));
+      connected.current.delete(solKey(host, false));
+      connected.current.delete(solKey(host, true));
     }
     const tab = tabsRef.current.find((x) => x.id === activeRef.current);
     const activeHost = tab?.url ? originOf(tab.url) : null;
     if (activeHost && revoked.hosts.includes(activeHost)) {
       inject(emitJs('accountsChanged', []));
       inject(emitJs('disconnect', {}));
+      inject(solEmitJs('disconnect', null));
     }
   }, [revoked, inject]);
   useEffect(() => {
@@ -549,6 +567,7 @@ export default function Browser() {
     connected.current.clear();
     inject(emitJs('accountsChanged', []));
     inject(emitJs('disconnect', {}));
+    inject(solEmitJs('disconnect', null));
   }, [dappEpoch, inject]);
   /*
    * Réponses TON Connect vers la page : exécutées seulement si la page ouverte
@@ -588,6 +607,58 @@ export default function Browser() {
     return respondPending(p, null, { code, message });
   }, [respondPending, t]);
 
+  /**
+   * Fournisseur SOLANA injecté (window.solana, Wallet Standard) : mêmes règles
+   * que l'EVM — https obligatoire, une demande à la fois, rien sans connexion,
+   * jamais l'adresse suivie, approbation + PIN pour toute signature.
+   */
+  const onSolRequest = useCallback(
+    (req: DappRequest, reqOrigin: string, tabId: string, openPending: (p: Pending) => void) => {
+      const { id, method, params } = req;
+      const tb = tabsRef.current.find((x) => x.id === tabId);
+      if (!reqOrigin) return respond(id, null, { code: 4100, message: t('dappErrHttpsRequired') });
+      const addr = watchOnly ? undefined : solAddress;
+      const key = solKey(reqOrigin, tb?.incognito);
+      const isConnected = connected.current.has(key);
+      if (method === 'sol_disconnect') {
+        connected.current.delete(key);
+        return respond(id, null);
+      }
+      if (!addr) return respond(id, null, { code: 4100, message: t('notConnected') });
+      if (method === 'sol_connect') {
+        const silent = !!(params[0] as { silent?: boolean } | undefined)?.silent;
+        if (isConnected) return respond(id, solAccountPayload(addr));
+        // Reconnexion silencieuse d'un site mémorisé — jamais s'il est signalé depuis.
+        const reqDanger = dangerHostsRef.current[reqOrigin] === 'phishing' || isLookalike(reqOrigin);
+        if (!tb?.incognito && !reqDanger && useDappActivity.getState().isRemembered(reqOrigin)) {
+          connected.current.add(key);
+          useDappActivity.getState().addConnection({ host: reqOrigin, url: `https://${reqOrigin}`, title: reqOrigin });
+          return respond(id, solAccountPayload(addr));
+        }
+        // Connexion « si déjà autorisé » : jamais de fenêtre ouverte par la page seule.
+        if (silent) return respond(id, null, { code: 4001, message: t('notConnected') });
+        return openPending({ kind: 'connect', sol: true, tabId, id, origin: reqOrigin });
+      }
+      if (!isConnected) return respond(id, null, { code: 4100, message: t('notConnected') });
+      if (method === 'sol_signMessage') {
+        const b58 = solMessageParam(params);
+        if (!b58) return respond(id, null, { code: -32602, message: t('internalError') });
+        const { bytes, text } = solanaMessageBytes(b58);
+        // Octets binaires : montrés en hex, jamais sous l'apparence d'un texte.
+        return openPending({ kind: 'solMessage', tabId, id, origin: reqOrigin, b58, text: text ?? `0x${bytesToHex(bytes)}` });
+      }
+      if (method === 'sol_signTransaction') {
+        const parsed = parseSolTxParams(params);
+        if (!parsed) return respond(id, null, { code: -32602, message: t('internalError') });
+        const desc = describeSolanaTransaction(parsed.txs[0], addr);
+        if (!desc) return respond(id, null, { code: -32602, message: t('internalError') });
+        return openPending({ kind: 'solTx', tabId, id, origin: reqOrigin, ...parsed, desc });
+      }
+      respond(id, null, { code: -32601, message: `${t('methodNotSupported')}${method}` });
+    },
+    [solAddress, watchOnly, respond, t],
+  );
+
   const onDappRequest = useCallback(
     async (req: DappRequest, reqOrigin: string, tabId: string) => {
       const { id, method, params } = req;
@@ -600,6 +671,7 @@ export default function Browser() {
         if (pendingRef.current) return respond(id, null, { code: -32002, message: t('dappErrRequestPending') });
         setPending(p);
       };
+      if (method.startsWith('sol_')) return onSolRequest(req, reqOrigin, tabId, openPending);
       try {
         if (method === 'eth_chainId') return respond(id, chainIdHex);
         /*
@@ -683,7 +755,7 @@ export default function Browser() {
         respond(id, null, { code: e instanceof RpcProxyError ? e.code : -32603, message: e instanceof Error ? e.message.slice(0, 160) : t('internalError') });
       }
     },
-    [evmAddress, watchOnly, chain, chainIdHex, respond, inject, activeChain, setPending, t],
+    [evmAddress, watchOnly, chain, chainIdHex, respond, inject, activeChain, setPending, t, onSolRequest],
   );
 
   // Analyse GoPlus + simulation à l'apparition d'une demande.
@@ -723,6 +795,8 @@ export default function Browser() {
 
   const explanation = useMemo(() => {
     if (!pending || pending.kind === 'connect') return null;
+    if (pending.kind === 'solMessage') return explainRequest({ kind: 'message', domain: pending.origin, messageText: pending.text, phishingSite: phishSite, t: exT });
+    if (pending.kind === 'solTx') return explainRequest({ kind: 'solanaTx', domain: pending.origin, solana: pending.desc, phishingSite: phishSite, t: exT });
     const addressRisk = risk && risk !== 'loading' ? risk : null;
     if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), messageText: pending.text, addressRisk, phishingSite: phishSite, t: exT });
     if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite, connectedChainId: chain.evmChainId, t: exT });
@@ -731,9 +805,47 @@ export default function Browser() {
   }, [pending, sim, risk, phishSite, permitToken, exT, chain]);
 
   const perform = async (unlock: Unlock) => {
-    if (!pending || !account || !evmAddress) return;
+    if (!pending || !account) return;
     const activity = useDappActivity.getState();
     const tb = tabsRef.current.find((x) => x.id === pending.tabId);
+    const isSol = (pending.kind === 'connect' && pending.sol) || pending.kind === 'solMessage' || pending.kind === 'solTx';
+    if (isSol) {
+      if (!solAddress) return;
+      const w = useWallet.getState();
+      if (pending.kind === 'connect') {
+        await w.verifyConnect(unlock);
+        connected.current.add(solKey(pending.origin, tb?.incognito));
+        respondPending(pending, solAccountPayload(solAddress));
+        if (pendingRef.current === pending) pendingRef.current = null;
+        if (!tb?.incognito) {
+          activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: tb?.title || pending.origin });
+          if (rememberSite) activity.remember(pending.origin);
+        }
+        haptic.success();
+        await new Promise((r) => setTimeout(r, 450));
+      } else {
+        // signSolanaMessage / signSolanaTransaction vérifient la liste blanche et effacent la clé après usage.
+        if (pending.kind === 'solMessage') {
+          const { signature } = await w.signSolanaMessage(unlock, pending.b58);
+          respondPending(pending, { signature: sigToBase64(signature) });
+        } else {
+          const signed: string[] = [];
+          for (const tx of pending.txs) signed.push(await w.signSolanaTransaction(unlock, tx));
+          if (pending.mode === 'signAndSend') {
+            const sig = await submitSolanaSigned(signed[0], undefined, { chainId: pending.chainId });
+            respondPending(pending, [sigToBase64(sig)]);
+            void useHistoryStore.getState().fetchHistory(pending.chainId, solAddress, { force: true });
+          } else respondPending(pending, signed);
+        }
+        if (!tb?.incognito) activity.addSignature({ host: pending.origin, kind: pending.kind === 'solTx' ? 'tx' : 'sign' });
+        haptic.success();
+        sound.success();
+      }
+      closePending(pending);
+      setRememberSite(false);
+      return;
+    }
+    if (!evmAddress) return;
     if (pending.kind === 'connect') {
       // Lecture seule : lève WATCH_ONLY, rien n'est partagé avec le site.
       await useWallet.getState().verifyConnect(unlock);
@@ -1299,8 +1411,11 @@ export default function Browser() {
                 removeConnection(origin);
                 connected.current.delete(connKey(origin, false));
                 connected.current.delete(connKey(origin, true));
+                connected.current.delete(solKey(origin, false));
+                connected.current.delete(solKey(origin, true));
                 inject(emitJs('accountsChanged', []));
                 inject(emitJs('disconnect', {}));
+                inject(solEmitJs('disconnect', null));
               }
               setConnSheet(false);
               toast.success(t('disconnected'), origin);
@@ -1365,7 +1480,7 @@ export default function Browser() {
         <View style={{ alignItems: 'center', gap: space[2], paddingVertical: space[2] }}>
           {pending?.origin ? <DappLogo host={pending.origin} size={56} /> : null}
           <Text variant="title2" style={{ textAlign: 'center' }}>{t('connectToSite')}</Text>
-          <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{pending?.origin} · {chain.name}</Text>
+          <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{pending?.origin} · {pending?.kind === 'connect' && pending.sol ? 'Solana' : chain.name}</Text>
         </View>
 
         {danger || phishSite ? (
@@ -1400,10 +1515,14 @@ export default function Browser() {
         verify={danger || phishSite ? { validation: 'INVALID', isScam: true } : pending && VERIFIED_HOSTS.has(pending.origin) ? { validation: 'VALID' } : { validation: 'UNKNOWN' }}
         explanation={explanation}
         simulating={sim === 'loading'}
-        network={chain.name}
-        address={evmAddress}
+        network={pending?.kind === 'solTx' ? getAdapter(pending.chainId).config.name : pending?.kind === 'solMessage' ? 'Solana' : chain.name}
+        address={pending?.kind === 'solTx' || pending?.kind === 'solMessage' ? solAddress : evmAddress}
         raw={
-          pending?.kind === 'tx'
+          pending?.kind === 'solTx'
+            ? pending.txs.join('\n\n')
+            : pending?.kind === 'solMessage'
+            ? pending.text
+            : pending?.kind === 'tx'
             ? JSON.stringify(pending.raw, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
             : pending?.kind === 'sign'
             ? pending.text || pending.hex
@@ -1413,13 +1532,13 @@ export default function Browser() {
         }
         onReject={deny}
         onSign={() => setSignConfirm(true)}
-        signLabel={pending?.kind === 'tx' ? t('wcSignConfirm') : t('wcSign')}
+        signLabel={pending?.kind === 'tx' || (pending?.kind === 'solTx' && pending.mode === 'signAndSend') ? t('wcSignConfirm') : t('wcSign')}
       />
 
       {/* Confirmation par code PIN ou biométrie */}
       <ConfirmUnlock
         visible={signConfirm}
-        title={explanation?.title ?? (pending?.kind === 'connect' ? t('connectToSite') : pending?.kind === 'tx' ? t('confirmTx') : t('wcSign'))}
+        title={explanation?.title ?? (pending?.kind === 'connect' ? t('connectToSite') : pending?.kind === 'tx' || pending?.kind === 'solTx' ? t('confirmTx') : t('wcSign'))}
         subtitle={explanation?.headline ?? pending?.origin}
         perform={perform}
         onDone={() => setSignConfirm(false)}
