@@ -82,7 +82,7 @@ import { useWallet } from './walletStore';
 jest.setTimeout(30_000);
 
 const PIN = '482917';
-const DURESS = '135790';
+const DURESS = '571046';
 const art = VECTORS.keys.find((k) => k.phrase.endsWith(' art'))!;
 const W = () => useWallet.getState();
 const codeOf = async (p: Promise<unknown>) => p.then(() => 'OK', (e: { code?: string; message?: string }) => `${e.code ?? ''}|${e.message ?? ''}`);

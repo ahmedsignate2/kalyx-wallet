@@ -12,7 +12,20 @@ export async function isBiometricAvailable(): Promise<boolean> {
   if (isExpoGoIos()) return false;
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
   const enrolled = await LocalAuthentication.isEnrolledAsync();
-  return hasHardware && enrolled;
+  if (!hasHardware || !enrolled) return false;
+  /*
+   * Android : biométrie FORTE seulement (classe 3 — empreinte, visage 3D). Le
+   * déverrouillage facial « faible » (simple caméra) se trompe sur une photo ;
+   * il n'ouvre pas un portefeuille.
+   */
+  if (Platform.OS === 'android') {
+    try {
+      return (await LocalAuthentication.getEnrolledLevelAsync()) >= LocalAuthentication.SecurityLevel.BIOMETRIC_STRONG;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -54,6 +67,8 @@ export async function authenticate(reason?: string): Promise<boolean> {
        * sans jamais connaître le PIN Kalyx. Annuler ramène au PIN de l'app.
        */
       disableDeviceFallback: true,
+      // Android : classe 3 exigée (cf. isBiometricAvailable).
+      biometricsSecurityLevel: 'strong',
     });
     console.log('[KALYX-AUTH][biometrics] authenticate:resolved', {
       elapsedMs: Date.now() - startedAt,

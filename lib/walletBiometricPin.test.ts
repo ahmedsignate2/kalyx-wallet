@@ -242,7 +242,7 @@ describe('Changement de code, désactivation, contrainte, réinitialisation', ()
 
   it('setupDuress coupe la biométrie (PIN biométrique compris) ; l’activation est ensuite refusée', async () => {
     await W().enableBiometric(PIN);
-    await W().setupDuress(PIN, '135790');
+    await W().setupDuress(PIN, '571046');
     expect(bioPinStored()).toBeUndefined();
     expect(await codeOf(W().enableBiometric(PIN))).toBe('NOT_SUPPORTED|duressBiometric');
     await W().healBiometric(PIN); // n'écrit rien non plus

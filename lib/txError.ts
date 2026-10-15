@@ -56,6 +56,7 @@ export class UserFacingError extends Error {
 const WALLET_ERROR_KEYS: Record<string, Key> = {
   AMOUNT_TOO_SMALL: 'errAmountTooSmall',
   BIOMETRIC_NOT_SET: 'errBiometricNotSet',
+  PIN_REQUIRED: 'errPinRequired',
   BIOMETRIC_REFUSED: 'errBiometricRefused',
   BROADCAST_FAILED: 'errBroadcastFailed',
   CALL_EXCEPTION: 'errCallException',

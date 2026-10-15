@@ -21,6 +21,12 @@ describe('politique de PIN', () => {
     expect(checkPin('000000').reason).toBe('TOO_SIMPLE'); // tous identiques
     expect(checkPin('123456').reason).toBe('TOO_SIMPLE'); // croissant
     expect(checkPin('654321').reason).toBe('TOO_SIMPLE'); // décroissant
+    // Motifs répétés, miroirs, pas constants, codes les plus fréquents
+    for (const p of ['121212', '123123', '112112', '123321', '112211', '135791', '246802', '147258', '159753', '102030', '696969']) {
+      expect(checkPin(p).reason).toBe('TOO_SIMPLE');
+    }
+    // Un code ordinaire reste accepté
+    for (const p of ['824193', '507316', '9381724', '61829405']) expect(checkPin(p).ok).toBe(true);
   });
 
   it('assertValidPin lève WalletError(INVALID_PIN)', () => {

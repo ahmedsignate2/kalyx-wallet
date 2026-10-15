@@ -11,6 +11,7 @@
  * (aucune migration destructive). Un seul PIN d'app chiffre tous les coffres.
  * MULTI-COMPTES : au sein d'un wallet, plusieurs comptes par index HD.
  */
+import { markPinEntered, pinRequiredAgain } from './pinCadence';
 import { Address as TonCoreAddress, Cell as TonCell } from '@ton/core';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { formatExportedKey } from '../src/domain/keys/exportKey';
@@ -1588,6 +1589,7 @@ export const useWallet = create<WalletState>((set, get) => ({
     try {
       const authId = authWalletId(get().wallets, activeWalletId);
       const secret = await revealMnemonic(authId, { pin });
+      void markPinEntered();
       // Seule une phrase BIP-39 dérive des comptes : ni une clé privée, ni une
       // phrase TON ne passent par le rattrapage (qui ferait une dérivation BIP-39).
       const accounts = authId === activeWalletId && isBip39Wallet(get().wallets, activeWalletId)
@@ -1699,6 +1701,8 @@ export const useWallet = create<WalletState>((set, get) => ({
   unlockWithBiometrics: async () => {
     const { activeWalletId } = get();
     console.log('[KALYX-VAULT] unlockWithBiometrics:start');
+    // Plus de 72 h sans le code : il est exigé avant toute biométrie (lib/pinCadence).
+    if (await pinRequiredAgain()) throw new WalletError('PIN_REQUIRED', 'Code requis');
     if (await hasBiometricPin()) {
       /*
        * PIN BIOMÉTRIQUE : UN geste rend le PIN ; le coffre d'authentification

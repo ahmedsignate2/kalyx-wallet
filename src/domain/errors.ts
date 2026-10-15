@@ -35,6 +35,8 @@ export type WalletErrorCode =
   | 'BIOMETRIC_REFUSED'
   /** Aucun coffre biométrique pour ce wallet (jamais activé, ou invalidé). */
   | 'BIOMETRIC_NOT_SET'
+  /** Biométrie suspendue : le code n'a pas été saisi depuis plus de 72 h. */
+  | 'PIN_REQUIRED'
   | 'RPC_UNAVAILABLE'
   | 'BROADCAST_FAILED'
   | 'CALL_EXCEPTION'

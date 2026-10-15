@@ -30,12 +30,33 @@ export function assertValidPin(pin: string): void {
   }
 }
 
+/**
+ * Codes parmi les plus choisis (études de fuites de PIN à 6 chiffres) : motifs
+ * du clavier, dates rondes, constantes. Les premiers essayés par quiconque
+ * tient le téléphone.
+ */
+const COMMON_PINS = new Set([
+  '112233', '121212', '123123', '123321', '147258', '159753', '258369', '369258', '147852', '963852', '789456', '102030',
+  '101010', '696969', '520520', '131313', '111222', '000111', '100200', '777888', '112358', '314159', '271828', '007007',
+  '420420', '159357', '852456', '741852', '963741', '123654', '456123', '321654', '987654', '135790', '246802', '111000',
+]);
+
 function isTooSimple(pin: string): boolean {
   // Tous identiques (000000), ou suite croissante/décroissante (123456, 654321).
   if (/^(\d)\1+$/.test(pin)) return true;
   const asc = pin.split('').every((d, i, a) => i === 0 || +d === +a[i - 1] + 1);
   const desc = pin.split('').every((d, i, a) => i === 0 || +d === +a[i - 1] - 1);
-  return asc || desc;
+  if (asc || desc) return true;
+  // Motif répété (121212, 123123, 112112) : un bloc de 1 à 3 chiffres, recopié.
+  for (let p = 2; p <= 3; p++) {
+    if (pin.length % p === 0 && pin.slice(0, p).repeat(pin.length / p) === pin) return true;
+  }
+  // Miroir (123321, 112211) : se devine aussi vite qu'il se retient.
+  if (pin.length <= 8 && pin === pin.split('').reverse().join('')) return true;
+  // Pas constant (135791, 246802…) : une suite, même avec un saut.
+  const step = (+pin[1] - +pin[0] + 10) % 10;
+  if (step !== 0 && pin.split('').every((d, i, a) => i === 0 || (+d - +a[i - 1] + 10) % 10 === step)) return true;
+  return COMMON_PINS.has(pin);
 }
 
 // Verrouillage progressif indexé par nombre d'échecs consécutifs.
