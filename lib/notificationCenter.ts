@@ -28,6 +28,8 @@ interface NotifCenterState {
   load: () => Promise<void>;
   push: (type: NotifType, title: string, body?: string) => void;
   markAllRead: () => void;
+  /** Supprime UNE notification. */
+  remove: (id: string) => void;
   clear: () => void;
 }
 
@@ -58,6 +60,11 @@ export const useNotifCenter = create<NotifCenterState>((set, get) => ({
   },
   markAllRead: () => {
     const items = get().items.map((i) => ({ ...i, read: true }));
+    set({ items });
+    persist(items);
+  },
+  remove: (id) => {
+    const items = get().items.filter((i) => i.id !== id);
     set({ items });
     persist(items);
   },

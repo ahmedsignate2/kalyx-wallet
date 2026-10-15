@@ -279,7 +279,7 @@ export default function Contacts() {
               formFamilies.length > 0 ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
                   {formFamilies.map((f) => (
-                    <Chip key={f} label={familyLabel(f)} selected onPress={() => {}} />
+                    <Chip key={f} label={familyLabel(f)} selected />
                   ))}
                 </View>
               ) : (
