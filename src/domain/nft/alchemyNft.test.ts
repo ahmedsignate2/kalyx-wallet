@@ -1,4 +1,4 @@
-import { parseNfts, displayableImage } from './alchemyNft';
+import { parseNfts, displayableImage, inlineSvg, getNfts } from './alchemyNft';
 
 describe('parseNfts', () => {
   const json = {
@@ -33,6 +33,7 @@ describe('parseNfts', () => {
       name: 'Cool Cat #42',
       collection: 'Cool Cats',
       image: 'https://img/42.png',
+      images: ['https://thumb/42.png'],
     });
   });
 
@@ -75,6 +76,50 @@ describe('Basenames et images non affichables', () => {
         { contract: { address: '0xAnon' }, tokenId: '3', image: {} },
       ],
     });
-    expect(nfts).toEqual([{ contract: '0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a', tokenId: '9', name: 'kalyx.base.eth', collection: 'Basenames', image: '' }]);
+    // Pas d'aperçu chez Alchemy : l'image du service Basenames (SVG converti en PNG).
+    expect(nfts).toEqual([{ contract: '0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a', tokenId: '9', name: 'kalyx.base.eth', collection: 'Basenames', image: expect.stringMatching(/^https:\/\/wsrv\.nl\/\?url=www\.base\.org%2Fapi%2Fbasenames%2Fkalyx\.base\.eth%2Fassets%2FcardImage\.svg&output=png/) }]);
+  });
+
+  it('SVG mis en cache SANS extension (Basename) : la version PNG passe avant', () => {
+    const [n] = parseNfts({
+      ownedNfts: [{
+        contract: { address: '0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a', name: 'Basenames' }, tokenId: '9', name: 'kalyx.base.eth',
+        image: { cachedUrl: 'https://nft-cdn.alchemy.com/base-mainnet/abc', pngUrl: 'https://res.cloudinary.com/alchemyapi/image/upload/convert-png/base-mainnet/abc', contentType: 'image/svg+xml', originalUrl: 'https://www.base.org/api/basenames/kalyx.base.eth/assets/cardImage.svg' },
+      }],
+    });
+    expect(n.image).toBe('https://res.cloudinary.com/alchemyapi/image/upload/convert-png/base-mainnet/abc');
+    expect(n.images?.[0]).toMatch(/^https:\/\/wsrv\.nl\/\?url=www\.base\.org/);
+    expect([n.image, ...(n.images ?? [])]).not.toContain('https://nft-cdn.alchemy.com/base-mainnet/abc');
+  });
+
+  it('ENS sans image : celle du service ENS ; ar:// par une passerelle', () => {
+    const [n] = parseNfts({ ownedNfts: [{ contract: { address: '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85', name: 'ENS' }, tokenId: '123', name: 'kalyx.eth', image: {} }] });
+    expect(n.image).toMatch(/^https:\/\/wsrv\.nl\/\?url=metadata\.ens\.domains%2Fmainnet%2F0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85%2F123%2Fimage&output=png/);
+    expect(displayableImage('ar://abc')).toBe('https://arweave.net/abc');
+  });
+
+  it('art on-chain : SVG du NFT dessiné tel quel, scripts refusés', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>';
+    const [n] = parseNfts({ ownedNfts: [{ contract: { address: '0xArt', name: 'On-chain' }, tokenId: '1', image: {}, raw: { metadata: { image: `data:image/svg+xml;base64,${btoa(svg)}` } } }] });
+    expect(n.svg).toBe(svg);
+    expect(inlineSvg(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`)).toBe(svg);
+    expect(inlineSvg('<svg onload="x()"></svg>')).toBe('');
+    expect(inlineSvg('<svg><script>x()</script></svg>')).toBe('');
+    expect(inlineSvg('<html></html>')).toBe('');
+  });
+});
+
+describe('getNfts : pagination', () => {
+  const chain = { id: 'base', rpcUrls: ['https://base-mainnet.g.alchemy.com/v2/KEY'] } as unknown as Parameters<typeof getNfts>[0];
+  const page = (id: string, pageKey?: string) => ({ ok: true, status: 200, json: async () => ({ ownedNfts: [{ contract: { address: `0x${id}`, name: id }, tokenId: '1', image: { cachedUrl: `https://i/${id}.png` } }], pageKey }) });
+  afterEach(() => { (global as { fetch?: unknown }).fetch = undefined; });
+
+  it('lit les pages suivantes (le spam ne cache plus les vrais NFT), garde le lu si une page tombe', async () => {
+    const urls: string[] = [];
+    const replies = [page('a', 'k1'), page('b', 'k2'), { ok: false, status: 500, json: async () => ({}) }];
+    (global as { fetch?: unknown }).fetch = jest.fn(async (u: string) => { urls.push(u); return replies.shift(); });
+    const nfts = await getNfts(chain, '0xme');
+    expect(nfts.map((n) => n.contract)).toEqual(['0xa', '0xb']);
+    expect(urls[1]).toContain('&pageKey=k1');
   });
 });

@@ -16,7 +16,7 @@ import { fill } from '../../lib/i18n';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { decimalSeparator } from '../../src';
 import { isDecoySession } from '../../lib/sessionMode';
-import { View, RefreshControl, Alert, Image, useWindowDimensions } from 'react-native';
+import { View, RefreshControl, Alert, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, interpolate, runOnJS, useAnimatedReaction, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, Extrapolation } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, Stack, useFocusEffect } from 'expo-router';
@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MarketPanel } from '../../ui/MarketPanel';
 import { Allocation } from '../../ui/Allocation';
 import { HomeNudge } from '../../ui/HomeNudge';
+import { NftImage } from '../../ui/NftImage';
 import { NftDetailModal } from '../../ui/NftDetailModal';
 import { InteractiveChart } from '../../ui/InteractiveChart';
 import { Icon } from '../../ui/icon';
@@ -909,7 +910,7 @@ export default function Home() {
                   return (
                     <KPressable key={`${n.chainId}:${n.contract}:${n.tokenId}`} onPress={() => setOpenNft(n)} style={{ width: w, gap: space[1] }} accessibilityLabel={n.name}>
                       <View style={{ width: w, height: w, borderRadius: radii.md, backgroundColor: colors.surface2, overflow: 'hidden' }}>
-                        {n.image ? <Image source={{ uri: n.image }} style={{ width: w, height: w }} resizeMode="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Icon name="nft" size={28} tone="faint" /></View>}
+                        <NftImage nft={n} size={w} showName />
                         <View style={{ position: 'absolute', right: 6, bottom: 6, width: 18, height: 18, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {chainIconUrl(n.chainId) ? <LogoImage uri={chainIconUrl(n.chainId)!} size={12} /> : null}
                         </View>

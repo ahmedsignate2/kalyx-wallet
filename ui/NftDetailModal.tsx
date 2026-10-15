@@ -5,7 +5,9 @@ import { Pressable as KPressable, Button, Card } from './kit';
  * de la galerie — c'est la fiche que Phantom montre au tap.
  */
 import { SafeModal } from './kit/SafeModal';
-import { Image, Linking, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, ScrollView, Text, View } from 'react-native';
+import { NftImage } from './NftImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Icon } from './icon';
@@ -33,6 +35,7 @@ export function NftDetailModal({
   const { colors, typography } = useTheme();
   const t = useT();
   const insets = useSafeAreaInsets();
+  const [side, setSide] = useState(0);
   if (!nft) return null;
   const tokenIdShort = nft.tokenId.length > 12 ? `${nft.tokenId.slice(0, 10)}…` : nft.tokenId;
 
@@ -50,11 +53,9 @@ export function NftDetailModal({
           }}
         >
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: spacing(1.5) }}>
-            <Image
-              source={{ uri: nft.image }}
-              style={{ width: '100%', aspectRatio: 1, borderRadius: radii.xl, backgroundColor: colors.surface2 }}
-              resizeMode="cover"
-            />
+            <View onLayout={(e) => setSide(e.nativeEvent.layout.width)} style={{ width: '100%', aspectRatio: 1, borderRadius: radii.xl, overflow: 'hidden', backgroundColor: colors.surface2 }}>
+              {side ? <NftImage key={`${nft.contract}:${nft.tokenId}`} nft={nft} size={side} showName /> : null}
+            </View>
             <View>
               <Text style={typography.title}>{nft.name}</Text>
               {nft.collection ? <Text style={typography.muted}>{nft.collection}</Text> : null}

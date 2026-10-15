@@ -45,7 +45,10 @@ export function parseDasNfts(json: unknown): NftItem[] {
     const collection = (group?.collection_metadata?.name ?? '').trim();
     if (isSpamNft({ name, collection, compressed: !!a.compression?.compressed })) continue;
     const file = a.content?.files?.[0];
-    const image = file?.cdn_uri || displayableImage(a.content?.links?.image || file?.uri || '');
+    // Repli si l'aperçu ne se charge pas ; un SVG passe par sa conversion PNG d'abord (le téléphone ne décode pas le SVG).
+    const svg = /svg/i.test(file?.mime ?? '');
+    const original = [a.content?.links?.image, file?.uri].map((u) => (u ? displayableImage(u, svg) : ''));
+    const [image = '', ...images] = (svg ? [...original, file?.cdn_uri ?? ''] : [file?.cdn_uri ?? '', ...original]).filter((u, i, xs) => u && xs.indexOf(u) === i);
     if (!name && !image) continue;
     out.push({
       contract: group?.group_value || a.id,
@@ -53,6 +56,7 @@ export function parseDasNfts(json: unknown): NftItem[] {
       name: name || collection || `${a.id.slice(0, 4)}…${a.id.slice(-4)}`,
       collection,
       image,
+      ...(images.length ? { images } : {}),
       url: `https://solscan.io/token/${a.id}`,
     });
   }
