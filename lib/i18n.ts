@@ -113,6 +113,9 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 const en = {
+  buyTitleToken: "Buy {token}",
+  buyOnNetwork: "on {network}",
+  buyPoweredBy: "Powered by {provider}",
   buyCheapest: "Cheapest",
   buyFeeShort: "{amount} fees",
   buyHistory: "My purchases",
@@ -2488,6 +2491,9 @@ export type Key = keyof typeof en;
 const dict: Record<Lang, Partial<Record<Key, string>>> = {
   en,
   fr: {
+  buyTitleToken: "Acheter des {token}",
+  buyOnNetwork: "sur {network}",
+  buyPoweredBy: "Propulsé par {provider}",
   buyCheapest: "Le moins cher",
   buyFeeShort: "{amount} de frais",
   buyHistory: "Mes achats",
@@ -4843,6 +4849,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   es: {
+  buyTitleToken: "Comprar {token}",
+  buyOnNetwork: "en {network}",
+  buyPoweredBy: "Con la tecnología de {provider}",
   buyCheapest: "El más barato",
   buyFeeShort: "{amount} de comisión",
   buyHistory: "Mis compras",
@@ -7188,6 +7197,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   pt: {
+  buyTitleToken: "Comprar {token}",
+  buyOnNetwork: "na {network}",
+  buyPoweredBy: "Com tecnologia {provider}",
   buyCheapest: "Mais barato",
   buyFeeShort: "{amount} de taxas",
   buyHistory: "Minhas compras",
@@ -9514,6 +9526,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   de: {
+  buyTitleToken: "{token} kaufen",
+  buyOnNetwork: "auf {network}",
+  buyPoweredBy: "Bereitgestellt von {provider}",
   buyCheapest: "Am günstigsten",
   buyFeeShort: "{amount} Gebühren",
   buyHistory: "Meine Käufe",
@@ -11857,6 +11872,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} Min.",
   },
   it: {
+  buyTitleToken: "Acquista {token}",
+  buyOnNetwork: "su {network}",
+  buyPoweredBy: "Fornito da {provider}",
   buyCheapest: "Il più economico",
   buyFeeShort: "{amount} di commissioni",
   buyHistory: "I miei acquisti",
@@ -14186,6 +14204,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   nl: {
+  buyTitleToken: "{token} kopen",
+  buyOnNetwork: "op {network}",
+  buyPoweredBy: "Mogelijk gemaakt door {provider}",
   buyCheapest: "Goedkoopst",
   buyFeeShort: "{amount} kosten",
   buyHistory: "Mijn aankopen",
@@ -16541,6 +16562,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   pl: {
+  buyTitleToken: "Kup {token}",
+  buyOnNetwork: "w sieci {network}",
+  buyPoweredBy: "Obsługiwane przez {provider}",
   buyCheapest: "Najtaniej",
   buyFeeShort: "{amount} opłat",
   buyHistory: "Moje zakupy",
@@ -18887,6 +18911,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   tr: {
+  buyTitleToken: "{token} satın al",
+  buyOnNetwork: "{network} ağında",
+  buyPoweredBy: "{provider} altyapısıyla",
   buyCheapest: "En ucuz",
   buyFeeShort: "{amount} ücret",
   buyHistory: "Satın alımlarım",
@@ -21228,6 +21255,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} dk",
   },
   ru: {
+  buyTitleToken: "Купить {token}",
+  buyOnNetwork: "в сети {network}",
+  buyPoweredBy: "На базе {provider}",
   buyCheapest: "Дешевле всего",
   buyFeeShort: "Комиссия {amount}",
   buyHistory: "Мои покупки",
@@ -23610,6 +23640,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} мин",
   },
   ar: {
+  buyTitleToken: "شراء {token}",
+  buyOnNetwork: "على {network}",
+  buyPoweredBy: "بدعم من {provider}",
   buyCheapest: "الأرخص",
   buyFeeShort: "رسوم {amount}",
   buyHistory: "مشترياتي",
@@ -25939,6 +25972,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} د",
   },
   hi: {
+  buyTitleToken: "{token} खरीदें",
+  buyOnNetwork: "{network} पर",
+  buyPoweredBy: "{provider} द्वारा संचालित",
   buyCheapest: "सबसे सस्ता",
   buyFeeShort: "{amount} शुल्क",
   buyHistory: "मेरी खरीदें",
@@ -28303,6 +28339,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} मिनट",
   },
   zh: {
+  buyTitleToken: "购买 {token}",
+  buyOnNetwork: "在 {network} 上",
+  buyPoweredBy: "由 {provider} 提供支持",
   buyCheapest: "最便宜",
   buyFeeShort: "手续费 {amount}",
   buyHistory: "我的购买",
@@ -30592,6 +30631,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} 分钟",
   },
   ja: {
+  buyTitleToken: "{token} を購入",
+  buyOnNetwork: "{network} 上",
+  buyPoweredBy: "{provider} 提供",
   buyCheapest: "最安",
   buyFeeShort: "手数料 {amount}",
   buyHistory: "購入履歴",
@@ -32946,6 +32988,9 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} 分",
   },
   ko: {
+  buyTitleToken: "{token} 구매",
+  buyOnNetwork: "{network}에서",
+  buyPoweredBy: "{provider} 제공",
   buyCheapest: "최저가",
   buyFeeShort: "수수료 {amount}",
   buyHistory: "내 구매",

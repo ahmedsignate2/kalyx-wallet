@@ -79,9 +79,9 @@ import {
 } from '../src';
 
 /** Haut du contenu, en fraction de l'écran, étape par étape (mesuré sur la maquette). */
-const TOP_AT: Partial<Record<Step, number>> = { amount: 0.29, method: 0.26, review: 0.24, details: 0.24 };
+const TOP_AT: Partial<Record<Step, number>> = { review: 0.24, details: 0.24 };
 
-type Step = 'amount' | 'method' | 'review' | 'widget' | 'processing' | 'success' | 'details' | 'failed' | 'unavailable';
+type Step = 'amount' | 'review' | 'widget' | 'processing' | 'success' | 'details' | 'failed' | 'unavailable';
 
 const UNSUPPORTED_URL = 'https://support.moonpay.com/customers/docs/moonpays-unsupported-countries';
 
@@ -133,9 +133,9 @@ function BoxKeypad({ value, onChange }: { value: string; onChange: (v: string) =
           onPress={() => press(k)}
           accessibilityRole="button"
           accessibilityLabel={k === 'del' ? '⌫' : k}
-          style={{ width: '31.5%', flexGrow: 1, height: 50, borderRadius: radii.md, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: '31%', flexGrow: 1, height: 56, borderRadius: 14, backgroundColor: k === 'del' || k === sep ? 'transparent' : colors.surface2, alignItems: 'center', justifyContent: 'center' }}
         >
-          {k === 'del' ? <Icon name="backspace" size={22} color={colors.text} /> : <Text style={{ fontFamily: fontFamily.semibold, fontSize: 20, color: colors.text }}>{k}</Text>}
+          {k === 'del' ? <Icon name="backspace" size={26} color={colors.text} /> : <Text style={{ fontFamily: fontFamily.semibold, fontSize: 28, color: colors.text }}>{k}</Text>}
         </KPressable>
       ))}
     </View>
@@ -170,6 +170,9 @@ const ETA: Record<BuyPaymentMethod, 'buyInstant' | 'pmTransferSub'> = {
 
 /** Durée de vie d'un devis à l'écran avant actualisation. */
 const QUOTE_TTL = 30;
+
+/** Montants rapides. */
+const QUICK = [50, 100, 250];
 
 /** Ligne de choix (token, réseau, moyen de paiement), encadrée quand elle est choisie. */
 function ChoiceRow({ left, title, sub, on, onPress, aside }: { left: React.ReactNode; title: string; sub?: string; on: boolean; onPress: () => void; aside?: React.ReactNode }) {
@@ -290,7 +293,7 @@ function BuyScreenInner() {
   const [env, setEnv] = useState<RampEnv>('sandbox');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [asset, setAsset] = useState<BuyAsset | null>(null);
-  const [sheet, setSheet] = useState<'token' | 'network' | null>(null);
+  const [sheet, setSheet] = useState<'token' | 'network' | 'method' | null>(null);
   const [pendingToken, setPendingToken] = useState<BuyToken | null>(null);
   const [amountText, setAmountText] = useState('');
   const [method, setMethod] = useState<BuyPaymentMethod>(Platform.OS === 'ios' ? 'apple_pay' : 'credit_debit_card');
@@ -403,7 +406,7 @@ function BuyScreenInner() {
 
   // Moyens de paiement : le devis RÉEL de chacun, pour comparer les frais.
   useEffect(() => {
-    if (step !== 'method' || !asset || !validAmount) return;
+    if (sheet !== 'method' || !asset || !validAmount) return;
     let alive = true;
     setMethodQuotes({});
     for (const m of methods) {
@@ -415,7 +418,7 @@ function BuyScreenInner() {
     return () => {
       alive = false;
     };
-  }, [step, asset, amount, validAmount, fiatCode, methods]);
+  }, [sheet, asset, amount, validAmount, fiatCode, methods]);
 
   const openWidget = async () => {
     if (!asset || !address || !validAmount) return;
@@ -482,8 +485,7 @@ function BuyScreenInner() {
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/home'));
   const back = () => {
-    if (step === 'method') setStep('amount');
-    else if (step === 'review') setStep('method');
+    if (step === 'review') setStep('amount');
     else if (step === 'details') setStep('success');
     else if (step === 'widget') {
       setWidgetUrl(null);
@@ -545,20 +547,6 @@ function BuyScreenInner() {
     step === 'details' ? t('buyDetailsTitle') : t('buy');
   const showBack = step !== 'success' && step !== 'processing';
 
-  /* Résumé en tête (moyen de paiement, et sous les feuilles de choix). */
-  const hero = (
-    <View style={{ alignItems: 'center', gap: 4, paddingVertical: space[4] }}>
-      <Text style={{ fontFamily: fontFamily.bold, fontSize: 40, color: colors.text }} tabular>{amountLabel}</Text>
-      <Text variant="caption" tone="secondary" tabular>{quote ? `≈ ${cryptoLabel(quote.quoteCurrencyAmount)}` : `≈ — ${asset?.symbol ?? ''}`}</Text>
-      {asset && step !== 'amount' ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-          <TokenIcon symbol={chainNameOf(asset.chainId) ?? ''} logo={chainIconUrl(asset.chainId)} size={14} />
-          <Text variant="micro" tone="secondary">{`${asset.symbol} • ${chainNameOf(asset.chainId) ?? asset.chainId}`}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-
   const body = (() => {
     if (loadError) {
       return (
@@ -594,96 +582,48 @@ function BuyScreenInner() {
     }
 
     if (step === 'amount') {
+      const big = amountLabel.length > 8 ? 56 : 72;
       return (
-        <>
-          <Card>
-            <View style={{ gap: space[4] }}>
-              <View style={{ alignItems: 'center', gap: space[2], paddingTop: space[2] }}>
-                <AmountText label={amountLabel} empty={!amountText} />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 18 }}>
-                  {quoting ? <ActivityIndicator size="small" color={colors.textTertiary} /> : null}
-                  <Text variant="caption" tone="secondary" tabular>{`≈ ${cryptoLabel(quote?.quoteCurrencyAmount ?? 0)}`}</Text>
-                </View>
-                <KPressable
-                  onPress={() => setSheet('token')}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('buyPickToken')}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingLeft: 6, paddingRight: space[3], paddingVertical: 6, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface1, marginTop: space[1] }}
-                >
-                  <AssetIcon asset={asset} size={24} />
-                  <Text variant="bodyStrong">{asset.symbol}</Text>
-                  <Icon name="caretDown" size={14} color={colors.textSecondary} />
-                </KPressable>
-                {fiat && problem ? (
-                  <Text variant="micro" tone="warning">
-                    {problem === 'min' ? fill(t('buyMin'), { amount: money(fiat.minBuyAmount ?? 0) }) : fill(t('buyMax'), { amount: money(fiat.maxBuyAmount ?? 0) })}
-                  </Text>
-                ) : null}
-              </View>
-              <BoxKeypad value={amountText} onChange={setAmountText} />
+        <View style={{ flex: 1, gap: space[3] }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[2], minHeight: 200 }}>
+            <AmountText label={amountLabel} empty={!amountText} size={big} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 18 }}>
+              {quoting ? <ActivityIndicator size="small" color={colors.textTertiary} /> : null}
+              <Text variant="body" tone="secondary" tabular>{`≈ ${cryptoLabel(quote?.quoteCurrencyAmount ?? 0)}`}</Text>
             </View>
-          </Card>
-          {quoteError ? <Text variant="caption" style={{ color: colors.danger, textAlign: 'center' }}>{quoteError}</Text> : null}
-          <Button label={t('continueWord')} disabled={!validAmount || !address} onPress={() => setStep('method')} />
-          {!address ? <Text variant="micro" tone="warning" style={{ textAlign: 'center' }}>{t('buyNoAddress')}</Text> : null}
-        </>
-      );
-    }
-
-    if (step === 'method') {
-      return (
-        <>
-          {hero}
-          <View
-            style={{
-              flex: 1,
-              marginHorizontal: -SCREEN_MARGIN,
-              marginBottom: -(insets.bottom + space[5]),
-              paddingHorizontal: SCREEN_MARGIN,
-              paddingTop: space[5],
-              paddingBottom: insets.bottom + space[5],
-              gap: space[2],
-              borderTopLeftRadius: radii.xxl,
-              borderTopRightRadius: radii.xxl,
-              backgroundColor: mode === 'dark' ? colors.surface1 : colors.bg,
-            }}
-          >
-            <Text variant="bodyStrong" style={{ marginBottom: space[1] }}>{t('buyPaymentMethod')}</Text>
-            {methods.map((m) => {
-              const q = methodQuotes[m];
-              const fee = (x: RampQuote) => x.feeAmount + x.networkFeeAmount + x.extraFeeAmount;
-              const known = methods.map((k) => methodQuotes[k]).filter((x): x is RampQuote => !!x);
-              const cheapest = !!q && known.length > 1 && known.every((x) => fee(q) <= fee(x)) && known.some((x) => fee(x) > fee(q));
-              return (
-              <ChoiceRow
-                key={m}
-                on={m === method}
-                onPress={() => {
-                  setMethod(m);
-                  setStep('review');
-                }}
-                title={t(PM[m].key)}
-                sub={[PM[m].sub ? t(PM[m].sub) : t(ETA[m]), needsSystemBrowser(m) ? t('buyOpensBrowser') : null].filter(Boolean).join(' · ')}
-                aside={
-                  <View style={{ alignItems: 'flex-end', marginRight: space[1] }}>
-                    {q === undefined ? <ActivityIndicator size="small" color={colors.textTertiary} /> : q ? <Text variant="caption" tabular>{fill(t('buyFeeShort'), { amount: money(fee(q)) })}</Text> : <Text variant="micro" tone="tertiary">—</Text>}
-                    {cheapest ? (
-                      <View style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: radii.full, backgroundColor: tints.receive.bg }}>
-                        <Text variant="micro" style={{ color: tints.receive.ink, fontFamily: fontFamily.bold }}>{t('buyCheapest')}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                }
-                left={
-                  <View style={{ width: 40, height: 28, borderRadius: 6, borderWidth: PM[m].badge ? 1 : 0, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
-                    {PM[m].badge ? <Text style={{ fontFamily: fontFamily.bold, fontSize: 11, color: colors.text }}>{PM[m].badge}</Text> : <Icon name={PM[m].icon ?? 'card'} size={24} color={colors.text} />}
-                  </View>
-                }
-              />
-              );
-            })}
+            <KPressable
+              onPress={() => setSheet('method')}
+              accessibilityRole="button"
+              accessibilityLabel={t('buyPaymentMethod')}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: space[2], paddingHorizontal: space[4], paddingVertical: space[2], borderRadius: radii.full, backgroundColor: colors.surface2, marginTop: space[2] }}
+            >
+              {PM[method].badge ? <Text style={{ fontFamily: fontFamily.bold, fontSize: 12, color: colors.text }}>{PM[method].badge.trim()}</Text> : <Icon name={PM[method].icon ?? 'card'} size={18} color={colors.text} />}
+              <Text variant="bodyStrong">{t(PM[method].key)}</Text>
+              <Icon name="caretDown" size={14} color={colors.textSecondary} />
+            </KPressable>
+            {fiat && problem ? (
+              <Text variant="caption" tone="warning">
+                {problem === 'min' ? fill(t('buyMin'), { amount: money(fiat.minBuyAmount ?? 0) }) : fill(t('buyMax'), { amount: money(fiat.maxBuyAmount ?? 0) })}
+              </Text>
+            ) : null}
+            {quoteError ? <Text variant="caption" style={{ color: colors.danger, textAlign: 'center' }}>{quoteError}</Text> : null}
           </View>
-        </>
+          <View style={{ flexDirection: 'row', gap: space[2] }}>
+            {QUICK.map((q) => (
+              <KPressable
+                key={q}
+                onPress={() => setAmountText(String(q))}
+                style={{ flex: 1, alignItems: 'center', paddingVertical: space[3], borderRadius: radii.full, backgroundColor: colors.surface2 }}
+              >
+                <Text variant="bodyStrong" tabular>{`${q} ${fiatSym}`}</Text>
+              </KPressable>
+            ))}
+          </View>
+          <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{fill(t('buyPoweredBy'), { provider: 'MoonPay' })}</Text>
+          <Button label={t('continueWord')} disabled={!validAmount || !address} onPress={() => setStep('review')} />
+          {!address ? <Text variant="micro" tone="warning" style={{ textAlign: 'center' }}>{t('buyNoAddress')}</Text> : null}
+          <BoxKeypad value={amountText} onChange={setAmountText} />
+        </View>
       );
     }
 
@@ -821,7 +761,14 @@ function BuyScreenInner() {
         {tx?.failureReason ? <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{tx.failureReason}</Text> : null}
         <View style={{ height: space[3] }} />
         <Button label={t('retry')} loading={opening} onPress={() => void openWidget()} />
-        <Button label={t('buyOtherMethod')} variant="secondary" onPress={() => setStep('method')} />
+        <Button
+          label={t('buyOtherMethod')}
+          variant="secondary"
+          onPress={() => {
+            setStep('amount');
+            setSheet('method');
+          }}
+        />
       </Centered>
     );
   })();
@@ -829,11 +776,22 @@ function BuyScreenInner() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScreenDunes />
-      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 48, flexDirection: 'row', alignItems: 'center' }}>
+      {/* Saisie du montant : fond uni, rien ne gêne la lecture du chiffre. */}
+      {step !== 'amount' ? <ScreenDunes /> : null}
+      <View style={{ paddingTop: insets.top, paddingHorizontal: SCREEN_MARGIN, height: insets.top + 56, flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ width: 44 }}>{showBack ? <IconButton icon="back" label={t('back')} tone="glass" onPress={back} /> : null}</View>
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <Text variant="bodyStrong">{title}</Text>
+          {step === 'amount' && asset ? (
+            <KPressable onPress={() => setSheet('token')} accessibilityRole="button" accessibilityLabel={t('buyPickToken')} style={{ alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text variant="bodyStrong">{fill(t('buyTitleToken'), { token: asset.symbol })}</Text>
+                <Icon name="caretDown" size={12} color={colors.textSecondary} />
+              </View>
+              <Text variant="caption" tone="secondary">{fill(t('buyOnNetwork'), { network: chainNameOf(asset.chainId) ?? asset.chainId })}</Text>
+            </KPressable>
+          ) : (
+            <Text variant="bodyStrong">{title}</Text>
+          )}
           {currencies && env === 'sandbox' && step !== 'success' ? (
             <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.full, backgroundColor: tints.earn.bg }}>
               <Text variant="micro" style={{ color: tints.earn.ink, fontFamily: fontFamily.bold, fontSize: 9 }}>TEST</Text>
@@ -845,11 +803,51 @@ function BuyScreenInner() {
         </View>
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, paddingTop: TOP_AT[step] ? Math.max(SCREEN_MARGIN, winH * TOP_AT[step]! - (insets.top + 48)) : SCREEN_MARGIN, gap: space[3], paddingBottom: insets.bottom + space[5] }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, padding: SCREEN_MARGIN, paddingTop: TOP_AT[step] ? Math.max(SCREEN_MARGIN, winH * TOP_AT[step]! - (insets.top + 56)) : step === 'amount' ? 0 : SCREEN_MARGIN, gap: space[3], paddingBottom: insets.bottom + (step === 'amount' ? space[2] : space[5]) }}>
         <Animated.View key={step} entering={FadeInDown.duration(240)} style={{ flexGrow: 1, gap: space[3] }}>
           {body}
         </Animated.View>
       </ScrollView>
+
+      {/* Moyen de paiement : frais réels de chacun */}
+      <Sheet visible={sheet === 'method'} onClose={() => setSheet(null)}>
+        <Text variant="title2">{t('buyPaymentMethod')}</Text>
+        <View style={{ gap: space[1] }}>
+            {methods.map((m) => {
+              const q = methodQuotes[m];
+              const fee = (x: RampQuote) => x.feeAmount + x.networkFeeAmount + x.extraFeeAmount;
+              const known = methods.map((k) => methodQuotes[k]).filter((x): x is RampQuote => !!x);
+              const cheapest = !!q && known.length > 1 && known.every((x) => fee(q) <= fee(x)) && known.some((x) => fee(x) > fee(q));
+              return (
+              <ChoiceRow
+                key={m}
+                on={m === method}
+                onPress={() => {
+                  setMethod(m);
+                  setSheet(null);
+                }}
+                title={t(PM[m].key)}
+                sub={[PM[m].sub ? t(PM[m].sub) : t(ETA[m]), needsSystemBrowser(m) ? t('buyOpensBrowser') : null].filter(Boolean).join(' · ')}
+                aside={
+                  <View style={{ alignItems: 'flex-end', marginRight: space[1] }}>
+                    {q === undefined ? <ActivityIndicator size="small" color={colors.textTertiary} /> : q ? <Text variant="caption" tabular>{fill(t('buyFeeShort'), { amount: money(fee(q)) })}</Text> : <Text variant="micro" tone="tertiary">—</Text>}
+                    {cheapest ? (
+                      <View style={{ marginTop: 2, paddingHorizontal: 6, paddingVertical: 1, borderRadius: radii.full, backgroundColor: tints.receive.bg }}>
+                        <Text variant="micro" style={{ color: tints.receive.ink, fontFamily: fontFamily.bold }}>{t('buyCheapest')}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                }
+                left={
+                  <View style={{ width: 40, height: 28, borderRadius: 6, borderWidth: PM[m].badge ? 1 : 0, borderColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+                    {PM[m].badge ? <Text style={{ fontFamily: fontFamily.bold, fontSize: 11, color: colors.text }}>{PM[m].badge}</Text> : <Icon name={PM[m].icon ?? 'card'} size={24} color={colors.text} />}
+                  </View>
+                }
+              />
+              );
+            })}
+        </View>
+      </Sheet>
 
       {/* Mes achats : reprendre le suivi d'une commande */}
       <Sheet visible={historyOpen} onClose={() => setHistoryOpen(false)}>
