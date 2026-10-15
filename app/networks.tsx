@@ -33,6 +33,7 @@ const DEFAULT_SYMBOLS: Record<ChainFamily, string> = { evm: 'ETH', bitcoin: 'BTC
 import { useCustomChains, type CustomChainInput } from '../lib/customChainsStore';
 import { space, radii } from '../ui/tokens';
 import { goBack } from '../lib/nav';
+import { Icon } from '../ui/icon';
 
 export default function Networks() {
   const { colors, typography } = useTheme();
@@ -64,6 +65,7 @@ export default function Networks() {
   const scrolledOnce = useRef(false);
 
   const q = query.trim().toLowerCase();
+  const activeCfg = useMemo(() => listChains({ includeTestnets: true }).find((c) => c.id === activeChain), [activeChain]);
   /*
    * Onglet ouvert sur la famille du réseau ACTIF : on arrive sur cet écran pour
    * changer de réseau, pas pour changer de chaîne — commencer ailleurs obligerait
@@ -126,7 +128,12 @@ export default function Networks() {
     choose(id);
   };
 
-  const renderChain = (c: (typeof chains)[number]) => {
+  /*
+   * UNE LIGNE PAR RÉSEAU, dans une carte commune. Chaque réseau était une
+   * grande carte à part : la liste s'étirait sur plusieurs écrans pour une
+   * information d'une ligne.
+   */
+  const renderChain = (c: (typeof chains)[number], i: number) => {
     const active = c.id === activeChain;
     return (
       <KPressable
@@ -136,32 +143,34 @@ export default function Networks() {
         accessibilityRole="radio"
         accessibilityState={{ selected: active }}
         accessibilityLabel={c.name}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing(1.5),
+          paddingHorizontal: spacing(2),
+          paddingVertical: spacing(1.25),
+          borderTopWidth: i > 0 ? 1 : 0,
+          borderTopColor: colors.border,
+          backgroundColor: active ? colors.surface2 : 'transparent',
+        }}
       >
-        <Card padding="xl" gap="md"
-          style={{
-            borderColor: active ? colors.warm : colors.border,
-            paddingVertical: spacing(1.75),
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), flex: 1 }}>
-            <RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={36} />
-            <View>
-              <Text style={typography.body}>{c.name}</Text>
-              <KText variant="label">
-                {c.nativeSymbol}
-                {c.evmChainId ? ` · Chain ${c.evmChainId}` : ''}
-                {c.testnet ? ` · ${t('testnet')}` : ''}
-              </KText>
-            </View>
+        <RemoteIcon uri={chainIconUrl(c.id)} label={c.name} size={34} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={typography.bodyStrong} numberOfLines={1}>{c.name}</Text>
+          <KText variant="label" numberOfLines={1}>
+            {c.nativeSymbol}
+            {c.evmChainId ? ` · Chain ${c.evmChainId}` : ''}
+          </KText>
+        </View>
+        {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
+        <IconButton icon="sparkles" label={fill(t('a11yExplainThing'), { name: c.name })} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
+        {active ? (
+          <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="checkmark" size={12} color={colors.bg} weight="bold" />
           </View>
-          {/* Expliquer ce réseau (Copilot) — sans changer de réseau. */}
-          <IconButton icon="sparkles" label={fill(t('a11yExplainThing'), { name: c.name })} tone="ghost" onPress={() => setExplain({ name: c.name, id: c.id })} />
-          {/* Icône du kit : le glyphe texte « ✓ » rendait différemment selon la police. */}
-          {active ? <Pulse size={8} /> : null}
-        </Card>
+        ) : (
+          <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.textTertiary }} />
+        )}
       </KPressable>
     );
   };
@@ -179,6 +188,16 @@ export default function Networks() {
         right={<IconButton icon="add" label={t("addNetwork")} tone="ghost" onPress={() => { setFormError(null); setAddOpen(true); }} />}
       />
       <NovaHero icon="networks" title={t('network')} subtitle={t('sameAddressAllEvm')} />
+      {activeCfg && !q ? (
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), marginTop: spacing(1) }}>
+          <RemoteIcon uri={chainIconUrl(activeCfg.id)} label={activeCfg.name} size={40} />
+          <View style={{ flex: 1 }}>
+            <KText variant="label">{t('netActive')}</KText>
+            <Text style={typography.bodyStrong}>{activeCfg.name}</Text>
+          </View>
+          <Pulse size={8} />
+        </Card>
+      ) : null}
 
       {all.length > 6 ? (
         <View style={{ marginTop: spacing(1) }}>
@@ -241,7 +260,7 @@ export default function Networks() {
             {mainnets.length > 0 ? (
               <SectionLabel>{t('mainNetworks')}</SectionLabel>
             ) : null}
-            {mainnets.map((c) => renderChain(c))}
+            {mainnets.length > 0 ? <Card padded={false}>{mainnets.map((c, i) => renderChain(c, i))}</Card> : null}
 
             {/* Section testnet, nettement séparée */}
             {testnets.length > 0 ? (
@@ -252,7 +271,7 @@ export default function Networks() {
                 </View>
               </View>
             ) : null}
-            {testnets.map((c) => renderChain(c))}
+            {testnets.length > 0 ? <Card padded={false}>{testnets.map((c, i) => renderChain(c, i))}</Card> : null}
           </>
         )}
         <View style={{ marginTop: spacing(2) }}>
