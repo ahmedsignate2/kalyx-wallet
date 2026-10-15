@@ -217,6 +217,34 @@ function errorText(e: unknown): string {
 /** L'appairage en cours vient d'un lien profond (voir `pair`). */
 let returnAfterApproval = false;
 
+/*
+ * DEMANDES DE CONNEXION DÉJÀ TRAITÉES.
+ *
+ * Après une validation, la fenêtre revenait sans fin : le relais redélivre la
+ * même proposition à la reconnexion (retour au premier plan), et un lien de
+ * connexion rejoué relançait l'appairage. On retient les identifiants traités,
+ * et on ignore une proposition expirée ou venue d'un appairage qui a déjà sa
+ * session ouverte.
+ */
+const handledProposals = new Set<number>();
+
+function isStaleProposal(wallet: IWeb3Wallet, proposal: any): boolean {
+  const id = Number(proposal?.id);
+  if (handledProposals.has(id)) return true;
+  const expiry = Number(proposal?.params?.expiryTimestamp ?? 0);
+  if (expiry > 0 && expiry * 1000 < Date.now()) return true;
+  const pairing = proposal?.params?.pairingTopic;
+  if (pairing) {
+    try {
+      const sessions = Object.values(wallet.getActiveSessions() ?? {}) as { pairingTopic?: string }[];
+      if (sessions.some((x) => x.pairingTopic === pairing)) return true;
+    } catch {
+      /* sessions illisibles : on affiche */
+    }
+  }
+  return false;
+}
+
 function returnToDapp(meta: { url?: string; redirect?: { native?: string; universal?: string } } | undefined, hint = true): void {
   returnToDappOrHint(wcReturnUrl(meta?.redirect, meta?.url), hint);
 }
@@ -447,6 +475,10 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     w.on('session_proposal', (proposal: any) => {
       // Session leurre : une dApp (même déjà appairée au vrai portefeuille) n'est pas présentée.
       if (isDecoySession()) return;
+      if (isStaleProposal(w, proposal)) {
+        console.log('[KALYX-WC] proposal ignorée (déjà traitée, expirée ou session ouverte)', { id: proposal?.id });
+        return;
+      }
       set({ proposal });
       const name = proposal?.params?.proposer?.metadata?.name;
       notifyIncoming(tr('notifWcConnectTitle'), name ? tr('notifWcConnectBody', { name }) : tr('notifWcConnectBodyUnknown'));
@@ -591,6 +623,16 @@ export const useWalletConnect = create<WcState>((set, get) => ({
      * dans ton navigateur » serait faux. Seul un lien ouvert sur ce téléphone y donne droit.
      */
     returnAfterApproval = !!opts?.returnAfterApproval;
+    // Lien déjà appairé (lien rejoué, retour dans l'app) : rien à refaire.
+    const topic = /^wc:([0-9a-f]{64})@/i.exec(normalized)?.[1];
+    try {
+      if (topic && wallet.core.pairing.getPairings().some((p: { topic: string }) => p.topic === topic)) {
+        console.log('[KALYX-WC] pair:ignoré (déjà appairé)');
+        return;
+      }
+    } catch {
+      /* liste illisible : on tente l'appairage */
+    }
     await wallet.pair({ uri: normalized });
     console.log('[KALYX-WC] pair:done (en attente de la proposition du site)');
   },
@@ -690,6 +732,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       }
       throw new WcConnectError('REJECTED_BY_RELAY', detail.slice(0, 160));
     }
+    handledProposals.add(Number(proposal.id));
     set({ proposal: null });
     // Connexion faite : la dApp mobile qui a ouvert Kalyx attend qu'on lui rende la main.
     if (returnAfterApproval) returnToDapp(proposal.params?.proposer?.metadata);
@@ -699,10 +742,16 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
   rejectProposal: async () => {
     const { wallet, proposal } = get();
-    if (wallet && proposal && sdkUtils) {
-      await wallet.rejectSession({ id: proposal.id, reason: sdkUtils.getSdkError('USER_REJECTED') });
-    }
+    /*
+     * La fenêtre se ferme QUOI QU'IL ARRIVE. Le refus échoue si la proposition
+     * a déjà été acceptée ou a expiré — et « Refuser » ne fermait alors rien :
+     * la fenêtre restait bloquée à l'écran.
+     */
+    if (proposal) handledProposals.add(Number(proposal.id));
     set({ proposal: null });
+    if (wallet && proposal && sdkUtils) {
+      await wallet.rejectSession({ id: proposal.id, reason: sdkUtils.getSdkError('USER_REJECTED') }).catch(() => {});
+    }
   },
 
   approveRequest: async (unlock, overrideData) => {

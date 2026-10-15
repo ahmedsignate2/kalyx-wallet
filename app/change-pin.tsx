@@ -11,7 +11,7 @@ import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
-import { checkPin, isWalletError, PIN_MAX, PIN_MIN } from '../src';
+import { checkPin, isWalletError, PIN_MIN } from '../src';
 import { goBack } from '../lib/nav';
 
 /**
@@ -52,6 +52,7 @@ export default function ChangePin() {
   const changePin = useWallet((s) => s.changePin);
   const verifyPin = useWallet((s) => s.verifyPin);
   const [step, setStep] = useState<Step>('old');
+  const storedLength = useSettings((s) => s.pinLength);
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [pin, setPin] = useState(''); // saisie de l'étape courante
@@ -135,21 +136,29 @@ export default function ChangePin() {
 
   const title = step === 'old' ? t('oldPinTitle') : step === 'new' ? t('newPinTitle') : t('confirmNewPin');
   const hint = step === 'old' ? t('enterCurrentCode') : step === 'new' ? t('chooseNewCode') : t('reenterNewCode');
-  // Anneau : sur 12 chiffres pendant qu'on choisit (comme à la création du code), sur la longueur connue à la confirmation.
-  const ringOf = step === 'confirm' ? newPin.length : PIN_MAX;
+  /*
+   * L'ANNEAU SE REMPLIT SELON LE CODE, pas sur 12 chiffres : il était calé sur
+   * la longueur MAXIMALE, si bien qu'un code de 6 chiffres le laissait à moitié.
+   *  - ancien code : sa longueur connue (retenue au déverrouillage) ;
+   *  - nouveau code : plein dès qu'il est valable (6 chiffres) ;
+   *  - confirmation : la longueur du nouveau code.
+   */
+  const ringOf = step === 'confirm' ? newPin.length : step === 'old' ? Math.max(PIN_MIN, storedLength || PIN_MIN) : PIN_MIN;
   const progress = pin.length === 0 ? 0.001 : Math.min(1, pin.length / ringOf);
-  const canNext = !busy && step !== 'confirm' && pin.length >= PIN_MIN;
+  // Nouveau code trop simple (123456, 000000…) : dit tout de suite, pas après « Continuer ».
+  const tooSimple = step === 'new' && pin.length >= PIN_MIN && !checkPin(pin).ok;
+  const canNext = !busy && step !== 'confirm' && pin.length >= PIN_MIN && !tooSimple;
 
   return (
     <Screen scene="top" layout="form">
       <ScreenHeader fallback="/menu" right={<FlowDots step={step === 'old' ? 1 : step === 'new' ? 2 : 3} />} />
       {/* Héros Nova : le disque dans son orbite est l'anneau de saisie. Le titre remonte à chaque étape. */}
       <NovaHero key={step} title={title} subtitle={hint}>
-        <KalyxRing size={84} progress={progress} error={!!error} />
+        <KalyxRing size={84} progress={progress} error={!!error || tooSimple} />
       </NovaHero>
 
       {/* Hauteur réservée : le message d'erreur ne décale pas le pavé en apparaissant. */}
-      <Text numberOfLines={2} style={{ minHeight: 20, color: colors.danger, textAlign: 'center', fontFamily: fonts.medium }}>{error ?? ''}</Text>
+      <Text numberOfLines={2} style={{ minHeight: 20, color: colors.danger, textAlign: 'center', fontFamily: fonts.medium }}>{error ?? (tooSimple ? t('newPinWeak') : '')}</Text>
 
       {/* Pavé ancré en bas, dans l'espace restant mesuré. */}
       <View
