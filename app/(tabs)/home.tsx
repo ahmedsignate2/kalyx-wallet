@@ -613,7 +613,7 @@ export default function Home() {
               mode === 'light' ? elevation.light : null,
             ]}
           >
-            <Text variant="bodyStrong" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
+            <Text variant="bodyStrong" tabular numberOfLines={1}>{pf.error && pf.holdings.length === 0 ? '—' : `${formatFiat(pf.total)} ${sym}`}</Text>
             {pf.pnl24hPct != null ? (
               <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
                 {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
@@ -703,6 +703,9 @@ export default function Home() {
               <Skeleton width={220} height={52} />
             ) : hidden ? (
               <Text variant="balance">••••••</Text>
+            ) : pf.error && pf.holdings.length === 0 ? (
+              // Aucun réseau n'a répondu : valeur inconnue, jamais un 0 inventé (le message d'échec s'affiche dessous).
+              <Text variant="balance">—</Text>
             ) : scrub ? (
               <Text variant="balance" tabular numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.35}>{formatFiat(shownValue)} <Text variant="title2" tone="secondary">{sym}</Text></Text>
             ) : (
