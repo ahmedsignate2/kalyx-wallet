@@ -9,6 +9,7 @@ import { reducedMotion } from './motion';
 import { View, Text, Pressable, Animated } from 'react-native';
 import { KalyxSpinner } from './motion';
 import { KalyxLogo } from '../KalyxLogo';
+import { ActionTile } from '../nova';
 import { Icon, type IconName } from '../icon';
 import { WEB_FONTS, useWebPalette } from './webTheme';
 import { fontSize, radii } from '../tokens';
@@ -53,29 +54,17 @@ export function NetworkPill({ avatar, name, onPress }: { avatar: React.ReactNode
 
 /* --------------------------------------------------------- Rangée d'actions */
 
-function ActionButton({ icon, label, onPress, primary }: { icon: IconName; label: string; onPress: () => void; primary?: boolean }) {
-  const P = useWebPalette();
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flex: 1, alignItems: 'center', gap: 6, paddingVertical: 14, borderRadius: radii.md,
-        backgroundColor: primary ? P.accent : P.surface, borderWidth: 1, borderColor: primary ? P.accent : P.border,
-        opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }],
-      })}
-    >
-      <Icon name={icon} size={20} color={primary ? P.onAccent : P.text2} />
-      <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: primary ? '600' : '500', fontSize: fontSize.xs, color: primary ? P.onAccent : P.text2 }}>{label}</Text>
-    </Pressable>
-  );
-}
-
+/**
+ * Les TUILES D'ACTION de l'app, à leurs teintes (envoyer terracotta, recevoir
+ * vert, échanger lavande) : le tableau de bord et la mini-app Telegram
+ * reconnaissent les gestes au premier regard, comme sur le téléphone.
+ */
 export function ActionRow({ onReceive, onSend, onSwap, labels }: { onReceive: () => void; onSend: () => void; onSwap: () => void; labels: { receive: string; send: string; swap: string } }) {
   return (
     <View style={{ flexDirection: 'row', gap: 10 }}>
-      <ActionButton icon="receive" label={labels.receive} onPress={onReceive} />
-      <ActionButton icon="send" label={labels.send} onPress={onSend} primary />
-      <ActionButton icon="exchange" label={labels.swap} onPress={onSwap} />
+      <ActionTile index={0} tint="send" icon="send" label={labels.send} onPress={onSend} />
+      <ActionTile index={1} tint="receive" icon="receive" label={labels.receive} onPress={onReceive} />
+      <ActionTile index={2} tint="swap" icon="exchange" label={labels.swap} onPress={onSwap} />
     </View>
   );
 }

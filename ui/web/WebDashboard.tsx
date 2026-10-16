@@ -4,6 +4,8 @@
  * WalletConnect (QR), on lit les adresses publiques, et on FORWARDE toute action
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
+import { Landscape } from '../Landscape';
+import { skyPhaseAt } from '../tokens';
 import { FallbackMark } from '../kit/FallbackMark';
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl, Image, TextInput, useWindowDimensions, Animated, Easing, Linking } from 'react-native';
@@ -269,10 +271,20 @@ function ConnectView() {
   const uri = useWebConnect((s) => s.uri);
   const error = useWebConnect((s) => s.error);
   const connect = useWebConnect((s) => s.connect);
+  const [screenW, setScreenW] = useState(0);
 
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}>
-      <View style={{ alignItems: 'center', gap: spacing(2), maxWidth: 420 }}>
+    <View
+      onLayout={(e) => setScreenW(e.nativeEvent.layout.width)}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing(3) }}
+    >
+      {/* Le paysage de l'app en haut de l'écran : on reconnaît Kalyx dès l'ouverture (navigateur ou Telegram). */}
+      {screenW > 0 ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 380 }}>
+          <Landscape width={screenW} height={380} phase={skyPhaseAt(new Date().getHours())} sunAt={0.42} />
+        </View>
+      ) : null}
+      <View style={{ alignItems: 'center', gap: spacing(2), maxWidth: 440, width: '100%', backgroundColor: colors.card, borderRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing(3), marginTop: 120 }}>
         <KalyxLogo size={72} />
         <Text style={{ color: colors.text, fontSize: fontSize.h2, fontFamily: fonts.extrabold, textAlign: 'center' }}>
           {tw('connectTitle')}
@@ -478,6 +490,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   const pnlPct = usePortfolioStore((s) => s.pnl24hPct);
   const loading = usePortfolioStore((s) => s.loading);
   const pfKey = usePortfolioStore((s) => s.key);
+  const pfError = usePortfolioStore((s) => s.error);
   const firstRev = useRef(rev);
   useEffect(() => {
     if (!acct) return;
@@ -488,6 +501,8 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
   const expectedKey = acct ? snapshotKey(acct, fiat) : null;
   const data = useMemo<NetWorth | null>(() => {
     if (!acct || pfKey !== expectedKey) return null;
+    // Rien de lu et la lecture a échoué : valeur INCONNUE, pas « 0,00 ».
+    if (holdings.length === 0 && pfError) return null;
     const byChain = new Map<string, ChainWorth>();
     for (const h of holdings) {
       const chain = chainOf(h.chainId);
@@ -502,7 +517,7 @@ function useNetWorth(): { data: NetWorth | null; loading: boolean } {
       byChain.set(chain.id, cur);
     }
     return { total, change24h: pnlPct ?? 0, slices: [...byChain.values()].sort((x, y) => y.value - x.value) };
-  }, [acct, holdings, total, pnlPct, pfKey, expectedKey, accounts]);
+  }, [acct, holdings, total, pnlPct, pfKey, expectedKey, accounts, pfError]);
   return { data, loading: loading && !data };
 }
 
@@ -605,12 +620,12 @@ function Dashboard() {
   const homeFlow = (
     <>
       {narrow ? (
-        <MobileHero data={heroData} chain={chain} address={address} large={false} />
+        <SkyCard><MobileHero data={heroData} chain={chain} address={address} large={false} onSky /></SkyCard>
       ) : (
         /* Ordinateur : la répartition par réseau occupe la place à droite du solde (vide jusqu'ici). */
         <View style={{ flexDirection: 'row', gap: 32, alignItems: 'flex-start' }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <MobileHero data={heroData} chain={chain} address={address} large />
+            <SkyCard><MobileHero data={heroData} chain={chain} address={address} large onSky /></SkyCard>
           </View>
           {width >= 1180 ? <AllocationPanel worth={worth} /> : null}
         </View>
@@ -888,7 +903,7 @@ function usePeriods(): { k: string; l: string }[] {
 /** Données + calculs du bloc « héros », partagés par les 3 présentations
  *  (carte solde, ligne de widgets, carte tendance) — un seul jeu d'appels
  *  réseau, peu importe l'ordre dans lequel on les affiche à l'écran. */
-function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null }; chain: ChainConfig; address: string }) {
+function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null; loading?: boolean }; chain: ChainConfig; address: string }) {
   const fiat = useSettings((s) => s.fiat);
   const rev = useWebConnect((s) => s.rev);
   const sym = fiatSymbol(fiat);
@@ -927,7 +942,9 @@ function useHeroData({ worth, chain, address }: { worth: { data: NetWorth | null
   const sliceOk = !!slice && slice.price > 0;
   const nativeChange: number | null = sliceOk ? slice!.change24h ?? 0 : days === '1' && values.length > 1 ? pct : null;
   const price = sliceOk ? slice!.price : values.length ? values[values.length - 1] : 0;
-  return { sym, days, setDays, bal, points, loading, values, pct, up, total, today, todayUp, nativeChange, price };
+  /** Chargement fini sans valeur : on affiche « — », jamais un 0 inventé ni un squelette sans fin. */
+  const unknown = worth.data == null && worth.loading === false;
+  return { sym, days, setDays, bal, points, loading, values, pct, up, total, today, todayUp, nativeChange, price, unknown };
 }
 type HeroData = ReturnType<typeof useHeroData>;
 
@@ -961,8 +978,12 @@ function formatFiatParts(amount: number, fiat: string): { number: string; symbol
  *  44 px (Space Grotesk) + symbole 22 px grisé, variation absolue + % du jour,
  *  pilule d'adresse mono, ligne de confiance. Œil masquer/révéler à droite
  *  du libellé (biométrie Telegram quand disponible — affichage seulement). */
-function MobileHero({ data, chain, address, large }: { data: HeroData; chain: ChainConfig; address: string; large?: boolean }) {
-  const P = useWebPalette();
+function MobileHero({ data, chain, address, large, onSky }: { data: HeroData; chain: ChainConfig; address: string; large?: boolean; /** Posé sur le paysage : textes clairs, comme l'accueil de l'app. */ onSky?: boolean }) {
+  const P0 = useWebPalette();
+  // Sur le ciel, les couleurs claires de l'accueil de l'app ; sinon celles du thème.
+  const P = onSky
+    ? { ...P0, text: '#FFF8EE', muted: 'rgba(255,248,238,0.82)', faint: 'rgba(255,248,238,0.62)', surface: 'rgba(255,255,255,0.14)', border: 'rgba(255,255,255,0.24)', accent: '#FFD9A0', up: '#8BF0BE', down: '#FFB4A8' }
+    : P0;
   const t = useT();
   const tw = useWebT();
   const fiat = useSettings((s) => s.fiat);
@@ -1001,7 +1022,7 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
   const changeColor = todayUp ? P.up : P.down;
   return (
     <View style={{ position: 'relative', paddingTop: 6 }}>
-      <View pointerEvents="none" style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
+      {onSky ? null : <View pointerEvents="none" style={{ position: 'absolute', width: 220, height: 220, left: '50%', top: -50, marginLeft: -110 }}>
         <Svg width={220} height={220} viewBox="0 0 220 220" pointerEvents="none">
           <Defs>
             <RadialGradient id="mobileHeroGlow" cx="50%" cy="50%" r="50%">
@@ -1012,7 +1033,7 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
           </Defs>
           <Rect x="0" y="0" width="220" height="220" fill="url(#mobileHeroGlow)" />
         </Svg>
-      </View>
+      </View>}
       <View style={{ gap: 8, alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.muted }}>{t('totalValue')}</Text>
@@ -1020,7 +1041,9 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
             <Icon name={isHidden ? 'eyeOff' : tg.available ? (tg.biometricType === 'face' ? 'security' : 'lock') : 'eye'} size={14} color={P.faint} />
           </Pressable>
         </View>
-        {parts == null ? (
+        {parts == null && data.unknown ? (
+          <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '700', fontSize: large ? 56 : 44, lineHeight: large ? 62 : 50, color: P.text }}>—</Text>
+        ) : parts == null ? (
           <Skeleton w={180} h={48} />
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
@@ -1053,6 +1076,29 @@ function MobileHero({ data, chain, address, large }: { data: HeroData; chain: Ch
           </View>
         </View>
       </View>
+    </View>
+  );
+}
+
+/**
+ * LE CIEL DE L'APP derrière le solde : même paysage (ciel à l'heure du
+ * visiteur, soleil, trois plans de dunes) que l'accueil du téléphone. Le
+ * tableau de bord et la mini-app Telegram ne ressemblent plus à un autre produit.
+ */
+function SkyCard({ children }: { children: React.ReactNode }) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const phase = skyPhaseAt(new Date().getHours());
+  return (
+    <View
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      style={{ borderRadius: 28, overflow: 'hidden', paddingHorizontal: 22, paddingTop: 22, paddingBottom: 26 }}
+    >
+      {box.w > 0 ? (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
+          <Landscape width={box.w} height={box.h + 30} phase={phase} sunAt={0.32} veil balanceGlow={0.18} />
+        </View>
+      ) : null}
+      {children}
     </View>
   );
 }

@@ -539,7 +539,12 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       AsyncStorage.setItem(key, serialize(snap)).catch(() => {}); // le cliché reste juste pour SON compte
       if (!latest()) return; // un autre compte a été demandé depuis : ce résultat n'est plus affiché
       usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length, alchemyKey: ALCHEMY_KEY.length });
-      set({ ...snap, key, fromCache: false, loading: false });
+      /*
+       * RIEN LU ET DES RÉSEAUX MUETS : le total n'est pas « 0 », il est inconnu.
+       * L'accueil affichait 0,00 alors qu'aucun réseau n'avait répondu.
+       */
+      const unknown = holdings.length === 0 && failed.size > 0;
+      set({ ...snap, key, fromCache: false, loading: false, error: unknown ? 'Réseau indisponible' : null });
       if (didReceive(before, holdings)) aura.pulse('receive');
       // Résumé pour l'assistant IA (ancien store, conservé pour compatibilité).
       useLegacyPortfolio.getState().setPortfolio(
