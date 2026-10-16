@@ -1,47 +1,28 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { Nav } from '../../components/landing/nav';
-import { ChapterRail } from '../../components/landing/chapter';
-import { Opening } from '../../components/landing/opening';
-import { Hero } from '../../components/landing/hero';
-import { Networks } from '../../components/landing/networks';
-import { HowItWorks } from '../../components/landing/how-it-works';
-import { NeverLose } from '../../components/landing/never-lose';
-import { NeverStolen } from '../../components/landing/never-stolen';
-import { Ai } from '../../components/landing/ai';
-import { Fees } from '../../components/landing/fees';
-import { Vision } from '../../components/landing/vision';
-import { Download } from '../../components/landing/download';
 import { Footer } from '../../components/landing/footer';
-import { Prism } from '../../components/landing/prism';
-import { Cursor, Grain, Intro, Marquee } from '../../components/landing/experience';
+import { SunAi, SunDownload, SunFees, SunHero, SunHow, SunLose, SunNetworks, SunStolen, SunVision } from '../../components/sun/sections';
 import { getDictionary, isLocale } from '../../i18n';
 
-/** Le site est un film en chapitres : ouverture, prologue, six chapitres, épilogue — dans la langue de la route. */
+/** L'accueil du site, à l'image de l'app : le ciel et ses dunes, puis le crème et ses cartes. */
 export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   const t = getDictionary(lang);
   return (
-    <div className="min-h-screen">
-      <Intro />
-      <Prism title={t.opening.title} />
-      <Grain />
-      <Cursor />
+    <div className="min-h-screen bg-ink">
       <Nav t={t} lang={lang} />
-      <ChapterRail t={t} />
       <main>
-        <Opening t={t} />
-        <Hero t={t} />
-        <Networks t={t} />
-        <Marquee items={t.hero.chips} label={t.hero.keyPoints} />
-        <HowItWorks t={t} />
-        <NeverLose t={t} />
-        <NeverStolen t={t} />
-        <Ai t={t} />
-        <Fees t={t} />
-        <Vision t={t} />
-        <Download t={t} />
+        <SunHero t={t} />
+        <SunNetworks t={t} />
+        <SunHow t={t} />
+        <SunLose t={t} />
+        <SunStolen t={t} />
+        <SunAi t={t} />
+        <SunFees t={t} />
+        <SunVision t={t} />
+        <SunDownload t={t} />
       </main>
       <Footer t={t} lang={lang} />
     </div>

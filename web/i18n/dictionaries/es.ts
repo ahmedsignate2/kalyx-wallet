@@ -217,7 +217,7 @@ const es: Dict = {
     p1a: 'Antes de cada firma, las comisiones de red se muestran',
     p1em: 'en tu moneda',
     p1b: ', con los niveles posibles. Si te falta gas, Kalyx te dice cuánto, también en tu moneda, no en gwei.',
-    p2: 'Sin compras con tarjeta ni ventas en fiat dentro de la app: son servicios regulados con verificación de identidad. El día que los ofrezcamos, será con un socio autorizado, en un módulo separado, nunca mezclado con tus claves.',
+    p2: 'La compra con tarjeta pasa por MoonPay, un socio autorizado: un módulo separado que hace él mismo la verificación de identidad y nunca ve tus claves. Kalyx no añade ninguna comisión y las cripto llegan directamente a tu dirección. Sin ventas en fiat dentro de la app.',
   },
   vision: {
     kicker: 'Lo que queremos',
@@ -229,7 +229,7 @@ const es: Dict = {
       'Cada firma se explica con palabras claras antes del toque, porque ahí es donde vacían a la gente.',
       'La velocidad se siente: el inicio se abre desde la caché, antes de que la red responda.',
       'Si un elemento no sirve ni a la comprensión ni a la confianza, lo quitamos.',
-      'El fiat, las tarjetas, quizá algún día: aislados, regulados, nunca mezclados con el núcleo.',
+      'Las tarjetas, con un socio autorizado: aisladas, reguladas, nunca mezcladas con el núcleo.',
       'Una sola persona, código probado, quince idiomas y las ganas de hacerlo bien.',
     ],
     stats: ['redes', 'idiomas', 'suites de pruebas', 'servidor que ve una clave'],

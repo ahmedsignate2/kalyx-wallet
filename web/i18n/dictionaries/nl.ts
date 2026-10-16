@@ -217,7 +217,7 @@ const nl: Dict = {
     p1a: 'Vóór elke handtekening worden de netwerkkosten getoond',
     p1em: 'in je valuta',
     p1b: ', met de mogelijke niveaus. Kom je gas tekort, dan zegt Kalyx hoeveel — ook in je valuta, niet in gwei.',
-    p2: 'Geen kaartaankopen, geen fiatverkoop in de app: dat zijn gereguleerde diensten met identiteitscontrole. Als we die ooit aanbieden, is dat met een vergunde partner, in een aparte module, nooit vermengd met je sleutels.',
+    p2: 'Kaartaankopen lopen via MoonPay, een vergunde partner: een aparte module die zelf de identiteitscontrole doet en uw sleutels nooit ziet. Kalyx rekent geen commissie, de crypto komt rechtstreeks op uw adres. Geen fiatverkoop in de app.',
   },
   vision: {
     kicker: 'Wat wij willen',
@@ -229,7 +229,7 @@ const nl: Dict = {
       'Elke handtekening wordt in duidelijke woorden uitgelegd vóór de tik — want daar worden mensen leeggehaald.',
       'Snelheid die je voelt: het startscherm opent uit de cache, vóór het netwerk antwoordt.',
       'Dient een element noch begrip noch vertrouwen, dan halen we het weg.',
-      'Fiat, kaarten, misschien ooit — geïsoleerd, gereguleerd, nooit vermengd met de kern.',
+      'Kaarten, via een vergunde partner — geïsoleerd, gereguleerd, nooit vermengd met de kern.',
       'Eén persoon, geteste code, vijftien talen en de wil om het goed te doen.',
     ],
     stats: ['netwerken', 'talen', 'testsuites', 'server die een sleutel ziet'],

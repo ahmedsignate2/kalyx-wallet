@@ -217,7 +217,7 @@ const tr: Dict = {
     p1a: 'Her imzadan önce ağ ücretleri',
     p1em: 'kendi para biriminizde',
     p1b: ' gösterilir, olası kademelerle birlikte. Gas eksikse Kalyx ne kadar olduğunu söyler — yine para biriminizde, gwei ile değil.',
-    p2: 'Uygulamada kartla alım ya da itibari paraya satış yok: bunlar kimlik doğrulamalı, düzenlemeye tabi hizmetlerdir. Bir gün sunarsak, lisanslı bir ortakla, ayrı bir modülde, anahtarlarınızla asla karışmadan olacaktır.',
+    p2: 'Kartla alım, lisanslı bir ortak olan MoonPay üzerinden yapılır: kimlik doğrulamayı kendisi yapan ve anahtarlarınızı asla görmeyen ayrı bir modül. Kalyx komisyon eklemez, kripto doğrudan adresinize gelir. Uygulamada itibari paraya satış yok.',
   },
   vision: {
     kicker: 'Ne istiyoruz',
@@ -229,7 +229,7 @@ const tr: Dict = {
       'Her imza, dokunmadan önce açık sözlerle anlatılır — çünkü insanlar tam orada soyulur.',
       'Hissedilen hız: ana ekran, ağ yanıt vermeden önce önbellekten açılır.',
       'Bir öğe ne anlamaya ne de güvene hizmet ediyorsa, kaldırırız.',
-      'İtibari para, kartlar, belki bir gün — yalıtılmış, düzenlenmiş, çekirdekle asla karışmadan.',
+      'Kartlar, lisanslı bir ortak aracılığıyla — yalıtılmış, düzenlenmiş, çekirdekle asla karışmadan.',
       'Tek bir kişi, test edilmiş kod, on beş dil ve doğru yapma isteği.',
     ],
     stats: ['ağ', 'dil', 'test paketi', 'anahtar gören sunucu'],

@@ -220,7 +220,7 @@ const fr = {
     p1a: 'Avant chaque signature, les frais réseau sont affichés',
     p1em: 'en euros',
     p1b: ', avec les paliers possibles. S’il vous manque du gas, Kalyx vous dit combien — en euros aussi, pas en gwei.',
-    p2: 'Aucun achat par carte, aucune vente en fiat dans l’app : ce sont des services régulés, avec vérification d’identité. Le jour où nous en proposerons, ce sera avec un partenaire agréé, dans un module séparé, jamais mêlé à vos clés.',
+    p2: 'Achat par carte avec MoonPay, un partenaire agréé : un module séparé qui fait lui-même la vérification d’identité et ne voit jamais vos clés. Kalyx n’ajoute aucune commission, les crypto arrivent directement sur votre adresse. Pas de vente en fiat dans l’app.',
   },
   vision: {
     kicker: 'Ce que nous voulons',
@@ -232,7 +232,7 @@ const fr = {
       'Chaque signature est expliquée en français avant le tap — parce que c’est là que les gens se font vider.',
       'La vitesse se ressent : l’accueil s’ouvre depuis le cache, avant que le réseau réponde.',
       'Si un élément ne sert ni la compréhension ni la confiance, on le retire.',
-      'Le fiat, les cartes, un jour peut-être — isolés, régulés, jamais mêlés au cœur.',
+      'Les cartes, via un partenaire agréé — isolées, régulées, jamais mêlées au cœur.',
       'Une seule personne, un code testé, quinze langues, et l’envie de bien faire.',
     ],
     stats: ['réseaux', 'langues', 'suites de tests', 'serveur qui voit une clé'],

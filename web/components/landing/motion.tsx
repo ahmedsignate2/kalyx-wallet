@@ -30,7 +30,7 @@ export function Reveal({
   children: React.ReactNode;
   delay?: number;
   className?: string;
-  as?: 'div' | 'p' | 'li' | 'h2' | 'article';
+  as?: 'div' | 'p' | 'li' | 'h1' | 'h2' | 'article';
   style?: React.CSSProperties;
 }) {
   const reduce = useReducedMotionSafe();
