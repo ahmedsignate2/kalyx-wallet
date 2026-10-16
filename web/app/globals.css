@@ -225,3 +225,35 @@ body {
 }
 .shake-once { animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
 @media (prefers-reduced-motion: reduce) { .shake-once { animation: none; } }
+
+/* ---------------------------------------------------------------- */
+/* Keynote : textes en dégradé, halo du copilote, galerie sans barre. */
+.grad-warm {
+  background: linear-gradient(100deg, #F2A274 0%, #E6C682 45%, #FFE1B8 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.grad-earth {
+  background: linear-gradient(100deg, #C4552A 0%, #B8863A 55%, #9A6C12 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.grad-ai {
+  background: linear-gradient(90deg, #F6A982, #E6C682, #B9ABFF, #9DBEF5, #F6A982);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: grad-flow 8s linear infinite;
+}
+.ai-glow {
+  background: conic-gradient(from 0deg, #F6A982, #E6C682, #72D9AC, #9DBEF5, #B9ABFF, #F6A982);
+  animation: spin-slow 24s linear infinite;
+}
+.ai-border {
+  background: linear-gradient(135deg, rgba(246,169,130,0.7), rgba(185,171,255,0.55), rgba(157,190,245,0.5), rgba(230,198,130,0.7));
+  background-size: 300% 300%;
+  animation: grad-flow 10s ease-in-out infinite;
+}
+@keyframes grad-flow { from { background-position: 0% 50%; } to { background-position: 300% 50%; } }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .grad-ai, .ai-glow, .ai-border { animation: none; }
+}
