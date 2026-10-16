@@ -599,8 +599,14 @@ function BuyScreenInner() {
           domStorageEnabled
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
-          mediaCapturePermissionGrantType="grant"
-          allowFileAccess
+          /*
+           * Caméra et micro : accordés d'office au SEUL site du widget (vérification
+           * d'identité MoonPay). Toute autre page chargée ici — banque, PayPal,
+           * redirection — doit les DEMANDER : avant, n'importe laquelle les recevait.
+           */
+          mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
+          // Pas d'accès aux fichiers locaux (file://) : l'envoi de documents passe par le sélecteur du système.
+          allowFileAccess={false}
           // Apple Pay dans la vue web (iOS). Aucun script n'est injecté dans cette page.
           enableApplePay
           // Fenêtres surgissantes (PayPal, banques) : ouvertes sur place, où le filtre décide.

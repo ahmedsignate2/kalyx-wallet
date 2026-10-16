@@ -135,7 +135,8 @@ export default function Settings() {
           onBlur={() => setProfileName(name.trim())}
           onSubmitEditing={() => setProfileName(name.trim())}
           placeholder={t('yourName')}
-          placeholderTextColor={colors.textTertiary}
+          // Lisible sur le paysage (le gris tertiaire y disparaissait).
+          placeholderTextColor={colors.textSecondary}
           accessibilityLabel={t('profile')}
           style={{ color: colors.text, fontSize: fontSize.h3, fontFamily: fonts.bold, textAlign: 'center', minWidth: 200, paddingVertical: 4 }}
         />

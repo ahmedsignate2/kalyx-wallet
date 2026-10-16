@@ -351,7 +351,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       await withTonSigner(chain.id, unlock, async (signer) => {
         const publicKey = signer.publicKey;
         const secret = signer.secretKey.subarray(0, 32);
-        const pub = Buffer.from(publicKey).toString('hex');
+        const pub = hex.encode(publicKey); // pas de `Buffer` : il n'est garanti que par le polyfill
         if (pub !== stored.tonPublicKey!.toLowerCase()) throw new Error('tcKeyMismatch');
         items.push(tonAddrReply({ address, testnet: !!chain.testnet, publicKeyHex: pub, stateInitBoc: tonWalletStateInitBoc(publicKey, stored.tonVersion ?? 'v5r1', !!chain.testnet) }));
         if (p.proofPayload !== undefined) {

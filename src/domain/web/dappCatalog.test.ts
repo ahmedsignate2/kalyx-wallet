@@ -13,19 +13,20 @@ describe('Catalogue des dApps', () => {
     expect(new Set(DAPP_CATALOG.map((d) => d.host)).size).toBe(DAPP_CATALOG.length);
     expect(DAPP_CATEGORIES).toEqual(['Swap', 'Lending', 'Staking', 'NFT', 'Bridges']);
   });
-  it('Solana seul : via WalletConnect, jamais de connexion directe promise', () => {
+  it('Solana : connexion directe (fournisseur Solana injecté, plus besoin de WalletConnect)', () => {
     for (const name of ['Jupiter', 'Jito', 'Marinade']) {
       const d = DAPP_CATALOG.find((x) => x.name === name)!;
-      expect(dappCompat(d)).toEqual(['walletconnect']);
-      expect(connectsDirectly(d)).toBe(false);
+      expect(dappCompat(d)).toEqual(['solana']);
+      expect(connectsDirectly(d)).toBe(true);
     }
+    expect(dappCompat({ families: [] })).toEqual(['walletconnect']);
   });
   it('EVM et TON : connexion directe (fournisseurs injectés)', () => {
     expect(dappCompat(catalogEntry('app.uniswap.org')!)).toEqual(['evm']);
     expect(dappCompat(catalogEntry('app.ston.fi')!)).toEqual(['ton']);
     expect(dappCompat(catalogEntry('app.tonstakers.com')!)).toEqual(['ton']);
-    // Multi-chaînes : la partie EVM se connecte, la partie Solana non.
-    expect(dappCompat(catalogEntry('magiceden.io')!)).toEqual(['evm']);
+    // Multi-chaînes : les deux parties se connectent.
+    expect(dappCompat(catalogEntry('magiceden.io')!)).toEqual(['solana', 'evm']);
   });
   it('aucune icône distante (pas de requête tierce)', () => {
     expect(JSON.stringify(DAPP_CATALOG)).not.toMatch(/google|favicon|s2\//i);

@@ -20,7 +20,7 @@ import type { PhishingVerdict } from '../security/goplus';
 /** Écosystèmes pour lesquels la dApp est faite. */
 export type DappChainFamily = 'evm' | 'solana' | 'ton';
 /** Comment Kalyx peut s'y connecter. */
-export type DappCompat = 'evm' | 'ton' | 'walletconnect';
+export type DappCompat = 'evm' | 'solana' | 'ton' | 'walletconnect';
 
 export interface DappIcon {
   /** 1 à 2 caractères. */
@@ -39,8 +39,8 @@ export interface CatalogDapp {
   icon: DappIcon;
 }
 
-/** Fournisseurs injectés par le navigateur Kalyx. */
-const INJECTED: readonly DappCompat[] = ['evm', 'ton'];
+/** Fournisseurs injectés par le navigateur Kalyx (EVM, Solana — Wallet Standard et window.solana —, TON Connect). */
+const INJECTED: readonly DappCompat[] = ['evm', 'solana', 'ton'];
 
 export const DAPP_CATALOG: readonly CatalogDapp[] = [
   // Swap
