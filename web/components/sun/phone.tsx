@@ -31,14 +31,26 @@ const TILES = [
  * L'accueil de l'app, dessiné en HTML — sans aucun chiffre inventé : les soldes
  * sont masqués (••••), exactement comme le mode « Masquer les soldes » de l'app.
  */
+/** Le boîtier : cadre, îlot, barre d'accueil. L'écran est ce qu'on y pose. */
+export function PhoneFrame({ children, className = '', screen = 'bg-ink' }: { children: React.ReactNode; className?: string; screen?: string }) {
+  return (
+    <div className={`relative w-[290px] shrink-0 rounded-[3rem] bg-[#16130F] p-[10px] shadow-phone ring-1 ring-white/10 sm:w-[320px] ${className}`}>
+      <div className={`relative overflow-hidden rounded-[2.4rem] ${screen}`}>
+        {children}
+        <span className="pointer-events-none absolute left-1/2 top-2.5 z-10 h-6 w-24 -translate-x-1/2 rounded-full bg-black" />
+        <span className="pointer-events-none absolute bottom-1.5 left-1/2 z-10 h-1 w-28 -translate-x-1/2 rounded-full bg-current opacity-25" />
+      </div>
+    </div>
+  );
+}
+
 export function Phone({ className = '' }: { className?: string }) {
   return (
-    <div className={`relative w-[290px] shrink-0 rounded-[3rem] bg-[#16130F] p-[10px] shadow-phone ring-1 ring-black/10 sm:w-[320px] ${className}`}>
-      <div className="relative overflow-hidden rounded-[2.4rem] bg-ink">
+    <PhoneFrame className={className}>
+      <div className="relative text-paper">
         {/* En-tête paysage, solde masqué. */}
         <div className="relative h-[300px] sm:h-[330px]">
           <Landscape id="phone" phase="dusk" sunAt={0.32} veil />
-          <div className="absolute left-1/2 top-2.5 h-6 w-24 -translate-x-1/2 rounded-full bg-black" />
           <div className="relative flex items-center justify-between px-5 pt-12 text-white">
             <span className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 backdrop-blur">
@@ -75,8 +87,7 @@ export function Phone({ className = '' }: { className?: string }) {
             </li>
           ))}
         </ul>
-        <span className="absolute bottom-1.5 left-1/2 h-1 w-28 -translate-x-1/2 rounded-full bg-paper/25" />
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
