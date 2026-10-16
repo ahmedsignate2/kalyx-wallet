@@ -93,3 +93,18 @@ export function webLocale(): string {
     return 'en';
   }
 }
+
+/**
+ * Montant en devise, dans la langue de l'interface (« 1 234,56 € » en français,
+ * « €1,234.56 » en anglais). Un seul format pour tout le tableau de bord : le
+ * solde, les tokens, l'activité et les parcours ne se contredisent plus.
+ */
+export function formatMoney(amount: number, fiat: string): string {
+  const n = Number.isFinite(amount) ? amount : 0;
+  try {
+    if (n > 0 && n < 0.01) return `<${new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2 }).format(0.01)}`;
+    return new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  } catch {
+    return `${n.toFixed(2)} ${fiat.toUpperCase()}`;
+  }
+}

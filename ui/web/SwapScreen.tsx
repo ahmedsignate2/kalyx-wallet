@@ -18,6 +18,7 @@ import { SuccessModal } from '../SuccessModal';
 import { TokenPicker } from '../TokenPicker';
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
+import { formatMoney } from './webTheme';
 import { space, SCREEN_MARGIN, radius } from '../tokens';
 import { useT } from '../../lib/settingsStore';
 import { useTokenStore, type Tok } from '../../lib/tokenStore';
@@ -32,7 +33,6 @@ import {
   parseAmount,
   formatTokenAmount,
   formatInputAmount,
-  formatFiat,
   isWalletError,
   NATIVE_TOKEN,
   estimateGasReserve,
@@ -430,7 +430,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
             value={quote ? formatTokenAmount(quote.toAmount, quote.toToken.decimals) : ''}
             muted={!quote}
             onPick={() => setPickerState({ visible: true, side: 'to' })}
-            right={quote && quote.toAmountUsd > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(quote.toAmountUsd)} $</Text> : null}
+            right={quote && quote.toAmountUsd > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatMoney(quote.toAmountUsd, 'usd')}</Text> : null}
           />
 
           {quote ? (
@@ -475,7 +475,7 @@ export function SwapScreen({ chain: initialChain, onClose }: { chain: ChainConfi
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('minReceived')}</Text><Text variant="caption" tabular>{formatTokenAmount(quote.toAmountMin, quote.toToken.decimals)} {toTok.symbol}</Text></View>
               <Divider />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatFiat(quote.gasCostUsd)} $)` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('networkFee')}</Text><Text variant="caption" tabular>{quote.gasCostNative > 0n && quote.gasToken ? `≈ ${formatTokenAmount(quote.gasCostNative, quote.gasToken.decimals)} ${quote.gasToken.symbol}` : ''}{quote.gasCostUsd > 0 ? ` (≈ ${formatMoney(quote.gasCostUsd, 'usd')})` : quote.gasCostNative > 0n ? '' : '—'}</Text></View>
               <Divider />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: space[3] }}><Text variant="caption" tone="secondary">{t('kalyxFee')}</Text><Text variant="caption" tabular>{((quote.kalyxFeeApplied ?? 0) * 100).toFixed(1).replace('.', decimalSeparator())} %</Text></View>
             </Card>

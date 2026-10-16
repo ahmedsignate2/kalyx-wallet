@@ -28,6 +28,7 @@ import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space, SCREEN_MARGIN, radius, radii } from '../tokens';
 import { useSettings, useT, fiatSymbol } from '../../lib/settingsStore';
+import { formatMoney } from './webTheme';
 import { UserFacingError } from '../../lib/txError';
 import { webErrorText } from './webErrors';
 import { useRecentRecipients, type RecipientFamily } from '../../lib/recentRecipientsStore';
@@ -46,7 +47,6 @@ import {
   formatInputAmount,
   trimDecimalZeros,
   formatAmount,
-  formatFiat,
   getPrices,
   looksLikeEnsName,
   resolveEnsName,
@@ -73,6 +73,10 @@ import { useWebT } from './webI18n';
 import { KalyxSpinner } from './motion';
 import { addressForChain, chainOf, useWebPortfolioAccount } from './webAccounts';
 import { useShallow } from 'zustand/react/shallow';
+
+/** Montant en devise, au format de la langue de l'interface. */
+const money = (v: number) => formatMoney(v, useSettings.getState().fiat);
+
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
@@ -236,7 +240,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
   const overBalance = balance != null && amountRaw > available;
   const hasEnteredAmount = parseFloat(amount || '0') > 0;
   const notEnoughGas = hasEnteredAmount && nativeBal != null && nativeBal < feeRaw;
-  const approxVal = feeFiat > 0 ? `${formatFiat(feeFiat)} ${sym}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
+  const approxVal = feeFiat > 0 ? `${money(feeFiat)}` : `${formatAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`;
   const missingFeeText = t('aboutApprox').replace('{amount}', approxVal);
 
   const setMax = () => {
@@ -477,7 +481,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
                       logo={h.kind === 'native' ? chainIconUrl(h.chainId) : h.logo}
                       address={h.contract ?? h.chainId}
                       balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
-                      fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : chainOf(h.chainId)?.testnet ? t('testnetNoValue') : undefined}
+                      fiat={h.price > 0 ? `${money(h.fiat)}` : chainOf(h.chainId)?.testnet ? t('testnetNoValue') : undefined}
                       onPress={() => { setPicked(h); setAmount(''); setTo(''); setAddressError(null); setAmountError(null); setStep(1); }}
                     />
                     {i < list.length - 1 ? <Divider inset={68} /> : null}
@@ -579,7 +583,7 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
                 <Text variant="caption" tone="secondary" tabular>
-                  {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${formatFiat(fiatOfAmount)} ${sym}`) : ' '}
+                  {price > 0 ? (inFiat ? `≈ ${tokenAmountStr || '0'} ${symbol}` : `≈ ${money(fiatOfAmount)}`) : ' '}
                 </Text>
                 {price > 0 ? <Icon name="arrowsDownUp" size={14} color={colors.textSecondary} /> : null}
               </View>
@@ -636,11 +640,11 @@ export function SendFlow({ chain: initialChain, onClose, onReceive }: { chain: C
         <Card padded={false}>
           <ListRow left={<AddressGlyph address={recipient} size={40} />} title={destLabel ?? t('labelRecipient')} subtitle={groupAddress(recipient)} />
           <Divider inset={68} />
-          <ListRow title={t('txLabelAmount')} right={<View style={{ alignItems: 'flex-end' }}><Text variant="body" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>{price > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {formatFiat(fiatOfAmount)} {sym}</Text> : null}</View>} />
+          <ListRow title={t('txLabelAmount')} right={<View style={{ alignItems: 'flex-end' }}><Text variant="body" tabular>{formatTokenAmount(amountRaw, decimals)} {symbol}</Text>{price > 0 ? <Text variant="caption" tone="secondary" tabular>≈ {money(fiatOfAmount)}</Text> : null}</View>} />
           <Divider inset={16} />
           <ListRow title={t('labelNetwork')} right={<Text variant="body">{chain.name}</Text>} />
           <Divider inset={16} />
-          <ListRow title={t('labelNetworkFee')} subtitle={`${tw('feeEstimate')} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `environ ${formatFiat(feeFiat)} ${sym}` : '—'}</Text>} />
+          <ListRow title={t('labelNetworkFee')} subtitle={`${tw('feeEstimate')} · ${formatTokenAmount(feeRaw, chain.nativeDecimals)} ${chain.nativeSymbol}`} right={<Text variant="body" tabular>{nativePrice > 0 ? `≈ ${money(feeFiat)}` : '—'}</Text>} />
         </Card>
         {afterBalance != null ? (
           <Text variant="bodySecondary" tone="secondary">{fill(t('balanceUpdatePreview'), { symbol: symbol, before: formatTokenAmount(balance!, decimals), after: formatTokenAmount(afterBalance < 0n ? 0n : afterBalance, decimals) })}</Text>

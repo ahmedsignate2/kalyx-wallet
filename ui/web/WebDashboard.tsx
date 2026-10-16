@@ -20,7 +20,7 @@ import { useAsync } from './useAsync';
 import { FlowEmbedContext } from './flowEmbed';
 import { AgentPanel, AgentSetup, PROVIDER_LABELS } from './AgentPanel';
 import { MarketPanel } from './MarketPanel';
-import { WEB_FONTS, useWebFonts, useWebPalette, webLocale } from './webTheme';
+import { WEB_FONTS, useWebFonts, useWebPalette, webLocale, formatMoney } from './webTheme';
 import { useWebT, type WebKey } from './webI18n';
 import { useWebPlatform, useTelegramSetup, TelegramAppContext, useTelegramApp, useTelegramBackButton, useTelegramClosingConfirmation, useIdle, useTabHidden, tgHaptic } from './platform';
 import { CrossFade, useCountUp, Pop, KalyxSpinner, KalyxSuccessPulse, reducedMotion } from './motion';
@@ -68,16 +68,7 @@ function short(a: string) {
  *  de notification, app.config.ts, qui reste utilisé tel quel côté app). */
 const GOLD = '#C89B5C';
 
-/** Formate un montant en devise à la française pour l'euro (« 1,83 € », le
- *  symbole APRÈS avec une espace insécable) — Intl.NumberFormat gère aussi
- *  correctement les autres devises (symbole avant pour $, £…). */
-function formatFiatAmount(amount: number, fiat: string): string {
-  try {
-    return new Intl.NumberFormat(webLocale(), { style: 'currency', currency: fiat.toUpperCase(), minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
-  } catch {
-    return `${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fiat.toUpperCase()}`;
-  }
-}
+const formatFiatAmount = formatMoney;
 
 
 /** Icône de réseau avec repli AUTO sur cercle lettré : chainIconUrl() renvoie
@@ -619,20 +610,46 @@ function Dashboard() {
   // 3 actions → onglets Tokens / NFT / Activité), identique mobile et desktop.
   const homeFlow = (
     <>
-      {narrow ? (
-        <SkyCard><MobileHero data={heroData} chain={chain} address={address} large={false} onSky /></SkyCard>
-      ) : (
-        /* Ordinateur : la répartition par réseau occupe la place à droite du solde (vide jusqu'ici). */
-        <View style={{ flexDirection: 'row', gap: 32, alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <SkyCard><MobileHero data={heroData} chain={chain} address={address} large onSky /></SkyCard>
-          </View>
-          {width >= 1180 ? <AllocationPanel worth={worth} /> : null}
-        </View>
-      )}
+      <SkyCard><MobileHero data={heroData} chain={chain} address={address} large={false} onSky /></SkyCard>
       <MobileTrend data={heroData} chain={chain} />
       {actionRow}
       <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
+    </>
+  );
+  /*
+   * Ordinateur : un bandeau de ciel pleine largeur (solde à gauche, répartition
+   * et actions à droite), puis deux colonnes — les avoirs, et à côté le cours
+   * et le marché. Tout ce qui compte tient au-dessus de la ligne de flottaison.
+   */
+  const twoCols = width >= 1180;
+  const actions = { onSend: () => openSheet('send'), onReceive: () => openSheet('receive'), onSwap: () => openSheet('swap'), labels: { send: t('send'), receive: t('receive'), swap: t('swapAction') } };
+  const desktopHome = (
+    <>
+      <SkyCard wide>
+        <View style={{ flexDirection: width >= 1000 ? 'row' : 'column', gap: 28, alignItems: width >= 1000 ? 'flex-end' : 'stretch', justifyContent: 'space-between' }}>
+          <View style={{ flexShrink: 1, minWidth: 0 }}>
+            <MobileHero data={heroData} chain={chain} address={address} large onSky />
+          </View>
+          <View style={{ width: width >= 1000 ? 340 : '100%', gap: 22 }}>
+            <SkyAllocation worth={worth} />
+            <HeroActions {...actions} />
+          </View>
+        </View>
+      </SkyCard>
+      <View style={{ flexDirection: twoCols ? 'row' : 'column', gap: 24, alignItems: 'flex-start' }}>
+        <View style={{ flex: twoCols ? 1.65 : undefined, width: twoCols ? undefined : '100%', minWidth: 0 }}>
+          <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
+        </View>
+        <View style={{ flex: twoCols ? 1 : undefined, width: twoCols ? undefined : '100%', minWidth: 0, gap: 24 }}>
+          <Panel><MobileTrend data={heroData} chain={chain} /></Panel>
+          {twoCols ? (
+            <View style={{ gap: 14 }}>
+              <SectionTitle>{t('navMarket')}</SectionTitle>
+              <MarketPanel />
+            </View>
+          ) : null}
+        </View>
+      </View>
     </>
   );
   const settingsFlow = (
@@ -675,11 +692,9 @@ function Dashboard() {
   );
 
   /* ----------------------------------------------------------- Desktop */
-  // Barre latérale (rail d'icônes sous 1100 px) + colonne de contenu. Sur
-  // l'accueil, un rail Marché à droite dès 1320 px. Même système visuel que
-  // le mobile : pas de cartes empilées, hero sans carte, onglets soulignés.
+  // Barre latérale (rail d'icônes sous 1100 px) + colonne de contenu ; sur
+  // l'accueil, le marché vit dans la colonne de droite (voir desktopHome).
   const rail = width < 1100;
-  const showMarketRail = width >= 1320 && tab === 'home';
   // Réglages sur deux colonnes dès qu'il y a la place (connexion à gauche, préférences à droite).
   const twoColSettings = width >= 1280;
   const desktopContent = (
@@ -692,27 +707,21 @@ function Dashboard() {
           </View>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            <CrossFade id={tab} style={{ flexDirection: 'row', gap: 40, alignItems: 'flex-start' }}>
+            <CrossFade id={tab} style={{ flexDirection: 'row', gap: 40, alignItems: 'flex-start', justifyContent: 'center' }}>
               {/*
                 Largeurs d'ORDINATEUR : la colonne était bridée (760 / 680 / 960 px)
                 quelle que soit la fenêtre — un tiers de l'écran restait vide sur
                 un 1440 px, la moitié sur un 1920 px. Elle suit maintenant la
                 place disponible, avec un plafond de lisibilité.
               */}
-              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? (showMarketRail ? 1100 : 980) : 1240, gap: tab === 'home' ? 28 : 24 }}>
-                {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel wide={width >= 1000} /> : twoColSettings ? (
+              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? 1360 : 1240, gap: 24 }}>
+                {tab === 'home' ? desktopHome : tab === 'market' ? <MarketPanel wide={width >= 1000} /> : twoColSettings ? (
                   <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
                     <View style={{ flex: 1, minWidth: 0, gap: 24 }}><SecurityPanel /></View>
                     <View style={{ flex: 1.3, minWidth: 0, gap: 24 }}><SettingsPanel /></View>
                   </View>
                 ) : settingsFlow}
               </View>
-              {showMarketRail ? (
-                <View style={{ width: 380, gap: 14 }}>
-                  <SectionTitle>{t("navMarket")}</SectionTitle>
-                  <MarketPanel />
-                </View>
-              ) : null}
             </CrossFade>
           </ScrollView>
         )}
@@ -769,44 +778,71 @@ function Dashboard() {
 
 /* --------------------------------------------------------------------- Panels */
 
-/** Répartition de la valeur par réseau (ordinateur) : les 5 premiers, en part du total. */
-function AllocationPanel({ worth }: { worth: { data: NetWorth | null; loading: boolean } }) {
-  const t = useT();
-  const tw = useWebT();
+/** Surface de l'ordinateur : une carte calme, sans ombre lourde, qui regroupe un sujet. */
+function Panel({ children, style }: { children: React.ReactNode; style?: object }) {
   const P = useWebPalette();
-  const fiat = useSettings((s) => s.fiat);
-  const total = worth.data?.total ?? 0;
-  const slices = (worth.data?.slices ?? []).filter((x) => x.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
+  return <View style={[{ backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: 24, padding: 22, gap: 16 }, style]}>{children}</View>;
+}
+
+/** Les trois gestes, posés sur le ciel : boutons vitrés, icône dans sa teinte de l'app. */
+function HeroActions({ onSend, onReceive, onSwap, labels }: { onSend: () => void; onReceive: () => void; onSwap: () => void; labels: { send: string; receive: string; swap: string } }) {
+  const items: { key: string; icon: IconName; label: string; tint: string; onPress: () => void }[] = [
+    { key: 'send', icon: 'send', label: labels.send, tint: '#F6A982', onPress: onSend },
+    { key: 'receive', icon: 'receive', label: labels.receive, tint: '#72D9AC', onPress: onReceive },
+    { key: 'swap', icon: 'exchange', label: labels.swap, tint: '#B9ABFF', onPress: onSwap },
+  ];
   return (
-    <View style={{ width: 300, gap: 12, paddingTop: 6 }}>
-      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted, letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
-      {worth.loading && !worth.data ? (
-        <SkeletonRows count={3} flat />
-      ) : !slices.length || total <= 0 ? (
-        <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.muted }}>{tw('allocationEmpty')}</Text>
-      ) : (
-        slices.map((sl) => {
-          const pct = (sl.value / total) * 100;
-          return (
-            <View key={sl.chain.id} style={{ gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <ChainAvatar chain={sl.chain} size={18} />
-                <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.text }} numberOfLines={1}>{sl.chain.name}</Text>
-                <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted, fontVariant: ['tabular-nums'] }}>{formatPercent(pct, 1)}</Text>
-                <Text style={{ width: 96, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.sm, color: P.text, fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
-              </View>
-              <View style={{ height: 4, borderRadius: radii.full, backgroundColor: P.divider, overflow: 'hidden' }}>
-                <View style={{ width: `${Math.max(2, Math.min(100, pct))}%`, height: 4, borderRadius: radii.xs, backgroundColor: P.accent }} />
-              </View>
-            </View>
-          );
-        })
-      )}
+    <View style={{ flexDirection: 'row', gap: 10 }}>
+      {items.map((it) => (
+        <Pressable
+          key={it.key}
+          onPress={it.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={it.label}
+          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+            flex: 1, alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 20,
+            backgroundColor: hovered ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.14)',
+            borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+          })}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(11,11,16,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={it.icon} size={18} color={it.tint} weight="bold" />
+          </View>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.sm, color: '#FFF8EE' }}>{it.label}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
-
+/** Répartition par réseau, en clair sur le ciel : barre empilée + les trois premiers. */
+function SkyAllocation({ worth }: { worth: { data: NetWorth | null; loading: boolean } }) {
+  const t = useT();
+  const fiat = useSettings((s) => s.fiat);
+  const total = worth.data?.total ?? 0;
+  const slices = (worth.data?.slices ?? []).filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
+  if (!slices.length || total <= 0) return null;
+  const COLORS = ['#FFD9A0', '#F6A982', '#B9ABFF', '#9DBEF5', '#72D9AC'];
+  return (
+    <View style={{ gap: 10 }}>
+      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: 'rgba(255,248,238,0.7)', letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
+      <View style={{ flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', gap: 2 }}>
+        {slices.slice(0, 5).map((sl, i) => (
+          <View key={sl.chain.id} style={{ flex: sl.value / total, backgroundColor: COLORS[i % COLORS.length] }} />
+        ))}
+      </View>
+      {slices.slice(0, 3).map((sl, i) => (
+        <View key={sl.chain.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS[i % COLORS.length] }} />
+          <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: '#FFF8EE' }} numberOfLines={1}>{sl.chain.name}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: 'rgba(255,248,238,0.7)', fontVariant: ['tabular-nums'] }}>{formatPercent((sl.value / total) * 100, 1)}</Text>
+          <Text style={{ width: 104, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.sm, color: '#FFF8EE', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 /** État vide soigné (icône + titre + sous-titre), centré — jamais de détail
  *  technique (clé API manquante, etc.) exposé à l'utilisateur. Remplit aussi
@@ -1085,17 +1121,17 @@ function MobileHero({ data, chain, address, large, onSky }: { data: HeroData; ch
  * visiteur, soleil, trois plans de dunes) que l'accueil du téléphone. Le
  * tableau de bord et la mini-app Telegram ne ressemblent plus à un autre produit.
  */
-function SkyCard({ children }: { children: React.ReactNode }) {
+function SkyCard({ children, wide }: { children: React.ReactNode; /** Ordinateur : bandeau large, astre à droite, loin du solde. */ wide?: boolean }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const phase = skyPhaseAt(new Date().getHours());
   return (
     <View
       onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      style={{ borderRadius: 28, overflow: 'hidden', paddingHorizontal: 22, paddingTop: 22, paddingBottom: 26 }}
+      style={{ borderRadius: 28, overflow: 'hidden', paddingHorizontal: wide ? 32 : 22, paddingTop: wide ? 28 : 22, paddingBottom: wide ? 28 : 26 }}
     >
       {box.w > 0 ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
-          <Landscape width={box.w} height={box.h + 30} phase={phase} sunAt={0.32} veil balanceGlow={0.18} />
+          <Landscape width={box.w} height={box.h + 30} phase={phase} sunAt={wide ? 0.22 : 0.18} sunX={wide ? 0.47 : 0.88} veil balanceGlow={0.18} />
         </View>
       ) : null}
       {children}

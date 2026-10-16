@@ -10,14 +10,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Text, Divider, TokenRow, TokenIcon, Chip, Skeleton, Pressable, Card } from '../kit';
 import { space } from '../tokens';
-import { useT, useSettings, fiatSymbol } from '../../lib/settingsStore';
+import { useT, useSettings } from '../../lib/settingsStore';
+import { formatMoney } from './webTheme';
 import { fill } from '../../lib/i18n';
 import { usePortfolioStore, splitHoldings, snapshotKey, useTestnetBalances, type Holding } from '../../lib/portfolio';
 import { useWebConnect } from '../../lib/webConnect';
-import { chainIconUrl, formatTokenAmount, formatFiat, type ChainConfig } from '../../src';
+import { chainIconUrl, formatTokenAmount, type ChainConfig } from '../../src';
 import { MobileEmptyState } from './MobileChrome';
 import { useWebT } from './webI18n';
 import { chainOf, useWebPortfolioAccount } from './webAccounts';
+
+/** Montant en devise, au format de la langue de l'interface. */
+const money = (v: number) => formatMoney(v, useSettings.getState().fiat);
+
 
 const NONE: Holding[] = [];
 
@@ -26,7 +31,6 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
   const tw = useWebT();
   const fiat = useSettings((s) => s.fiat);
   const showTestnets = useSettings((s) => s.showTestnets);
-  const sym = fiatSymbol(fiat);
   const setChain = useWebConnect((s) => s.setChain);
   const accounts = useWebConnect((s) => s.accounts);
   const rev = useWebConnect((s) => s.rev);
@@ -65,7 +69,7 @@ export function WebTokens({ chain, onReceive }: { chain: ChainConfig; onReceive:
           chainId={h.chainId}
           address={h.contract ?? h.chainId}
           balance={`${formatTokenAmount(h.raw, h.decimals)} ${h.symbol}`}
-          fiat={h.price > 0 ? `${formatFiat(h.fiat)} ${sym}` : undefined}
+          fiat={h.price > 0 ? `${money(h.fiat)}` : undefined}
           changePct={h.change24h}
           onPress={accounts.some((a) => a.chainId === h.chainId) ? () => setChain(h.chainId) : undefined}
         />
