@@ -50,22 +50,22 @@ export function Phone({ className = '' }: { className?: string }) {
           </div>
           <div className="relative px-5 pt-7 text-white">
             <span className="block h-2 w-20 rounded-full bg-white/40" />
-            <p className="mt-3 text-[2.6rem] font-semibold leading-none tracking-[-0.02em]" aria-hidden>
-              •••• <span className="text-2xl opacity-80">€</span>
+            <p className="shimmer mt-3 text-[2.6rem] font-semibold leading-none tracking-[-0.02em]" aria-hidden>
+              •••• <span className="text-2xl">€</span>
             </p>
           </div>
         </div>
         {/* Tuiles d'action teintées, comme l'app. */}
         <div className="relative -mt-8 grid grid-cols-4 gap-2.5 px-4">
           {TILES.map(({ bg, ink, Icon }, i) => (
-            <div key={i} className={`flex aspect-square items-center justify-center rounded-2xl ${bg} shadow-card ring-1 ring-white/60`}>
+            <div key={i} className={`tile-pop flex aspect-square items-center justify-center rounded-2xl ${bg} shadow-card ring-1 ring-white/60`} style={{ animationDelay: `${2.3 + i * 0.09}s` }}>
               <Icon className={`h-5 w-5 ${ink}`} strokeWidth={2.2} aria-hidden />
             </div>
           ))}
         </div>
         <ul className="mx-4 mb-5 mt-4 divide-y divide-cream-line rounded-3xl bg-ink-2 px-4 shadow-card">
-          {TOKENS.map((tk) => (
-            <li key={tk.sym} className="flex items-center gap-3 py-3">
+          {TOKENS.map((tk, i) => (
+            <li key={tk.sym} className="row-in flex items-center gap-3 py-3" style={{ animationDelay: `${2.6 + i * 0.1}s` }}>
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-3">{tk.icon}</span>
               <span className="flex-1">
                 <span className="block text-sm font-semibold text-paper">{tk.name}</span>

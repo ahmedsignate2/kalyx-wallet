@@ -2,20 +2,36 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { Nav } from '../../components/landing/nav';
 import { Footer } from '../../components/landing/footer';
+import { Cursor, Intro, Marquee, Opening, Progress } from '../../components/sun/alive';
 import { SunAi, SunDownload, SunFees, SunHero, SunHow, SunLose, SunNetworks, SunStolen, SunVision } from '../../components/sun/sections';
 import { getDictionary, isLocale } from '../../i18n';
 
-/** L'accueil du site, à l'image de l'app : le ciel et ses dunes, puis le crème et ses cartes. */
+/** L'accueil du site, à l'image de l'app : le ciel et ses dunes, puis le crème et ses cartes — et tout ce qui bouge. */
 export default async function HomePage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   const t = getDictionary(lang);
+  const sections = [
+    { id: 'prologue', label: t.chapters.prologue },
+    { id: 'fonctionnement', label: t.chapters.how },
+    { id: 'perdre', label: t.chapters.lose },
+    { id: 'voler', label: t.chapters.stolen },
+    { id: 'copilote', label: t.chapters.ai },
+    { id: 'frais', label: t.chapters.fees },
+    { id: 'vision', label: t.chapters.vision },
+    { id: 'telecharger', label: t.chapters.epilogue },
+  ];
   return (
     <div className="min-h-screen bg-ink">
+      <Intro />
+      <Cursor />
+      <Progress sections={sections} />
       <Nav t={t} lang={lang} />
       <main>
         <SunHero t={t} />
         <SunNetworks t={t} />
+        <Opening t={t} />
+        <Marquee items={t.hero.chips} label={t.hero.keyPoints} />
         <SunHow t={t} />
         <SunLose t={t} />
         <SunStolen t={t} />

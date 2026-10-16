@@ -141,6 +141,78 @@ body {
   50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
 }
 .sun-breathe { animation: sun-breathe 9s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .sun-breathe { animation: none; }
+/* Étoiles qui scintillent. */
+@keyframes twinkle {
+  0%, 100% { opacity: var(--o, 0.6); }
+  50% { opacity: 0.15; }
 }
+.twinkle { animation: twinkle 3.6s ease-in-out infinite; }
+
+.sun-breathe { transform: translate(-50%, -50%); }
+@media (prefers-reduced-motion: reduce) {
+  .sun-breathe, .twinkle { animation: none; }
+}
+
+/* ---------------------------------------------------------------- */
+/* Rideau d'ouverture : le soleil Kalyx se déploie, puis le ciel se lève. */
+.intro { animation: intro-lift 0.9s cubic-bezier(0.76, 0, 0.24, 1) 1.15s forwards; }
+.intro-mark { animation: intro-mark 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.intro-letter { animation: intro-letter 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.intro-bar { animation: intro-bar 1s cubic-bezier(0.65, 0, 0.35, 1) 0.1s both; }
+@keyframes intro-lift { to { transform: translateY(-100%); visibility: hidden; } }
+@keyframes intro-mark { from { opacity: 0; transform: rotate(-140deg) scale(0.5); } }
+@keyframes intro-letter { from { opacity: 0; transform: translateY(110%); } }
+@keyframes intro-bar { from { transform: scaleX(0); } }
+
+/* Le téléphone flotte, ses tuiles arrivent une à une, le solde masqué miroite. */
+.phone-float { animation: phone-float 6s ease-in-out infinite; }
+@keyframes phone-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.tile-pop { animation: tile-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes tile-pop { from { opacity: 0; transform: translateY(14px) scale(0.6); } }
+.row-in { animation: row-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes row-in { from { opacity: 0; transform: translateX(24px); } }
+.shimmer {
+  background: linear-gradient(100deg, #fff 30%, #F1CF8A 50%, #fff 70%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3.2s ease-in-out infinite;
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+
+/* Grain de pellicule, seulement sur le ciel. */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 0.9s steps(6) infinite;
+}
+@keyframes grain {
+  0% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-3%, 2%, 0); }
+  40% { transform: translate3d(2%, -3%, 0); }
+  60% { transform: translate3d(-4%, -1%, 0); }
+  80% { transform: translate3d(3%, 3%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* Le sosie : la ligne tremble et le mur tombe. */
+.shake-in { animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) 0.4s both; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+.stamp-in { animation: stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1s both; }
+@keyframes stamp { from { opacity: 0; transform: scale(1.8) rotate(-8deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .intro { display: none; }
+  .phone-float, .tile-pop, .row-in, .shimmer, .grain, .shake-in, .stamp-in { animation: none; }
+}
+.play-on-view:not(.play) .shake-in { animation: none; }
+.play-on-view:not(.play) .stamp-in { animation: none; opacity: 0; }
+.spin-slow { animation: spin-slow 24s linear infinite; }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin-slow { animation: none; } }
