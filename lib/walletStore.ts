@@ -1642,6 +1642,14 @@ export const useWallet = create<WalletState>((set, get) => ({
       });
       return;
     }
+    /*
+     * Les clés de stockage du LEURRE (son cliché de soldes, indexé par ses
+     * adresses) deviennent lisibles et inscriptibles : il rouvre sur ses
+     * derniers soldes connus, comme un vrai portefeuille, au lieu de tout
+     * recharger à chaque fois.
+     */
+    const own = accounts.flatMap((a) => [a.evmAddress?.toLowerCase(), a.solAddress, a.btcAddress?.toLowerCase(), a.tonPublicKey?.toLowerCase()]).filter((x): x is string => !!x && x.length >= 20);
+    setDecoySession(true, [decoyId, ...own]);
     const lock = await loadLockState();
     const chain = get().activeChain;
     set({
@@ -1657,6 +1665,8 @@ export const useWallet = create<WalletState>((set, get) => ({
       failedAttempts: lock.failedAttempts,
       lastFailedAt: lock.lastFailedAt,
     });
+    // Même Impulsion d'Ouverture qu'un vrai déverrouillage.
+    aura.pulse('unlock');
   },
 
   setupDuress: async (mainPin, duressPin) => {

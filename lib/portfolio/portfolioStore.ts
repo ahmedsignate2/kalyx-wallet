@@ -313,13 +313,23 @@ async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnet
     const fx = fiat.toLowerCase() === 'usd' ? 1 : safeNum(prices[USD_PEG]?.price) || fxBackup;
     if (diag) diag.prices = { asked: refs.length, got: Object.keys(usd).length, fx };
     const llamaUp = Object.keys(usd).length > 0;
+    /*
+     * Repli CoinGecko UNE fois par réseau. Il était appelé une fois par JETON,
+     * chaque fois avec la liste complète : sur un gros compte (des centaines de
+     * jetons), des centaines de requêtes identiques — refusées, et l'écran figé.
+     */
+    const fallback = new Map<string, Promise<Record<string, number>>>();
     const priceOf = async (chainId: string, address: string, platform: string | undefined, all: string[]): Promise<number> => {
       const p = usd[llamaKey(chainId, address)];
       if (p && fx > 0) return p * fx;
       if (llamaUp || !platform) return 0;
       // Repli CoinGecko, par réseau, seulement si DefiLlama est entièrement muet.
-      const tp = await getTokenPrices(platform, all, fiat).catch(() => ({}) as Record<string, number>);
-      return safeNum(tp[address.toLowerCase()]);
+      let tpP = fallback.get(platform);
+      if (!tpP) {
+        tpP = getTokenPrices(platform, all, fiat).catch(() => ({}) as Record<string, number>);
+        fallback.set(platform, tpP);
+      }
+      return safeNum((await tpP)[address.toLowerCase()]);
     };
 
     const erc20 = await Promise.all(

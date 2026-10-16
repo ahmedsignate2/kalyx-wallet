@@ -31,7 +31,7 @@ import { Icon } from '../../ui/icon';
 import { useTheme, OnSky, skyColors as sky } from '../../ui/theme';
 import { Landscape } from '../../ui/Landscape';
 import { StatusBar } from 'expo-status-bar';
-import { space, SCREEN_MARGIN, radius, radii, fontFamily } from '../../ui/tokens';
+import { space, SCREEN_MARGIN, radius, radii, fontFamily, elevation } from '../../ui/tokens';
 import { useSkyPhase } from '../../ui/sky';
 import { FadeInUp } from '../../ui/FadeInUp';
 import { cascadeDelay } from '../../ui/motion';
@@ -431,11 +431,6 @@ export default function Home() {
     const fade = interpolate(p, [0, 0.55], [1, 0], Extrapolation.CLAMP);
     return { opacity: fade, transform: [{ scale: 1 - p * 0.22 }, { translateY: -p * 18 }] };
   });
-  const compactBgStyle = useAnimatedStyle(() => {
-    const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
-    // OPAQUE avant que le montant compact n'apparaisse (0,45) : à 0,97 et sur une plage longue, les tuiles se lisaient au travers (iOS).
-    return { opacity: interpolate(p, [0.2, 0.5], [0, 1], Extrapolation.CLAMP) };
-  });
   const compactStyle = useAnimatedStyle(() => {
     const p = interpolate(scrollY.value, [MORPH.from, MORPH.to], [0, 1], Extrapolation.CLAMP);
     const show = interpolate(p, [0.45, 1], [0, 1], Extrapolation.CLAMP);
@@ -598,26 +593,33 @@ export default function Home() {
         libellés des disques et des tokens qui défilaient dessous. Il apparaît
         avec l'en-tête, couvre la barre d'état, et se termine par un trait fin.
       */}
-      {!hidden && !initialLoading ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + space[2] + 56, zIndex: 4, backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.border }, compactBgStyle]}
-        />
-      ) : null}
+      {/*
+        PLUS DE BANDEAU. Le fond opaque pleine largeur (et son trait) coupait
+        l'écran en deux au défilement. Le montant flotte désormais dans une
+        petite pastille : le contenu reste visible tout autour, seule la
+        pastille le recouvre, juste assez pour rester lisible.
+      */}
       {!hidden && !initialLoading ? (
         <Animated.View
           pointerEvents="none"
           style={[
-            { position: 'absolute', top: insets.top + space[2], left: SCREEN_MARGIN, right: SCREEN_MARGIN, zIndex: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space[2], height: 48 },
+            { position: 'absolute', top: insets.top + space[2], left: SCREEN_MARGIN, right: SCREEN_MARGIN, zIndex: 5, alignItems: 'center', height: 48, justifyContent: 'center' },
             compactStyle,
           ]}
         >
-          <Text variant="body" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
-          {pf.pnl24hPct != null ? (
-            <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
-              {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
-            </Text>
-          ) : null}
+          <View
+            style={[
+              { flexDirection: 'row', alignItems: 'center', gap: space[2], height: 38, paddingHorizontal: space[4], borderRadius: radii.full, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+              mode === 'light' ? elevation.light : null,
+            ]}
+          >
+            <Text variant="bodyStrong" tabular numberOfLines={1}>{formatFiat(pf.total)} {sym}</Text>
+            {pf.pnl24hPct != null ? (
+              <Text variant="caption" tone={pnlUp ? 'up' : 'down'} tabular>
+                {pnlUp ? '+' : '−'}{Math.abs(pf.pnl24hPct).toFixed(1).replace('.', decimalSeparator())} %
+              </Text>
+            ) : null}
+          </View>
         </Animated.View>
       ) : null}
 
