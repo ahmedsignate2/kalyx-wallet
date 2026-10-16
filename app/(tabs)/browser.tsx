@@ -1056,7 +1056,20 @@ export default function Browser() {
             // « * » : chaque navigation passe par onShouldStart (voir plus haut), seul filtre.
             originWhitelist={['*']}
             onShouldStartLoadWithRequest={onShouldStart}
-            onLoadProgress={(e: { nativeEvent: { progress: number } }) => progress.set(e.nativeEvent.progress)}
+            onLoadProgress={(e: { nativeEvent: { progress: number; canGoBack?: boolean; canGoForward?: boolean } }) => {
+              progress.set(e.nativeEvent.progress);
+              /*
+               * « PAGE PRÉCÉDENTE » FIABLE. Les sites à une seule page (pushState)
+               * ne déclenchent pas toujours onNavigationStateChange : l'onglet
+               * croyait être au début de l'historique et la flèche sortait du
+               * site au lieu de revenir en arrière.
+               */
+              const { canGoBack, canGoForward } = e.nativeEvent;
+              if (typeof canGoBack === 'boolean') {
+                const tab = tabsRef.current.find((x) => x.id === activeTab.id);
+                if (tab && (tab.canBack !== canGoBack || tab.canFwd !== !!canGoForward)) updateTab(activeTab.id, { canBack: canGoBack, canFwd: !!canGoForward });
+              }
+            }}
             onLoadStart={() => setLoadSeq((n) => n + 1)}
             onError={(e: { nativeEvent?: { description?: string; code?: number } }) => {
               const errDesc = e.nativeEvent?.description || `${t('networkError')}${e.nativeEvent?.code ? ` (${e.nativeEvent.code})` : ''}`;
@@ -1163,7 +1176,7 @@ export default function Browser() {
             </>
           ) : (
             <>
-              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? leaveBrowser() : goBack())} />
+              <IconButton icon="caretLeft" label={t('previousPage')} tone="ghost" disabled={!activeTab.url && tabs.length === 1} onPress={() => (activeTab.canBack ? webref.current?.goBack() : activeTab.url ? goHome() : goBack())} />
               <AddressBar
                 host={origin}
                 secure={!!activeTab.url?.startsWith('https://')}

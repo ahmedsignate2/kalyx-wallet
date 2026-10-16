@@ -141,7 +141,12 @@ export default function RootLayout() {
   };
   useEffect(() => {
     if (!storeReady || opening !== 'wait') return;
-    setOpening(hasWallet ? 'splash' : 'done');
+    /*
+     * Session LEURRE : l'app vient de redémarrer pour y entrer, juste après le
+     * code. Rejouer l'animation d'ouverture trahirait ce redémarrage — un vrai
+     * déverrouillage mène droit à l'accueil, celui-ci aussi.
+     */
+    setOpening(hasWallet && !bootDecoyId.current ? 'splash' : 'done');
   }, [storeReady, hasWallet, opening]);
   // Typo du design system (General Sans). On attend le chargement avant de
   // rendre, sinon RN plante sur une fontFamily inconnue.

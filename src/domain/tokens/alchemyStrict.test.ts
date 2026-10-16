@@ -10,7 +10,18 @@ describe('Alchemy refuse : « lecture impossible », pas « aucun jeton »', () 
     (global as any).fetch = async () => ({ ok: false, status: 429, json: async () => ({ error: { code: 429 } }) });
     await expect(getErc20TokensStrict(chain, '0x' + '1'.repeat(40))).rejects.toThrow(/429/);
     await expect(getErc20Tokens(chain, '0x' + '1'.repeat(40))).resolves.toEqual([]);
-  });
+  }, 20_000); // deux nouveaux essais espacés avant d'abandonner
+
+  it('HTTP 429 passager (gros compte) : on attend et on réessaie, les jetons ne disparaissent pas', async () => {
+    let calls = 0;
+    (global as any).fetch = async () => {
+      calls += 1;
+      if (calls === 1) return { ok: false, status: 429, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ jsonrpc: '2.0', id: 1, result: { tokenBalances: [] } }) };
+    };
+    await expect(getErc20TokensStrict(chain, '0x' + '1'.repeat(40))).resolves.toEqual([]);
+    expect(calls).toBeGreaterThanOrEqual(2);
+  }, 10_000);
 
   it('erreur JSON-RPC dans une réponse 200 → lève aussi', async () => {
     (global as any).fetch = async () => ({ ok: true, status: 200, json: async () => ({ jsonrpc: '2.0', id: 1, error: { code: -32600, message: 'capacity limit' } }) });

@@ -12,7 +12,7 @@
  * repli : rechargement de l'état réel.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isDecoySession, setDecoySession } from './sessionMode';
+import { decoyMayWrite, isDecoySession, setDecoySession } from './sessionMode';
 import { kvDel, kvGet, kvSet, KV_DEVICE_ONLY } from './kv';
 
 /*
@@ -85,22 +85,60 @@ export async function consumeDecoyBoot(): Promise<string | null> {
   }
 }
 
+/*
+ * CE QUE LE LEURRE PEUT LIRE, pour se comporter comme un vrai portefeuille.
+ * Tout bloquer le trahissait : langue retombée sur celle du téléphone, prix et
+ * soldes en chargement à chaque ouverture, réglages du navigateur perdus. Ces
+ * clés ne disent RIEN des vrais portefeuilles (préférences, cours publics).
+ */
+const DECOY_PUBLIC_READ = new Set([
+  'user_language',
+  'kalyx.priceCache.v1',
+  'kalyx.browser.engine',
+  'kalyx.browser.forceDark',
+  'kalyx.deviceId',
+  'nova.customChains',
+  'kalyx.rpcOverrides.v1',
+]);
+/** Cours publics : le leurre les tient à jour comme le ferait n'importe quel portefeuille. */
+const DECOY_PUBLIC_WRITE = new Set(['kalyx.priceCache.v1']);
+
+/** Lecture permise en session leurre : préférences neutres, ou clé du leurre lui-même (son cliché de soldes…). */
+export function decoyAsyncMayRead(key: unknown): boolean {
+  return typeof key === 'string' && (DECOY_PUBLIC_READ.has(key) || decoyMayWrite(key));
+}
+export function decoyAsyncMayWrite(key: unknown): boolean {
+  return typeof key === 'string' && (DECOY_PUBLIC_WRITE.has(key) || decoyMayWrite(key));
+}
+
 let patched = false;
-/** AsyncStorage en lecture seule pendant la session leurre ; lectures vides (rien du vrai historique). */
+/**
+ * AsyncStorage filtré pendant la session leurre : rien des vrais portefeuilles
+ * n'est lu ni écrit ; seules les clés neutres et celles du leurre passent.
+ */
 function patchAsyncStorage(): void {
   if (patched) return;
   patched = true;
   const S = AsyncStorage as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>;
-  for (const m of ['setItem', 'removeItem', 'mergeItem', 'multiSet', 'multiRemove', 'multiMerge', 'clear']) {
+  for (const m of ['setItem', 'removeItem', 'mergeItem']) {
+    const orig = S[m];
+    if (typeof orig !== 'function') continue;
+    S[m] = (...a: unknown[]) => (isDecoySession() && !decoyAsyncMayWrite(a[0]) ? Promise.resolve() : orig.apply(AsyncStorage, a));
+  }
+  for (const m of ['multiSet', 'multiRemove', 'multiMerge', 'clear']) {
     const orig = S[m];
     if (typeof orig !== 'function') continue;
     S[m] = (...a: unknown[]) => (isDecoySession() ? Promise.resolve() : orig.apply(AsyncStorage, a));
   }
   const get = S.getItem;
-  if (typeof get === 'function') S.getItem = (...a: unknown[]) => (isDecoySession() ? Promise.resolve(null) : get.apply(AsyncStorage, a));
+  if (typeof get === 'function') S.getItem = (...a: unknown[]) => (isDecoySession() && !decoyAsyncMayRead(a[0]) ? Promise.resolve(null) : get.apply(AsyncStorage, a));
   const multiGet = S.multiGet;
   if (typeof multiGet === 'function') {
-    S.multiGet = (...a: unknown[]) => (isDecoySession() ? Promise.resolve((a[0] as string[]).map((k) => [k, null])) : multiGet.apply(AsyncStorage, a));
+    S.multiGet = async (...a: unknown[]) => {
+      if (!isDecoySession()) return multiGet.apply(AsyncStorage, a);
+      const keys = (a[0] as string[]) ?? [];
+      return Promise.all(keys.map(async (k) => [k, decoyAsyncMayRead(k) ? await get.call(AsyncStorage, k) : null]));
+    };
   }
   // Même les NOMS des clés trahiraient le vrai historique (aucun appelant aujourd'hui : verrou préventif).
   const allKeys = S.getAllKeys;

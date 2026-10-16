@@ -94,14 +94,28 @@ function alchemyUrlOf(chain: ChainConfig): string | undefined {
   return chain.rpcUrls.find((u) => u.includes('.alchemy.com'));
 }
 
+/** Attentes avant de réessayer une requête refusée pour débit (HTTP 429). */
+const RETRY_DELAYS_MS = [700, 1800];
+
 async function post(url: string, body: unknown): Promise<unknown> {
-  const res = await withTimeout(
-    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-    TIMEOUT,
-    () => new Error('timeout'),
-  );
-  if (!res.ok) throw new Error(`Alchemy : HTTP ${res.status}`);
-  return res.json();
+  /*
+   * GROS COMPTES (« baleines ») : des centaines de jetons, donc des rafales de
+   * requêtes, et Alchemy répond 429 (débit). Une seule réponse 429 faisait
+   * tomber TOUS les jetons du réseau. On attend et on réessaie, deux fois.
+   */
+  for (let attempt = 0; ; attempt++) {
+    const res = await withTimeout(
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+      TIMEOUT,
+      () => new Error('timeout'),
+    );
+    if (res.status === 429 && attempt < RETRY_DELAYS_MS.length) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+      continue;
+    }
+    if (!res.ok) throw new Error(`Alchemy : HTTP ${res.status}`);
+    return res.json();
+  }
 }
 
 /** Métadonnées d'un contrat ERC-20 (pour valider un token ajouté manuellement). */
@@ -180,7 +194,7 @@ export async function getCustomTokens(
 // AFFICHÉS *après* le filtre anti-spam (sinon le spam consommerait le budget et
 // masquerait des tokens légitimes — bug de l'ancien slice(0,40) avant filtrage).
 const MAX_BALANCE_PAGES = 5; // ~500 contrats scannés au plus
-const META_CHUNK = 100; // lots de métadonnées (batch JSON-RPC)
+const META_CHUNK = 25; // lots de métadonnées (batch JSON-RPC) : 100 d'un coup dépassait le débit d'Alchemy sur les gros comptes
 const MAX_TOKENS = 60; // tokens non-spam affichés au plus
 
 /** pageKey de pagination d'une réponse alchemy_getTokenBalances (ou undefined). */
@@ -255,7 +269,18 @@ export async function getErc20TokensStrict(chain: ChainConfig, address: string):
         params: [b.contract],
       }));
       const metaJson = await post(url, batch);
-      assertOk(metaJson, 'métadonnées');
+      /*
+       * Un élément du lot en erreur (contrat exotique, refus ponctuel) ne fait
+       * plus tomber tout le réseau : seul ce jeton est sauté. Le lot ENTIER en
+       * échec reste une erreur (lecture impossible ≠ aucun jeton) — sauf si des
+       * jetons ont déjà été lus : on garde alors ceux-là.
+       */
+      const items = Array.isArray(metaJson) ? (metaJson as unknown[]) : [];
+      const usable = items.filter((m) => m && typeof m === 'object' && !('error' in (m as object)));
+      if (usable.length === 0) {
+        if (tokens.length > 0) break;
+        assertOk(metaJson, 'métadonnées');
+      }
       const metaById = new Map<number, TokenMeta | null>();
       if (Array.isArray(metaJson)) {
         for (const m of metaJson as { id: number }[]) metaById.set(m.id, parseTokenMetadata(m));
