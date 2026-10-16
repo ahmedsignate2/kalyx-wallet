@@ -340,24 +340,31 @@ function SendInner() {
         setBalance(nat);
         setPrice(np);
       } else if (token.kind === 'erc20' && family === 'evm') {
-        const [t] = await getCustomTokens(chain, senderAddress, [token.contract]).catch(() => [] as { raw: bigint }[]);
+        /*
+         * LECTURE RATÉE ≠ SOLDE NUL. Un RPC muet donnait 0 : « solde
+         * insuffisant » pour un jeton bien détenu. Sans réponse, on garde le
+         * solde déjà connu (portefeuille), ou « inconnu » — jamais un faux 0.
+         */
+        const list = await getCustomTokens(chain, senderAddress, [token.contract]).catch(() => null);
         const tp = chain.coingeckoPlatform ? await getTokenPrices(chain.coingeckoPlatform, [token.contract], fiat).catch(() => ({} as Record<string, number>)) : {};
         if (!isAlive()) return;
-        setBalance(t?.raw ?? 0n);
-        setPrice(tp[token.contract.toLowerCase()] ?? 0);
+        const t0 = list?.[0];
+        setBalance(t0 ? t0.raw : picked?.raw ?? null);
+        setPrice(tp[token.contract.toLowerCase()] || picked?.price || 0);
       } else if (token.kind === 'spl' && a instanceof SolanaChainAdapter) {
-        const list = await a.getSplTokens(senderAddress).catch(() => []);
+        const list = await a.getSplTokens(senderAddress).catch(() => null);
         const tp = await getTokenPrices('solana', [token.mint], fiat).catch(() => ({} as Record<string, number>));
         if (!isAlive()) return;
-        setBalance(list.find((x) => x.mint === token.mint)?.raw ?? 0n);
-        setPrice(tp[token.mint.toLowerCase()] ?? 0);
+        // Liste lue : un mint absent est bien un solde nul. Liste illisible : solde déjà connu, sinon inconnu.
+        setBalance(list ? list.find((x) => x.mint === token.mint)?.raw ?? 0n : picked?.raw ?? null);
+        setPrice(tp[token.mint.toLowerCase()] || picked?.price || 0);
       } else if (token.kind === 'jetton') {
         const ton = findAdapterV2(targetChainId);
-        const list = ton instanceof TonAdapterV2 ? await ton.jettons(senderAddress, fiat).catch(() => []) : [];
+        const list = ton instanceof TonAdapterV2 ? await ton.jettons(senderAddress, fiat).catch(() => null) : null;
         if (!isAlive()) return;
-        const held = list.find((x) => x.master === token.master.toLowerCase());
-        setBalance(held?.raw ?? 0n);
-        setPrice(held?.verification === 'whitelist' ? held.price : 0);
+        const held = list?.find((x) => x.master === token.master.toLowerCase());
+        setBalance(list ? held?.raw ?? 0n : picked?.raw ?? null);
+        setPrice(held?.verification === 'whitelist' ? held.price : list ? 0 : picked?.price ?? 0);
         // Le message emporte ce TON pour le gaz (l'excédent revient) : il faut l'avoir.
         setReserve(JETTON_TRANSFER_TON);
         // Coût réel, émulé sur un envoi à soi-même : c'est lui qu'on affiche.
@@ -640,22 +647,50 @@ function SendInner() {
   };
 
   // Suivi : attente de confirmation (EVM 1 bloc ; Solana poll ; BTC = envoyée).
+  /*
+   * « TOUJOURS EN ATTENTE » n'est ni un succès ni un échec. Le suivi annonçait
+   * « confirmé » sur Solana quand la confirmation n'était jamais venue (fin de
+   * la boucle d'attente), et « échec » sur EVM quand le délai d'attente
+   * expirait alors que la transaction pouvait encore passer — de quoi la
+   * renvoyer une seconde fois. On le dit tel quel.
+   */
+  const [stillPending, setStillPending] = useState(false);
   const trackConfirmation = useEffectEvent((isAlive: () => boolean) => {
     if (step !== 4 || !hash) return;
+    setStillPending(false);
     const a = getAdapter(activeChain);
     (async () => {
       try {
         if (a instanceof EvmChainAdapter) {
-          setStage('included');
-          await a.waitForTx(hash);
+          // Délai dépassé (réseau encombré) : la transaction peut encore passer — en attente, pas en échec.
+          // Un revert, lui, lève une WalletError TX_FAILED et reste un échec.
+          const ok = await a.waitForTx(hash).then(
+            () => true,
+            (e: unknown) => {
+              if (isWalletError(e) && e.code === 'TX_FAILED') throw e;
+              return false;
+            },
+          );
+          if (!ok) {
+            if (isAlive()) setStillPending(true);
+            return;
+          }
         } else if (a instanceof SolanaChainAdapter) {
+          let confirmed = false;
           for (let i = 0; i < 40 && isAlive(); i++) {
             await new Promise((r) => setTimeout(r, 2000));
             const st = await a.rpc<{ value?: ({ err?: unknown; confirmationStatus?: string } | null)[] }>('getSignatureStatuses', [[hash]]).catch(() => null);
             const s = st?.value?.[0];
             if (s?.err) throw new Error('failed');
             if (s?.confirmationStatus) setStage('included');
-            if (s?.confirmationStatus === 'confirmed' || s?.confirmationStatus === 'finalized') break;
+            if (s?.confirmationStatus === 'confirmed' || s?.confirmationStatus === 'finalized') {
+              confirmed = true;
+              break;
+            }
+          }
+          if (!confirmed) {
+            if (isAlive()) setStillPending(true);
+            return;
           }
         } else if (chain.family === 'ton') {
           /*
@@ -1228,6 +1263,7 @@ function SendInner() {
             <Card style={{ gap: space[4] }}>
               <TxSteps stage={stage} />
               {stage === 'failed' ? <Text variant="caption" tone="danger">{t("txFailedMsg")}</Text> : null}
+              {stillPending && stage !== 'failed' && stage !== 'confirmed' ? <Text variant="caption" tone="secondary">{t('txStillPending')}</Text> : null}
             </Card>
             <Text variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>{t("canLeaveScreenInfo")}</Text>
             {hash ? <Button label={t('trackTransaction')} variant="secondary" size="md" onPress={() => router.push({ pathname: '/tracking', params: { hash, chainId: chain.id } })} /> : null}

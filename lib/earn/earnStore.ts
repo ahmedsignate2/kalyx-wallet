@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import { EARN_CATALOG, getPrices, formatAmount, type EarnProtocol, type EarnPosition } from '../../src';
 import { loadAll, loadApys, type EarnAccount, type EarnBalances } from './earnEngine';
+import { mergeFailed } from './merge';
 
 /** Position enrichie pour l'affichage. */
 export interface EarnPositionView {
@@ -33,6 +34,8 @@ interface EarnState {
   loadedFor: string | null;
   lastLoadedAt: number;
   error: string | null;
+  /** Protocoles non lus au dernier chargement (leurs valeurs sont les dernières connues). */
+  failed: string[];
 
   refresh: (acct: EarnAccount, fiat: string, opts?: { force?: boolean }) => Promise<void>;
   /** Rafraîchit uniquement soldes + positions (après une tx). */
@@ -56,6 +59,7 @@ export const useEarn = create<EarnState>((set, get) => ({
   loadedFor: null,
   lastLoadedAt: 0,
   error: null,
+  failed: [],
 
   refresh: async (acct, fiat, opts) => {
     const key = accountKey(acct);
@@ -86,9 +90,11 @@ export const useEarn = create<EarnState>((set, get) => ({
       if (gen !== earnGen) return; // un autre compte a été demandé depuis
       const prices: Record<string, number> = {};
       for (const [id, v] of Object.entries(priceMap)) prices[id] = v.price;
+      const merged = mergeFailed(s.loadedFor === key ? s : null, all);
       set({
-        balances: all.balances,
-        positions: all.positions,
+        balances: merged.balances,
+        positions: merged.positions,
+        failed: all.failed,
         apys,
         prices: Object.keys(prices).length ? prices : s.prices,
         pricesFiat: fiat,
@@ -106,7 +112,8 @@ export const useEarn = create<EarnState>((set, get) => ({
     try {
       const all = await loadAll(acct);
       if (get().loadedFor !== accountKey(acct)) return; // compte changé entre-temps
-      set({ balances: all.balances, positions: all.positions, lastLoadedAt: Date.now() });
+      const merged = mergeFailed(get(), all);
+      set({ balances: merged.balances, positions: merged.positions, failed: all.failed, lastLoadedAt: Date.now() });
     } catch {
       /* best-effort */
     }
