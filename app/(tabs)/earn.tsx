@@ -57,7 +57,7 @@ function EarnScreenInner() {
   const insets = useSafeAreaInsets();
   const fiat = useSettings((s) => s.fiat);
   const wallet = useWallet(useShallow((s) => ({ accounts: s.accounts, activeAccountIndex: s.activeAccountIndex })));
-  const earn = useEarn(useShallow((s) => ({ apys: s.apys, balances: s.balances, error: s.error, loadedFor: s.loadedFor, loading: s.loading, positions: s.positions, prices: s.prices, refreshBalances: s.refreshBalances })));
+  const earn = useEarn(useShallow((s) => ({ apys: s.apys, balances: s.balances, error: s.error, failed: s.failed, loadedFor: s.loadedFor, loading: s.loading, positions: s.positions, prices: s.prices, refreshBalances: s.refreshBalances })));
 
   const acct = useMemo<EarnAccount | null>(() => {
     const a = wallet.accounts.find((x) => x.index === wallet.activeAccountIndex) ?? wallet.accounts[0];
@@ -166,6 +166,20 @@ function EarnScreenInner() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
               <Icon name="alert" size={20} color={colors.warning} />
               <Text style={[typography.muted, { flex: 1 }]}>{t('earnLoadFailed')}</Text>
+            </View>
+            <View style={{ height: spacing(1.5) }} />
+            <Button label={t('retry')} variant="outline" onPress={onRefresh} />
+          </Card>
+        ) : null}
+
+        {/* Lecture INCOMPLÈTE : dite, avec les réseaux concernés (leurs valeurs affichées sont les dernières connues). */}
+        {!earn.error && !earn.loading && earn.failed.length > 0 ? (
+          <Card variant="glass">
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+              <Icon name="alert" size={20} color={colors.warning} />
+              <Text style={[typography.muted, { flex: 1 }]}>
+                {t('earnPartial').replace('{networks}', [...new Set(earn.failed.map((id) => EARN_CATALOG.find((p) => p.id === id)?.chainId).filter((c): c is string => !!c))].map((c) => getAdapter(c).config.name).join(', '))}
+              </Text>
             </View>
             <View style={{ height: spacing(1.5) }} />
             <Button label={t('retry')} variant="outline" onPress={onRefresh} />

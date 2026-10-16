@@ -113,6 +113,10 @@ export const LANGUAGES: LangMeta[] = [
 ];
 
 const en = {
+  txStillPending: "Still waiting for the network to confirm. This isn't a failure: don't send again — follow it with “Track transaction”.",
+  earnPartial: "Some positions couldn't be read ({networks}): the amounts shown are the last known ones.",
+  earnQuoteRefreshed: "Quote refreshed: check the new amounts, then confirm.",
+  buyTestDelivery: "Test mode: test crypto is sent on a test network, so it won't appear in your main balances.",
   payInfoTitle: "Your details",
   payInfoBody: "This merchant needs a few details about you. They're sent to the payment form and can be remembered on this device, so you won't have to type them again.",
   payFieldFullName: "Full name",
@@ -2520,6 +2524,10 @@ export type Key = keyof typeof en;
 const dict: Record<Lang, Partial<Record<Key, string>>> = {
   en,
   fr: {
+    txStillPending: "Toujours en attente de confirmation par le réseau. Ce n'est pas un échec : ne renvoie pas — suis-la avec « Suivre la transaction ».",
+    earnPartial: "Certaines positions n'ont pas pu être lues ({networks}) : les montants affichés sont les derniers connus.",
+    earnQuoteRefreshed: "Devis actualisé : vérifie les nouveaux montants, puis confirme.",
+    buyTestDelivery: "Mode test : la crypto de test est envoyée sur un réseau de test, elle n'apparaît donc pas dans tes soldes principaux.",
     payInfoTitle: "Vos informations",
     payInfoBody: "Ce marchand demande quelques informations sur vous. Elles sont transmises au formulaire de paiement et peuvent être mémorisées sur cet appareil : vous n'aurez plus à les retaper.",
     payFieldFullName: "Nom complet",
@@ -4907,6 +4915,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   es: {
+    txStillPending: "Aún esperando la confirmación de la red. No es un fallo: no vuelvas a enviar; síguela con «Seguir la transacción».",
+    earnPartial: "No se pudieron leer algunas posiciones ({networks}): los importes mostrados son los últimos conocidos.",
+    earnQuoteRefreshed: "Cotización actualizada: revisa los nuevos importes y luego confirma.",
+    buyTestDelivery: "Modo de prueba: la cripto de prueba se envía en una red de prueba, así que no aparecerá en tus saldos principales.",
     payInfoTitle: "Tus datos",
     payInfoBody: "Este comercio necesita algunos datos tuyos. Se envían al formulario de pago y pueden recordarse en este dispositivo para que no tengas que volver a escribirlos.",
     payFieldFullName: "Nombre completo",
@@ -7284,6 +7296,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   pt: {
+    txStillPending: "Ainda aguardando a confirmação da rede. Não é uma falha: não envie de novo — acompanhe em “Acompanhar transação”.",
+    earnPartial: "Algumas posições não puderam ser lidas ({networks}): os valores mostrados são os últimos conhecidos.",
+    earnQuoteRefreshed: "Cotação atualizada: confira os novos valores e confirme.",
+    buyTestDelivery: "Modo de teste: a cripto de teste é enviada numa rede de teste, por isso não aparece nos seus saldos principais.",
     payInfoTitle: "Seus dados",
     payInfoBody: "Este comerciante precisa de alguns dados seus. Eles são enviados ao formulário de pagamento e podem ser lembrados neste dispositivo, para você não precisar digitá-los de novo.",
     payFieldFullName: "Nome completo",
@@ -9642,6 +9658,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   de: {
+    txStillPending: "Warte noch auf die Bestätigung des Netzwerks. Das ist kein Fehler: nicht erneut senden – verfolge sie mit „Transaktion verfolgen“.",
+    earnPartial: "Einige Positionen konnten nicht gelesen werden ({networks}): Die angezeigten Beträge sind die zuletzt bekannten.",
+    earnQuoteRefreshed: "Angebot aktualisiert: Prüfe die neuen Beträge und bestätige dann.",
+    buyTestDelivery: "Testmodus: Test-Krypto wird in einem Testnetz gesendet und erscheint daher nicht in deinen Hauptguthaben.",
     payInfoTitle: "Deine Angaben",
     payInfoBody: "Dieser Händler benötigt ein paar Angaben zu dir. Sie werden an das Zahlungsformular übermittelt und können auf diesem Gerät gespeichert werden, damit du sie nicht erneut eingeben musst.",
     payFieldFullName: "Vollständiger Name",
@@ -12017,6 +12037,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} Min.",
   },
   it: {
+    txStillPending: "Ancora in attesa della conferma della rete. Non è un errore: non inviare di nuovo, seguila con «Segui la transazione».",
+    earnPartial: "Alcune posizioni non sono state lette ({networks}): gli importi mostrati sono gli ultimi noti.",
+    earnQuoteRefreshed: "Preventivo aggiornato: controlla i nuovi importi, poi conferma.",
+    buyTestDelivery: "Modalità test: le cripto di prova vengono inviate su una rete di test, quindi non compaiono nei saldi principali.",
     payInfoTitle: "I tuoi dati",
     payInfoBody: "Questo esercente richiede alcuni dati su di te. Vengono inviati al modulo di pagamento e possono essere ricordati su questo dispositivo, così non dovrai riscriverli.",
     payFieldFullName: "Nome completo",
@@ -14378,6 +14402,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   nl: {
+    txStillPending: "Nog in afwachting van bevestiging door het netwerk. Dit is geen fout: niet opnieuw versturen — volg hem via ‘Transactie volgen’.",
+    earnPartial: "Sommige posities konden niet worden gelezen ({networks}): de getoonde bedragen zijn de laatst bekende.",
+    earnQuoteRefreshed: "Offerte vernieuwd: controleer de nieuwe bedragen en bevestig dan.",
+    buyTestDelivery: "Testmodus: testcrypto wordt op een testnetwerk verstuurd en verschijnt dus niet in je hoofdsaldi.",
     payInfoTitle: "Je gegevens",
     payInfoBody: "Deze winkel heeft een paar gegevens van je nodig. Ze gaan naar het betaalformulier en kunnen op dit apparaat worden onthouden, zodat je ze niet opnieuw hoeft te typen.",
     payFieldFullName: "Volledige naam",
@@ -16765,6 +16793,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   pl: {
+    txStillPending: "Nadal czekamy na potwierdzenie sieci. To nie błąd: nie wysyłaj ponownie — śledź ją przez „Śledź transakcję”.",
+    earnPartial: "Nie udało się odczytać niektórych pozycji ({networks}): pokazane kwoty są ostatnimi znanymi.",
+    earnQuoteRefreshed: "Wycena odświeżona: sprawdź nowe kwoty, a potem potwierdź.",
+    buyTestDelivery: "Tryb testowy: testowe krypto trafia do sieci testowej, więc nie pojawi się w głównych saldach.",
     payInfoTitle: "Twoje dane",
     payInfoBody: "Ten sprzedawca potrzebuje kilku informacji o Tobie. Trafiają do formularza płatności i mogą zostać zapamiętane na tym urządzeniu, by nie trzeba było ich wpisywać ponownie.",
     payFieldFullName: "Imię i nazwisko",
@@ -19143,6 +19175,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} min",
   },
   tr: {
+    txStillPending: "Ağın onayı hâlâ bekleniyor. Bu bir hata değil: tekrar gönderme — “İşlemi takip et” ile izle.",
+    earnPartial: "Bazı pozisyonlar okunamadı ({networks}): gösterilen tutarlar bilinen son değerlerdir.",
+    earnQuoteRefreshed: "Teklif yenilendi: yeni tutarları kontrol et, sonra onayla.",
+    buyTestDelivery: "Test modu: test kriptosu bir test ağında gönderilir, bu yüzden ana bakiyelerinde görünmez.",
     payInfoTitle: "Bilgilerin",
     payInfoBody: "Bu satıcı senden birkaç bilgi istiyor. Bilgiler ödeme formuna gönderilir ve tekrar yazmaman için bu cihazda hatırlanabilir.",
     payFieldFullName: "Ad soyad",
@@ -21516,6 +21552,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} dk",
   },
   ru: {
+    txStillPending: "Всё ещё ждём подтверждения сети. Это не ошибка: не отправляйте повторно — следите через «Отследить транзакцию».",
+    earnPartial: "Не удалось прочитать некоторые позиции ({networks}): показаны последние известные суммы.",
+    earnQuoteRefreshed: "Котировка обновлена: проверьте новые суммы и подтвердите.",
+    buyTestDelivery: "Тестовый режим: тестовая криптовалюта отправляется в тестовую сеть, поэтому не появится в основных балансах.",
     payInfoTitle: "Ваши данные",
     payInfoBody: "Этому продавцу нужны некоторые данные о вас. Они передаются в форму оплаты и могут быть сохранены на этом устройстве, чтобы не вводить их снова.",
     payFieldFullName: "Полное имя",
@@ -23930,6 +23970,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} мин",
   },
   ar: {
+    txStillPending: "ما زلنا ننتظر تأكيد الشبكة. هذا ليس فشلًا: لا ترسل مرة أخرى — تابعها عبر «تتبّع المعاملة».",
+    earnPartial: "تعذّرت قراءة بعض المراكز ({networks}): المبالغ المعروضة هي آخر قيم معروفة.",
+    earnQuoteRefreshed: "تم تحديث العرض: تحقق من المبالغ الجديدة ثم أكّد.",
+    buyTestDelivery: "وضع الاختبار: تُرسل العملات التجريبية على شبكة اختبار، لذا لن تظهر في أرصدتك الرئيسية.",
     payInfoTitle: "بياناتك",
     payInfoBody: "يطلب هذا التاجر بعض البيانات عنك. تُرسل إلى نموذج الدفع ويمكن حفظها على هذا الجهاز حتى لا تضطر لكتابتها مرة أخرى.",
     payFieldFullName: "الاسم الكامل",
@@ -26291,6 +26335,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} د",
   },
   hi: {
+    txStillPending: "नेटवर्क की पुष्टि का अभी भी इंतज़ार है। यह विफलता नहीं है: दोबारा न भेजें — “लेन-देन ट्रैक करें” से देखें।",
+    earnPartial: "कुछ पोज़िशन पढ़ी नहीं जा सकीं ({networks}): दिखाई गई राशियाँ आख़िरी ज्ञात हैं।",
+    earnQuoteRefreshed: "कोट ताज़ा हुआ: नई राशियाँ जाँचें, फिर पुष्टि करें।",
+    buyTestDelivery: "टेस्ट मोड: टेस्ट क्रिप्टो टेस्ट नेटवर्क पर भेजा जाता है, इसलिए यह आपके मुख्य बैलेंस में नहीं दिखेगा।",
     payInfoTitle: "आपकी जानकारी",
     payInfoBody: "इस व्यापारी को आपके बारे में कुछ जानकारी चाहिए। यह भुगतान फ़ॉर्म में भेजी जाती है और इस डिवाइस पर याद रखी जा सकती है, ताकि आपको दोबारा न लिखना पड़े।",
     payFieldFullName: "पूरा नाम",
@@ -28687,6 +28735,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} मिनट",
   },
   zh: {
+    txStillPending: "仍在等待网络确认。这不是失败:请勿重复发送——可通过“跟踪交易”查看。",
+    earnPartial: "部分仓位无法读取({networks}):显示的是最后已知的金额。",
+    earnQuoteRefreshed: "报价已刷新:请核对新金额后再确认。",
+    buyTestDelivery: "测试模式:测试币会发送到测试网络,因此不会出现在你的主余额中。",
     payInfoTitle: "你的信息",
     payInfoBody: "该商家需要一些关于你的信息。这些信息会发送到支付表单,并可保存在此设备上,下次无需再次输入。",
     payFieldFullName: "全名",
@@ -31008,6 +31060,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} 分钟",
   },
   ja: {
+    txStillPending: "ネットワークの承認をまだ待っています。失敗ではありません。再送せず「取引を追跡」で確認してください。",
+    earnPartial: "一部のポジションを読み込めませんでした({networks})。表示は最後に確認できた金額です。",
+    earnQuoteRefreshed: "見積もりを更新しました。新しい金額を確認してから承認してください。",
+    buyTestDelivery: "テストモード:テスト用の暗号資産はテストネットワークに送られるため、メインの残高には表示されません。",
     payInfoTitle: "あなたの情報",
     payInfoBody: "この加盟店はあなたに関する情報をいくつか必要としています。情報は支払いフォームに送られ、このデバイスに保存できるので、次回から入力は不要です。",
     payFieldFullName: "氏名",
@@ -33394,6 +33450,10 @@ const dict: Record<Lang, Partial<Record<Key, string>>> = {
     minutesShort: "{n} 分",
   },
   ko: {
+    txStillPending: "아직 네트워크 확인을 기다리는 중입니다. 실패가 아니니 다시 보내지 말고 ‘거래 추적’으로 확인하세요.",
+    earnPartial: "일부 포지션을 읽지 못했습니다({networks}): 표시된 금액은 마지막으로 확인된 값입니다.",
+    earnQuoteRefreshed: "견적이 갱신되었습니다. 새 금액을 확인한 뒤 확인하세요.",
+    buyTestDelivery: "테스트 모드: 테스트 암호화폐는 테스트 네트워크로 전송되므로 기본 잔액에 표시되지 않습니다.",
     payInfoTitle: "내 정보",
     payInfoBody: "이 가맹점은 몇 가지 정보를 요청합니다. 정보는 결제 양식으로 전송되며, 다시 입력하지 않도록 이 기기에 저장할 수 있습니다.",
     payFieldFullName: "전체 이름",

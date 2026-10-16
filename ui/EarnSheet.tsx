@@ -21,6 +21,7 @@ import { useWallet, type Unlock } from '../lib/walletStore';
 import { friendlyTxError } from '../lib/txError';
 import { haptic } from '../lib/haptics';
 import { notifyAndLog } from '../lib/notificationCenter';
+import { toast } from '../lib/toast';
 import { useEarn, priceOf, quote as earnQuote, execute as earnExecute, maxDeposit, nativeReserve, type EarnStatus, type EarnAccount } from '../lib/earn';
 import { getAdapter, parseAmount, formatTokenAmount, formatInputAmount, formatNumber, formatFiat, formatPercent, formatAmount, isNative, type EarnProtocol, type EarnAction, type EarnQuote } from '../src';
 import { useShallow } from 'zustand/react/shallow';
@@ -32,6 +33,9 @@ const STATUS_KEY: Record<EarnStatus, 'earnQuoting' | 'stApproving' | 'stApproval
   sending: 'stSending',
   confirming: 'stConfirming',
 };
+
+/** Au-delà, le devis est recalculé avant de signer. */
+const QUOTE_MAX_AGE_MS = 60_000;
 
 const money = formatFiat;
 
@@ -183,7 +187,7 @@ export function EarnSheet({
   };
 
   const preview = async () => {
-    if (!canPreview) return;
+    if (!canPreview && !(step === 'quote' && q)) return;
     haptic.light();
     setQuoting(true);
     setError(null);
@@ -235,7 +239,8 @@ export function EarnSheet({
   const outStr = q ? fmt(q.amountOut, q.tokenOut.decimals) : '0';
   const outNum = q ? Number(formatAmount(q.amountOut, q.tokenOut.decimals)) : 0;
   const gasNum = q ? Number(formatAmount(q.gasNative, chain.nativeDecimals)) : 0; // formatAmount : jamais « <0.0… » → jamais NaN
-  const gasFiat = q ? (q.gasUsd > 0 && gasPrice === 0 ? q.gasUsd : gasNum * gasPrice) : 0;
+  // Repli sur le montant LI.FI en DOLLARS seulement si l'app affiche des dollars (sinon on le présenterait en euros).
+  const gasFiat = q ? (q.gasUsd > 0 && gasPrice === 0 && fiat.toLowerCase() === 'usd' ? q.gasUsd : gasNum * gasPrice) : 0;
   const inFiat = amountNum * priceIn;
   const highFee = q && gasFiat > 0 && inFiat > 0 && gasFiat / inFiat > 0.05;
   // Dépôt natif : montant + gas estimé doivent tenir dans le solde.
@@ -402,7 +407,25 @@ export function EarnSheet({
                   {error ? <View style={{ marginTop: spacing(1.5) }}><Notice message={error} /></View> : null}
 
                   <View style={{ marginTop: spacing(3), gap: spacing(1.5) }}>
-                    <Button label={isDeposit ? t('earnConfirmDeposit') : t('earnConfirmWithdraw')} disabled={gasShort} onPress={() => { haptic.medium(); setUnlockVisible(true); }} />
+                    <Button
+                      label={isDeposit ? t('earnConfirmDeposit') : t('earnConfirmWithdraw')}
+                      disabled={gasShort || quoting}
+                      loading={quoting}
+                      onPress={() => {
+                        haptic.medium();
+                        /*
+                         * DEVIS ANCIEN : recalculé avant de signer. Une route d'échange
+                         * a une échéance et un minimum reçu calculés à l'instant du
+                         * devis ; signée dix minutes plus tard, elle échoue (frais
+                         * perdus) ou passe à un prix qui n'est plus celui affiché.
+                         */
+                        if (q && q.quotedAt && Date.now() - q.quotedAt > QUOTE_MAX_AGE_MS) {
+                          void preview().then(() => toast.info(t('earnQuoteRefreshed')));
+                          return;
+                        }
+                        setUnlockVisible(true);
+                      }}
+                    />
                     <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing(3) }}>
                       <KPressable onPress={() => { setStep('input'); setQ(null); setError(null); }} hitSlop={8}>
                         <Text style={{ color: colors.textSecondary, fontFamily: fonts.semibold }}>{t('earnEditAmount')}</Text>

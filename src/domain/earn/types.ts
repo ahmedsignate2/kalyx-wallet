@@ -97,4 +97,8 @@ export interface EarnQuote {
   /** Description de la route (« Contrat Lido », « Jupiter via LI.FI »…). */
   routeLabel: string;
   tx: EarnTx;
+  /** Compte pour lequel le devis a été calculé : on ne signe pas avec un autre. */
+  from?: string;
+  /** Instant du devis (ms) : un devis ancien est recalculé avant de signer. */
+  quotedAt?: number;
 }

@@ -142,10 +142,17 @@ export interface EarnBalances {
  * aux pannes (un RPC muet n'efface pas les autres). Solana : une seule
  * lecture des tokens SPL partagée entre les protocoles.
  */
-export async function loadAll(acct: EarnAccount): Promise<{ balances: EarnBalances; positions: EarnPosition[] }> {
+export async function loadAll(acct: EarnAccount): Promise<{ balances: EarnBalances; positions: EarnPosition[]; failed: string[] }> {
   const underlying: Record<string, bigint> = {};
   const gas: Record<string, bigint> = {};
   const positions: EarnPosition[] = [];
+  /*
+   * Protocoles dont une lecture a ÉCHOUÉ. Une lecture ratée devenait un solde
+   * nul : la position disparaissait, le total tombait à 0, sans un mot — une
+   * donnée inventée. Le magasin garde pour eux les dernières valeurs connues
+   * et l'écran dit que la lecture est incomplète.
+   */
+  const failed: string[] = [];
 
   // Cache par (chaîne, token, owner) pour ne pas relire le même solde N fois.
   const cache = new Map<string, Promise<bigint>>();
@@ -155,7 +162,7 @@ export async function loadAll(acct: EarnAccount): Promise<{ balances: EarnBalanc
     const key = `${p.chainId}:${token}:${owner}`;
     let pr = cache.get(key);
     if (!pr) {
-      pr = tokenBalance(p, token, owner, splCache).catch(() => 0n);
+      pr = tokenBalance(p, token, owner, splCache);
       cache.set(key, pr);
     }
     return pr;
@@ -168,13 +175,17 @@ export async function loadAll(acct: EarnAccount): Promise<{ balances: EarnBalanc
       } catch {
         return; // pas d'adresse Solana sur ce compte (wallet clé privée)
       }
-      const [u, g, r] = await Promise.all([read(p, p.underlying.address), read(p, NATIVE), read(p, p.receipt.address)]);
-      underlying[p.id] = u;
-      gas[p.id] = g;
-      if (r > 0n) positions.push({ protocolId: p.id, balance: r, decimals: p.receipt.decimals });
+      try {
+        const [u, g, r] = await Promise.all([read(p, p.underlying.address), read(p, NATIVE), read(p, p.receipt.address)]);
+        underlying[p.id] = u;
+        gas[p.id] = g;
+        if (r > 0n) positions.push({ protocolId: p.id, balance: r, decimals: p.receipt.decimals });
+      } catch {
+        failed.push(p.id);
+      }
     }),
   );
-  return { balances: { underlying, gas }, positions };
+  return { balances: { underlying, gas }, positions, failed };
 }
 
 // ─── APY ───────────────────────────────────────────────────────────────
@@ -419,8 +430,14 @@ export async function quote(
   if (amount <= 0n) throw new WalletError('INVALID_AMOUNT', 'Montant invalide');
   const route = action === 'deposit' ? p.deposit : p.withdraw;
   if (route.via === 'none') throw new Error(route.reason);
-  if (route.via === 'contract') return contractQuote(p, action, amount, acct, { all: !!opts.all });
-  return lifiQuote(p, action, amount, acct);
+  /*
+   * stETH (rebasing) : un transfert de TOUT le solde peut arriver à 1-2 wei de
+   * moins (arrondi des parts Lido) — la route d'échange, qui attend le montant
+   * exact, échouait alors. Au retrait complet, on laisse ces 2 wei.
+   */
+  const amt = opts.all && action === 'withdraw' && p.id === 'lido-steth' && amount > 2n ? amount - 2n : amount;
+  const q = route.via === 'contract' ? await contractQuote(p, action, amt, acct, { all: !!opts.all }) : await lifiQuote(p, action, amt, acct);
+  return { ...q, from: addressFor(p, acct), quotedAt: Date.now() };
 }
 
 // ─── Exécution ─────────────────────────────────────────────────────────
@@ -430,9 +447,16 @@ export interface EarnResult {
   explorerUrl?: string;
 }
 
+/** Le compte actif est-il celui du devis ? Sinon : refus (un autre compte signerait pour le premier). */
+function assertQuoteOwner(q: EarnQuote, current: string | undefined): void {
+  if (!q.from || !current) return;
+  if (q.from.toLowerCase() !== current.toLowerCase()) throw new WalletError('WRONG_ACCOUNT', 'Le compte actif a changé depuis le devis', { address: `${q.from.slice(0, 6)}…${q.from.slice(-4)}` });
+}
+
 async function executeSolana(q: EarnQuote, unlock: Unlock, onStatus?: (s: EarnStatus) => void): Promise<string> {
   if (q.tx.type !== 'solana') throw new Error('Transaction Solana attendue');
   const store = useWallet.getState();
+  assertQuoteOwner(q, store.accounts.find((a) => a.index === store.activeAccountIndex)?.solAddress);
   onStatus?.('sending');
   // Signature avec blockhash rafraîchi (le devis LI.FI peut dater de >60 s).
   const signed = await store.signSolanaTransaction(unlock, q.tx.data, true, { appFlow: true });
@@ -446,6 +470,7 @@ async function executeEvm(p: EarnProtocol, q: EarnQuote, unlock: Unlock, onStatu
   const adapter = evm(p);
   const owner = store.accounts.find((a) => a.index === store.activeAccountIndex)?.evmAddress;
   if (!owner) throw new Error('Aucun compte');
+  assertQuoteOwner(q, owner);
 
   // 0) Gas natif : message clair AVANT de signer quoi que ce soit.
   const gasBal = await adapter.getBalance(owner).then((b) => b.raw).catch(() => -1n);

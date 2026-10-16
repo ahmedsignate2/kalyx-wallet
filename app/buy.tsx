@@ -356,6 +356,20 @@ function BuyScreenInner() {
   const [tx, setTx] = useState<RampTx | null>(null);
   const [providerInfo, setProviderInfo] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  /*
+   * MES ACHATS À JOUR. Une commande quittée en cours restait « en cours » dans
+   * la liste pour toujours (son statut n'était relu qu'en l'ouvrant) : à
+   * l'ouverture de la liste, les commandes en cours sont relues.
+   */
+  useEffect(() => {
+    if (!historyOpen) return;
+    const pending = useBuyHistory.getState().items.filter((h) => buyProgress({ status: h.status }).outcome === 'pending').slice(0, 5);
+    for (const h of pending) {
+      void rampTransaction(h.id)
+        .then((next) => useBuyHistory.getState().upsert({ id: next.id, status: next.status, cryptoAmount: next.quoteCurrencyAmount, txHash: next.cryptoTransactionId }))
+        .catch(() => {});
+    }
+  }, [historyOpen]);
   const [methodQuotes, setMethodQuotes] = useState<Partial<Record<BuyPaymentMethod, RampQuote | null>>>({});
   const [quoteNonce, setQuoteNonce] = useState(0);
   const [ttl, setTtl] = useState(QUOTE_TTL);
@@ -802,6 +816,8 @@ function BuyScreenInner() {
           </View>
           <Text variant="title2" style={{ textAlign: 'center' }}>{t('buySuccessTitle')}</Text>
           <Text style={{ fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 36, color: colors.text, textAlign: 'center' }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
+          {/* Mode test : la crypto de test part sur un réseau de TEST — elle n'apparaît pas dans les soldes principaux. */}
+          {env === 'sandbox' ? <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>{t('buyTestDelivery')}</Text> : null}
           <View style={{ height: space[4] }} />
           <Button label={t('buySeeWallet')} onPress={() => router.dismissTo('/home')} />
           <Button label={t('buyDetailsTitle')} variant="secondary" onPress={() => setStep('details')} />
@@ -811,7 +827,8 @@ function BuyScreenInner() {
 
     if (step === 'details') {
       const hash = tx?.cryptoTransactionId ?? null;
-      const explorer = hash && chainCfg?.explorerUrl ? buildExplorerTxUrl(chainCfg.explorerUrl, hash) : null;
+      // Mode test : la transaction est sur un réseau de test, l'explorateur du réseau principal ne la connaît pas.
+      const explorer = hash && chainCfg?.explorerUrl && env !== 'sandbox' ? buildExplorerTxUrl(chainCfg.explorerUrl, hash) : null;
       const status = tx ? buyProgress(tx).outcome : 'pending';
       return (
         <>
