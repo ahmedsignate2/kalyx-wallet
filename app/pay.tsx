@@ -9,19 +9,21 @@
  */
 import { withWatchOnlyGate } from '../ui/WatchOnlyGate';
 import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react';
-import { View, ScrollView, Platform } from 'react-native';
+import { View, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, Button, ListRow, IconButton, Skeleton, EmptyState, Chip, Pressable as KPressable, Card, TokenIcon, LogoImage, Sheet } from '../ui/kit';
+import { Text, Button, ListRow, IconButton, Skeleton, EmptyState, Chip, Pressable as KPressable, Card, TokenIcon, LogoImage, Sheet, Input, Checkbox } from '../ui/kit';
 import { useTheme } from '../ui/theme';
 import { Icon } from '../ui/icon';
 import { space, SCREEN_MARGIN } from '../ui/tokens';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
-import { usePay, payAmountText, type PayOption } from '../lib/walletconnectPay';
+import { usePay, payAmountText, buildCollectUrl, type PayOption } from '../lib/walletconnectPay';
+import { getPayInfo, savePayInfo, forgetPayInfo } from '../lib/payerProfile';
+import { prefillFields, prefillFor, prefillComplete, validField, type PrefillField } from '../src/domain/pay/payPrefill';
 import { useT, useSettings, fiatSymbol } from '../lib/settingsStore';
 import { fill } from '../lib/i18n';
 import { toast } from '../lib/toast';
@@ -110,6 +112,7 @@ function PayScreenInner() {
     options,
     selected,
     collectUrl,
+    collectSchema,
     result,
     failure,
     detail,
@@ -122,7 +125,38 @@ function PayScreenInner() {
     recheck,
     confirm,
     reset,
-  } = usePay(useShallow((s) => ({ phase: s.phase, options: s.options, selected: s.selected, collectUrl: s.collectUrl, result: s.result, failure: s.failure, detail: s.detail, payer: s.payer, collectedIds: s.collectedIds, settledChain: s.settledChain, open: s.open, select: s.select, collected: s.collected, recheck: s.recheck, confirm: s.confirm, reset: s.reset })));
+  } = usePay(useShallow((s) => ({ phase: s.phase, options: s.options, selected: s.selected, collectUrl: s.collectUrl, collectSchema: s.collectSchema, result: s.result, failure: s.failure, detail: s.detail, payer: s.payer, collectedIds: s.collectedIds, settledChain: s.settledChain, open: s.open, select: s.select, collected: s.collected, recheck: s.recheck, confirm: s.confirm, reset: s.reset })));
+
+  /*
+   * INFORMATIONS DU PAYEUR, une seule fois. Le formulaire hébergé redemandait
+   * nom et date de naissance à chaque paiement. Elles sont saisies ici (et
+   * mémorisées sur l'appareil si l'utilisateur le veut), puis transmises au
+   * formulaire en préremplissage : il n'y a plus qu'à valider.
+   */
+  const [infoFields, setInfoFields] = useState<PrefillField[] | null>(null);
+  const [infoForm, setInfoForm] = useState<Record<string, string> | null>(null);
+  const [prefill, setPrefill] = useState<Record<string, string> | null>(null);
+  const [rememberInfo, setRememberInfo] = useState(true);
+  const [hasSavedInfo, setHasSavedInfo] = useState(false);
+  useEffect(() => {
+    setInfoForm(null);
+    setPrefill(null);
+    setInfoFields(null);
+    if (!collectUrl) return;
+    let alive = true;
+    const fields = prefillFields(collectSchema);
+    void getPayInfo().then((saved) => {
+      if (!alive) return;
+      setHasSavedInfo(!!saved && Object.keys(saved).length > 0);
+      if (fields.length === 0) return setPrefill({});
+      setInfoFields(fields);
+      if (prefillComplete(fields, saved)) setPrefill(prefillFor(fields, saved));
+      else setInfoForm(prefillFor(fields, saved));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [collectUrl, collectSchema]);
 
   /*
    * LA TRADUCTION SE FAIT ICI, à partir d'un code. Le magasin portait des
@@ -268,7 +302,72 @@ function PayScreenInner() {
   /** Montant d'une option, décimales appliquées. */
   const amountOf = (o: PayOption) => formatTokenAmount(BigInt(o.amount.value || '0'), o.amount.display.decimals);
 
-  /* ── Capture de données : formulaire hébergé ───────────────────────────── */
+  /* ── Capture de données : informations mémorisées, puis formulaire hébergé ── */
+  if (collectUrl && infoFields && infoForm) {
+    const labelOf = (f: PrefillField) =>
+      f.key === 'fullName' ? t('payFieldFullName') : f.key === 'dob' ? t('payFieldDob') : f.key === 'pobAddress' ? t('payFieldPob') : f.title ?? f.key;
+    const valid = infoFields.every((f) => validField(f, infoForm[f.key]));
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ScreenDunes />
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: SCREEN_MARGIN, height: 48 }}>
+          <IconButton icon="back" label={t('back')} tone="glass" onPress={close} />
+        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: SCREEN_MARGIN, gap: space[3], paddingBottom: insets.bottom + space[6] }} keyboardShouldPersistTaps="handled">
+          <Text variant="title2">{t('payInfoTitle')}</Text>
+          <Text variant="caption" tone="secondary">{t('payInfoBody')}</Text>
+          <Card style={{ gap: space[3] }}>
+            {infoFields.map((f) => (
+              <Input
+                key={f.key}
+                label={labelOf(f) + (f.required ? '' : ` (${t('optionalWord')})`)}
+                value={infoForm[f.key] ?? ''}
+                onChangeText={(v) => setInfoForm((cur) => (cur ? { ...cur, [f.key]: v } : cur))}
+                placeholder={f.kind === 'date' ? t('payFieldDobHint') : undefined}
+                keyboardType={f.kind === 'date' ? 'numbers-and-punctuation' : 'default'}
+                autoCapitalize={f.kind === 'date' ? 'none' : 'words'}
+                autoCorrect={false}
+                error={infoForm[f.key] && !validField(f, infoForm[f.key]) ? t('payInfoInvalid') : null}
+              />
+            ))}
+            <Checkbox checked={rememberInfo} onChange={setRememberInfo} label={<Text variant="body">{t('payInfoRemember')}</Text>} />
+          </Card>
+          <Button
+            label={t('continueWord')}
+            disabled={!valid}
+            onPress={() => {
+              const values = prefillFor(infoFields, infoForm);
+              if (rememberInfo) void savePayInfo(values);
+              setInfoForm(null);
+              setPrefill(values);
+            }}
+          />
+          {hasSavedInfo ? (
+            <KPressable
+              onPress={() => {
+                void forgetPayInfo();
+                setHasSavedInfo(false);
+                setInfoForm({});
+                toast.success(t('payInfoForgotten'));
+              }}
+              style={{ alignSelf: 'center', paddingVertical: space[2] }}
+            >
+              <Text variant="caption" tone="danger">{t('payInfoForget')}</Text>
+            </KPressable>
+          ) : null}
+        </ScrollView>
+      </View>
+    );
+  }
+  if (collectUrl && prefill === null) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator color={colors.textTertiary} />
+      </View>
+    );
+  }
   if (collectUrl) {
     /*
      * TOUT CE QUE LE FORMULAIRE DIT EST TRACÉ.
@@ -310,9 +409,17 @@ function PayScreenInner() {
         */}
         <View style={{ paddingHorizontal: SCREEN_MARGIN, paddingBottom: space[3] }}>
           <Text variant="caption" tone="secondary">{t('payCollectNotice')}</Text>
+          {prefill && Object.keys(prefill).length > 0 && infoFields ? (
+            <KPressable onPress={() => { setInfoForm({ ...prefill }); setPrefill(null); }} style={{ paddingTop: space[1] }} accessibilityRole="button">
+              <Text variant="caption" style={{ color: colors.primary }}>{t('payInfoPrefilled')}</Text>
+            </KPressable>
+          ) : null}
         </View>
         <WebView
-          source={{ uri: collectUrl }}
+          source={{ uri: prefill && Object.keys(prefill).length ? buildCollectUrl(collectUrl, { prefill }) : collectUrl }}
+          // Session du formulaire gardée d'une fois sur l'autre (cookies persistants).
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
           onMessage={onMessage}
           /*
            * Les liens externes (CGU, confidentialité) partent dans le

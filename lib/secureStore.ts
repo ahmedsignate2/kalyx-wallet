@@ -555,6 +555,8 @@ export function wipeAll(list: WalletMeta[]): Promise<void> {
       ...list.map((w) => wipeWalletKeys(w.id)),
       wipeWalletKeys('primary'),
       kvDel(K_WALLETS, base),
+      // E-mail d'achat et identité de paiement mémorisés : partent avec le reste.
+      import('./payerProfile').then((m) => m.wipePayerProfile()).catch(() => {}),
     ]);
   });
 }

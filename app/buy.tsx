@@ -22,7 +22,9 @@ import { WebView } from 'react-native-webview';
 import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming, cancelAnimation } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
-import { Text, Button, IconButton, Card, Sheet, TokenIcon, Skeleton, Pressable as KPressable } from '../ui/kit';
+import { Text, Button, IconButton, Card, Sheet, TokenIcon, Skeleton, Pressable as KPressable, Input } from '../ui/kit';
+import { getBuyEmail, setBuyEmail } from '../lib/payerProfile';
+import { isValidEmail } from '../src/domain/pay/payPrefill';
 import { haptic } from '../lib/haptics';
 import { Image } from 'react-native';
 import { SvgXml } from 'react-native-svg';
@@ -468,11 +470,33 @@ function BuyScreenInner() {
     };
   }, [sheet, asset, amount, validAmount, fiatCode, methods]);
 
+  /*
+   * E-MAIL MOONPAY, mémorisé sur l'appareil : le widget s'ouvre dessus, il ne
+   * reste que le code reçu par e-mail (MoonPay garde l'identité vérifiée de son
+   * côté, une fois pour toutes). Vide = rien n'est prérempli ni gardé.
+   */
+  const [email, setEmail] = useState('');
+  const [emailSaved, setEmailSaved] = useState(false);
+  useEffect(() => {
+    void getBuyEmail().then((e) => {
+      if (e) {
+        setEmail(e);
+        setEmailSaved(true);
+      }
+    });
+  }, []);
+  const emailOk = !email.trim() || isValidEmail(email);
+
   const openWidget = async () => {
-    if (!asset || !address || !validAmount) return;
+    if (!asset || !address || !validAmount || !emailOk) return;
     setOpening(true);
     try {
-      const r = await rampWidgetUrl({ currencyCode: asset.code, walletAddress: address, baseCurrencyCode: fiatCode, baseCurrencyAmount: amount, paymentMethod: method, theme: mode === 'light' ? 'light' : 'dark' });
+      const mail = email.trim() || undefined;
+      if (mail) {
+        void setBuyEmail(mail);
+        setEmailSaved(true);
+      }
+      const r = await rampWidgetUrl({ currencyCode: asset.code, walletAddress: address, baseCurrencyCode: fiatCode, baseCurrencyAmount: amount, paymentMethod: method, theme: mode === 'light' ? 'light' : 'dark', ...(mail ? { email: mail } : {}) });
       technicalLogger.log('DAPP', 'Achat : widget MoonPay ouvert', { env: r.env, currency: asset.code, method });
       // Google Pay ne fonctionne pas dans une vue web : Chrome (même appareil, même IP).
       if (needsSystemBrowser(method)) await Linking.openURL(r.url);
@@ -552,6 +576,10 @@ function BuyScreenInner() {
         </View>
         <WebView
           source={{ uri: widgetUrl }}
+          // Session MoonPay gardée d'un achat à l'autre : cookies persistants partagés (iOS), cookies de MoonPay acceptés (Android).
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          cacheEnabled
           // Vérification d'identité : caméra, vidéo d'instructions en ligne, envoi de documents.
           javaScriptEnabled
           domStorageEnabled
@@ -712,12 +740,32 @@ function BuyScreenInner() {
             </View>
           </Card>
           </KPressable>
+          <View style={{ gap: space[1] }}>
+            <Input
+              label={t('buyEmailLabel')}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              placeholder="name@example.com"
+              error={emailOk ? null : t('payInfoInvalid')}
+              right={emailSaved ? (
+                <KPressable onPress={() => { void setBuyEmail(null); setEmail(''); setEmailSaved(false); }} accessibilityRole="button" hitSlop={8}>
+                  <Text variant="caption" tone="danger">{t('buyEmailForget')}</Text>
+                </KPressable>
+              ) : undefined}
+            />
+            <Text variant="micro" tone="tertiary">{t('buyEmailHint')}</Text>
+          </View>
           {quoteError ? <Text variant="caption" style={{ color: colors.danger, textAlign: 'center' }}>{quoteError}</Text> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {quoting ? <ActivityIndicator size="small" color={colors.textTertiary} /> : <Icon name="refresh" size={12} color={colors.textTertiary} />}
             <Text variant="micro" tone="tertiary" tabular>{fill(t('buyQuoteRefresh'), { s: ttl })}</Text>
           </View>
-          <Button label={fill(t('buyCta'), { amount: amountLabel })} loading={opening} disabled={!quote || opening} onPress={() => void openWidget()} />
+          <Button label={fill(t('buyCta'), { amount: amountLabel })} loading={opening} disabled={!quote || opening || !emailOk} onPress={() => void openWidget()} />
           <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{env === 'sandbox' ? t('buyTestNote') : t('buyKycNote')}</Text>
         </>
       );

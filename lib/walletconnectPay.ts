@@ -306,6 +306,8 @@ interface PayState {
   selected: PayOption | null;
   /** URL du formulaire hébergé, quand l'option choisie exige une capture. */
   collectUrl: string | null;
+  /** Schéma JSON de ce formulaire : dit quels champs l'app peut préremplir. */
+  collectSchema: string | null;
   result: PayResult | null;
   /**
    * Options dont les informations ont été ENVOYÉES.
@@ -383,6 +385,7 @@ const EMPTY = {
   options: null,
   selected: null,
   collectUrl: null,
+  collectSchema: null,
   result: null,
   failure: null,
   detail: null,
@@ -491,6 +494,7 @@ export const usePay = create<PayState>((set, get) => ({
              * qui s'ouvre au milieu d'une app sombre se remarque.
              */
             collectUrl: buildCollectUrl(next.url, { theme, themeVariables: PAY_THEME_VARIABLES }),
+            collectSchema: options.collectData?.schema ?? null,
             payer: get().payer,
             failure: null,
           });
@@ -526,6 +530,7 @@ export const usePay = create<PayState>((set, get) => ({
     set({
       selected: option,
       collectUrl: url ? buildCollectUrl(url, { theme, themeVariables: PAY_THEME_VARIABLES }) : null,
+      collectSchema: url ? option.collectData?.schema ?? null : null,
       phase: url ? 'collecting' : 'choosing',
     });
   },
@@ -555,7 +560,7 @@ export const usePay = create<PayState>((set, get) => ({
       set({ collectedIds: [...collectedIds, selected.id] });
     }
     if (link && (options?.options.length ?? 0) === 0) {
-      set({ collectUrl: null });
+      set({ collectUrl: null, collectSchema: null });
       /*
        * `afterInfo` : ce rechargement SUIT l'envoi du formulaire. Il interdit
        * d'y revenir, et c'est ce qui coupe la boucle. Le compte payeur est
@@ -565,7 +570,7 @@ export const usePay = create<PayState>((set, get) => ({
       void get().open(link, { afterInfo: true, accountIndex: get().payer?.index });
       return;
     }
-    set({ collectUrl: null, phase: 'choosing' });
+    set({ collectUrl: null, collectSchema: null, phase: 'choosing' });
   },
 
   confirm: async (unlock) => {

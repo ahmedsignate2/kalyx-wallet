@@ -71,6 +71,8 @@ export function rampWidgetUrl(p: {
   baseCurrencyAmount: number;
   paymentMethod: BuyPaymentMethod;
   theme: 'light' | 'dark';
+  /** E-mail du compte MoonPay, prérempli dans le widget (signé avec le reste). */
+  email?: string;
 }): Promise<{ url: string; env: RampEnv }> {
   return call<{ url: string; env: RampEnv }>('/moonpay/url', { method: 'POST', body: JSON.stringify(p) });
 }
