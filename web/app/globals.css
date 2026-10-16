@@ -2,15 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* General Sans (Fontshare, ITF Free Font License) — la police de l'app. */
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Semibold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+
+/* Thème Crème de l'app (ui/tokens.ts) : fond crème, encre brune, or du logo. */
 :root {
-  --color-ink: #080a09;
-  --color-ink-2: #101413;
-  --color-ink-3: #171c19;
-  --color-paper: #f3efe6;
-  --color-sage: #8fad9a;
-  --color-mist: #9aa097;
-  --color-bone: #e8e2d4;
-  color-scheme: dark;
+  --color-ink: #F4EEE5;
+  --color-ink-2: #FFFBF5;
+  --color-ink-3: #EFE7DB;
+  --color-paper: #1D1A16;
+  --color-sage: #B8863A;
+  --color-mist: #6B6358;
+  --color-bone: #463018;
+  color-scheme: light;
 }
 
 * {
@@ -34,9 +41,10 @@ body {
   color: var(--color-ink);
 }
 
-/* Titres Fraunces : axe optique large pour les grands corps. */
+/* Titres : General Sans gras, serré comme dans l'app. */
 .font-display {
-  font-variation-settings: 'opsz' 144;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 /* Barre de défilement dans l'encre. */
@@ -125,4 +133,14 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Le halo de l'astre respire lentement, comme dans l'app. */
+@keyframes sun-breathe {
+  0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+}
+.sun-breathe { animation: sun-breathe 9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sun-breathe { animation: none; }
 }

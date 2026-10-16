@@ -62,12 +62,13 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
       initial={reduce ? false : { y: -24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.9, ease: EASE }}
-      className="fixed inset-x-0 top-0 z-50 border-b border-bone/10 bg-ink/70 backdrop-blur-xl"
+      className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5"
     >
-      <div className="mx-auto flex h-16 max-w-page items-center justify-between px-5 sm:px-8">
+      <div className="mx-auto max-w-page rounded-[1.75rem] bg-ink-2/85 shadow-card ring-1 ring-cream-line backdrop-blur-xl">
+      <div className="flex h-14 items-center justify-between pl-5 pr-2 sm:pl-6">
         <Link href={`/${lang}/`} className="flex items-center gap-2.5 text-paper">
           <Mark size={22} className="text-sage" />
-          <span className="font-display text-xl tracking-tight">Kalyx</span>
+          <span className="font-display text-lg">Kalyx</span>
         </Link>
 
         <nav className="hidden items-center gap-6 xl:flex" aria-label={t.nav.chapters}>
@@ -108,7 +109,7 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
       </div>
 
       {open && (
-        <div className="border-t border-bone/10 bg-ink px-5 pb-6 pt-2 xl:hidden">
+        <div className="border-t border-cream-line px-5 pb-6 pt-2 xl:hidden">
           {links.map((l) => (
             <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="block py-3 text-base text-mist">
               {l.label}
@@ -133,6 +134,7 @@ export function Nav({ t, lang }: { t: Dict; lang: Locale }) {
           </a>
         </div>
       )}
+      </div>
     </motion.header>
   );
 }

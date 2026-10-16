@@ -49,14 +49,14 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
           <div className="space-y-5 lg:col-span-2">
             <Link href={`/${lang}/`} className="flex items-center gap-2.5 text-paper">
               <Mark size={22} className="text-sage" />
-              <span className="font-display text-xl tracking-tight">Kalyx</span>
+              <span className="font-display text-lg">Kalyx</span>
             </Link>
-            <p className="max-w-sm text-sm font-light leading-relaxed text-mist">{t.footer.desc}</p>
+            <p className="max-w-sm text-sm leading-relaxed text-mist">{t.footer.desc}</p>
           </div>
 
           {columns.map((col) => (
             <div key={col.title}>
-              <h3 className="mb-4 text-xs uppercase tracking-[0.18em] text-bone/70">{col.title}</h3>
+              <h3 className="mb-4 text-sm font-semibold text-paper">{col.title}</h3>
               <ul className="space-y-2.5 text-sm">
                 {col.links.map((l) => (
                   <li key={l.href}>
@@ -76,7 +76,7 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
           ))}
         </div>
 
-        <div className="space-y-2 pt-8 text-xs font-light leading-relaxed text-mist/80">
+        <div className="space-y-2 pt-8 text-xs leading-relaxed text-mist">
           <p>
             <span className="text-bone/80">{t.footer.publisher}</span> {t.footer.publisherText}
           </p>
@@ -85,7 +85,7 @@ export function Footer({ t, lang }: { t: Dict; lang: Locale }) {
           </p>
           <div className="flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p>{t.footer.rights}</p>
-            <p className="font-display italic text-bone/70">{t.footer.tagline}</p>
+            <p className="font-semibold text-sage">{t.footer.tagline}</p>
           </div>
         </div>
       </div>

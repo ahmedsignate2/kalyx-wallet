@@ -1,25 +1,7 @@
 import type { Metadata } from 'next';
-import { Fraunces, Outfit } from 'next/font/google';
 import { notFound } from 'next/navigation';
 import '../globals.css';
 import { getDictionary, HTML_LANG, isLocale, LOCALES, RTL, type Locale } from '../../i18n';
-
-/** Outfit pour le texte, Fraunces (serif à caractère) pour les titres. */
-const outfit = Outfit({
-  subsets: ['latin', 'latin-ext'],
-  weight: 'variable',
-  variable: '--font-outfit',
-  display: 'swap',
-});
-
-const fraunces = Fraunces({
-  subsets: ['latin', 'latin-ext'],
-  weight: 'variable',
-  style: ['normal', 'italic'],
-  axes: ['opsz'],
-  variable: '--font-fraunces',
-  display: 'swap',
-});
 
 export const dynamicParams = false;
 
@@ -59,7 +41,7 @@ export default async function RootLayout({ children, params }: { children: React
   if (!isLocale(lang)) notFound();
   const locale: Locale = lang;
   return (
-    <html lang={HTML_LANG[locale]} dir={RTL.has(locale) ? 'rtl' : 'ltr'} className={`${outfit.variable} ${fraunces.variable}`}>
+    <html lang={HTML_LANG[locale]} dir={RTL.has(locale) ? 'rtl' : 'ltr'}>
       <body className="min-h-screen bg-ink font-sans text-paper">
         {children}
       </body>

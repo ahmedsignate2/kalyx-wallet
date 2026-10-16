@@ -217,7 +217,7 @@ const pl: Dict = {
     p1a: 'Przed każdym podpisem opłaty sieciowe są pokazane',
     p1em: 'w Twojej walucie',
     p1b: ', z możliwymi progami. Jeśli brakuje Ci gazu, Kalyx mówi ile — też w Twojej walucie, nie w gwei.',
-    p2: 'Bez zakupów kartą, bez sprzedaży za fiat w aplikacji: to usługi regulowane, z weryfikacją tożsamości. Gdy je kiedyś zaoferujemy, będzie to z licencjonowanym partnerem, w osobnym module, nigdy zmieszane z Twoimi kluczami.',
+    p2: 'Zakup kartą odbywa się przez MoonPay, licencjonowanego partnera: osobny moduł, który sam weryfikuje tożsamość i nigdy nie widzi Twoich kluczy. Kalyx nie dolicza prowizji, a krypto trafia prosto na Twój adres. Bez sprzedaży za fiat w aplikacji.',
   },
   vision: {
     kicker: 'Czego chcemy',
@@ -229,7 +229,7 @@ const pl: Dict = {
       'Każdy podpis jest wyjaśniony prostymi słowami przed dotknięciem — bo właśnie tam ludzi się ogołaca.',
       'Szybkość, którą czuć: ekran główny otwiera się z pamięci podręcznej, zanim sieć odpowie.',
       'Jeśli element nie służy ani zrozumieniu, ani zaufaniu, usuwamy go.',
-      'Fiat, karty, może kiedyś — odizolowane, regulowane, nigdy zmieszane z rdzeniem.',
+      'Karty, przez licencjonowanego partnera — odizolowane, regulowane, nigdy zmieszane z rdzeniem.',
       'Jedna osoba, przetestowany kod, piętnaście języków i chęć zrobienia tego dobrze.',
     ],
     stats: ['sieci', 'języków', 'zestawów testów', 'serwerów widzących klucz'],

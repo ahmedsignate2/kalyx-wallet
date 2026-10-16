@@ -217,7 +217,7 @@ const it: Dict = {
     p1a: 'Prima di ogni firma, le commissioni di rete sono mostrate',
     p1em: 'nella tua valuta',
     p1b: ', con i livelli possibili. Se ti manca gas, Kalyx ti dice quanto — anch’esso nella tua valuta, non in gwei.',
-    p2: 'Nessun acquisto con carta, nessuna vendita in fiat nell’app: sono servizi regolamentati, con verifica dell’identità. Il giorno in cui li offriremo, sarà con un partner autorizzato, in un modulo separato, mai mescolato alle tue chiavi.',
+    p2: 'L’acquisto con carta passa da MoonPay, un partner autorizzato: un modulo separato che gestisce da sé la verifica dell’identità e non vede mai le tue chiavi. Kalyx non aggiunge alcuna commissione, le cripto arrivano direttamente al tuo indirizzo. Nessuna vendita in fiat nell’app.',
   },
   vision: {
     kicker: 'Ciò che vogliamo',
@@ -229,7 +229,7 @@ const it: Dict = {
       'Ogni firma è spiegata con parole chiare prima del tocco — perché è lì che la gente viene svuotata.',
       'La velocità si sente: la home si apre dalla cache, prima che la rete risponda.',
       'Se un elemento non serve né alla comprensione né alla fiducia, lo togliamo.',
-      'Il fiat, le carte, forse un giorno — isolati, regolamentati, mai mescolati al cuore.',
+      'Le carte, tramite un partner autorizzato — isolate, regolamentate, mai mescolate al cuore.',
       'Una sola persona, codice testato, quindici lingue e la voglia di fare bene.',
     ],
     stats: ['reti', 'lingue', 'suite di test', 'server che vede una chiave'],
