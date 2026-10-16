@@ -156,7 +156,7 @@ function Layer({ scrollY, speed, height, pull = true, children }: { scrollY?: Sh
 /* Le paysage                                                          */
 /* ------------------------------------------------------------------ */
 
-export const Landscape = memo(function Landscape({ width, height, phase, scrollY, sunAt, veil, balanceGlow }: { width: number; height: number; phase: SkyPhase; scrollY?: SharedValue<number>; /** Hauteur de l'astre (fraction de `height`) : un paysage plein écran le pose sur l'horizon, loin du texte. */ sunAt?: number; /** Voile sombre sur le bas : ce qui est posé sur les collines (courbe, périodes) garde son contraste. */ veil?: boolean; /** Halo chaud derrière le solde (en haut à gauche), plus présent en Nuit. */ balanceGlow?: number }) {
+export const Landscape = memo(function Landscape({ width, height, phase, scrollY, sunAt, sunX: sunXAt, veil, balanceGlow }: { width: number; height: number; phase: SkyPhase; scrollY?: SharedValue<number>; /** Hauteur de l'astre (fraction de `height`) : un paysage plein écran le pose sur l'horizon, loin du texte. */ sunAt?: number; /** Position horizontale de l'astre (fraction de `width`, 0,74 par défaut). */ sunX?: number; /** Voile sombre sur le bas : ce qui est posé sur les collines (courbe, périodes) garde son contraste. */ veil?: boolean; /** Halo chaud derrière le solde (en haut à gauche), plus présent en Nuit. */ balanceGlow?: number }) {
   const sc = SCENES[phase];
   const reduce = useReduceMotion();
   const active = useLoopActive();
@@ -172,7 +172,7 @@ export const Landscape = memo(function Landscape({ width, height, phase, scrollY
   // L'astre est BAS, posé derrière la colline lointaine (à droite) : il éclaire le
   // ciel et les crêtes, sans jamais se trouver derrière le solde.
   const sunR = night ? width * 0.035 : width * 0.05;
-  const sunX = width * 0.74;
+  const sunX = width * (sunXAt ?? 0.74);
   const sunY = height * (sunAt ?? 0.5);
   const glowSize = width * 1.1;
   const starList = useMemo(() => (sc.stars ? stars(width, height) : []), [sc.stars, width, height]);

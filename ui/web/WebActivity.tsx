@@ -17,7 +17,7 @@ import { Text, Divider, Chip, Input, SegmentedControl, ActivityRow, Skeleton, Sh
 import { Icon } from '../icon';
 import { useTheme } from '../theme';
 import { space } from '../tokens';
-import { useT, useActivityT, useSettings, fiatSymbol } from '../../lib/settingsStore';
+import { useT, useActivityT, useSettings } from '../../lib/settingsStore';
 import { csvLabels } from '../../lib/csvLabels';
 import { useHistoryStore, useHistoryCache, cacheKey } from '../../lib/historyStore';
 import { usePortfolioStore } from '../../lib/portfolio';
@@ -29,7 +29,6 @@ import { toast } from '../../lib/toast';
 import {
   humanizeTx,
   groupByDay,
-  formatFiat,
   chainNameOf,
   chainMetaOf,
   chainIconUrl,
@@ -42,8 +41,9 @@ import {
 } from '../../src';
 import { MobileEmptyState } from './MobileChrome';
 import { useWebT } from './webI18n';
-import { webLocale } from './webTheme';
+import { webLocale, formatMoney } from './webTheme';
 import { chainOf } from './webAccounts';
+
 
 type Filter = 'all' | 'in' | 'out' | 'swap';
 type Row = { tx: TxSummary; h: HumanTx };
@@ -148,7 +148,6 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
     return { priceBySymbol: prices, logoOf: (tx: TxSummary) => logos.get(tx.contract ? `${tx.chain}:${tx.contract.toLowerCase()}` : `${tx.chain}:native`) };
   }, [holdings]);
 
-  const sym = fiatSymbol(fiat);
   const rows: Row[] = useMemo(() => txs.map((tx) => {
     const c = chainOf(tx.chain);
     const h = humanizeTx(tx, {
@@ -162,11 +161,11 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
       // Jamais de contre-valeur sur un réseau de test : ses jetons ne valent rien.
       fiatOf: c?.testnet ? undefined : (symbol: string, amount: number) => {
         const p = priceBySymbol.get(symbol.toUpperCase());
-        return p ? `${formatFiat(amount * p)} ${sym}` : undefined;
+        return p ? formatMoney(amount * p, fiat) : undefined;
       },
     });
     return { tx, h };
-  }), [txs, activityT, nameOf, spamOf, holdings, priceBySymbol, sym]);
+  }), [txs, activityT, nameOf, spamOf, holdings, priceBySymbol, fiat]);
 
   const spamRows = rows.filter((r) => r.h.spam);
   const poisoned = spamRows.some((r) => r.h.spamReason === 'poisoning');
