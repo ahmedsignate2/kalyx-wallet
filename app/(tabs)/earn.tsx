@@ -108,6 +108,11 @@ function EarnScreenInner() {
   };
 
   const initialLoading = earn.loading && !earn.loadedFor;
+  /*
+   * TOTAL INCONNU : des réseaux n'ont pas répondu et aucune position n'est
+   * connue. Afficher « 0,00 » affirmerait qu'il n'y a rien — on montre « — ».
+   */
+  const totalUnknown = !earn.loading && earn.failed.length > 0 && positions.length === 0;
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'mine', label: t('earnFilterMine') },
@@ -152,11 +157,13 @@ function EarnScreenInner() {
           <Text style={[typography.muted, { fontSize: fontSize.sm, fontFamily: fonts.semibold }]}>{t('earnTotal')}</Text>
           {initialLoading ? (
             <Text style={typography.hero}>…</Text>
+          ) : totalUnknown ? (
+            <Text style={typography.hero}>—</Text>
           ) : (
             <CountUp value={totalFiat} format={(v) => `${money(v)} ${fiatSymbol(fiat)}`} style={typography.hero} />
           )}
           <Text style={{ color: colors.up, fontFamily: fonts.semibold, fontVariant: ['tabular-nums'], fontSize: fontSize.md }}>
-            {initialLoading ? '…' : `+${money(yearlyFiat)} ${fiatSymbol(fiat)}`} <Text style={{ color: colors.textTertiary, fontFamily: fonts.regular }}>· {t('earnYearly')}</Text>
+            {initialLoading ? '…' : totalUnknown ? '—' : `+${money(yearlyFiat)} ${fiatSymbol(fiat)}`} <Text style={{ color: colors.textTertiary, fontFamily: fonts.regular }}>· {t('earnYearly')}</Text>
           </Text>
         </Rise>
 

@@ -135,7 +135,7 @@ const VERIFIED_HOSTS = new Set(VERIFIED_DAPPS.flatMap((c) => c.items.map((d) => 
 /* Sosies (« uniswapp.org ») : `isLookalike` vient du catalogue (src/domain/web/dappCatalog.ts), même règle qu'avant. */
 
 /** Pastille de compatibilité d'une dApp du catalogue. */
-const COMPAT_KEY: Record<DappCompat, string> = { evm: 'dappCompatEvm', ton: 'dappCompatTon', walletconnect: 'dappCompatWalletConnect' };
+const COMPAT_KEY: Record<DappCompat, string> = { evm: 'dappCompatEvm', solana: 'dappCompatSolana', ton: 'dappCompatTon', walletconnect: 'dappCompatWalletConnect' };
 
 function normalizeUrl(raw?: string | null): string | null {
   if (typeof raw !== 'string') return null;

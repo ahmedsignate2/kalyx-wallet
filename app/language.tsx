@@ -44,7 +44,7 @@ export default function Language() {
                 }}
               >
                 <Text style={{ fontSize: fontSize.xl }}>{l.flag}</Text>
-                <Text style={[typography.body, { flex: 1 }]}>{l.name}</Text>
+                <Text style={[typography.body, { flex: 1, textAlign: 'left', writingDirection: 'ltr' }]}>{l.name}</Text>
                 {active ? (
                   <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: colors.text, alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="checkmark" size={12} color={colors.bg} weight="bold" />

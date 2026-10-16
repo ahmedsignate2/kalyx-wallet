@@ -35,7 +35,12 @@ export async function shareCsvFile(csv: string, title: string): Promise<void> {
   const day = new Date().toISOString().slice(0, 10);
   const file = new File(Paths.cache, `${PREFIX}${day}.csv`);
   if (file.exists) file.delete();
-  file.write(csv);
+  /*
+   * MARQUE UTF-8 (BOM) en tête : sans elle, Excel lit le fichier dans
+   * l'encodage local — « Reçu » devenait « ReÃ§u », et l'arabe, le chinois ou
+   * le japonais étaient illisibles. Les autres tableurs l'ignorent.
+   */
+  file.write(csv.startsWith('\uFEFF') ? csv : `\uFEFF${csv}`);
   try {
     await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text', dialogTitle: title });
   } finally {

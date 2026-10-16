@@ -30,9 +30,6 @@ import { goBack } from '../lib/nav';
 
 type Fam = ChainFamily;
 
-/** Réseaux EVM cités dans la phrase d'aide (les plus utilisés ; « … » pour les autres). */
-const EVM_HINT_ORDER = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb'];
-
 function ReceiveInner() {
   const t = useT();
   const { colors } = useTheme();
@@ -79,7 +76,6 @@ function ReceiveInner() {
   }, [environment, customChains, hasAddressFor]);
 
   if (!stored) return null;
-  const evmNames = EVM_HINT_ORDER.map((id) => listChains({ includeTestnets: false }).find((c) => c.id === id)?.name).filter((n): n is string => !!n);
   const selected = networks.find((c) => c.id === selectedChain) ?? networks[0];
   const fam = selected?.family as Fam | undefined;
   // La fonction unique : l'adresse TON se calcule, et dépend du réseau.
@@ -90,14 +86,7 @@ function ReceiveInner() {
     // repère (`'ce réseau'`, `'this network'`, `'dieses Netzwerk'`…), donc
     // chercher la version française ne marchait qu'en français — partout
     // ailleurs le `${…}` s'affichait tel quel.
-    /*
-     * La MÊME adresse sert sur tous les réseaux EVM. L'onglet s'appelle
-     * « Ethereum », et l'écran ne disait que « pour Ethereum » : quelqu'un qui
-     * voulait recevoir de l'USDC sur Base croyait ne pas pouvoir.
-     */
-    fam === 'evm' && environment === 'mainnet'
-      ? fill(t('hintEvm'), { network: `${evmNames.join(', ')}…` })
-      : fam === 'evm' ? fill(t('hintEvm'), { network: selected?.name ?? t('thisNetwork') })
+    fam === 'evm' ? fill(t('hintEvm'), { network: selected?.name ?? t('thisNetwork') })
     : fam === 'solana' ? t("hintSolana")
     : fam === 'ton' ? t("hintTon")
     : t("hintBitcoin");

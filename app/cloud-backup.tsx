@@ -27,7 +27,7 @@ import { shareBackupFile, purgeStaleBackupFiles } from '../lib/backupFile';
 import { toast } from '../lib/toast';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, Button, Input, ScreenHeader, Divider, Card, Switch } from '../ui/kit';
+import { Text, Button, Input, ScreenHeader, Divider, Card, Switch, Pressable as KPressable } from '../ui/kit';
 import { ConfirmUnlock } from '../ui/ConfirmUnlock';
 import { Icon } from '../ui/icon';
 import { useTheme } from '../ui/theme';
@@ -136,7 +136,11 @@ export default function CloudBackupScreen() {
     qu'un portefeuille sans le dire ; annoncer le nombre est ce qui permet à
     l'utilisateur de repérer une sauvegarde incomplète.
   */
-  const coversLabel = t('backupCovers').replace('{count}', String(savedCount ?? walletCount));
+  const coversCount = savedCount ?? walletCount;
+  // « tous tes portefeuilles : 1 » sonnait faux avec un seul.
+  const coversLabel = coversCount === 1 ? t('backupCoversOne') : t('backupCovers').replace('{count}', String(coversCount));
+  // Mot de passe long tapé à l'aveugle : on peut l'afficher pour le relire.
+  const [showPwd, setShowPwd] = useState(false);
 
   const submit = (to: Target) => {
     setError(null);
@@ -248,8 +252,9 @@ export default function CloudBackupScreen() {
                 label={t('backupPassword')}
                 value={pwd}
                 onChangeText={(v) => { setPwd(v); setError(null); }}
-                placeholder={t('pwdPlaceholder')}
-                secureTextEntry
+                placeholder={t('pwdPlaceholderShort')}
+                secureTextEntry={!showPwd}
+                right={<KPressable onPress={() => setShowPwd((v) => !v)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t(showPwd ? 'hidePassword' : 'showPassword')}><Icon name={showPwd ? 'eyeOff' : 'eye'} size={18} color={colors.textSecondary} /></KPressable>}
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="newPassword"
@@ -266,7 +271,7 @@ export default function CloudBackupScreen() {
               value={confirm}
               onChangeText={(v) => { setConfirm(v); setError(null); }}
               placeholder={t('repeatPassword')}
-              secureTextEntry
+              secureTextEntry={!showPwd}
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="newPassword"

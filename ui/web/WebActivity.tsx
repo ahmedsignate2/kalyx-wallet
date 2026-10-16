@@ -206,7 +206,8 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
       chainOf: chainMetaOf,
       labels: csvLabels(t),
     });
-    if (downloadText('kalyx-history.csv', csv)) return;
+    // BOM UTF-8 : Excel lit sinon le fichier dans l'encodage local (accents et écritures non latines abîmés).
+    if (downloadText('kalyx-history.csv', `\uFEFF${csv}`)) return;
     void Clipboard.setStringAsync(csv).then(() => toast.success(t('copied'))).catch(() => toast.error(t('exportFailed')));
   };
 

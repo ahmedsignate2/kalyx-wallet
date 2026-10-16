@@ -3,6 +3,8 @@
  * aucune signature. Nécessite une clé Alchemy (endpoint *.alchemy.com dans les
  * RPC de la chaîne) ; sinon renvoie [] proprement. Spam exclu côté Alchemy.
  */
+import { base64 } from '@scure/base';
+import { bytesToUtf8 } from '@noble/hashes/utils';
 import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
 import { isSpamNft } from './nftSpam';
@@ -73,11 +75,9 @@ export function inlineSvg(raw: unknown): string {
   return s;
 }
 
+/** base64 → texte UTF-8, avec les bibliothèques du projet : `atob`/`TextDecoder` manquent sur certains moteurs (Hermes/Android). */
 function decodeBase64Utf8(b64: string): string {
-  const bin = atob(b64.replace(/\s+/g, ''));
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
+  return bytesToUtf8(base64.decode(b64.replace(/\s+/g, '')));
 }
 
 const uniq = (xs: string[]) => xs.filter((x, i) => x && xs.indexOf(x) === i);
