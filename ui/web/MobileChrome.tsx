@@ -9,7 +9,6 @@ import { reducedMotion } from './motion';
 import { View, Text, Pressable, Animated } from 'react-native';
 import { KalyxSpinner } from './motion';
 import { KalyxLogo } from '../KalyxLogo';
-import { ActionTile } from '../nova';
 import { Icon, type IconName } from '../icon';
 import { WEB_FONTS, useWebPalette } from './webTheme';
 import { fontSize, radii } from '../tokens';
@@ -59,16 +58,6 @@ export function NetworkPill({ avatar, name, onPress }: { avatar: React.ReactNode
  * vert, échanger lavande) : le tableau de bord et la mini-app Telegram
  * reconnaissent les gestes au premier regard, comme sur le téléphone.
  */
-export function ActionRow({ onReceive, onSend, onSwap, labels }: { onReceive: () => void; onSend: () => void; onSwap: () => void; labels: { receive: string; send: string; swap: string } }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 10 }}>
-      <ActionTile index={0} tint="send" icon="send" label={labels.send} onPress={onSend} />
-      <ActionTile index={1} tint="receive" icon="receive" label={labels.receive} onPress={onReceive} />
-      <ActionTile index={2} tint="swap" icon="exchange" label={labels.swap} onPress={onSwap} />
-    </View>
-  );
-}
-
 /* --------------------------------------------------------- Chips de période */
 
 export function PeriodChips<T extends string>({ options, value, onChange }: { options: { k: T; l: string }[]; value: T; onChange: (k: T) => void }) {

@@ -64,7 +64,7 @@ function downloadText(name: string, text: string): boolean {
   return true;
 }
 
-export function WebActivity({ onReceive }: { onReceive: () => void }) {
+export function WebActivity({ onReceive, boxed }: { onReceive: () => void; /** Ordinateur : l'état vide dans une carte. */ boxed?: boolean }) {
   const t = useT();
   const tw = useWebT();
   const activityT = useActivityT();
@@ -247,7 +247,8 @@ export function WebActivity({ onReceive }: { onReceive: () => void }) {
     );
   }
   if (txs.length === 0) {
-    return <MobileEmptyState icon="history" title={t('noActivityYet')} subtitle={t('noActivityBody')} action={{ label: t('receive'), onPress: onReceive }} />;
+    const empty = <MobileEmptyState icon="history" title={t('noActivityYet')} subtitle={t('noActivityBody')} action={{ label: t('receive'), onPress: onReceive }} />;
+    return boxed ? <Card>{empty}</Card> : empty;
   }
 
   return (
