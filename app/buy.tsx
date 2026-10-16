@@ -183,7 +183,7 @@ function BoxKeypad({ value, onChange }: { value: string; onChange: (v: string) =
           accessibilityLabel={k === 'del' ? '⌫' : k}
           style={{ width: '31%', flexGrow: 1, height: 56, borderRadius: 14, backgroundColor: k === 'del' || k === sep ? 'transparent' : colors.surface2, alignItems: 'center', justifyContent: 'center' }}
         >
-          {k === 'del' ? <Icon name="backspace" size={26} color={colors.text} /> : <Text style={{ fontFamily: fontFamily.semibold, fontSize: 28, color: colors.text }}>{k}</Text>}
+          {k === 'del' ? <Icon name="backspace" size={26} color={colors.text} /> : <Text style={{ fontFamily: fontFamily.semibold, fontSize: 28, lineHeight: 36, color: colors.text, includeFontPadding: false }}>{k}</Text>}
         </KPressable>
       ))}
     </View>
@@ -687,7 +687,7 @@ function BuyScreenInner() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4] }}>
               <AssetIcon asset={asset} size={48} />
               <View>
-                <Text style={{ fontFamily: fontFamily.bold, fontSize: 26, color: colors.text }} tabular>{amountLabel}</Text>
+                <Text style={{ fontFamily: fontFamily.bold, fontSize: 26, lineHeight: 34, color: colors.text }} tabular>{amountLabel}</Text>
                 <Text variant="caption" tone="secondary" tabular>{quote ? `≈ ${cryptoLabel(quote.quoteCurrencyAmount)}` : '…'}</Text>
               </View>
             </View>
@@ -753,7 +753,7 @@ function BuyScreenInner() {
             </View>
           </View>
           <Text variant="title2" style={{ textAlign: 'center' }}>{t('buySuccessTitle')}</Text>
-          <Text style={{ fontFamily: fontFamily.bold, fontSize: 28, color: colors.text, textAlign: 'center' }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
+          <Text style={{ fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 36, color: colors.text, textAlign: 'center' }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
           <View style={{ height: space[4] }} />
           <Button label={t('buySeeWallet')} onPress={() => router.dismissTo('/home')} />
           <Button label={t('buyDetailsTitle')} variant="secondary" onPress={() => setStep('details')} />
@@ -771,7 +771,7 @@ function BuyScreenInner() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3], padding: space[4] }}>
               <AssetIcon asset={asset} size={48} />
               <View>
-                <Text style={{ fontFamily: fontFamily.bold, fontSize: 24, color: colors.text }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
+                <Text style={{ fontFamily: fontFamily.bold, fontSize: 24, lineHeight: 32, color: colors.text }} tabular>{`+${cryptoLabel(tx?.quoteCurrencyAmount)}`}</Text>
                 <Text variant="caption" tone="secondary" tabular>{tx?.baseCurrencyAmount != null ? `≈ ${money(tx.baseCurrencyAmount)}` : '—'}</Text>
               </View>
             </View>
