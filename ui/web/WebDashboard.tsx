@@ -4,6 +4,7 @@
  * WalletConnect (QR), on lit les adresses publiques, et on FORWARDE toute action
  * sensible à l'app qui signe. Layout desktop responsive (sidebar + contenu).
  */
+import { FallbackMark } from '../kit/FallbackMark';
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl, Image, TextInput, useWindowDimensions, Animated, Easing, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -85,14 +86,8 @@ function ChainAvatar({ chain, size = 20 }: { chain: ChainConfig; size?: number }
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
   const uri = chainIconUrl(chain.id);
-  if (!uri || failed) {
-    const letter = (chain.nativeSymbol || chain.name || '?').slice(0, 1).toUpperCase();
-    return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: size * 0.42, color: colors.text, fontFamily: fonts.bold }}>{letter}</Text>
-      </View>
-    );
-  }
+  // Pas de lettre : une marque tirée du réseau (comme dans l'app).
+  if (!uri || failed) return <FallbackMark seed={chain.id} size={size} />;
   return <LogoImage uri={uri} size={size} onError={() => setFailed(true)} style={{ backgroundColor: colors.glass }} />;
 }
 

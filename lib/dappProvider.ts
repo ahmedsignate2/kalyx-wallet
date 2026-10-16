@@ -12,6 +12,8 @@
  * fenêtre d'approbation native + PIN (mêmes primitives que WalletConnect).
  */
 
+import { KALYX_ICON_DATA_URI } from './kalyxIcon';
+
 /** Méthodes lecture seule relayées au RPC (liste blanche stricte). */
 export const READONLY_METHODS = new Set([
   'eth_call',
@@ -239,7 +241,7 @@ export function buildInjectedProvider(chainIdHex: string, token: string): string
   var info = {
     uuid: 'e9f8c2a4-ka1x-0000-0000-000000000001',
     name: 'Kalyx Wallet',
-    icon: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzdDNUNGRiIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+TjwvdGV4dD48L3N2Zz4=',
+    icon: ${JSON.stringify(KALYX_ICON_DATA_URI)},
     rdns: 'wallet.kalyx',
   };
   function announce() {

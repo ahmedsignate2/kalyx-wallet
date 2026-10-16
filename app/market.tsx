@@ -177,7 +177,7 @@ export default function Market() {
                       c.thumb ? (
                         <RemoteIcon uri={c.thumb} label={c.symbol} size={36} />
                       ) : (
-                        <Avatar label={c.symbol.slice(0, 1)} />
+                        <Avatar label={c.id ?? c.symbol} />
                       )
                     }
                     title={c.name}
