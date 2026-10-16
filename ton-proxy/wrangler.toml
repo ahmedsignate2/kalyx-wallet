@@ -8,7 +8,7 @@ ALLOWED_ORIGINS = "https://app.kalyxwallet.com,https://kalyxwallet.com"
 # MoonPay (achat de crypto) — MODE TEST. La clé publique pk_test_… se colle ici
 # (elle n'est pas secrète). Passage en production : pk_live_… + MOONPAY_ENV.
 MOONPAY_ENV = "sandbox"
-MOONPAY_PUBLISHABLE_KEY = ""
+MOONPAY_PUBLISHABLE_KEY = "pk_test_XgnnCBDwWrZFRdyzEU47fYjA58PrbXw"
 MOONPAY_REDIRECT_URL = "https://kalyxwallet.com/buy/complete"
 
 # Lectures : 30 requêtes / 10 s par IP (le cache absorbe l'essentiel).
