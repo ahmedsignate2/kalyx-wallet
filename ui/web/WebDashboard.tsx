@@ -30,8 +30,8 @@ import { SendFlow } from './SendFlow';
 import { WebTokens } from './WebTokens';
 import { WebActivity } from './WebActivity';
 import { SwapScreen } from './SwapScreen';
-import { Sidebar, TopBar, SectionTitle } from './DesktopChrome';
-import { MobileHeader, NetworkPill, ActionRow, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
+import { NavCard, StatusCard, SideHeader, ActionTiles } from './DesktopChrome';
+import { MobileHeader, NetworkPill, PeriodChips, SegmentTabs, MobileEmptyState, FloatingDock, DOCK_CLEARANCE } from './MobileChrome';
 import { useAiStore } from '../../lib/aiStore';
 import { PROVIDER_DEFAULTS } from '../../lib/aiConfig';
 import { Icon, type IconName } from '../icon';
@@ -598,58 +598,20 @@ function Dashboard() {
   const language = useSettings((s) => s.language);
   const P = useWebPalette();
   const tabLabels: Record<MobileTab, string> = { home: t("navHome"), market: t("navMarket"), agent: tw('agentTab'), settings: t("settings") };
-  const actionRow = (
-    <ActionRow
-      onReceive={() => openSheet('receive')}
-      onSend={() => openSheet('send')}
-      onSwap={() => openSheet('swap')}
-      labels={{ receive: t("receive"), send: t("send"), swap: t("swapAction") }}
-    />
-  );
-  // Accueil : un seul flux continu (solde avec halo → période + tendance →
-  // 3 actions → onglets Tokens / NFT / Activité), identique mobile et desktop.
+  const actions = { onSend: () => openSheet('send'), onReceive: () => openSheet('receive'), onSwap: () => openSheet('swap'), labels: { send: t('send'), receive: t('receive'), swap: t('swapAction') } };
+  // Accueil du téléphone : le ciel et le solde, les trois gestes, puis les avoirs.
+  // Le cours du réseau vit dans l'onglet Marché, avec le reste des prix.
   const homeFlow = (
     <>
       <SkyCard><MobileHero data={heroData} chain={chain} address={address} large={false} onSky /></SkyCard>
-      <MobileTrend data={heroData} chain={chain} />
-      {actionRow}
+      <ActionTiles {...actions} fill />
       <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
     </>
   );
-  /*
-   * Ordinateur : un bandeau de ciel pleine largeur (solde à gauche, répartition
-   * et actions à droite), puis deux colonnes — les avoirs, et à côté le cours
-   * et le marché. Tout ce qui compte tient au-dessus de la ligne de flottaison.
-   */
-  const twoCols = width >= 1180;
-  const actions = { onSend: () => openSheet('send'), onReceive: () => openSheet('receive'), onSwap: () => openSheet('swap'), labels: { send: t('send'), receive: t('receive'), swap: t('swapAction') } };
-  const desktopHome = (
+  const marketFlow = (wide: boolean) => (
     <>
-      <SkyCard wide>
-        <View style={{ flexDirection: width >= 1000 ? 'row' : 'column', gap: 28, alignItems: width >= 1000 ? 'flex-end' : 'stretch', justifyContent: 'space-between' }}>
-          <View style={{ flexShrink: 1, minWidth: 0 }}>
-            <MobileHero data={heroData} chain={chain} address={address} large onSky />
-          </View>
-          <View style={{ width: width >= 1000 ? 340 : '100%', gap: 22 }}>
-            <SkyAllocation worth={worth} />
-            <HeroActions {...actions} />
-          </View>
-        </View>
-      </SkyCard>
-      <View style={{ flexDirection: twoCols ? 'row' : 'column', gap: 24, alignItems: 'flex-start' }}>
-        <View style={{ flex: twoCols ? 1.65 : undefined, width: twoCols ? undefined : '100%', minWidth: 0 }}>
-          <MobileAssets data={heroData} chain={chain} address={address} onReceive={() => openSheet('receive')} />
-        </View>
-        <View style={{ flex: twoCols ? 1 : undefined, width: twoCols ? undefined : '100%', minWidth: 0, gap: 24 }}>
-          <Panel><MobileTrend data={heroData} chain={chain} /></Panel>
-          {twoCols ? (
-            <View style={{ gap: 14 }}>
-              <SectionTitle>{t('navMarket')}</SectionTitle>
-              <MarketPanel />
-            </View>
-          ) : null}
-        </View>
-      </View>
+      <Panel><MobileTrend data={heroData} chain={chain} /></Panel>
+      <MarketPanel wide={wide} />
     </>
   );
   const settingsFlow = (
@@ -682,67 +644,77 @@ function Dashboard() {
       contentContainerStyle={{ minHeight: '100%', alignItems: 'center' }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor={colors.text} colors={[colors.text]} />}
     >
-      <View style={{ width: '100%', maxWidth: 430, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE, gap: 26 }}>
+      <View style={{ width: '100%', maxWidth: 430, paddingHorizontal: 20, paddingTop: 22, paddingBottom: DOCK_CLEARANCE, gap: 22 }}>
         {mobileHeader}
-        <CrossFade id={tab} style={{ gap: tab === 'home' ? 26 : spacing(2) }}>
-          {tab === 'home' ? homeFlow : tab === 'market' ? <MarketPanel /> : settingsFlow}
+        <CrossFade id={tab} style={{ gap: tab === 'home' ? 22 : spacing(2) }}>
+          {tab === 'home' ? homeFlow : tab === 'market' ? marketFlow(false) : settingsFlow}
         </CrossFade>
       </View>
     </ScrollView>
   );
 
   /* ----------------------------------------------------------- Desktop */
-  // Barre latérale (rail d'icônes sous 1100 px) + colonne de contenu ; sur
-  // l'accueil, le marché vit dans la colonne de droite (voir desktopHome).
-  const rail = width < 1100;
-  // Réglages sur deux colonnes dès qu'il y a la place (connexion à gauche, préférences à droite).
-  const twoColSettings = width >= 1280;
-  const desktopContent = (
-    <View style={{ flex: 1, minWidth: 0 }}>
-      <View style={{ flex: 1, paddingHorizontal: 36, paddingTop: 24, gap: 24 }}>
-        <TopBar title={tabLabels[tab]} trust={tw('trustLine')} onRefresh={onPullRefresh} refreshing={refreshing} />
-        {tab === 'agent' ? (
-          <View style={{ flex: 1, alignSelf: 'center', width: '100%', maxWidth: 880, paddingBottom: 24 }}>
-            <AgentPanel chain={chain} address={address} worth={worth} />
+  /*
+   * Deux colonnes centrées. À gauche, ce qui ne change jamais : la marque et le
+   * réseau, la carte du solde sur le ciel, le menu, le téléphone connecté. À
+   * droite, l'onglet : sur l'accueil, les gestes en tuiles, puis les tokens et
+   * les NFT côte à côte, puis l'activité — chaque sujet dans sa carte.
+   */
+  const { height: winH } = useWindowDimensions();
+  const leftW = width >= 1100 ? 340 : 300;
+  const pairCols = width >= 1240;
+  const desktopRight =
+    tab === 'home' ? (
+      <>
+        <ActionTiles {...actions} />
+        <View style={{ flexDirection: pairCols ? 'row' : 'column', gap: 20, alignItems: 'flex-start' }}>
+          <View style={{ flex: pairCols ? 1 : undefined, width: pairCols ? undefined : '100%', minWidth: 0, gap: 12 }}>
+            <ColTitle>{t('tabTokens')}</ColTitle>
+            <WebTokens chain={chain} onReceive={() => openSheet('receive')} />
           </View>
-        ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            <CrossFade id={tab} style={{ flexDirection: 'row', gap: 40, alignItems: 'flex-start', justifyContent: 'center' }}>
-              {/*
-                Largeurs d'ORDINATEUR : la colonne était bridée (760 / 680 / 960 px)
-                quelle que soit la fenêtre — un tiers de l'écran restait vide sur
-                un 1440 px, la moitié sur un 1920 px. Elle suit maintenant la
-                place disponible, avec un plafond de lisibilité.
-              */}
-              <View style={{ flex: 1, minWidth: 0, maxWidth: tab === 'home' ? 1360 : 1240, gap: 24 }}>
-                {tab === 'home' ? desktopHome : tab === 'market' ? <MarketPanel wide={width >= 1000} /> : twoColSettings ? (
-                  <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start' }}>
-                    <View style={{ flex: 1, minWidth: 0, gap: 24 }}><SecurityPanel /></View>
-                    <View style={{ flex: 1.3, minWidth: 0, gap: 24 }}><SettingsPanel /></View>
-                  </View>
-                ) : settingsFlow}
-              </View>
-            </CrossFade>
-          </ScrollView>
-        )}
+          <View style={{ flex: pairCols ? 1 : undefined, width: pairCols ? undefined : '100%', minWidth: 0, gap: 12 }}>
+            <ColTitle>{t('tabNft')}</ColTitle>
+            {chain.family === 'evm' ? <NftsPanel chain={chain} address={address} boxed /> : <Panel><MobileEmptyState icon="nft" title={tw('noNft')} subtitle={tw('nftEvmOnly')} /></Panel>}
+          </View>
+        </View>
+        <View style={{ gap: 12 }}>
+          <ColTitle>{t('activity')}</ColTitle>
+          <WebActivity onReceive={() => openSheet('receive')} boxed />
+        </View>
+      </>
+    ) : tab === 'market' ? (
+      marketFlow(width >= 1100)
+    ) : tab === 'agent' ? (
+      <View style={{ height: Math.max(520, winH - 48) }}>
+        <AgentPanel chain={chain} address={address} worth={worth} />
       </View>
-    </View>
-  );
+    ) : width >= 1280 ? (
+      <View style={{ flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>
+        <View style={{ flex: 1, minWidth: 0, gap: 20 }}><SecurityPanel /></View>
+        <View style={{ flex: 1.3, minWidth: 0, gap: 20 }}><SettingsPanel /></View>
+      </View>
+    ) : (
+      settingsFlow
+    );
   const desktopShell = (
-    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: P.bg }}>
-      <Sidebar
-        rail={rail}
-        tab={tab}
-        onChange={setTab}
-        labels={tabLabels}
-        subtitle={tw('securedWallet')}
-        network={{ avatar: <ChainAvatar chain={chain} size={16} />, name: chain.name }}
-        onNetwork={() => setNetworkSheet(true)}
-        status={{ title: peerName ?? tw('kalyxWallet'), detail: `${tw('lastActivity')} · ${ago(Math.floor(lastActivity / 1000), language)}`, disconnectLabel: tw('disconnectDevice') }}
-        onDisconnect={() => { disconnect().catch(() => {}); }}
-      />
-      {desktopContent}
-    </View>
+    <ScrollView style={{ flex: 1, backgroundColor: P.bg }} contentContainerStyle={{ alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false}>
+      <View style={{ width: '100%', maxWidth: 1280, flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>
+        <View style={{ width: leftW, gap: 16 }}>
+          <SideHeader network={{ avatar: <ChainAvatar chain={chain} size={18} />, name: chain.name }} onNetwork={() => setNetworkSheet(true)} onRefresh={onPullRefresh} refreshing={refreshing} />
+          <SkyCard><MobileHero data={heroData} chain={chain} address={address} large={false} onSky /></SkyCard>
+          <NavCard tab={tab} onChange={setTab} labels={tabLabels} />
+          <StatusCard
+            title={peerName ?? tw('kalyxWallet')}
+            detail={`${tw('lastActivity')} · ${ago(Math.floor(lastActivity / 1000), language)}`}
+            disconnectLabel={tw('disconnectDevice')}
+            onDisconnect={() => { disconnect().catch(() => {}); }}
+          />
+        </View>
+        <CrossFade id={tab} style={{ flex: 1, minWidth: 0, gap: 20 }}>
+          {desktopRight}
+        </CrossFade>
+      </View>
+    </ScrollView>
   );
 
   const scrollContent = narrow ? mobileContent : desktopShell;
@@ -778,70 +750,16 @@ function Dashboard() {
 
 /* --------------------------------------------------------------------- Panels */
 
+/** Titre d'une carte de la colonne de droite. */
+function ColTitle({ children }: { children: string }) {
+  const P = useWebPalette();
+  return <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '700', fontSize: fontSize.md, color: P.text, paddingLeft: 4 }}>{children}</Text>;
+}
+
 /** Surface de l'ordinateur : une carte calme, sans ombre lourde, qui regroupe un sujet. */
 function Panel({ children, style }: { children: React.ReactNode; style?: object }) {
   const P = useWebPalette();
   return <View style={[{ backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: 24, padding: 22, gap: 16 }, style]}>{children}</View>;
-}
-
-/** Les trois gestes, posés sur le ciel : boutons vitrés, icône dans sa teinte de l'app. */
-function HeroActions({ onSend, onReceive, onSwap, labels }: { onSend: () => void; onReceive: () => void; onSwap: () => void; labels: { send: string; receive: string; swap: string } }) {
-  const items: { key: string; icon: IconName; label: string; tint: string; onPress: () => void }[] = [
-    { key: 'send', icon: 'send', label: labels.send, tint: '#F6A982', onPress: onSend },
-    { key: 'receive', icon: 'receive', label: labels.receive, tint: '#72D9AC', onPress: onReceive },
-    { key: 'swap', icon: 'exchange', label: labels.swap, tint: '#B9ABFF', onPress: onSwap },
-  ];
-  return (
-    <View style={{ flexDirection: 'row', gap: 10 }}>
-      {items.map((it) => (
-        <Pressable
-          key={it.key}
-          onPress={it.onPress}
-          accessibilityRole="button"
-          accessibilityLabel={it.label}
-          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-            flex: 1, alignItems: 'center', gap: 8, paddingVertical: 14, borderRadius: 20,
-            backgroundColor: hovered ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.14)',
-            borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
-            transform: [{ scale: pressed ? 0.97 : 1 }],
-          })}
-        >
-          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(11,11,16,0.35)', alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={it.icon} size={18} color={it.tint} weight="bold" />
-          </View>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.sm, color: '#FFF8EE' }}>{it.label}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-/** Répartition par réseau, en clair sur le ciel : barre empilée + les trois premiers. */
-function SkyAllocation({ worth }: { worth: { data: NetWorth | null; loading: boolean } }) {
-  const t = useT();
-  const fiat = useSettings((s) => s.fiat);
-  const total = worth.data?.total ?? 0;
-  const slices = (worth.data?.slices ?? []).filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
-  if (!slices.length || total <= 0) return null;
-  const COLORS = ['#FFD9A0', '#F6A982', '#B9ABFF', '#9DBEF5', '#72D9AC'];
-  return (
-    <View style={{ gap: 10 }}>
-      <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: 'rgba(255,248,238,0.7)', letterSpacing: 1, textTransform: 'uppercase' }}>{t('allocation')}</Text>
-      <View style={{ flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden', gap: 2 }}>
-        {slices.slice(0, 5).map((sl, i) => (
-          <View key={sl.chain.id} style={{ flex: sl.value / total, backgroundColor: COLORS[i % COLORS.length] }} />
-        ))}
-      </View>
-      {slices.slice(0, 3).map((sl, i) => (
-        <View key={sl.chain.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS[i % COLORS.length] }} />
-          <Text style={{ flex: 1, fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: '#FFF8EE' }} numberOfLines={1}>{sl.chain.name}</Text>
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: 'rgba(255,248,238,0.7)', fontVariant: ['tabular-nums'] }}>{formatPercent((sl.value / total) * 100, 1)}</Text>
-          <Text style={{ width: 104, textAlign: 'right', fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.sm, color: '#FFF8EE', fontVariant: ['tabular-nums'] }} numberOfLines={1}>{formatFiatAmount(sl.value, fiat)}</Text>
-        </View>
-      ))}
-    </View>
-  );
 }
 
 /** État vide soigné (icône + titre + sous-titre), centré — jamais de détail
@@ -897,26 +815,6 @@ function Skeleton({ w = '100%', h, r = 8, style }: { w?: number | string; h: num
         </Animated.View>
       ) : null}
     </View>
-  );
-}
-
-/** Lignes de chargement (icône ronde + 2 barres + valeur), pour tokens/historique. */
-function SkeletonRows({ count = 4, flat }: { count?: number; flat?: boolean }) {
-  const { colors } = useTheme();
-  const Wrap = flat ? View : Card;
-  return (
-    <Wrap>
-      {Array.from({ length: count }).map((_, i) => (
-        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5), paddingVertical: spacing(1.25), borderTopWidth: i > 0 ? 1 : 0, borderTopColor: colors.glassBorder }}>
-          <Skeleton w={32} h={32} r={16} />
-          <View style={{ flex: 1, gap: 6 }}>
-            <Skeleton w={90} h={12} />
-            <Skeleton w={140} h={10} />
-          </View>
-          <Skeleton w={60} h={12} />
-        </View>
-      ))}
-    </Wrap>
   );
 }
 
@@ -1121,17 +1019,17 @@ function MobileHero({ data, chain, address, large, onSky }: { data: HeroData; ch
  * visiteur, soleil, trois plans de dunes) que l'accueil du téléphone. Le
  * tableau de bord et la mini-app Telegram ne ressemblent plus à un autre produit.
  */
-function SkyCard({ children, wide }: { children: React.ReactNode; /** Ordinateur : bandeau large, astre à droite, loin du solde. */ wide?: boolean }) {
+function SkyCard({ children }: { children: React.ReactNode }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const phase = skyPhaseAt(new Date().getHours());
   return (
     <View
       onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      style={{ borderRadius: 28, overflow: 'hidden', paddingHorizontal: wide ? 32 : 22, paddingTop: wide ? 28 : 22, paddingBottom: wide ? 28 : 26 }}
+      style={{ borderRadius: 28, overflow: 'hidden', paddingHorizontal: 22, paddingTop: 22, paddingBottom: 26 }}
     >
       {box.w > 0 ? (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
-          <Landscape width={box.w} height={box.h + 30} phase={phase} sunAt={wide ? 0.22 : 0.18} sunX={wide ? 0.47 : 0.88} veil balanceGlow={0.18} />
+          <Landscape width={box.w} height={box.h + 30} phase={phase} sunAt={0.18} sunX={0.88} veil balanceGlow={0.18} />
         </View>
       ) : null}
       {children}
@@ -1509,7 +1407,7 @@ function SettingsPanel() {
   );
 }
 
-function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: string; flat?: boolean }) {
+function NftsPanel({ chain, address, flat, boxed }: { chain: ChainConfig; address: string; flat?: boolean; /** Ordinateur : l'état vide dans sa carte, comme les autres colonnes. */ boxed?: boolean }) {
   const tw = useWebT();
   const { colors, typography } = useTheme();
   const rev = useWebConnect((s) => s.rev);
@@ -1521,6 +1419,7 @@ function NftsPanel({ chain, address, flat }: { chain: ChainConfig; address: stri
   );
   if (!data || data.length === 0) {
     const empty = { title: tw('noNft'), subtitle: tw('noNftBody', { chain: chain.name }) };
+    if (boxed) return <Panel><MobileEmptyState icon="nft" {...empty} /></Panel>;
     return flat ? <MobileEmptyState icon="nft" {...empty} /> : <EmptyState icon="nft" {...empty} />;
   }
   const isRawAddress = (s: string) => /^0x[a-fA-F0-9]{20,}$/.test(s || '');

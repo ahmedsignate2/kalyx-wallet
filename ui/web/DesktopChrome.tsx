@@ -1,8 +1,7 @@
 /**
- * Chrome ordinateur du tableau de bord : barre latérale de navigation
- * (logo, réseau, onglets, état de la connexion) et barre supérieure de la
- * colonne de contenu. Même système visuel que le mobile (webTheme.ts) —
- * présentationnel, piloté par props.
+ * Chrome ordinateur du tableau de bord : la colonne de gauche (marque et
+ * réseau, menu, téléphone connecté) et les tuiles des gestes. Même système
+ * visuel que le mobile (webTheme.ts) — présentationnel, piloté par props.
  */
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
@@ -13,9 +12,6 @@ import { KalyxSpinner } from './motion';
 import type { DockTab } from './MobileChrome';
 import { fontSize, radii } from '../tokens';
 
-export const SIDEBAR_WIDTH = 248;
-export const RAIL_WIDTH = 76;
-
 const NAV: { key: DockTab; icon: IconName }[] = [
   { key: 'home', icon: 'home' },
   { key: 'market', icon: 'market' },
@@ -23,112 +19,131 @@ const NAV: { key: DockTab; icon: IconName }[] = [
   { key: 'settings', icon: 'gear' },
 ];
 
-export function Sidebar({
-  rail, tab, onChange, labels, subtitle, network, onNetwork, status, onDisconnect,
-}: {
-  /** Rail étroit (icônes seules) sur les largeurs intermédiaires. */
-  rail: boolean;
-  tab: DockTab;
-  onChange: (t: DockTab) => void;
-  labels: Record<DockTab, string>;
-  subtitle: string;
-  network: { avatar: React.ReactNode; name: string };
-  onNetwork: () => void;
-  status: { title: string; detail: string; disconnectLabel: string };
-  onDisconnect: () => void;
-}) {
+/* ------------------------------------------------------------------ */
+/* Colonne de gauche : menu et état, en cartes                         */
+/* ------------------------------------------------------------------ */
+
+/** Carte blanche de la colonne de gauche (même rayon que les listes du tableau de bord). */
+function SideCard({ children }: { children: React.ReactNode }) {
+  const P = useWebPalette();
+  return <View style={{ backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: 24, overflow: 'hidden' }}>{children}</View>;
+}
+
+/** Le menu : une liste dans une carte, l'onglet actif en couleur, des filets entre les lignes. */
+export function NavCard({ tab, onChange, labels }: { tab: DockTab; onChange: (t: DockTab) => void; labels: Record<DockTab, string> }) {
   const P = useWebPalette();
   return (
-    <View style={{ width: rail ? RAIL_WIDTH : SIDEBAR_WIDTH, borderRightWidth: 1, borderRightColor: P.divider, paddingVertical: 22, paddingHorizontal: rail ? 12 : 16, gap: 22, backgroundColor: P.bg }}>
-      {/* Marque */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: rail ? 0 : 6, justifyContent: rail ? 'center' : 'flex-start' }}>
-        <View style={{ width: 40, height: 40, borderRadius: radii.lg, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, alignItems: 'center', justifyContent: 'center' }}>
-          <KalyxLogo size={20} />
-          <View style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderRadius: radii.full, backgroundColor: P.up, borderWidth: 2, borderColor: P.bg }} />
-        </View>
-        {rail ? null : (
-          <View>
-            <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.lg, color: P.text, lineHeight: 20 }}>Kalyx</Text>
-            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xxs, color: P.muted, lineHeight: 14 }}>{subtitle}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* Réseau */}
-      <Pressable onPress={onNetwork} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: rail ? 'center' : 'flex-start', gap: 8, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: radii.full, paddingVertical: 8, paddingHorizontal: rail ? 0 : 14, opacity: pressed ? 0.7 : 1 })}>
-        {network.avatar}
-        {rail ? null : (
-          <>
-            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.sm, color: P.text2, flex: 1 }} numberOfLines={1}>{network.name}</Text>
-            <Icon name="caretDown" size={14} color={P.muted} />
-          </>
-        )}
-      </Pressable>
-
-      {/* Navigation */}
-      <View style={{ gap: 4 }}>
-        {NAV.map((it) => {
-          const on = it.key === tab;
-          return (
-            <Pressable
-              key={it.key}
-              onPress={() => onChange(it.key)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: on }}
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: rail ? 'center' : 'flex-start', gap: 12, paddingVertical: 11, paddingHorizontal: rail ? 0 : 12, borderRadius: radii.md, backgroundColor: on ? P.surface : pressed ? P.surface + '80' : 'transparent', borderWidth: 1, borderColor: on ? P.border : 'transparent' })}
-            >
-              <View style={{ width: 3, height: 18, borderRadius: radii.full, backgroundColor: on ? P.accent : 'transparent', marginLeft: rail ? 0 : -6, position: rail ? 'absolute' : 'relative', left: rail ? 4 : undefined }} />
-              <Icon name={it.icon} size={20} color={on ? P.text : P.muted} weight={on ? 'fill' : 'regular'} />
-              {rail ? null : <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: on ? '600' : '500', fontSize: fontSize.md, color: on ? P.text : P.muted }}>{labels[it.key]}</Text>}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={{ flex: 1 }} />
-
-      {/* État de la connexion (téléphone = coffre) */}
-      <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: P.divider, paddingTop: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: rail ? 'center' : 'flex-start' }}>
-          <Icon name="security" size={16} color={P.accent} />
-          {rail ? null : (
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.xs, color: P.text }} numberOfLines={1}>{status.title}</Text>
-              <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xxs, color: P.muted }} numberOfLines={1}>{status.detail}</Text>
+    <SideCard>
+      {NAV.map((it, i) => {
+        const on = it.key === tab;
+        return (
+          <Pressable
+            key={it.key}
+            onPress={() => onChange(it.key)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 18, backgroundColor: pressed || hovered ? P.surfaceHi : 'transparent' })}
+          >
+            <Icon name={it.icon} size={20} color={on ? P.accent : P.text} weight={on ? 'fill' : 'regular'} />
+            <View style={{ flex: 1, paddingVertical: 14, borderTopWidth: i > 0 ? 1 : 0, borderTopColor: P.divider }}>
+              <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.md, color: on ? P.accent : P.text }}>{labels[it.key]}</Text>
             </View>
-          )}
-        </View>
-        {rail ? null : (
-          <Pressable onPress={onDisconnect} hitSlop={6} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-            <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.down }}>{status.disconnectLabel}</Text>
           </Pressable>
-        )}
-      </View>
-    </View>
+        );
+      })}
+    </SideCard>
   );
 }
 
-/** Barre supérieure de la colonne de contenu : titre de la page, rafraîchir, ligne de confiance. */
-export function TopBar({ title, trust, onRefresh, refreshing }: { title: string; trust: string; onRefresh: () => void; refreshing?: boolean }) {
+/** Le téléphone connecté : nom, dernière activité, et de quoi couper la connexion. */
+export function StatusCard({ title, detail, disconnectLabel, onDisconnect }: { title: string; detail: string; disconnectLabel: string; onDisconnect: () => void }) {
   const P = useWebPalette();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingBottom: 6 }}>
-      <Text style={{ fontFamily: WEB_FONTS.display, fontWeight: '600', fontSize: fontSize.xxl, color: P.text, letterSpacing: -0.2 }}>{title}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Icon name="security" size={13} color={P.accent} />
-          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted }}>{trust}</Text>
+    <SideCard>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: P.surfaceHi, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="security" size={18} color={P.accent} />
+          <View style={{ position: 'absolute', bottom: 0, right: 0, width: 11, height: 11, borderRadius: 6, backgroundColor: P.up, borderWidth: 2, borderColor: P.surface }} />
         </View>
-        <Pressable onPress={onRefresh} disabled={refreshing} hitSlop={6} style={({ pressed }) => ({ width: 36, height: 36, borderRadius: radii.full, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
-          {refreshing ? <KalyxSpinner size={16} /> : <Icon name="refresh" size={16} color={P.muted} />}
-        </Pressable>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.sm, color: P.text }} numberOfLines={1}>{title}</Text>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontSize: fontSize.xs, color: P.muted }} numberOfLines={1}>{detail}</Text>
+        </View>
       </View>
+      <Pressable onPress={onDisconnect} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, paddingLeft: 18, backgroundColor: pressed || hovered ? P.surfaceHi : 'transparent' })}>
+        <Icon name="close" size={18} color={P.down} />
+        <View style={{ flex: 1, paddingVertical: 13, borderTopWidth: 1, borderTopColor: P.divider }}>
+          <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.sm, color: P.down }}>{disconnectLabel}</Text>
+        </View>
+      </Pressable>
+    </SideCard>
+  );
+}
+
+/** En-tête de la colonne de gauche : la marque, le réseau, rafraîchir. */
+export function SideHeader({ network, onNetwork, onRefresh, refreshing }: { network: { avatar: React.ReactNode; name: string }; onNetwork: () => void; onRefresh: () => void; refreshing?: boolean }) {
+  const P = useWebPalette();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, alignItems: 'center', justifyContent: 'center' }}>
+        <KalyxLogo size={22} />
+      </View>
+      <Pressable onPress={onNetwork} style={({ pressed }) => ({ flex: 1, height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, borderRadius: radii.full, paddingHorizontal: 14, opacity: pressed ? 0.7 : 1 })}>
+        {network.avatar}
+        <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.md, color: P.text }} numberOfLines={1}>{network.name}</Text>
+        <Icon name="caretDown" size={14} color={P.muted} />
+      </Pressable>
+      <Pressable onPress={onRefresh} disabled={refreshing} hitSlop={6} style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: P.surface, borderWidth: 1, borderColor: P.border, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+        {refreshing ? <KalyxSpinner size={16} /> : <Icon name="refresh" size={17} color={P.muted} />}
+      </Pressable>
     </View>
   );
 }
 
-/** Titre de section discret (rail Marché, groupes des Réglages). */
-export function SectionTitle({ children }: { children: string }) {
+/* ------------------------------------------------------------------ */
+/* Les gestes : tuiles compactes                                       */
+/* ------------------------------------------------------------------ */
+
+const ACTION_TINT = { send: '#C4552A', receive: '#257F5A', swap: '#6450BE' } as const;
+
+/**
+ * Envoyer / Recevoir / Échanger en tuiles blanches compactes, l'icône dans la
+ * teinte de son geste. `fill` : elles se partagent la largeur (téléphone).
+ */
+export function ActionTiles({ onSend, onReceive, onSwap, labels, fill }: { onSend: () => void; onReceive: () => void; onSwap: () => void; labels: { send: string; receive: string; swap: string }; fill?: boolean }) {
   const P = useWebPalette();
-  return <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.xxs, letterSpacing: 0.8, textTransform: 'uppercase', color: P.faint }}>{children}</Text>;
+  const items: { k: keyof typeof ACTION_TINT; icon: IconName; label: string; onPress: () => void }[] = [
+    { k: 'send', icon: 'send', label: labels.send, onPress: onSend },
+    { k: 'receive', icon: 'receive', label: labels.receive, onPress: onReceive },
+    { k: 'swap', icon: 'exchange', label: labels.swap, onPress: onSwap },
+  ];
+  return (
+    <View style={{ flexDirection: 'row', gap: fill ? 8 : 12 }}>
+      {items.map((it) => (
+        <Pressable
+          key={it.k}
+          onPress={it.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={it.label}
+          style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+            flex: fill ? 1 : undefined,
+            width: fill ? undefined : 112,
+            height: fill ? 70 : 96,
+            borderRadius: 20,
+            padding: fill ? 0 : 14,
+            alignItems: fill ? 'center' : 'flex-start',
+            justifyContent: fill ? 'center' : 'space-between',
+            gap: fill ? 6 : 0,
+            backgroundColor: hovered ? P.surfaceHi : P.surface,
+            borderWidth: 1,
+            borderColor: P.border,
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+          })}
+        >
+          <Icon name={it.icon} size={fill ? 22 : 24} color={ACTION_TINT[it.k]} weight="bold" />
+          <Text style={{ fontFamily: WEB_FONTS.body, fontWeight: '600', fontSize: fontSize.sm, color: P.text }} numberOfLines={1}>{it.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
 }
