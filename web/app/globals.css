@@ -257,3 +257,22 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .grad-ai, .ai-glow, .ai-border { animation: none; }
 }
+
+/* ---------------------------------------------------------------- */
+/* Le film : faisceau du projecteur, vignettage, papillotement, sous-titres. */
+.beam {
+  background: radial-gradient(ellipse 38% 70% at 50% 0%, rgba(255, 236, 200, 0.16), rgba(255, 236, 200, 0.04) 45%, transparent 75%);
+  animation: beam 7s ease-in-out infinite;
+}
+@keyframes beam { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+.film-vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%); }
+.film-flicker { opacity: 0; animation: flicker 0.18s steps(2) infinite; }
+@keyframes flicker { 0% { opacity: 0.012; } 50% { opacity: 0; } 100% { opacity: 0.02; } }
+.subtitle {
+  color: #fff;
+  font-weight: 600;
+  text-shadow: 0 0 2px #000, 0 1px 3px #000, 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+@media (prefers-reduced-motion: reduce) {
+  .beam, .film-flicker { animation: none; }
+}

@@ -52,12 +52,13 @@ function LinkArrow({ href, children, light = true }: { href: string; children: R
  * Nuit noire, le nom géant apparaît ; on le traverse en zoomant ; le titre se
  * pose ; le téléphone monte de l'horizon pendant que l'aube se lève.
  */
-export function Reveal({ t }: { t: Dict }) {
+/** `name` : montrer le nom géant d'entrée (un film l'a déjà posé dans son générique). */
+export function Reveal({ t, name = true }: { t: Dict; name?: boolean }) {
   const reduce = useReducedMotionSafe();
   const ref = useRef<HTMLElement>(null);
   const p = useProgress(ref);
 
-  const nameOpacity = useTransform(p, [0, 0.1, 0.2], [1, 1, 0]);
+  const nameOpacity = useTransform(p, [0, 0.1, 0.2], name ? [1, 1, 0] : [0, 0, 0]);
   const nameScale = useTransform(p, [0, 0.2], [1, 2.6]);
   const nightOpacity = useTransform(p, [0, 0.12], [0.35, 1]);
   const dawnOpacity = useTransform(p, [0.35, 0.8], [0, 1]);
@@ -95,14 +96,15 @@ export function Reveal({ t }: { t: Dict }) {
 
         {/* Le nom, qu'on traverse. */}
         <motion.div className="absolute inset-0 flex items-center justify-center" style={{ opacity: nameOpacity, scale: nameScale }}>
-          <motion.h1
+          <motion.p
+            aria-hidden={!name}
             initial={{ opacity: 0, y: 24, filter: 'blur(12px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: 1.4, ease: EASE, delay: 0.2 }}
             className="select-none font-display text-[26vw] font-semibold leading-none tracking-[-0.06em] text-white sm:text-[20vw]"
           >
             Kalyx<span className="text-[#E6C682]">.</span>
-          </motion.h1>
+          </motion.p>
         </motion.div>
 
         <motion.div className="absolute inset-x-0 top-[13vh] px-5 text-center" style={{ opacity: textOpacity, y: textY }}>
