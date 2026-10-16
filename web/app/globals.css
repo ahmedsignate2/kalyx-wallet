@@ -216,3 +216,12 @@ body {
 .spin-slow { animation: spin-slow 24s linear infinite; }
 @keyframes spin-slow { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin-slow { animation: none; } }
+
+/* Le ticket des frais : bord bas dentelé. */
+.receipt {
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 18px 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 18px 100%;
+  padding-bottom: 3rem;
+}
+.shake-once { animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+@media (prefers-reduced-motion: reduce) { .shake-once { animation: none; } }

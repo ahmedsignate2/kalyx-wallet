@@ -4,14 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   animate,
   motion,
-  useAnimationFrame,
   useInView,
   useMotionTemplate,
   useMotionValue,
   useScroll,
   useSpring,
   useTransform,
-  useVelocity,
   type MotionValue,
 } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
@@ -24,14 +22,10 @@ import type { Dict } from '../../i18n';
  * Ce qui fait vivre le site, dans le style de l'app :
  *  - <Intro>       rideau d'ouverture : le soleil Kalyx se déploie, puis le ciel se lève (100 % CSS).
  *  - <Progress>    fil d'or sous la barre + rail des sections (grands écrans).
- *  - <Cursor>      anneau doré qui suit la souris et s'ouvre sur ce qui se clique.
- *  - <Magnetic>    un bouton attiré par le pointeur.
- *  - <Words>       un titre qui se lève mot à mot.
- *  - <Marquee>     bandeau qui défile et accélère avec le défilement.
  *  - <Opening>     « Douze mots » : la phrase apparaît au défilement, puis se voile.
- *  - <Spotlight>   carte qui s'incline vers la souris, avec une lueur sous le pointeur.
  *  - <CountUp>     un chiffre qui compte jusqu'à sa valeur en entrant à l'écran.
  *  - <VisionLines> le manifeste s'allume ligne à ligne au défilement.
+ *  - <FloatingPhone> le téléphone arrive, flotte et s'incline vers la souris.
  * « Réduire les animations » : tout est rendu à l'état final, sans mouvement.
  */
 
@@ -104,221 +98,6 @@ export function Progress({ sections }: { sections: { id: string; label: string }
         })}
       </nav>
     </>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Curseur                                                             */
-/* ------------------------------------------------------------------ */
-
-const CLICKABLE = 'a, button, [role="button"], summary, label, input, select, textarea';
-
-export function Cursor() {
-  const [enabled, setEnabled] = useState(false);
-  const [hover, setHover] = useState(false);
-  const [down, setDown] = useState(false);
-  const hovering = useRef(false);
-  const x = useMotionValue(-100);
-  const y = useMotionValue(-100);
-  const ringX = useSpring(x, { stiffness: 420, damping: 34, mass: 0.5 });
-  const ringY = useSpring(y, { stiffness: 420, damping: 34, mass: 0.5 });
-
-  useEffect(() => {
-    const fine = window.matchMedia('(pointer: fine)').matches;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!fine || reduce) return;
-    setEnabled(true);
-    const move = (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
-      x.set(e.clientX);
-      y.set(e.clientY);
-      // État React seulement s'il change : pas de re-rendu à chaque mouvement.
-      const over = !!(e.target as Element | null)?.closest?.(CLICKABLE);
-      if (over !== hovering.current) {
-        hovering.current = over;
-        setHover(over);
-      }
-    };
-    const press = () => setDown(true);
-    const release = () => setDown(false);
-    const leave = () => {
-      x.set(-100);
-      y.set(-100);
-    };
-    window.addEventListener('pointermove', move, { passive: true });
-    window.addEventListener('pointerdown', press);
-    window.addEventListener('pointerup', release);
-    document.documentElement.addEventListener('pointerleave', leave);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerdown', press);
-      window.removeEventListener('pointerup', release);
-      document.documentElement.removeEventListener('pointerleave', leave);
-    };
-  }, [x, y]);
-
-  if (!enabled) return null;
-  return (
-    <>
-      <motion.div
-        aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[95] rounded-full border-[1.5px] border-gold"
-        style={{ x: ringX, y: ringY, translateX: '-50%', translateY: '-50%' }}
-        animate={{
-          width: hover ? 54 : 30,
-          height: hover ? 54 : 30,
-          backgroundColor: hover ? 'rgba(221,181,101,0.16)' : 'rgba(221,181,101,0)',
-          scale: down ? 0.8 : 1,
-        }}
-        transition={{ duration: 0.25, ease: EASE }}
-      />
-      <motion.div
-        aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[95] h-1.5 w-1.5 rounded-full bg-gold"
-        style={{ x, y, translateX: '-50%', translateY: '-50%' }}
-        animate={{ scale: hover ? 0 : 1 }}
-      />
-    </>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Bouton aimanté                                                      */
-/* ------------------------------------------------------------------ */
-
-export function Magnetic({ children, strength = 0.3 }: { children: React.ReactNode; strength?: number }) {
-  const reduce = useReducedMotionSafe();
-  const ref = useRef<HTMLSpanElement>(null);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const x = useSpring(mx, TILT_SPRING);
-  const y = useSpring(my, TILT_SPRING);
-  if (reduce) return <>{children}</>;
-  return (
-    <motion.span
-      ref={ref}
-      className="inline-flex [&>*]:w-full"
-      style={{ x, y }}
-      onPointerMove={(e) => {
-        if (e.pointerType !== 'mouse' || !ref.current) return;
-        const r = ref.current.getBoundingClientRect();
-        mx.set((e.clientX - (r.left + r.width / 2)) * strength);
-        my.set((e.clientY - (r.top + r.height / 2)) * strength);
-      }}
-      onPointerLeave={() => {
-        mx.set(0);
-        my.set(0);
-      }}
-    >
-      {children}
-    </motion.span>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Titre mot à mot                                                     */
-/* ------------------------------------------------------------------ */
-
-/** Chaque mot se lève de sous sa ligne. `parts` : [texte, classe] — pour colorer la fin. */
-export function Words({ parts, className = '', as = 'h2', delay = 0 }: { parts: [string, string?][]; className?: string; as?: 'h1' | 'h2'; delay?: number }) {
-  const reduce = useReducedMotionSafe();
-  const Tag = as;
-  const words = parts.flatMap(([text, cls]) => text.split(/\s+/).filter(Boolean).map((w) => ({ w, cls })));
-  if (reduce) {
-    return (
-      <Tag className={className}>
-        {parts.map(([text, cls], i) => (
-          <span key={i} className={cls}>
-            {text}{' '}
-          </span>
-        ))}
-      </Tag>
-    );
-  }
-  return (
-    <Tag className={className}>
-      <span className="sr-only">{parts.map(([t]) => t).join(' ')}</span>
-      <motion.span aria-hidden initial="hidden" whileInView="show" viewport={{ once: true, margin: '0px 0px -8% 0px' }} transition={{ staggerChildren: 0.05, delayChildren: delay }}>
-        {words.map(({ w, cls }, i) => (
-          <span key={i} className="inline-block overflow-hidden pb-[0.12em] align-bottom">
-            <motion.span
-              className={`inline-block ${cls ?? ''}`}
-              variants={{ hidden: { y: '105%', rotate: 4 }, show: { y: '0%', rotate: 0, transition: { duration: 0.85, ease: EASE } } }}
-            >
-              {w}
-            </motion.span>
-            {' '}
-          </span>
-        ))}
-      </motion.span>
-    </Tag>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Bandeau qui défile                                                  */
-/* ------------------------------------------------------------------ */
-
-const wrap = (min: number, max: number, v: number) => {
-  const r = max - min;
-  return ((((v - min) % r) + r) % r) + min;
-};
-
-function MarqueeRow({ items, baseVelocity, faded = false }: { items: readonly string[]; baseVelocity: number; faded?: boolean }) {
-  const base = useMotionValue(0);
-  const { scrollY } = useScroll();
-  const velocity = useVelocity(scrollY);
-  const smooth = useSpring(velocity, { damping: 50, stiffness: 400 });
-  const factor = useTransform(smooth, [0, 1000], [0, 4], { clamp: false });
-  const x = useTransform(base, (v) => `${wrap(-25, 0, v)}%`);
-  const direction = useRef(1);
-
-  useAnimationFrame((_, delta) => {
-    let move = direction.current * baseVelocity * (delta / 1000);
-    const f = factor.get();
-    if (f < 0) direction.current = -1;
-    else if (f > 0) direction.current = 1;
-    move += direction.current * move * Math.abs(f);
-    base.set(base.get() + move);
-  });
-
-  // Quatre copies : la boucle à -25 % retombe exactement sur la copie suivante.
-  return (
-    <div className="flex overflow-hidden whitespace-nowrap" dir="ltr">
-      <motion.div className="flex shrink-0 flex-nowrap" style={{ x }}>
-        {[0, 1, 2, 3].map((copy) => (
-          <span key={copy} className="flex shrink-0 items-center" aria-hidden={copy > 0}>
-            {items.map((it) => (
-              <span key={it} className="flex items-center">
-                <span className={`px-6 font-display text-5xl sm:px-10 sm:text-7xl lg:text-8xl ${faded ? 'text-transparent [-webkit-text-stroke:1.5px_rgba(184,134,58,0.55)]' : 'text-paper'}`}>{it}</span>
-                <Mark size={30} className="shrink-0 text-sage" />
-              </span>
-            ))}
-          </span>
-        ))}
-      </motion.div>
-    </div>
-  );
-}
-
-export function Marquee({ items, label }: { items: readonly string[]; label: string }) {
-  const reduce = useReducedMotionSafe();
-  if (reduce) {
-    return (
-      <section aria-label={label} className="px-5 py-14 text-center">
-        <p className="font-display text-3xl text-paper">{items.join(' · ')}</p>
-      </section>
-    );
-  }
-  return (
-    <section aria-label={label} className="relative overflow-hidden py-12 sm:py-16">
-      <div className="space-y-3 sm:space-y-5">
-        <MarqueeRow items={items} baseVelocity={-2.2} />
-        <MarqueeRow items={[...items].reverse()} baseVelocity={1.6} faded />
-      </div>
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-ink to-transparent sm:w-48" />
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-ink to-transparent sm:w-48" />
-    </section>
   );
 }
 
@@ -400,51 +179,6 @@ export function Opening({ t }: { t: Dict }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Carte inclinable avec lueur                                         */
-/* ------------------------------------------------------------------ */
-
-export function Spotlight({ children, className = '', max = 6, glow = 'rgba(221,181,101,0.22)' }: { children: React.ReactNode; className?: string; max?: number; glow?: string }) {
-  const reduce = useReducedMotionSafe();
-  const ref = useRef<HTMLDivElement>(null);
-  const rx = useMotionValue(0);
-  const ry = useMotionValue(0);
-  const gx = useMotionValue(50);
-  const gy = useMotionValue(50);
-  const go = useMotionValue(0);
-  const srx = useSpring(rx, TILT_SPRING);
-  const sry = useSpring(ry, TILT_SPRING);
-  const sgo = useSpring(go, { stiffness: 200, damping: 30 });
-  const bg = useMotionTemplate`radial-gradient(420px circle at ${gx}% ${gy}%, ${glow}, transparent 65%)`;
-  if (reduce) return <div className={className}>{children}</div>;
-  return (
-    <motion.div
-      ref={ref}
-      className={`relative ${className}`}
-      style={{ rotateX: srx, rotateY: sry, transformPerspective: 900 }}
-      onPointerMove={(e) => {
-        if (e.pointerType !== 'mouse' || !ref.current) return;
-        const r = ref.current.getBoundingClientRect();
-        const u = (e.clientX - r.left) / r.width;
-        const v = (e.clientY - r.top) / r.height;
-        ry.set((u - 0.5) * max * 2);
-        rx.set(-(v - 0.5) * max * 2);
-        gx.set(u * 100);
-        gy.set(v * 100);
-        go.set(1);
-      }}
-      onPointerLeave={() => {
-        rx.set(0);
-        ry.set(0);
-        go.set(0);
-      }}
-    >
-      <motion.span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit]" style={{ background: bg, opacity: sgo }} />
-      {children}
-    </motion.div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Chiffres qui comptent                                               */
 /* ------------------------------------------------------------------ */
 
@@ -482,41 +216,38 @@ export function CountUp({ value, className = '' }: { value: string; className?: 
 function Line({ index, n, progress, children }: { index: number; n: number; progress: MotionValue<number>; children: React.ReactNode }) {
   const start = index / n;
   const end = (index + 0.8) / n;
-  const opacity = useTransform(progress, [start, end], [0.28, 1]);
-  const x = useTransform(progress, [start, end], [8, 0]);
-  const scale = useTransform(progress, [start, end], [0.98, 1]);
+  const opacity = useTransform(progress, [start, end], [0.18, 1]);
   return (
-    <motion.li style={{ opacity, x, scale }} className="flex items-center gap-4 rounded-2xl bg-ink-2 px-5 py-4 shadow-card ring-1 ring-cream-line">
+    <motion.li style={{ opacity }} className="border-t border-paper/10 py-5 font-display text-[1.6rem] leading-[1.22] [text-wrap:balance] text-paper first:border-t-0 sm:text-4xl lg:py-6 lg:text-[3.1rem]">
       {children}
     </motion.li>
   );
 }
 
-export function VisionLines({ items }: { items: { text: string; icon: React.ReactNode }[] }) {
+/** Le manifeste : chaque ligne s'allume quand elle passe au centre de l'écran. */
+export function VisionLines({ lines }: { lines: readonly string[] }) {
   const reduce = useReducedMotionSafe();
-  const ref = useRef<HTMLUListElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start 0.8', 'end 0.5'] });
+  const ref = useRef<HTMLOListElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start 0.75', 'end 0.45'] });
   if (reduce) {
     return (
-      <ul className="mx-auto mt-12 grid max-w-4xl gap-3">
-        {items.map((it) => (
-          <li key={it.text} className="flex items-center gap-4 rounded-2xl bg-ink-2 px-5 py-4 shadow-card ring-1 ring-cream-line">
-            {it.icon}
-            <span className="text-base font-medium leading-snug text-paper sm:text-lg">{it.text}</span>
+      <ol className="mt-14 lg:mt-20">
+        {lines.map((l) => (
+          <li key={l} className="border-t border-paper/10 py-5 font-display text-[1.6rem] leading-[1.22] [text-wrap:balance] text-paper first:border-t-0 sm:text-4xl lg:text-[3.1rem]">
+            {l}
           </li>
         ))}
-      </ul>
+      </ol>
     );
   }
   return (
-    <ul ref={ref} className="mx-auto mt-12 grid max-w-4xl gap-3">
-      {items.map((it, i) => (
-        <Line key={it.text} index={i} n={items.length} progress={scrollYProgress}>
-          {it.icon}
-          <span className="text-base font-medium leading-snug text-paper sm:text-lg">{it.text}</span>
+    <ol ref={ref} className="mt-14 lg:mt-20">
+      {lines.map((l, i) => (
+        <Line key={l} index={i} n={lines.length} progress={scrollYProgress}>
+          {l}
         </Line>
       ))}
-    </ul>
+    </ol>
   );
 }
 
@@ -556,20 +287,5 @@ export function FloatingPhone({ children, className = '' }: { children: React.Re
         </motion.div>
       </motion.div>
     </motion.div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Animation CSS déclenchée à l'entrée dans l'écran                    */
-/* ------------------------------------------------------------------ */
-
-/** Pose la classe `play` quand le bloc entre à l'écran : les animations CSS internes démarrent alors. */
-export function PlayOnView({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: '0px 0px -15% 0px' });
-  return (
-    <div ref={ref} className={`play-on-view ${inView ? 'play' : ''} ${className}`}>
-      {children}
-    </div>
   );
 }
