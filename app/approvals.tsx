@@ -279,7 +279,7 @@ function ApprovalsInner() {
                     {it.logo ? (
                       <RemoteIcon uri={it.logo} label={it.symbol} size={40} radius={radii.lg} />
                     ) : (
-                      <Avatar label={it.symbol.slice(0, 1)} />
+                      <Avatar label={it.token ?? it.symbol} />
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={typography.bodyStrong}>{it.symbol}</Text>

@@ -6,6 +6,7 @@
  * est propre au web, pour rester visuellement cohérente avec le reste du
  * dashboard (useTheme de ui/theme.ts, composants de ui/kit).
  */
+import { FallbackMark } from '../kit/FallbackMark';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, Image, TextInput } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
@@ -32,13 +33,8 @@ import { getMarkets, sortMarkets, searchCoins, formatPercent, type MarketCoin, t
 function CoinAvatar({ uri, label, size = 32 }: { uri?: string; label: string; size?: number }) {
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
-  if (!uri || failed) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: colors.glassStrong, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: size * 0.4, color: colors.text, fontFamily: fonts.bold }}>{(label || '?').slice(0, 1).toUpperCase()}</Text>
-      </View>
-    );
-  }
+  // Pas de lettre : une marque tirée du nom (comme dans l'app).
+  if (!uri || failed) return <FallbackMark seed={label} size={size} />;
   return <Image source={{ uri }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: radii.full, backgroundColor: colors.glass }} />;
 }
 

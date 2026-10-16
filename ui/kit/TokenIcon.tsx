@@ -2,22 +2,20 @@
  * TokenIcon — image du token ; si elle manque ou échoue : MONOGRAMME
  * (initiale + couleur tirée du hash du contrat). Jamais d'image cassée (§2.8).
  */
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
-import { Monogram } from './Monogram';
+import { FallbackMark } from './FallbackMark';
 import { LogoImage } from './LogoImage';
-import { glyphFor } from '../../src';
 import { useTheme } from '../theme';
 
 export function TokenIcon({ symbol, logo, seed, size = 40, badge }: { symbol: string; logo?: string | null; /** Contrat/mint : détermine la couleur du monogramme. */ seed?: string; size?: number; /** Logo du RÉSEAU, en pastille dans le coin (ETH sur Base, USDC sur BNB…). */ badge?: string | null }) {
   const { colors } = useTheme();
   const [failed, setFailed] = useState(false);
-  const bg = useMemo(() => glyphFor(seed ?? symbol).colors[0], [seed, symbol]);
   const icon =
     logo && !failed ? (
       <LogoImage uri={logo} size={size} onError={() => setFailed(true)} style={{ backgroundColor: colors.surface2 }} />
     ) : (
-      <Monogram label={(symbol || '?').slice(0, 1).toUpperCase()} size={size} bg={bg} fg="#0B0D16" />
+      <FallbackMark seed={seed ?? symbol} size={size} />
     );
   if (!badge) return icon;
   /*

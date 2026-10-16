@@ -16,6 +16,7 @@
  * message et transaction passent par la fenêtre d'approbation native + PIN.
  */
 import { base58, base64 } from '@scure/base';
+import { KALYX_ICON_DATA_URI } from './kalyxIcon';
 
 export const SOL_METHODS = new Set(['sol_connect', 'sol_disconnect', 'sol_signMessage', 'sol_signTransaction']);
 
@@ -70,8 +71,7 @@ export function solEmitJs(event: 'connect' | 'disconnect' | 'accountChanged', da
   return `window.__kalyxSolEmit && window.__kalyxSolEmit(${JSON.stringify(event)}, ${JSON.stringify(data ?? null)}); true;`;
 }
 
-const ICON =
-  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzdDNUNGRiIvPjx0ZXh0IHg9IjE2IiB5PSIyMiIgZm9udC1zaXplPSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+TjwvdGV4dD48L3N2Zz4=';
+const ICON = KALYX_ICON_DATA_URI;
 
 export function buildSolanaProvider(token: string): string {
   return `(function () {

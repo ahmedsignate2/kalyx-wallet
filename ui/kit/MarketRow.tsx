@@ -4,8 +4,8 @@ import { View } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
 import { Text } from './Text';
 import { Pressable } from './Pressable';
-import { LogoImage } from './LogoImage';
-import { Avatar } from './Avatar';
+
+import { RemoteIcon } from './Avatar';
 import { useTheme } from '../theme';
 import { fontWeight, spaces } from '../tokens';
 import { formatPercent } from '../../src';
@@ -74,13 +74,14 @@ const sameMarketRow = (a: MarketRowProps, b: MarketRowProps) =>
   a.divider === b.divider &&
   a.onPress === b.onPress;
 
-export const MarketRow = memo(function MarketRow({ icon, color, imageUri, name, symbol, price, change, spark, divider, onPress }: MarketRowProps) {
+export const MarketRow = memo(function MarketRow({ icon, imageUri, name, symbol, price, change, spark, divider, onPress }: MarketRowProps) {
   const { colors } = useTheme();
   const up = change >= 0;
   const c = up ? colors.up : colors.down;
   const content = (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spaces.md, paddingVertical: spaces.md, borderTopWidth: divider ? 1 : 0, borderTopColor: colors.border }}>
-      {imageUri ? <LogoImage uri={imageUri} size={42} /> : <Avatar label={icon} color={color} />}
+      {/* Logo réel, ou marque sans lettre si l'image manque ou échoue. */}
+      <RemoteIcon uri={imageUri} label={symbol || name || icon} size={42} />
       <View style={{ width: 88 }}>
         <Text variant="bodyStrong">{name}</Text>
         <Text variant="label">{symbol}</Text>

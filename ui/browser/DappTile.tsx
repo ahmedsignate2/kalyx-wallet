@@ -3,11 +3,12 @@
  *
  * LOGO SANS REQUÊTE TIERCE : l'ancien favicon passait par Google s2, qui
  * apprenait ainsi chaque hôte visité. Dorénavant : le VRAI logo, embarqué dans
- * l'app (ui/browser/dappLogos), pour les dApps du catalogue ; monogramme coloré
- * si le catalogue n'en a pas ; monogramme neutre pour les autres sites.
+ * l'app (ui/browser/dappLogos), pour toutes les dApps du catalogue ; pour les
+ * autres sites, une marque neutre (jamais de lettre, jamais un faux logo).
  */
 import { Image, View } from 'react-native';
-import { Monogram, Pressable, Text } from '../kit';
+import { Pressable, Text } from '../kit';
+import { FallbackMark } from '../kit/FallbackMark';
 import { useTheme } from '../theme';
 import { space, radii } from '../tokens';
 import { catalogEntry } from '../../src/domain/web/dappCatalog';
@@ -21,12 +22,11 @@ export function monogramOf(host: string): string {
 }
 
 export function DappLogo({ host, size = 32 }: { host: string; size?: number }) {
-  const { colors } = useTheme();
   const entry = catalogEntry(host);
   const logo = entry ? DAPP_LOGOS[entry.host] : undefined;
   if (logo) return <Image source={logo} style={{ width: size, height: size, borderRadius: size / 2 }} accessibilityIgnoresInvertColors />;
-  const label = entry ? entry.icon.monogram : monogramOf(host);
-  return <Monogram label={label} size={size} bg={entry ? entry.icon.color : colors.surface3} fg={entry ? '#FFFFFF' : colors.text} />;
+  // Pas de lettre : un site sans logo embarqué garde une marque neutre (jamais un faux logo).
+  return <FallbackMark seed={host} size={size} kind="site" />;
 }
 
 export function DappTile({ host, label, onPress, width = 88, badge }: { host: string; label: string; onPress: () => void; width?: number | `${number}%`; /** Pastille de compatibilité (« EVM », « TON », « via WalletConnect »). */ badge?: string }) {

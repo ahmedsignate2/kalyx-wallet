@@ -135,7 +135,7 @@ function DappHeader({ name, url, icon }: { name: string; url: string; icon?: str
       {icon ? (
         <RemoteIcon uri={icon} label={name || '?'} size={44} radius={radii.md} />
       ) : (
-        <Avatar label={(name || '?').slice(0, 1).toUpperCase()} />
+        <Avatar label={name || '?'} kind="site" />
       )}
       <View style={{ flex: 1 }}>
         <Text style={typography.bodyStrong}>{name || 'dApp'}</Text>
