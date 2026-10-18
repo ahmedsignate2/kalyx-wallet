@@ -25,6 +25,7 @@ import { notify } from './notifications';
 import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, isValidEvmAddress, shortAddress, WalletError, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
+import { rememberHandledRequest, handledResponse, isExpiredRequest } from './wcHandled';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 // Libellé lisible d'une méthode WalletConnect (pour la notification de signature).
@@ -493,6 +494,16 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         }
         return;
       }
+      /*
+       * DÉJÀ TRAITÉE (redélivrée par le relais au retour au premier plan) : on
+       * ne la remontre pas, on renvoie la même réponse. Déjà EN FILE : rien.
+       */
+      const done = handledResponse(Number(request?.id));
+      if (done) {
+        await w.respondSessionRequest({ topic: done.topic, response: done.response as any }).catch(() => {});
+        return;
+      }
+      if (get().requestQueue.some((r: any) => r?.id === request?.id)) return;
       console.log('\n[WC-IN] === SESSION_REQUEST RECEIVED ===');
       console.log('[WC-IN] ID:', request?.id);
       console.log('[WC-IN] Topic:', request?.topic);
@@ -564,6 +575,13 @@ export const useWalletConnect = create<WcState>((set, get) => ({
           topic: request.topic,
           response: { id: request.id, jsonrpc: '2.0', error: { code: 4200, message: 'Transaction without a valid recipient (contract deployment) is not supported' } },
         }).catch(() => {});
+        return;
+      }
+      // Expirée avant d'arriver à l'écran (app longtemps en arrière-plan) : refusée sans être montrée.
+      if (isExpiredRequest(request)) {
+        const response = { id: request.id, jsonrpc: '2.0' as const, error: { code: 5000, message: 'Request expired' } };
+        rememberHandledRequest(Number(request.id), request.topic, response);
+        await w.respondSessionRequest({ topic: request.topic, response }).catch(() => {});
         return;
       }
       const q = [...get().requestQueue, request];
@@ -980,6 +998,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
        * même demande à l'écran — la réapprouver rediffuserait la transaction.
        */
       const q = advanceQueue(id);
+      rememberHandledRequest(Number(id), topic, { id, jsonrpc: '2.0', result });
       try {
         await wallet.respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', result } });
       } catch (respondErr) {
@@ -994,6 +1013,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       console.error('[WC-ERROR] Error message:', e instanceof Error ? e.message : 'Unknown error');
       console.error('[WC-ERROR] ===============================\n');
       advanceQueue(id);
+      rememberHandledRequest(Number(id), topic, { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } });
       if (wallet && sdkUtils) {
         await wallet
           .respondSessionRequest({ topic, response: { id, jsonrpc: '2.0', error: { code: 5000, message: errorText(e) } } })
@@ -1010,6 +1030,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (!request) return; // double appui : déjà refusée
     // La fenêtre se ferme d'abord : une session expirée ne la laisse plus bloquée.
     const q = advanceQueue(request.id);
+    if (sdkUtils) rememberHandledRequest(Number(request.id), request.topic, { id: request.id, jsonrpc: '2.0', error: sdkUtils.getSdkError('USER_REJECTED') });
     if (wallet && sdkUtils) {
       console.log('[WC-REJECT]', request.id, request?.params?.request?.method);
       await wallet
