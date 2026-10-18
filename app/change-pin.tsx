@@ -11,7 +11,7 @@ import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
 import { toast } from '../lib/toast';
 import { friendlyTxError } from '../lib/txError';
-import { checkPin, isWalletError, PIN_MIN } from '../src';
+import { checkPin, isWalletError, PIN_MAX, PIN_MIN } from '../src';
 import { goBack } from '../lib/nav';
 
 /**
@@ -72,13 +72,13 @@ export default function ChangePin() {
     setPin(v);
   };
 
-  /** Ancien code : vérifié avant d'avancer. */
-  const onOldNext = async () => {
-    if (pin.length < PIN_MIN) return fail(t('atLeastNDigits').replace('{n}', String(PIN_MIN)));
+  /** Ancien code : vérifié avant d'avancer (au dernier chiffre si sa longueur est connue). */
+  const onOldNext = async (val: string = pin) => {
+    if (val.length < PIN_MIN) return fail(t('atLeastNDigits').replace('{n}', String(PIN_MIN)));
     setBusy(true);
     try {
-      await verifyPin(pin);
-      setOldPin(pin);
+      await verifyPin(val);
+      setOldPin(val);
       setPin('');
       setStep('new');
     } catch (e) {
@@ -137,17 +137,19 @@ export default function ChangePin() {
   const title = step === 'old' ? t('oldPinTitle') : step === 'new' ? t('newPinTitle') : t('confirmNewPin');
   const hint = step === 'old' ? t('enterCurrentCode') : step === 'new' ? t('chooseNewCode') : t('reenterNewCode');
   /*
-   * L'ANNEAU SE REMPLIT SELON LE CODE, pas sur 12 chiffres : il était calé sur
-   * la longueur MAXIMALE, si bien qu'un code de 6 chiffres le laissait à moitié.
-   *  - ancien code : sa longueur connue (retenue au déverrouillage) ;
-   *  - nouveau code : plein dès qu'il est valable (6 chiffres) ;
-   *  - confirmation : la longueur du nouveau code.
+   * L'ANNEAU SUIT LA LONGUEUR DU CODE :
+   *  - ancien code : sa longueur connue (6 à 12, retenue à la création) — plein
+   *    au dernier chiffre, qui valide tout seul ; inconnue : calé sur 12 ;
+   *  - nouveau code : calé sur 12 — à moitié à 6 chiffres, le minimum, puis
+   *    chaque chiffre de plus le remplit davantage ;
+   *  - confirmation : la longueur du nouveau code, plein au dernier chiffre.
    */
-  const ringOf = step === 'confirm' ? newPin.length : step === 'old' ? Math.max(PIN_MIN, storedLength || PIN_MIN) : PIN_MIN;
+  const knownOld = storedLength >= PIN_MIN && storedLength <= PIN_MAX ? storedLength : 0;
+  const ringOf = step === 'confirm' ? newPin.length : step === 'old' ? knownOld || PIN_MAX : PIN_MAX;
   const progress = pin.length === 0 ? 0.001 : Math.min(1, pin.length / ringOf);
   // Nouveau code trop simple (123456, 000000…) : dit tout de suite, pas après « Continuer ».
   const tooSimple = step === 'new' && pin.length >= PIN_MIN && !checkPin(pin).ok;
-  const canNext = !busy && step !== 'confirm' && pin.length >= PIN_MIN && !tooSimple;
+  const canNext = !busy && step !== 'confirm' && !(step === 'old' && knownOld) && pin.length >= PIN_MIN && !tooSimple;
 
   return (
     <Screen scene="top" layout="form">
@@ -167,6 +169,8 @@ export default function ChangePin() {
       >
         {step === 'confirm' ? (
           <PinPad hideRing value={pin} onChange={onChange} expectedLength={newPin.length} onComplete={onConfirm} errorSignal={errSignal} disabled={busy} keySize={keySize} />
+        ) : step === 'old' && knownOld ? (
+          <PinPad hideRing value={pin} onChange={onChange} expectedLength={knownOld} onComplete={(v) => void onOldNext(v)} errorSignal={errSignal} disabled={busy} keySize={keySize} />
         ) : (
           <PinPad hideRing value={pin} onChange={onChange} errorSignal={errSignal} disabled={busy} keySize={keySize} />
         )}
@@ -178,7 +182,7 @@ export default function ChangePin() {
               <Text style={{ color: colors.textSecondary, fontSize: fontSize.base, fontFamily: fonts.medium }}>{t('verifying')}</Text>
             </View>
           ) : canNext ? (
-            <KPressable onPress={step === 'old' ? () => void onOldNext() : onNewNext} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
+            <KPressable onPress={step === 'old' ? () => void onOldNext(pin) : onNewNext} hitSlop={8} haptic="light" accessibilityLabel={t('continueWord')}>
               <Text style={{ color: colors.primary, fontSize: fontSize.lg, fontFamily: fonts.semibold }}>{t('continueWord')}</Text>
             </KPressable>
           ) : step === 'confirm' ? (
