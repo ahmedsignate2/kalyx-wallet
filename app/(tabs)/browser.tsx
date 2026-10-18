@@ -18,6 +18,7 @@
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { randomBytes } from '@noble/hashes/utils';
 import { signMessageParam } from '../../lib/dappProvider';
+import { shouldClosePending } from '../../lib/dappPending';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
@@ -521,10 +522,13 @@ export default function Browser() {
     pendingRef.current = p;
     setPendingState(p);
   }, []);
-  /** Ferme CETTE demande seulement — jamais une autre arrivée entre-temps. */
+  /**
+   * Ferme CETTE demande seulement — jamais une autre arrivée entre-temps. Une
+   * connexion déjà libérée (réponse envoyée avant l'animation) se ferme aussi :
+   * sinon sa fenêtre revenait après Face ID, en boucle.
+   */
   const closePending = useCallback((p: Pending) => {
-    const cur = pendingRef.current;
-    if (cur && cur.id === p.id && cur.tabId === p.tabId) setPending(null);
+    if (shouldClosePending(pendingRef.current, p)) setPending(null);
   }, [setPending]);
   const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
   // Token d'un Permit / Permit2 (symbole + décimales) : registre local puis métadonnées ERC-20.
