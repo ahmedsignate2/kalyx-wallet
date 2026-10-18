@@ -1,4 +1,6 @@
-import { amountProblem, buyableAssets, buyTrackerUrl, isMoonpayHost, needsSystemBrowser, parseBuyRedirect, paymentMethodsFor, pickFiat, type RampCurrency } from './moonpay';
+import { base58check, bech32m } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha2';
+import { amountProblem, btcToTestnet, buyableAssets, buyTrackerUrl, isMoonpayHost, needsSystemBrowser, parseBuyRedirect, paymentMethodsFor, pickFiat, rampWalletAddress, type RampCurrency } from './moonpay';
 
 const chains = [
   { id: 'ethereum', family: 'evm', evmChainId: 1 },
@@ -104,5 +106,43 @@ describe('parcours d’achat', () => {
     expect(buyProgress({ status: 'completed', stages: S('success', 'success', 'success', 'success') }).steps).toEqual(['done', 'done', 'done', 'done']);
     expect(buyProgress({ status: 'failed', stages: S('success', 'failed', 'not_started', 'not_started') })).toEqual({ steps: ['failed', 'todo', 'todo', 'todo'], outcome: 'failed' });
     expect(buyProgress({ status: 'failed', stages: S('success', 'success', 'success', 'not_started') }).steps).toEqual(['done', 'done', 'failed', 'todo']);
+  });
+});
+
+describe('rampWalletAddress — Bitcoin de test en mode test', () => {
+  // Vecteurs BIP173 : même programme témoin, préfixe bc → tb.
+  const BC = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+  const TB = 'tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx';
+
+  it('convertit une adresse segwit v0 (bc1q → tb1q, même programme)', () => {
+    expect(btcToTestnet(BC)).toBe(TB);
+  });
+
+  it('convertit une adresse taproot (bech32m) en gardant son programme', () => {
+    const main = 'bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0';
+    const test = btcToTestnet(main)!;
+    expect(test.startsWith('tb1p')).toBe(true);
+    expect(bech32m.decode(test as `${string}1${string}`).words).toEqual(bech32m.decode(main as `${string}1${string}`).words);
+  });
+
+  it('convertit les adresses historiques (1… → m/n…, 3… → 2…) en gardant le hash', () => {
+    const p2pkh = btcToTestnet('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2')!;
+    expect(/^[mn]/.test(p2pkh)).toBe(true);
+    const a = base58check(sha256).decode('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+    const b = base58check(sha256).decode(p2pkh);
+    expect(b[0]).toBe(0x6f);
+    expect(Array.from(b.slice(1))).toEqual(Array.from(a.slice(1)));
+    expect(btcToTestnet('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')!.startsWith('2')).toBe(true);
+  });
+
+  it('ne touche à rien en mode réel, ni aux autres réseaux', () => {
+    expect(rampWalletAddress('bitcoin', BC, { sandbox: false })).toBe(BC);
+    expect(rampWalletAddress('ethereum', '0xabc', { sandbox: true })).toBe('0xabc');
+    expect(rampWalletAddress('bitcoin', BC, { sandbox: true })).toBe(TB);
+  });
+
+  it('laisse une adresse illisible telle quelle plutôt que d’inventer', () => {
+    expect(btcToTestnet('pas-une-adresse')).toBeNull();
+    expect(rampWalletAddress('bitcoin', 'pas-une-adresse', { sandbox: true })).toBe('pas-une-adresse');
   });
 });
