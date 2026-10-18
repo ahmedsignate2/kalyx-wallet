@@ -77,6 +77,7 @@ import {
   buyTrackerUrl,
   buyProgress,
   isMoonpayHost,
+  rampWalletAddress,
   type BuyAsset,
   type BuyToken,
   type BuyPaymentMethod,
@@ -510,7 +511,8 @@ function BuyScreenInner() {
         void setBuyEmail(mail);
         setEmailSaved(true);
       }
-      const r = await rampWidgetUrl({ currencyCode: asset.code, walletAddress: address, baseCurrencyCode: fiatCode, baseCurrencyAmount: amount, paymentMethod: method, theme: mode === 'light' ? 'light' : 'dark', ...(mail ? { email: mail } : {}) });
+      // Mode test : MoonPay livre du Bitcoin de test, il lui faut l'adresse tb1… (même clé).
+      const r = await rampWidgetUrl({ currencyCode: asset.code, walletAddress: rampWalletAddress(asset.chainId, address, { sandbox: env === 'sandbox' }), baseCurrencyCode: fiatCode, baseCurrencyAmount: amount, paymentMethod: method, theme: mode === 'light' ? 'light' : 'dark', ...(mail ? { email: mail } : {}) });
       technicalLogger.log('DAPP', 'Achat : widget MoonPay ouvert', { env: r.env, currency: asset.code, method });
       // Google Pay ne fonctionne pas dans une vue web : Chrome (même appareil, même IP).
       if (needsSystemBrowser(method)) await Linking.openURL(r.url);

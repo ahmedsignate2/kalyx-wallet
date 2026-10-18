@@ -493,6 +493,8 @@ export {
 // Achat de crypto (MoonPay) — choix des actifs, moyens de paiement, retour du widget
 export {
   buyableAssets,
+  rampWalletAddress,
+  btcToTestnet,
   pickFiat,
   amountProblem,
   paymentMethodsFor,

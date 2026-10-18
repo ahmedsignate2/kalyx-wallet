@@ -7,6 +7,8 @@
  * marchent vraiment dans l'app, les limites de montant, et la lecture du retour
  * du widget.
  */
+import { base58check, bech32, bech32m } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha2';
 
 /** Une devise telle que la renvoie le worker (`/moonpay/currencies`). */
 export interface RampCurrency {
@@ -220,4 +222,44 @@ export function buyProgress(tx: RampTxLike): { steps: BuyStepState[]; outcome: '
     steps[i < 0 ? 3 : i] = 'failed';
   }
   return { steps, outcome };
+}
+
+/**
+ * Adresse à donner à MoonPay. En MODE TEST, MoonPay livre du Bitcoin de TEST
+ * et refuse une adresse du réseau principal (« Invalid wallet address ») : on
+ * lui donne la même adresse sur le réseau de test — même clé, même empreinte
+ * (hash160 / programme témoin), seul le préfixe change (bc1… → tb1…, 1… → m…,
+ * 3… → 2…). Les autres réseaux, et le mode réel, gardent l'adresse telle quelle.
+ */
+export function rampWalletAddress(chainId: string, address: string, opts: { sandbox: boolean }): string {
+  if (!opts.sandbox || chainId !== 'bitcoin') return address;
+  return btcToTestnet(address) ?? address;
+}
+
+/** bc1… / 1… / 3… → l'adresse équivalente du réseau de test Bitcoin, ou `null` si illisible. */
+export function btcToTestnet(address: string): string | null {
+  const a = address.trim();
+  if (/^bc1/i.test(a)) {
+    for (const codec of [bech32, bech32m]) {
+      try {
+        const { prefix, words } = codec.decode(a.toLowerCase() as `${string}1${string}`);
+        if (prefix !== 'bc') return null;
+        return codec.encode('tb', words);
+      } catch {
+        /* l'autre encodage (segwit v0 : bech32 ; taproot : bech32m) */
+      }
+    }
+    return null;
+  }
+  try {
+    const raw = base58check(sha256).decode(a);
+    if (raw.length !== 21) return null;
+    const version = raw[0] === 0x00 ? 0x6f : raw[0] === 0x05 ? 0xc4 : null;
+    if (version === null) return null;
+    const out = new Uint8Array(raw);
+    out[0] = version;
+    return base58check(sha256).encode(out);
+  } catch {
+    return null;
+  }
 }
