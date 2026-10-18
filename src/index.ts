@@ -309,7 +309,9 @@ export {
 } from './domain/pay/solanaTxRequest';
 
 // NFT (Alchemy)
-export { getNfts, parseNfts, type NftItem } from './domain/nft/alchemyNft';
+export { getNfts, parseNfts, getNftRarity, getNftFloor, parseFloorPrice, type NftItem, type NftFloor } from './domain/nft/alchemyNft';
+export { parseTraits, parseRarity, withRarity, type NftTrait, type NftTraitRarity } from './domain/nft/traits';
+export { parseBurnTarget, buildBurnMessage, burnIx, closeAccountIx, MAX_BURN_ACCOUNTS, type BurnTarget, type BurnRefusal } from './domain/nft/solBurn';
 export { getSolanaNfts } from './domain/nft/solanaNft';
 
 // Réserve de gas dynamique (swap/bridge/dépôt), estimée sur le RPC de chaque réseau

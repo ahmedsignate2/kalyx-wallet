@@ -42,6 +42,8 @@ import { WalletAvatar } from '../../ui/avatarArt';
 import { KalyxLogo } from '../../ui/KalyxLogo';
 import { ActionTile, Pills, TextTabs } from '../../ui/nova';
 import { TonNftSendSheet } from '../../ui/TonNftSendSheet';
+import { SolNftBurnSheet } from '../../ui/SolNftBurnSheet';
+import { useTokenPrefs, tokenKey } from '../../lib/tokenPrefsStore';
 import { useBrowserPresence, hostOf } from '../../lib/browserPresence';
 import { useWallet } from '../../lib/walletStore';
 import { addressForChain } from '../../lib/accountAddress';
@@ -102,6 +104,9 @@ let balanceRevealed = false;
 /** Lignes affichées par page (jetons, jetons non vérifiés) et NFT par page. */
 const LIST_PAGE = 25;
 const NFT_PAGE = 12;
+
+/** Clé de préférence d'un NFT (masqué) : distincte de celle des tokens du même contrat. */
+const nftPrefKey = (n: { chainId: string; contract: string; tokenId: string }) => tokenKey(n.chainId, `nft:${n.contract}:${n.tokenId}`);
 
 export default function Home() {
   const { colors, mode } = useTheme();
@@ -192,6 +197,11 @@ export default function Home() {
   }, [sparkIds, fiat]);
   const [openNft, setOpenNft] = useState<ChainNft | null>(null);
   const [sendNft, setSendNft] = useState<ChainNft | null>(null);
+  const [burnNft, setBurnNft] = useState<ChainNft | null>(null);
+  /** NFT masqués (spam, indésirables) : mêmes préférences locales que les tokens masqués. */
+  const hiddenPrefs = useTokenPrefs((s) => s.hidden);
+  const toggleHiddenPref = useTokenPrefs((s) => s.toggleHidden);
+  const [showHiddenNfts, setShowHiddenNfts] = useState(false);
   const contacts = useContacts((s) => s.contacts);
   const parked = useBrowserPresence((s) => s.parked);
 
@@ -487,6 +497,8 @@ export default function Home() {
   // Listes bornées (voir plus bas) — déclarées AVANT tout retour anticipé (règle des hooks).
   const [tokenLimit, setTokenLimit] = useState(LIST_PAGE);
   const [nftLimit, setNftLimit] = useState(NFT_PAGE);
+  const hiddenNftCount = nfts ? nfts.filter((n) => hiddenPrefs[nftPrefKey(n)]).length : 0;
+  const shownNfts = nfts ? (showHiddenNfts ? nfts : nfts.filter((n) => !hiddenPrefs[nftPrefKey(n)])) : null;
   const [unverifiedLimit, setUnverifiedLimit] = useState(LIST_PAGE);
   if (!account || !stored) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
@@ -910,12 +922,12 @@ export default function Home() {
               <Card><EmptyState icon="nft" title={t("emptyNftTitle")} body={t("emptyNftBody")} actionLabel={t("actionReceive")} onAction={() => router.push('/receive')} /></Card>
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[3] }}>
-                {nfts.slice(0, nftLimit).map((n) => {
+                {(shownNfts ?? []).slice(0, nftLimit).map((n) => {
                   const w = (screenW - SCREEN_MARGIN * 2 - space[3]) / 2;
                   return (
                     <KPressable key={`${n.chainId}:${n.contract}:${n.tokenId}`} onPress={() => setOpenNft(n)} style={{ width: w, gap: space[1] }} accessibilityLabel={n.name}>
                       <View style={{ width: w, height: w, borderRadius: radii.md, backgroundColor: colors.surface2, overflow: 'hidden' }}>
-                        <NftImage nft={n} size={w} showName />
+                        <View style={{ opacity: hiddenPrefs[nftPrefKey(n)] ? 0.4 : 1 }}><NftImage nft={n} size={w} showName /></View>
                         <View style={{ position: 'absolute', right: 6, bottom: 6, width: 18, height: 18, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {chainIconUrl(n.chainId) ? <LogoImage uri={chainIconUrl(n.chainId)!} size={12} /> : null}
                         </View>
@@ -927,9 +939,16 @@ export default function Home() {
                 })}
               </View>
             )}
-            {nfts && nfts.length > nftLimit ? (
+            {shownNfts && shownNfts.length > nftLimit ? (
               <KPressable onPress={() => setNftLimit((n) => n + NFT_PAGE)} style={{ alignSelf: 'center', paddingVertical: space[2] }}>
-                <Text variant="caption" style={{ color: colors.primary }}>{fill(t('showMoreCount'), { count: String(nfts.length - nftLimit) })}</Text>
+                <Text variant="caption" style={{ color: colors.primary }}>{fill(t('showMoreCount'), { count: String(shownNfts.length - nftLimit) })}</Text>
+              </KPressable>
+            ) : null}
+            {hiddenNftCount ? (
+              <KPressable onPress={() => setShowHiddenNfts((v) => !v)} style={{ alignSelf: 'center', paddingVertical: space[1] }}>
+                <Text variant="caption" tone="tertiary">
+                  {t('nftHiddenCount').replace('{count}', String(hiddenNftCount))} · <Text variant="caption" style={{ color: colors.primary }}>{showHiddenNfts ? t('nftHideHidden') : t('nftShowHidden')}</Text>
+                </Text>
               </KPressable>
             ) : null}
             {/* Ce qui n'a pas répondu est NOMMÉ : une liste incomplète ne se fait pas passer pour complète. */}
@@ -991,10 +1010,27 @@ export default function Home() {
       <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.bg }, statusBgStyle]} />
       <NftDetailModal
         nft={openNft as NftItem | null}
+        chainId={openNft?.chainId}
         explorerUrl={openNft ? getAdapter(openNft.chainId).config.explorerUrl : undefined}
+        hidden={openNft ? !!hiddenPrefs[nftPrefKey(openNft)] : false}
+        onToggleHidden={openNft ? () => { toggleHiddenPref(nftPrefKey(openNft)); setOpenNft(null); } : undefined}
+        // Brûler ne rend du SOL que pour un NFT Solana ordinaire : un NFT compressé n'a pas de compte de jeton.
+        onBurn={openNft && openNft.chainId === 'solana' && !openNft.compressed ? () => { setBurnNft(openNft); setOpenNft(null); } : undefined}
         onClose={() => setOpenNft(null)}
         onSend={openNft && getAdapter(openNft.chainId).config.family === 'ton' ? () => { setSendNft(openNft); setOpenNft(null); } : undefined}
       />
+      {burnNft ? (
+        <SolNftBurnSheet
+          mint={burnNft.tokenId}
+          name={burnNft.name}
+          onClose={() => setBurnNft(null)}
+          onBurned={() => {
+            const gone = burnNft;
+            setBurnNft(null);
+            setNfts((cur) => cur?.filter((x) => !(x.chainId === gone.chainId && x.tokenId === gone.tokenId)) ?? cur);
+          }}
+        />
+      ) : null}
       {sendNft ? (
         <TonNftSendSheet
           chainId={sendNft.chainId}
