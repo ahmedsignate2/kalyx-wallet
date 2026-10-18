@@ -110,6 +110,7 @@ export default function Menu() {
         <ListRow wrap divider left={<Ico n="security" />} title={t('approvals')} subtitle={t('approvalsSub')} right={chev} onPress={() => router.push('/approvals')} />
         <ListRow wrap divider left={<Ico n="contacts" />} title={t('contacts')} right={chev} onPress={() => router.push('/contacts')} />
         <ListRow wrap divider left={<Ico n="history" />} title={t("activity")} subtitle={t("allTransactions")} right={chev} onPress={() => router.navigate('/activity')} />
+        <ListRow wrap divider left={<Ico n="profile" />} title={t('profileTitle')} subtitle={t('profileMenuSub')} right={chev} onPress={() => router.push('/profile')} />
         {aiEnabled ? <ListRow wrap divider left={<Ico n="sparkles" />} title={t("assistant")} subtitle={t("assistantSubtitle")} right={chev} onPress={() => useAiStore.getState().openChat()} /> : null}
       </Card>
 

@@ -544,3 +544,41 @@ export async function getMarketsByIds(vs: string, ids: string[]): Promise<Market
     }
   });
 }
+
+/**
+ * TENDANCES : les cryptos les plus recherchées sur CoinGecko ces dernières
+ * 24 heures (`/search/trending`), dans l'ordre de CoinGecko. Ce n'est ni un
+ * conseil ni un classement de Kalyx : c'est ce que les gens regardent.
+ */
+export function parseTrendingIds(json: unknown): string[] {
+  const coins = (json as { coins?: { item?: { id?: unknown } }[] } | null)?.coins;
+  if (!Array.isArray(coins)) return [];
+  const ids = coins.map((c) => c?.item?.id).filter((id): id is string => typeof id === 'string' && /^[a-z0-9-]+$/.test(id));
+  return [...new Set(ids)].slice(0, 15);
+}
+
+export async function getTrendingIds(): Promise<string[]> {
+  const key = 'trending:ids';
+  const cached = cacheGet<string[]>(key);
+  if (cached) return cached;
+  return once(key, async () => {
+    try {
+      const res = await withTimeout(fetch(url('/search/trending'), { headers: headers() }), TIMEOUT, () => new Error('timeout'));
+      const ids = parseTrendingIds(await res.json());
+      if (ids.length > 0) cacheSet(key, ids);
+      return ids.length > 0 ? ids : cacheGetStale<string[]>(key) ?? [];
+    } catch {
+      return cacheGetStale<string[]>(key) ?? [];
+    }
+  });
+}
+
+export function peekTrendingIds(): string[] | undefined {
+  return cacheGetStale<string[]>('trending:ids');
+}
+
+/** Cotations dans l'ordre des tendances (`getMarketsByIds` les rend triées par capitalisation). */
+export function inTrendingOrder(coins: MarketCoin[], ids: string[]): MarketCoin[] {
+  const rank = new Map(ids.map((id, i) => [id, i]));
+  return coins.filter((c) => rank.has(c.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+}
