@@ -15,7 +15,7 @@ import { fonts, spacing, useTheme } from '../ui/theme';
 import { useWallet } from '../lib/walletStore';
 import { toast } from '../lib/toast';
 import { useSettings, useT } from '../lib/settingsStore';
-import { checkPin, PIN_MIN } from '../src';
+import { checkPin, PIN_MAX, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { haptic } from '../lib/haptics';
 import { ensureInstallMarker } from '../lib/installMarker';
@@ -154,8 +154,14 @@ export default function SetPin() {
 
   const topPadding = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : insets.top;
   const expected = step === 'confirm' ? firstPin.length : undefined;
-  // Plein dès que le code est valable (6 chiffres) — et non à moitié, calé sur 12.
-  const progress = pin.length === 0 ? 0.001 : Math.min(1, pin.length / (expected ?? PIN_MIN));
+  /*
+   * L'anneau suit la LONGUEUR DU CODE :
+   *  - création : calé sur le maximum (12) — à 6 chiffres, le minimum valable,
+   *    il est à moitié ; chaque chiffre de plus le remplit davantage ;
+   *  - confirmation : calé sur la longueur choisie — il est plein au dernier
+   *    chiffre attendu, et le pavé n'en accepte pas un de plus.
+   */
+  const progress = pin.length === 0 ? 0.001 : Math.min(1, pin.length / (expected ?? PIN_MAX));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: topPadding, justifyContent: 'space-between' }}>
