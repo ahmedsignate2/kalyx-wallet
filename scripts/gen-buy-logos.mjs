@@ -3,7 +3,9 @@
  * Génère src/domain/ramp/buyLogos.generated.ts : les VRAIS logos de l'achat,
  * embarqués (nets à toute taille, affichés hors ligne, sans appel réseau).
  *
- *  - jetons achetables : web3icons (MIT), variante « branded » ;
+ *  - jetons achetables : web3icons (MIT), variante « background » : la même
+ *    pastille de marque que les logos de réseau (gen-chain-logos.mjs), pour
+ *    que liste des jetons et liste des réseaux parlent la même langue ;
  *  - Apple Pay, Google Pay, Visa, SEPA : simple-icons (CC0), tracés seuls —
  *    la couleur est posée à l'affichage (le noir d'Apple Pay devient blanc en
  *    mode sombre). Mastercard est dessiné directement (deux disques).
@@ -22,7 +24,21 @@ const CORE = '@web3icons/core@4.0.56';
 const SIMPLE = 'simple-icons@13.21.0';
 
 /** Jetons : symbole affiché → fichier web3icons. */
-const TOKENS = { USDC: 'tokens/branded/USDC', USDT: 'tokens/branded/USDT', BTC: 'tokens/branded/BTC', ETH: 'tokens/branded/ETH', SOL: 'tokens/branded/SOL', POL: 'tokens/branded/POL', BNB: 'tokens/branded/BNB', EURC: 'tokens/branded/EURC', PYUSD: 'tokens/branded/PYUSD', DAI: 'tokens/branded/DAI', TON: 'networks/branded/ton' };
+const TOKENS = {
+  USDC: 'tokens/background/USDC',
+  USDT: 'tokens/background/USDT',
+  EURC: 'tokens/background/EURC',
+  PYUSD: 'tokens/background/PYUSD',
+  DAI: 'tokens/background/DAI',
+  // Un jeton natif porte le logo de son réseau : identique dans les deux listes.
+  BTC: 'networks/background/bitcoin',
+  ETH: 'networks/background/ethereum',
+  SOL: 'networks/background/solana',
+  POL: 'networks/background/polygon',
+  BNB: 'networks/background/binance-smart-chain',
+  AVAX: 'networks/background/avalanche',
+  TON: 'networks/background/ton',
+};
 const PAY = { applepay: 'applepay', googlepay: 'googlepay', visa: 'visa', sepa: 'sepa' };
 
 function unpack(spec, into) {

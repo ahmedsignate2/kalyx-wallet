@@ -72,6 +72,15 @@ const chains = Object.values(configs).filter((c) => c && typeof c === 'object' &
  * web3icons renvoie d'autres marques — vérifié sur planche le 2026-09-27.
  */
 const svgPath = (kind, id) => join(core, `dist/svgs/${kind}/background/${id}.svg.js`);
+/*
+ * Pastilles affichées en rond : un glyphe qui remplit tout le carré (Base) voit
+ * ses coins frôler le bord du disque. On le recentre, réduit, dans la pastille.
+ */
+const INSET = { base: 0.62 };
+function inset(svg, k) {
+  const t = ((1 - k) * 12).toFixed(2);
+  return svg.replace(/(<path fill="[^"]+" d="M24 0H0v24h24z"\/>)(.*?)(<\/g>)/, `$1<g transform="translate(${t} ${t}) scale(${k})">$2</g>$3`);
+}
 const logos = {};
 const missing = [];
 for (const chain of chains) {
@@ -81,7 +90,8 @@ for (const chain of chains) {
     missing.push(chain.id);
     continue;
   }
-  logos[chain.id] = compact((await import(pathToFileURL(file).href)).default);
+  const svg = compact((await import(pathToFileURL(file).href)).default);
+  logos[chain.id] = INSET[network] ? inset(svg, INSET[network]) : svg;
 }
 
 const ids = Object.keys(logos).sort();
