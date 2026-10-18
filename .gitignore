@@ -21,6 +21,8 @@ out/
 .metro-health-check*
 *.tsbuildinfo
 web-build/
+.output/
+.wxt/
 
 # Natif généré par `expo prebuild` (reconstruit sur le serveur de build)
 /android/
