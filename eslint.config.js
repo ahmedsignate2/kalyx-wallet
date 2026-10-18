@@ -23,6 +23,7 @@ module.exports = [
       'promo-video/**',
       'ton-proxy/**',
       'bot/**',
+      'extension/**',
       '**/*.generated.ts',
     ],
   },

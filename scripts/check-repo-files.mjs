@@ -14,7 +14,7 @@ const FORBIDDEN = [
   [/\.(db|sqlite3?|bak|backup|dump|kalyxbackup)$|\.db-/i, 'base de données / sauvegarde'],
   [/(^|\/)conversation[^/]*$/i, 'historique de conversation'],
   [/\.(apk|aab|ipa|zip|tar|tgz|7z|rar|log|tsbuildinfo)$|\.tar\.gz$/i, 'binaire / archive / journal'],
-  [/(^|\/)(node_modules|dist|build|coverage|\.next|\.expo|\.wrangler|scratch|tmp)\//, 'dossier généré ou brouillon'],
+  [/(^|\/)(node_modules|dist|build|coverage|\.next|\.expo|\.wrangler|\.output|\.wxt|scratch|tmp)\//, 'dossier généré ou brouillon'],
   [/^(android|ios)\//, 'natif généré (expo prebuild)'],
 ];
 
