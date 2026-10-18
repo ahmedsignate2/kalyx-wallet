@@ -4,7 +4,7 @@ import { Stack, router } from 'expo-router';
 import { EmptyState, ScreenHeader, Avatar, RemoteIcon, Card, CardCell, Input, ListRow, MarketRow, ScreenList, SegmentedControl, SkeletonRow } from '../ui/kit';
 import { spacing, useTheme } from '../ui/theme';
 import { useSettings, useT, fiatSymbol } from '../lib/settingsStore';
-import { getMarkets, getMarketsByIds, peekMarkets, peekMarketsByIds, sortMarkets, searchCoins, type MarketCoin, type SearchCoin, formatFiat } from '../src';
+import { getMarkets, getMarketsByIds, peekMarkets, peekMarketsByIds, sortMarkets, searchCoins, getTrendingIds, peekTrendingIds, inTrendingOrder, type MarketCoin, type SearchCoin, formatFiat } from '../src';
 import { useShallow } from 'zustand/react/shallow';
 
 const money = formatFiat;
@@ -69,6 +69,32 @@ export default function Market() {
     req.then((l) => alive && setFavCoins(l)).catch(() => alive && setFavCoins([]));
     return () => { alive = false; };
   }, [fiat, favKey]);
+  /*
+   * TENDANCES : les cryptos les plus recherchées sur CoinGecko (24 h), lues à
+   * la première ouverture de l'onglet. Dernier relevé connu d'abord, puis le réseau.
+   */
+  const [trending, setTrending] = useState<MarketCoin[] | null>(() => {
+    const ids = peekTrendingIds();
+    const cached = ids?.length ? peekMarketsByIds(useSettings.getState().fiat, ids) : undefined;
+    return ids && cached ? inTrendingOrder(cached, ids) : null;
+  });
+  const [trendingFailed, setTrendingFailed] = useState(false);
+  useEffect(() => {
+    if (tab !== 'trending') return;
+    let alive = true;
+    setTrendingFailed(false);
+    getTrendingIds()
+      .then(async (ids) => (ids.length ? inTrendingOrder(await getMarketsByIds(fiat, ids), ids) : []))
+      .then((l) => {
+        if (!alive) return;
+        if (l.length) setTrending(l);
+        else setTrendingFailed(true);
+      })
+      .catch(() => alive && setTrendingFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [tab, fiat]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchCoin[]>([]);
   const [searching, setSearching] = useState(false);
@@ -119,12 +145,14 @@ export default function Market() {
     () =>
       tab === 'top'
         ? coins
+        : tab === 'trending'
+          ? trending ?? []
         : tab === 'gainers'
           ? sortMarkets(coins, 'gainers')
           : tab === 'losers'
             ? sortMarkets(coins, 'losers')
             : favCoins ?? [],
-    [tab, coins, favCoins],
+    [tab, coins, favCoins, trending],
   );
   const lastIndex = base.length - 1;
   const renderCoin = useCallback(
@@ -138,6 +166,7 @@ export default function Market() {
   const tabs = [
     { key: 'favorites', label: t('favorites') },
     { key: 'top', label: t('top') },
+    { key: 'trending', label: t('marketTrending') },
     { key: 'gainers', label: t('gainers') },
     { key: 'losers', label: t('losers') },
   ];
@@ -191,9 +220,14 @@ export default function Market() {
           ) : (
             <>
               <SegmentedControl items={tabs} value={tab} onChange={setTab} />
+              {tab === 'trending' ? <Text style={[typography.muted, { fontSize: 12 }]}>{t('marketTrendingNote')}</Text> : null}
               {favEmpty ? (
                 <Card variant="glass">
                   <EmptyState icon="star" title={t('favorites')} body={t('favoritesEmpty')} />
+                </Card>
+              ) : tab === 'trending' && trendingFailed && base.length === 0 ? (
+                <Card variant="glass">
+                  <EmptyState icon="warning" title={t('marketTrending')} body={t('marketTrendingFailed')} />
                 </Card>
               ) : base.length === 0 ? (
                 <Card variant="glass">

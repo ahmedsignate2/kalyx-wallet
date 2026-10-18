@@ -105,6 +105,15 @@ export class BitcoinChainAdapter implements ChainAdapter {
     return (stats.chain_stats.tx_count ?? 0) > 0 || (stats.mempool_stats?.tx_count ?? 0) > 0 || (stats.chain_stats.funded_txo_sum ?? 0) > 0;
   }
 
+  /** Nombre de transactions confirmées de l'adresse (lève si l'indexeur ne répond pas). */
+  async getTxCount(address: string): Promise<number> {
+    if (!isValidBtcAddress(address)) throw new WalletError('INVALID_ADDRESS', 'Adresse Bitcoin invalide');
+    const stats = (await this.fetchJson(`/address/${address}`)) as AddressStats;
+    const n = stats?.chain_stats?.tx_count;
+    if (typeof n !== 'number') throw new Error('Réponse Bitcoin illisible');
+    return n;
+  }
+
   async getBalance(address: string): Promise<Balance> {
     if (!isValidBtcAddress(address)) {
       throw new WalletError('INVALID_ADDRESS', 'Adresse Bitcoin invalide');

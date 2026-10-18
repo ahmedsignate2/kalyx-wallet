@@ -35,8 +35,9 @@ export function SegmentedControl<T extends string>({ items, value, onChange }: {
       {items.map((it) => {
         const on = it.key === value;
         return (
-          <RNPressable key={it.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => { if (!on) { haptic.selection(); onChange(it.key); } }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <Text variant="caption" style={{ color: on ? colors.text : colors.textSecondary, fontFamily: on ? fontFamily.semibold : fontFamily.medium }}>{it.label}</Text>
+          <RNPressable key={it.key} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => { if (!on) { haptic.selection(); onChange(it.key); } }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+            {/* Une ligne : un libellé trop long rétrécit (natif) plutôt que de déborder sur son voisin. */}
+            <Text variant="caption" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ color: on ? colors.text : colors.textSecondary, fontFamily: on ? fontFamily.semibold : fontFamily.medium }}>{it.label}</Text>
           </RNPressable>
         );
       })}
