@@ -19,6 +19,7 @@ import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { randomBytes } from '@noble/hashes/utils';
 import { signMessageParam } from '../../lib/dappProvider';
 import { shouldClosePending } from '../../lib/dappPending';
+import { journal } from '../../lib/debugJournal';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
 import { useTonConnect, tcJsHost, tcDeviceInfo } from '../../lib/tonconnect/store';
 import React, { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
@@ -528,7 +529,9 @@ export default function Browser() {
    * sinon sa fenêtre revenait après Face ID, en boucle.
    */
   const closePending = useCallback((p: Pending) => {
-    if (shouldClosePending(pendingRef.current, p)) setPending(null);
+    if (!shouldClosePending(pendingRef.current, p)) return;
+    setPending(null);
+    journal('state', `demande dApp fermée (${p.kind})`);
   }, [setPending]);
   const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
   // Token d'un Permit / Permit2 (symbole + décimales) : registre local puis métadonnées ERC-20.

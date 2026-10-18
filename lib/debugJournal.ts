@@ -82,6 +82,17 @@ function scheduleSave(): void {
   }, 1500);
 }
 
+/** « v1.2.3 (build 45) », ou « ? » hors de l'app (tests). Chargé à la demande : jamais bloquant. */
+function appBuildLabel(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const C = require('expo-constants').default as { expoConfig?: { version?: string }; nativeBuildVersion?: string | null };
+    return `v${C?.expoConfig?.version ?? '?'} (build ${C?.nativeBuildVersion ?? '?'})`;
+  } catch {
+    return 'version inconnue';
+  }
+}
+
 export function journal(k: JournalKind, ...parts: unknown[]): void {
   if (isDecoySession()) return; // session leurre : rien n'est consigné (le journal trahirait les deux coffres)
   if (!enabled) return; // interrupteur coupé : rien n'est consigné
@@ -261,5 +272,6 @@ export function installJournal(): void {
 
   // Premier plan / arrière-plan.
   AppState.addEventListener('change', (s) => journal('app', `état de l'app : ${s}`));
-  journal('app', 'journal installé');
+  // Version et build : savoir quel code tournait quand on lit un journal envoyé.
+  journal('app', `journal installé · ${appBuildLabel()}`);
 }
