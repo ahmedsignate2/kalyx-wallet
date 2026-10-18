@@ -43,7 +43,14 @@ export async function loadNftReport(acct: AccountAddresses & { evmAddress: strin
   const jobs: Promise<Part>[] = [];
   if (acct.evmAddress) {
     for (const c of chains.filter((x) => x.family === 'evm' && x.rpcUrls.some((u) => u.includes('.alchemy.com')))) {
-      jobs.push(attempt(c.id, async () => (await getNfts(c, acct.evmAddress)).map((n) => ({ ...n, chainId: c.id }))));
+      // Plancher OpenSea : exprimé dans la monnaie native du réseau. Seuls les
+      // réseaux en ETH sont sûrs ; ailleurs on ne l'affiche pas plutôt que de deviner.
+      const eth = c.nativeSymbol === 'ETH';
+      jobs.push(
+        attempt(c.id, async () =>
+          (await getNfts(c, acct.evmAddress)).map(({ floor, ...n }) => ({ ...n, ...(floor && eth ? { floor: { ...floor, currency: 'ETH' } } : {}), chainId: c.id })),
+        ),
+      );
     }
   }
   for (const c of chains.filter((x) => x.family === 'ton')) {
@@ -60,6 +67,7 @@ export async function loadNftReport(acct: AccountAddresses & { evmAddress: strin
             name: n.name,
             collection: n.collectionName,
             image: n.image,
+            ...(n.traits ? { traits: n.traits } : {}),
             url: c.explorerUrl ? `${c.explorerUrl}/nft/${n.address}` : undefined,
             chainId: c.id,
           })),

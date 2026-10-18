@@ -8,6 +8,7 @@ import { bytesToUtf8 } from '@noble/hashes/utils';
 import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
 import { isSpamNft } from './nftSpam';
+import { parseRarity, parseTraits, type NftTrait, type NftTraitRarity } from './traits';
 
 const TIMEOUT = 12_000;
 
@@ -26,15 +27,35 @@ export interface NftItem {
   images?: string[];
   /** SVG inscrit dans le NFT lui-même (art « on-chain ») : dessiné tel quel, sans réseau. */
   svg?: string;
+  /** Traits inscrits dans les métadonnées (« Fond : bleu »). */
+  traits?: NftTrait[];
+  /**
+   * Prix plancher de la collection, tel que relevé par OpenSea, dans la monnaie
+   * native du réseau. Absent si aucun relevé : jamais d'estimation.
+   */
+  floor?: NftFloor;
+  /** NFT compressé (Solana) : pas de compte de jeton, donc rien à brûler ni à récupérer. */
+  compressed?: boolean;
+}
+
+export interface NftFloor {
+  price: number;
+  /** Symbole de la monnaie du prix (« ETH »), posé par l'appelant qui connaît le réseau. */
+  currency?: string;
+  source: 'OpenSea' | 'LooksRare';
+  /** Date du relevé (ISO), si le fournisseur la donne. */
+  at?: string;
+  /** Page de la collection chez la source. */
+  url?: string;
 }
 
 interface RawNft {
-  contract?: { address?: string; name?: string; isSpam?: boolean; openSeaMetadata?: { collectionName?: string; imageUrl?: string } };
+  contract?: { address?: string; name?: string; isSpam?: boolean; openSeaMetadata?: { collectionName?: string; imageUrl?: string; floorPrice?: number | null; lastIngestedAt?: string | null; collectionSlug?: string | null } };
   collection?: { name?: string };
   tokenId?: string;
   name?: string;
   image?: { cachedUrl?: string | null; thumbnailUrl?: string | null; pngUrl?: string | null; originalUrl?: string | null; contentType?: string | null };
-  raw?: { metadata?: { image?: unknown; image_url?: unknown; image_data?: unknown } };
+  raw?: { metadata?: { image?: unknown; image_url?: unknown; image_data?: unknown; attributes?: unknown } };
 }
 
 /** Basenames (Base) et ENS (Ethereum) : noms personnalisés dont l'image est un SVG généré par leur service. */
@@ -133,6 +154,8 @@ export function parseNfts(json: unknown): NftItem[] {
       const name = n?.name || n?.contract?.name || n?.contract?.openSeaMetadata?.collectionName || (n?.tokenId ? `#${n.tokenId}` : 'NFT');
       const [image = '', ...images] = nftImageCandidates(n ?? {}, name);
       const svg = inlineSvg(n?.raw?.metadata?.image_data) || inlineSvg(n?.raw?.metadata?.image) || inlineSvg(n?.image?.originalUrl);
+      const traits = parseTraits(n?.raw?.metadata?.attributes);
+      const floor = openSeaFloor(n?.contract?.openSeaMetadata);
       return {
         contract: n?.contract?.address ?? '',
         tokenId: String(n?.tokenId ?? ''),
@@ -141,6 +164,8 @@ export function parseNfts(json: unknown): NftItem[] {
         image,
         ...(images.length ? { images } : {}),
         ...(svg ? { svg } : {}),
+        ...(traits.length ? { traits } : {}),
+        ...(floor ? { floor } : {}),
         named: !!(n?.name || n?.contract?.name),
       };
     })
@@ -150,6 +175,19 @@ export function parseNfts(json: unknown): NftItem[] {
     // `isSpam` d'Alchemy en laisse passer : mêmes règles de nom que sur Solana.
     .filter((n) => !isSpamNft({ name: n.name, collection: n.collection }))
     .map(({ named: _named, ...n }) => n);
+}
+
+/** Plancher OpenSea relevé par Alchemy avec les métadonnées du contrat. */
+function openSeaFloor(m: NonNullable<RawNft['contract']>['openSeaMetadata']): NftFloor | undefined {
+  const price = m?.floorPrice;
+  if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return undefined;
+  const slug = typeof m?.collectionSlug === 'string' && /^[a-z0-9-]+$/i.test(m.collectionSlug) ? m.collectionSlug : '';
+  return {
+    price,
+    source: 'OpenSea',
+    ...(m?.lastIngestedAt ? { at: m.lastIngestedAt } : {}),
+    ...(slug ? { url: `https://opensea.io/collection/${slug}` } : {}),
+  };
 }
 
 /** Dérive l'URL NFT API depuis l'URL RPC Alchemy (v2 -> nft/v3). */
@@ -197,4 +235,49 @@ async function getNftPage(base: string, address: string, pageKey?: string): Prom
   if (!res.ok) throw new Error(`Alchemy NFT ${res.status}`);
   const json = (await res.json()) as { pageKey?: unknown };
   return { items: parseNfts(json), pageKey: typeof json?.pageKey === 'string' && json.pageKey ? json.pageKey : undefined };
+}
+
+/**
+ * Rareté des traits d'un NFT (`computeRarity` d'Alchemy) : la part de la
+ * collection qui porte chaque trait. Liste vide si le réseau ou la collection
+ * n'est pas couvert — la fiche montre alors les traits sans pourcentage.
+ */
+export async function getNftRarity(chain: ChainConfig, contract: string, tokenId: string): Promise<NftTraitRarity[]> {
+  const base = nftBaseUrl(chain);
+  if (!base || !/^0x[0-9a-f]{40}$/i.test(contract) || !/^\d+$/.test(tokenId)) return [];
+  const res = await withTimeout(fetch(`${base}/computeRarity?contractAddress=${contract}&tokenId=${tokenId}`), TIMEOUT, () => new Error('timeout'));
+  if (!res.ok) return [];
+  return parseRarity(await res.json());
+}
+
+interface RawFloor {
+  floorPrice?: unknown;
+  priceCurrency?: unknown;
+  retrievedAt?: unknown;
+  collectionUrl?: unknown;
+}
+
+/** Réponse `getFloorPrice` → plancher le plus récent connu (OpenSea d'abord). */
+export function parseFloorPrice(json: unknown): NftFloor | null {
+  const o = (json ?? {}) as { openSea?: RawFloor; looksRare?: RawFloor };
+  for (const [source, f] of [['OpenSea', o.openSea], ['LooksRare', o.looksRare]] as const) {
+    const price = f?.floorPrice;
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) continue;
+    const currency = typeof f?.priceCurrency === 'string' && /^[A-Z]{2,6}$/.test(f.priceCurrency) ? f.priceCurrency : undefined;
+    const url = typeof f?.collectionUrl === 'string' && /^https:\/\/(opensea\.io|looksrare\.org)\//.test(f.collectionUrl) ? f.collectionUrl : undefined;
+    return { price, source, ...(currency ? { currency } : {}), ...(typeof f?.retrievedAt === 'string' ? { at: f.retrievedAt } : {}), ...(url ? { url } : {}) };
+  }
+  return null;
+}
+
+/**
+ * Plancher relevé À L'INSTANT (`getFloorPrice`). Alchemy ne le sert que pour
+ * Ethereum : ailleurs, null, et l'appelant garde le relevé des métadonnées.
+ */
+export async function getNftFloor(chain: ChainConfig, contract: string): Promise<NftFloor | null> {
+  const base = nftBaseUrl(chain);
+  if (!base || chain.evmChainId !== 1 || !/^0x[0-9a-f]{40}$/i.test(contract)) return null;
+  const res = await withTimeout(fetch(`${base}/getFloorPrice?contractAddress=${contract}`), TIMEOUT, () => new Error('timeout'));
+  if (!res.ok) return null;
+  return parseFloorPrice(await res.json());
 }

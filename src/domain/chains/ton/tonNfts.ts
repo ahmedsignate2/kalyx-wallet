@@ -19,6 +19,7 @@
 import { Buffer } from 'buffer';
 import { Address, beginCell, comment as commentCell, type Cell } from '@ton/core';
 import { formatTonAddress, parseRawTonAddress, parseTonAddress } from './tonAddress';
+import { parseTraits, type NftTrait } from '../../nft/traits';
 
 export interface TonNft {
   /** Adresse de l'élément NFT (brute). */
@@ -31,6 +32,8 @@ export interface TonNft {
   image: string;
   /** Nom de domaine si l'élément en est un (« kalyx.ton »). */
   dns?: string;
+  /** Traits des métadonnées (cadeaux Telegram : modèle, fond, symbole). */
+  traits?: NftTrait[];
 }
 
 /** Aperçu WebP de TonAPI → PNG (React Native ne décode pas le WebP sur iOS). */
@@ -49,6 +52,7 @@ export function parseTonNfts(json: unknown): TonNft[] {
     const dns = typeof n.dns === 'string' && n.dns ? n.dns : undefined;
     const collection = typeof n.collection?.address === 'string' ? n.collection.address : '';
     if (!collection && !dns) continue;
+    const traits = parseTraits(n.metadata?.attributes);
     const preview = (n.previews as { resolution?: string; url?: string }[] | undefined)?.find((p) => p.resolution === '500x500')?.url;
     out.push({
       address: n.address,
@@ -57,6 +61,7 @@ export function parseTonNfts(json: unknown): TonNft[] {
       name: String(dns ?? n.metadata?.name ?? '').slice(0, 120) || '—',
       image: png(preview ?? n.metadata?.image, 500),
       dns,
+      ...(traits.length ? { traits } : {}),
     });
   }
   return out;

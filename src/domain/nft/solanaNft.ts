@@ -15,6 +15,7 @@ import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
 import { displayableImage, type NftItem } from './alchemyNft';
 import { isSpamNft } from './nftSpam';
+import { parseTraits } from './traits';
 
 const TIMEOUT = 15_000;
 
@@ -31,7 +32,7 @@ interface DasAsset {
   burnt?: boolean;
   compression?: { compressed?: boolean };
   grouping?: { group_key?: string; group_value?: string; collection_metadata?: { name?: string | null } }[];
-  content?: { metadata?: { name?: string | null }; links?: { image?: string | null }; files?: { uri?: string; cdn_uri?: string; mime?: string }[] };
+  content?: { metadata?: { name?: string | null; attributes?: unknown }; links?: { image?: string | null }; files?: { uri?: string; cdn_uri?: string; mime?: string }[] };
 }
 
 export function parseDasNfts(json: unknown): NftItem[] {
@@ -50,6 +51,7 @@ export function parseDasNfts(json: unknown): NftItem[] {
     const original = [a.content?.links?.image, file?.uri].map((u) => (u ? displayableImage(u, svg) : ''));
     const [image = '', ...images] = (svg ? [...original, file?.cdn_uri ?? ''] : [file?.cdn_uri ?? '', ...original]).filter((u, i, xs) => u && xs.indexOf(u) === i);
     if (!name && !image) continue;
+    const traits = parseTraits(a.content?.metadata?.attributes);
     out.push({
       contract: group?.group_value || a.id,
       tokenId: a.id,
@@ -58,6 +60,8 @@ export function parseDasNfts(json: unknown): NftItem[] {
       image,
       ...(images.length ? { images } : {}),
       url: `https://solscan.io/token/${a.id}`,
+      ...(traits.length ? { traits } : {}),
+      ...(a.compression?.compressed ? { compressed: true } : {}),
     });
   }
   return out;
