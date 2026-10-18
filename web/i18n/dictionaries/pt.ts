@@ -209,7 +209,7 @@ const pt: Dict = {
     items: [
       { value: '0 €', label: 'para enviar, receber, guardar', note: 'Só se aplicam as taxas de rede — vão para os validadores, não para nós.' },
       { value: '0,3 %', label: 'num swap via LI.FI', note: 'EVM e entre redes. É a única receita do Kalyx.' },
-      { value: '0,3 %', label: 'numa troca TON via STON.fi', note: 'Trocas em TON (TON, USD₮, jettons). A mesma taxa que a LI.FI.' },
+      { value: '0,3 %', label: 'num swap TON via STON.fi', note: 'Swaps em TON (TON, USD₮, jettons). A mesma taxa que a LI.FI.' },
       { value: '0 %', label: 'num swap Solana via Jupiter', note: 'Nenhuma comissão acrescentada à rota.' },
       { value: '0 %', label: 'no Earn', note: 'Aave, Lido, Rocket Pool, Benqi, Jito, Marinade, Tonstakers: nada retido no depósito nem no levantamento.' },
       { value: '0 €', label: 'de subscrição, para sempre', note: 'Sem versão «pro», sem funcionalidades atrás de uma portagem.' },

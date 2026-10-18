@@ -347,7 +347,7 @@ const fr: Dict = {
   noTokensChainBody: 'Les tokens de ce réseau apparaîtront ici dès qu\'ils seront détectés.',
   noVerifiedTokens: 'Aucun token vérifié détecté.',
   unverifiedTokens: 'Tokens non vérifiés ({n})',
-  tokensComingSoon: 'Les jetons de {chain} arriveront bientôt ici — en attendant, ton solde {symbol} est à jour ci-dessus.',
+  tokensComingSoon: 'Les tokens de {chain} arriveront bientôt ici — en attendant, ton solde {symbol} est à jour ci-dessus.',
   noNft: 'Aucun NFT',
   noNftBody: 'Les NFT détectés sur {chain} apparaîtront ici automatiquement.',
   nftEvmOnly: 'Les NFT affichés ici concernent les réseaux EVM.',

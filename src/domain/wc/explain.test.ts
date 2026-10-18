@@ -69,12 +69,12 @@ describe('explainRequest', () => {
     expect(e.risk).toBe('warning');
     expect(e.canReduceApproval).toBe(true);
   });
-  it('swap simulé → « Tu vas échanger 50 USDC contre environ 0.02 ETH »', () => {
+  it('swap simulé → « Tu vas swapper 50 USDC contre environ 0.02 ETH »', () => {
     const e = explain({ kind: 'tx', domain: 'app.uniswap.org', decoded: decodeTx({ to: '0xrouter', data: '0xdeadbeef00' }), simulation: { source: 'alchemy', approvals: [], changes: [
       { direction: 'out', assetType: 'ERC20', symbol: 'USDC', rawAmount: '50000000', decimals: 6 },
       { direction: 'in', assetType: 'NATIVE', symbol: 'ETH', rawAmount: '20000000000000000', decimals: 18 },
     ] } });
-    expect(e.headline).toBe('Tu vas échanger 50 USDC contre environ 0.02 ETH.');
+    expect(e.headline).toBe('Tu vas swapper 50 USDC contre environ 0.02 ETH.');
     expect(e.lose).toEqual(['50 USDC']);
     expect(e.receive).toEqual(['0.02 ETH']);
     expect(e.risk).toBe('none');
@@ -144,7 +144,7 @@ describe('Permit2 et Solana (régressions)', () => {
 
   it('Solana : un swap Jupiter est expliqué comme un swap', () => {
     const e = explain({ kind: 'solanaTx', method: 'solana_signTransaction', domain: 'jup.ag', solana: { version: 0, programs: [], known: ['Jupiter v6', 'Compute Budget'], dapp: 'Jupiter v6', action: 'swap', instructions: 4, feePayer: 'x', lookupTables: 2, feePayerMismatch: false, signerCount: 1, signaturesPresent: [false] } });
-    expect(e.title).toBe('Échange');
+    expect(e.title).toBe('Swap');
     expect(e.headline).toContain('Jupiter v6');
     expect(e.risk).toBe('none');
     const bad = explain({ kind: 'solanaTx', domain: 'jup.ag', solana: { version: 0, programs: [], known: [], dapp: null, action: 'contract', instructions: 1, feePayer: 'y', lookupTables: 0, feePayerMismatch: true, signerCount: 1, signaturesPresent: [false] } });
