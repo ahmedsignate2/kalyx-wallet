@@ -1,4 +1,5 @@
 import { fetchAnkrHistory } from './ankr';
+import { isAlchemyRpc, noteRelayResponse, relayPaused, relayServiceOf } from '../net/relay';
 import { parseAlchemyHistory, alchemyTransfersBody } from './alchemy';
 /**
  * Adapter EVM (Ethereum / BNB Chain / Polygon / testnets).
@@ -183,8 +184,9 @@ export class EvmChainAdapter implements ChainAdapter {
      * réseau qui ne connaît pas `getAssetTransfers` répond par une erreur, et
      * l'on passe aux replis.
      */
-    const alchemyUrl = this.config.rpcUrls.find((u) => u.includes('.g.alchemy.com/v2/'));
-    if (alchemyUrl) {
+    const alchemyUrl = this.config.rpcUrls.find(isAlchemyRpc);
+    const viaRelay = alchemyUrl ? relayServiceOf(alchemyUrl) : null;
+    if (alchemyUrl && !(viaRelay && relayPaused(viaRelay))) {
       try {
         return await withRetry(async () => {
           const ask = async (side: 'from' | 'to', id: number) => {
@@ -193,6 +195,7 @@ export class EvmChainAdapter implements ChainAdapter {
               RPC_TIMEOUT_MS,
               () => new Error('timeout'),
             );
+            noteRelayResponse(alchemyUrl, res);
             const json = await res.json();
             if (!json?.result) throw new Error(`Alchemy: ${json?.error?.message ?? res.status}`);
             return json;

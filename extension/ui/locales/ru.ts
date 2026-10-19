@@ -43,7 +43,7 @@ export default {
   networksDown: 'Нет ответа: {list}. Их балансы взяты из последнего чтения.', andMore: '{list} и ещё {n}',
   networksDownNoData: 'Нет ответа: {list}. Балансы пока неизвестны.',
   networksDownActivity: 'Нет ответа: {list}. Их историю не удалось прочитать.',
-  erc20Soon: 'Токены ERC-20 появятся вместе с ретранслятором Kalyx. Нативные балансы и Solana — полные.',
+  erc20Partial: 'Пока список ограничен основными токенами (USDC, USDT…): сервис токенов перегружен.',
   smallBalances: 'Небольшие балансы ({n})', hiddenTokens: 'Скрытые, непроверенные ({n})', noTokens: 'Баланса пока нет.',
   noActivity: 'Нет недавней активности.', hiddenActivity: 'Скрыто строк: {n} (вероятно, спам).', pending: 'В ожидании',
   failedTx: 'Не выполнена', viewExplorer: 'Открыть в обозревателе', account: 'Счёт {n}', settings: 'Настройки', currency: 'Валюта',

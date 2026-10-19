@@ -288,7 +288,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     if (p.main.length) list.push(h('div', { class: 'list card' }, ...p.main.map(tokenRow)));
     if (p.small.length) list.push(h('details', {}, h('summary', {}, t('smallBalances', { n: p.small.length })), h('div', { class: 'list card' }, ...p.small.map(tokenRow))));
     if (p.hidden.length) list.push(h('details', { class: 'hidden-tokens' }, h('summary', {}, t('hiddenTokens', { n: p.hidden.length })), h('div', { class: 'list card' }, ...p.hidden.map(tokenRow))));
-    if (p.erc20Unavailable) list.push(h('p', { class: 'small muted note' }, t('erc20Soon')));
+    if (p.erc20Partial) list.push(h('p', { class: 'small muted note' }, t('erc20Partial')));
     return h('div', { class: 'stack', style: 'gap:12px' }, ...list);
   }
 

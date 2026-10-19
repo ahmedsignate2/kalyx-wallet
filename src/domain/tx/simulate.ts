@@ -4,6 +4,7 @@
  * RPC Alchemy). Repli STATIQUE : décodage du calldata (transfert natif / ERC-20)
  * — moins complet mais jamais d'hexadécimal à l'écran.
  */
+import { isAlchemyRpc, noteRelayResponse, relayPaused, relayServiceOf } from '../net/relay';
 import type { ChainConfig } from '../chains/types';
 import { withTimeout } from '../chains/net';
 import { decodeTx } from './decodeTx';
@@ -78,8 +79,10 @@ export async function simulateTx(
   tokenMeta?: { symbol: string; decimals: number },
 ): Promise<Simulation> {
   const fallback = staticSimulation(tx, chain, tokenMeta);
-  const url = chain.rpcUrls.find((u) => u.includes('.alchemy.com'));
-  if (!url) return fallback;
+  const url = chain.rpcUrls.find(isAlchemyRpc);
+  // Relais en pause (quota) : la lecture statique reste, sans simulation.
+  const svc = url ? relayServiceOf(url) : null;
+  if (!url || (svc && relayPaused(svc))) return fallback;
   try {
     const value = typeof tx.value === 'bigint' ? '0x' + tx.value.toString(16) : tx.value ? '0x' + BigInt(tx.value).toString(16) : '0x0';
     const res = await withTimeout(
@@ -87,6 +90,7 @@ export async function simulateTx(
       10_000,
       () => new Error('timeout'),
     );
+    noteRelayResponse(url, res);
     const json = (await res.json()) as { result?: { error?: { message?: string } }; error?: { message?: string } };
     if (json.error) return { ...fallback, error: json.error.message };
     if (json.result?.error) return { ...fallback, error: json.result.error.message ?? 'La simulation a échoué' };

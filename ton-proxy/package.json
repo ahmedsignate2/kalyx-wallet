@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit -p .",
-    "test": "node --experimental-strip-types --test src/routes.test.ts src/moonpay.test.ts"
+    "test": "node --experimental-strip-types --test src/routes.test.ts src/moonpay.test.ts src/rpc.test.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260927.1",

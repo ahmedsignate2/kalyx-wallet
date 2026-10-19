@@ -45,7 +45,7 @@ export default {
   updated: '{t} 업데이트', justNow: '방금', refreshing: '새로 고치는 중…',
   networksDown: '응답 없음: {list}. 잔액은 마지막으로 읽은 값입니다.', andMore: '{list} 외 {n}개',
   networksDownNoData: '응답 없음: {list}. 현재 잔액을 알 수 없습니다.', networksDownActivity: '응답 없음: {list}. 기록을 읽지 못했습니다.',
-  erc20Soon: 'ERC-20 토큰은 Kalyx 릴레이와 함께 지원됩니다. 기본 코인과 Solana 잔액은 모두 표시됩니다.',
+  erc20Partial: '지금은 주요 토큰(USDC, USDT…)만 표시합니다. 토큰 서비스가 혼잡합니다.',
   smallBalances: '소액 잔액({n})', hiddenTokens: '숨김, 미확인({n})',
   noTokens: '아직 잔액이 없습니다.', noActivity: '최근 활동이 없습니다.', hiddenActivity: '{n}개 항목 숨김: 스팸일 가능성이 높습니다.',
   pending: '대기 중', failedTx: '실패', viewExplorer: '익스플로러에서 보기', account: '계정 {n}',

@@ -43,7 +43,7 @@ export default {
   networksDown: 'Nessuna risposta: {list}. I loro saldi vengono dall’ultima lettura.', andMore: '{list} e altre {n}',
   networksDownNoData: 'Nessuna risposta: {list}. Saldi sconosciuti per ora.',
   networksDownActivity: 'Nessuna risposta: {list}. Non è stato possibile leggere la cronologia.',
-  erc20Soon: 'I token ERC-20 arriveranno con il relay Kalyx. I saldi nativi e Solana sono completi.',
+  erc20Partial: 'Elenco limitato ai token principali (USDC, USDT…) per ora: il servizio dei token è saturo.',
   smallBalances: 'Saldi piccoli ({n})', hiddenTokens: 'Nascosti, non verificati ({n})', noTokens: 'Ancora nessun saldo.',
   noActivity: 'Nessuna attività recente.', hiddenActivity: '{n} riga/e nascosta/e: probabile spam.', pending: 'In attesa',
   failedTx: 'Non riuscita', viewExplorer: 'Vedi sull’explorer', account: 'Account {n}', settings: 'Impostazioni', currency: 'Valuta',

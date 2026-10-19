@@ -14,6 +14,7 @@
  * précédent restent (carryOver), et si rien n'a pu être lu du tout, le total
  * est inconnu (null), pas 0.
  */
+import { isAlchemyRpc, relayPaused } from '../../src/domain/net/relay';
 import { carryOver, deserialize, loadHoldings, serialize, splitHoldings, summarize, verifiedChainSymbols, verifiedContracts, type Holding, type Snapshot } from '../../lib/portfolio/holdings';
 import { buildTrusted, pickHistoryChains } from '../../lib/historyTrust';
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
@@ -63,7 +64,8 @@ export interface PortfolioView {
   /** Réseaux qui n'ont pas répondu à la dernière lecture (noms lisibles). */
   failed: string[];
   /** Les listes de tokens ERC-20 ne sont pas encore servies (pas de clé d'indexeur dans l'extension). */
-  erc20Unavailable: boolean;
+  /** Tokens ERC-20 réduits aux principaux (relais en pause sur quota, ou pas d'indexeur) : à dire. */
+  erc20Partial: boolean;
 }
 
 export interface ActivityRow {
@@ -169,7 +171,7 @@ export function makePortfolio(deps: PortfolioDeps) {
   /** Comptes dont les soldes ne sont plus justes (après un envoi) : relus à la prochaine ouverture. */
   const dirty = new Set<string>();
 
-  const erc20Unavailable = !listChains({ includeTestnets: false }).some((c) => c.family === 'evm' && c.rpcUrls.some((u) => u.includes('.alchemy.com')));
+  const hasIndexer = listChains({ includeTestnets: false }).some((c) => c.family === 'evm' && c.rpcUrls.some(isAlchemyRpc));
 
   async function readSnapshot(a: Acct, fiat: string): Promise<{ snap: Snapshot | null; failed: string[] }> {
     const s = await deps.disk.get<StoredSnapshot>(key('portfolio', a, fiat));
@@ -190,7 +192,7 @@ export function makePortfolio(deps: PortfolioDeps) {
       small: small.map(view),
       hidden: hidden.map(view),
       failed: byPriority(failed).map(chainName),
-      erc20Unavailable,
+      erc20Partial: !hasIndexer || relayPaused('alchemy'),
     };
   }
 

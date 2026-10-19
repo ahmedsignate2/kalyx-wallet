@@ -20,4 +20,4 @@ No. All code is in the package; nothing is downloaded and executed.
 ## Data usage
 - Collected by the developer: **none**. No analytics, no telemetry, no account.
 - Website content: the extension reads only the requests a site sends to the wallet (connection, signature), to show them to the user.
-- Data sent to third parties: only what a blockchain wallet needs to work (public addresses to nodes and data services, see the privacy policy). Never keys, phrases or passwords. Not sold, not used for advertising or credit.
+- Data sent to third parties: only what a blockchain wallet needs to work (public addresses to nodes and data services, and to the Kalyx relay on Cloudflare for ERC-20 token lists; see the privacy policy). Never keys, phrases or passwords. Not sold, not used for advertising or credit.

@@ -7,6 +7,7 @@
  * sinon on renvoie [] proprement.
  */
 import { withTimeout } from '../chains/net';
+import { isAlchemyRpc, noteRelayResponse, noteRelayUnreachable, relayPaused, relayServiceOf } from '../net/relay';
 import type { ChainConfig } from '../chains/types';
 import { knownTokensFor } from './knownTokens';
 
@@ -91,7 +92,7 @@ export function isSpamToken(m: TokenMeta): boolean {
 }
 
 function alchemyUrlOf(chain: ChainConfig): string | undefined {
-  return chain.rpcUrls.find((u) => u.includes('.alchemy.com'));
+  return chain.rpcUrls.find(isAlchemyRpc);
 }
 
 /** Attentes avant de réessayer une requête refusée pour débit (HTTP 429). */
@@ -103,12 +104,27 @@ async function post(url: string, body: unknown): Promise<unknown> {
    * requêtes, et Alchemy répond 429 (débit). Une seule réponse 429 faisait
    * tomber TOUS les jetons du réseau. On attend et on réessaie, deux fois.
    */
+  // Relais Kalyx en pause (quota) : on n'insiste pas, le repli gratuit prend le relais.
+  const viaRelay = relayServiceOf(url);
+  if (viaRelay && relayPaused(viaRelay)) throw new Error('relais en pause (quota)');
   for (let attempt = 0; ; attempt++) {
-    const res = await withTimeout(
-      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-      TIMEOUT,
-      () => new Error('timeout'),
-    );
+    let res: Response;
+    try {
+      res = await withTimeout(
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+        TIMEOUT,
+        () => new Error('timeout'),
+      );
+    } catch (e) {
+      noteRelayUnreachable(url);
+      throw e;
+    }
+    if (viaRelay) {
+      // Le relais a déjà réessayé et mémorisé le quota : pas de nouvelle tentative ici.
+      noteRelayResponse(url, res);
+      if (!res.ok) throw new Error(`relais : HTTP ${res.status}`);
+      return res.json();
+    }
     if (res.status === 429 && attempt < RETRY_DELAYS_MS.length) {
       await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
       continue;

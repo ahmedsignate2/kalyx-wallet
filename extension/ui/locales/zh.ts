@@ -45,7 +45,7 @@ export default {
   updated: '更新于 {t}', justNow: '刚刚', refreshing: '正在刷新…',
   networksDown: '无响应：{list}。其余额来自上次读取。', andMore: '{list} 等 {n} 个',
   networksDownNoData: '无响应：{list}。余额暂时未知。', networksDownActivity: '无响应：{list}。无法读取其历史记录。',
-  erc20Soon: 'ERC-20 代币将随 Kalyx 中继推出。原生币和 Solana 余额已完整。',
+  erc20Partial: '列表暂时仅显示主要代币（USDC、USDT…）：代币服务繁忙。',
   smallBalances: '小额余额（{n}）', hiddenTokens: '已隐藏，未验证（{n}）',
   noTokens: '暂无余额。', noActivity: '近期没有活动。', hiddenActivity: '已隐藏 {n} 条：可能是垃圾信息。',
   pending: '处理中', failedTx: '失败', viewExplorer: '在浏览器中查看', account: '账户 {n}',

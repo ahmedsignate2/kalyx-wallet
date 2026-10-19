@@ -43,7 +43,7 @@ export default {
   networksDown: 'कोई जवाब नहीं: {list}। उनकी शेष राशि पिछली रीडिंग से है।', andMore: '{list} और {n} अन्य',
   networksDownNoData: 'कोई जवाब नहीं: {list}। अभी शेष राशि अज्ञात है।',
   networksDownActivity: 'कोई जवाब नहीं: {list}। उनका इतिहास पढ़ा नहीं जा सका।',
-  erc20Soon: 'ERC-20 टोकन Kalyx रिले के साथ आएँगे। नेटिव और Solana शेष राशि पूरी है।',
+  erc20Partial: 'फ़िलहाल सूची मुख्य टोकन (USDC, USDT…) तक सीमित है: टोकन सेवा व्यस्त है।',
   smallBalances: 'छोटी शेष राशियाँ ({n})', hiddenTokens: 'छिपे हुए, असत्यापित ({n})', noTokens: 'अभी कोई शेष राशि नहीं।',
   noActivity: 'हाल में कोई गतिविधि नहीं।', hiddenActivity: '{n} पंक्ति छिपाई गई: संभवतः स्पैम।', pending: 'लंबित',
   failedTx: 'विफल', viewExplorer: 'एक्सप्लोरर में देखें', account: 'खाता {n}', settings: 'सेटिंग्स', currency: 'मुद्रा',

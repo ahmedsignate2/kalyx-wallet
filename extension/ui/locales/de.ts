@@ -43,7 +43,7 @@ export default {
   networksDown: 'Keine Antwort: {list}. Ihre Guthaben stammen aus der letzten Abfrage.', andMore: '{list} und {n} weitere',
   networksDownNoData: 'Keine Antwort: {list}. Guthaben vorerst unbekannt.',
   networksDownActivity: 'Keine Antwort: {list}. Ihr Verlauf konnte nicht gelesen werden.',
-  erc20Soon: 'ERC-20-Token kommen mit dem Kalyx-Relay. Native und Solana-Guthaben sind vollständig.',
+  erc20Partial: 'Liste vorerst auf die wichtigsten Token beschränkt (USDC, USDT…): der Token-Dienst ist ausgelastet.',
   smallBalances: 'Kleine Guthaben ({n})', hiddenTokens: 'Ausgeblendet, nicht verifiziert ({n})', noTokens: 'Noch kein Guthaben.',
   noActivity: 'Keine aktuelle Aktivität.', hiddenActivity: '{n} Zeile(n) ausgeblendet: wahrscheinlich Spam.', pending: 'Ausstehend',
   failedTx: 'Fehlgeschlagen', viewExplorer: 'Im Explorer ansehen', account: 'Konto {n}', settings: 'Einstellungen', currency: 'Währung',

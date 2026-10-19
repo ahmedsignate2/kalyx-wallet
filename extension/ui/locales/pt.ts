@@ -43,7 +43,7 @@ export default {
   networksDown: 'Sem resposta: {list}. Os saldos vêm da última leitura.', andMore: '{list} e mais {n}',
   networksDownNoData: 'Sem resposta: {list}. Saldos desconhecidos por agora.',
   networksDownActivity: 'Sem resposta: {list}. Não foi possível ler o histórico.',
-  erc20Soon: 'Os tokens ERC-20 chegam com o relé da Kalyx. Os saldos nativos e Solana estão completos.',
+  erc20Partial: 'Lista limitada aos tokens principais (USDC, USDT…) por agora: o serviço de tokens está saturado.',
   smallBalances: 'Saldos pequenos ({n})', hiddenTokens: 'Ocultos, não verificados ({n})', noTokens: 'Ainda sem saldo.',
   noActivity: 'Sem atividade recente.', hiddenActivity: '{n} linha(s) oculta(s): provável spam.', pending: 'Pendente',
   failedTx: 'Falhada', viewExplorer: 'Ver no explorador', account: 'Conta {n}', settings: 'Definições', currency: 'Moeda',
