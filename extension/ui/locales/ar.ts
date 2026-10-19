@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'ملاحظات النسخة التجريبية — إضافة Kalyx {v}',
   reportMailBody: 'ماذا حدث؟ وماذا كنت تتوقع؟',
   chooseAccount: 'اختر حسابًا', myAddresses: 'عناويني', setGeneral: 'عام', setSecurity: 'الأمان', setHelp: 'المساعدة', sitesShort: 'المواقع', networksShort: 'شبكات لا تستجيب: {n}',
+  tdBalance: 'الرصيد', tdPrice: 'السعر', tdNetwork: 'الشبكة', tdUnverified: 'غير موثّق: لا يُحتسب سعره ولا قيمته في إجماليك. احذر من التوكنات التي لم تطلبها.',
 };

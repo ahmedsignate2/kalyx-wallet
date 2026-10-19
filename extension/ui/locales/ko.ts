@@ -122,4 +122,5 @@ export default {
   reportMailSubject: '베타 피드백 — Kalyx 확장 프로그램 {v}',
   reportMailBody: '무슨 일이 있었나요? 어떻게 될 거라고 예상했나요?',
   chooseAccount: '계정 선택', myAddresses: '내 주소', setGeneral: '일반', setSecurity: '보안', setHelp: '도움말', sitesShort: '사이트', networksShort: '{n}개 네트워크 응답 없음',
+  tdBalance: '잔액', tdPrice: '가격', tdNetwork: '네트워크', tdUnverified: '미검증: 가격과 가치가 총액에 포함되지 않습니다. 요청하지 않은 토큰은 주의하세요.',
 };

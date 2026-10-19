@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'Opinia o becie — rozszerzenie Kalyx {v}',
   reportMailBody: 'Co się stało? Czego się spodziewałeś?',
   chooseAccount: 'Wybierz konto', myAddresses: 'Moje adresy', setGeneral: 'Ogólne', setSecurity: 'Bezpieczeństwo', setHelp: 'Pomoc', sitesShort: 'Strony', networksShort: 'Sieci bez odpowiedzi: {n}',
+  tdBalance: 'Saldo', tdPrice: 'Cena', tdNetwork: 'Sieć', tdUnverified: 'Niezweryfikowany: cena i wartość nie są wliczane do sumy. Uważaj na tokeny, o które nie prosiłeś.',
 };

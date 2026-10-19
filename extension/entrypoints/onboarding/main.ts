@@ -8,7 +8,7 @@
  * La phrase créée n'existe dans cette page que le temps de la noter et de la
  * vérifier ; elle est oubliée dès la fin du parcours.
  */
-import { mountScene } from '../../ui/landscape';
+import { landscape } from '../../ui/landscape';
 import { glyph } from '../../ui/glyph';
 import { h, send } from '../../ui/dom';
 import { applyLang, errorText, reasonText, t } from '../../ui/i18n';
@@ -25,19 +25,24 @@ interface WalletMeta {
 }
 
 applyLang();
-mountScene();
 const app = document.getElementById('app')!;
 let afterAuth: () => void = () => {};
 /** Phrase en cours de création (oubliée à la fin du parcours). */
 let phrase = '';
 let createdId = '';
 
+/** Le ciel de l'app en bandeau, la carte du parcours posée dessus ; chaque étape y arrive en glissant. */
 function screen(...children: (Node | false | null)[]) {
   app.replaceChildren(
-    h('div', { class: 'head' }, h('img', { src: '/icon/128.png', alt: '' }), 'Kalyx'),
-    h('div', { class: 'stack' }, ...children),
+    h('div', { class: 'ob-sky on-sky', 'aria-hidden': 'true' }, landscape({ veil: true, glow: 0.4 })),
+    h('header', { class: 'ob-brand on-sky' }, h('img', { src: '/icon/128.png', alt: '' }), 'Kalyx'),
+    h('main', { class: 'ob-card rise' }, h('div', { class: 'stack' }, ...children)),
   );
+  window.scrollTo({ top: 0 });
 }
+
+/** Progression du parcours « créer » : la phrase, la vérification, la fin. */
+const steps = (i: number) => h('div', { class: 'ob-steps', 'aria-hidden': 'true' }, ...[0, 1, 2].map((k) => h('i', { class: k < i ? 'done' : k === i ? 'on' : '' })));
 
 const errorLine = () => h('p', { class: 'error', role: 'alert' });
 const backLink = (to: () => void) => h('button', { class: 'link', type: 'button', on: { click: to } }, glyph('back', 18), t('back'));
@@ -50,6 +55,7 @@ function showError(el: HTMLElement, r: { error?: string; waitMs?: number }) {
 /* ── Accueil ── */
 function welcome() {
   screen(
+    h('span', { class: 'access-logo ob-logo' }, h('img', { src: '/icon/128.png', alt: '' })),
     h('h1', {}, t('welcomeTitle')),
     h('p', { class: 'muted' }, t('welcomeSub')),
     h('button', { class: 'btn', type: 'button', on: { click: () => withAuth(createFlow) } }, t('create')),
@@ -171,6 +177,7 @@ function phraseScreen() {
     },
   }, t('phraseReveal'));
   screen(
+    !!createdId && steps(0),
     h('h1', {}, t('phraseTitle')),
     h('p', { class: 'muted' }, t('phraseSub')),
     h('ul', { class: 'warn' }, h('li', {}, t('phraseWarn1')), h('li', {}, t('phraseWarn2')), h('li', {}, t('phraseWarn3'))),
@@ -189,18 +196,30 @@ function verifyScreen(challenge: WordChallenge[], step: number) {
   const err = errorLine();
   const words = phrase.split(' ');
   screen(
+    steps(1),
     h('h1', {}, t('verifyTitle')),
     h('p', { class: 'muted' }, t('verifyWord', { n: c.position })),
     h(
       'div',
       { class: 'choices' },
-      ...c.options.map((w) =>
-        h('button', {
+      ...c.options.map((w) => {
+        const b = h('button', {
           class: 'btn secondary',
           type: 'button',
-          on: { click: () => (words[c.position - 1] === w ? verifyScreen(challenge, step + 1) : void (err.textContent = t('verifyWrong'))) },
-        }, w),
-      ),
+          on: {
+            click: () => {
+              // Juste : l'étape suivante arrive tout de suite (sa carte entre en glissant) — aucun délai
+              // pendant lequel un second clic ferait sauter une étape.
+              if (words[c.position - 1] === w) return verifyScreen(challenge, step + 1);
+              err.textContent = t('verifyWrong');
+              b.classList.remove('shake');
+              void b.offsetWidth;
+              b.classList.add('shake');
+            },
+          },
+        }, w);
+        return b;
+      }),
     ),
     err,
     h('button', { class: 'btn ghost', type: 'button', on: { click: () => finish() } }, t('later')),
@@ -343,6 +362,8 @@ async function finish(notes: string[] = []) {
   const wallets = list.ok ? list.wallets : [];
   const select = h('select', { on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(select.value) }) } }, ...AUTO_LOCK_CHOICES.map((m) => h('option', { value: String(m), selected: m === st.autoLockMin }, t('minutes', { n: m }))));
   screen(
+    !!createdId && steps(3),
+    h('div', { class: 'success-badge' }, glyph('check', 34)),
     h('h1', {}, t('doneTitle')),
     ...notes.map((n) => h('p', { class: 'ok' }, n)),
     ...wallets.map((w) =>

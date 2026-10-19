@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'Beta geri bildirimi — Kalyx uzantısı {v}',
   reportMailBody: 'Ne oldu? Ne bekliyordun?',
   chooseAccount: 'Hesap seç', myAddresses: 'Adreslerim', setGeneral: 'Genel', setSecurity: 'Güvenlik', setHelp: 'Yardım', sitesShort: 'Siteler', networksShort: '{n} ağ yanıt vermiyor',
+  tdBalance: 'Bakiye', tdPrice: 'Fiyat', tdNetwork: 'Ağ', tdUnverified: 'Doğrulanmamış: fiyatı ve değeri toplamına dahil edilmez. İstemediğin token’lara karşı dikkatli ol.',
 };

@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'Отзыв о бете — расширение Kalyx {v}',
   reportMailBody: 'Что произошло? Чего ты ожидал?',
   chooseAccount: 'Выберите аккаунт', myAddresses: 'Мои адреса', setGeneral: 'Общие', setSecurity: 'Безопасность', setHelp: 'Помощь', sitesShort: 'Сайты', networksShort: 'Сети без ответа: {n}',
+  tdBalance: 'Баланс', tdPrice: 'Цена', tdNetwork: 'Сеть', tdUnverified: 'Не проверен: цена и стоимость не входят в общий итог. Остерегайтесь токенов, которые вы не запрашивали.',
 };

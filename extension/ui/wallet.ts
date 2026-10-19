@@ -14,6 +14,7 @@ import { h, send } from './dom';
 import { glyph } from './glyph';
 import { avatar } from './avatar';
 import { openSheet } from './sheet';
+import { cascade, countUp, navIn, pulse } from './motion';
 import { landscape } from './landscape';
 import { openOnboarding } from './screens';
 import { sendScreen } from './send';
@@ -68,6 +69,17 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   let lastError = '';
   /** Sur un autre écran (envoyer, recevoir, réglages), revenir sur la fenêtre ne l'efface pas. */
   let away = false;
+  /** La liste entre en cascade au premier affichage réel, au changement d'onglet ou de compte — jamais à une actualisation. */
+  let animateList = true;
+  /** Dernier solde affiché (et sa devise) : le nouveau compte à partir de lui. */
+  let shownTotal: number | null = null;
+  let shownFiat = '';
+  /** Écran quitté → au retour, l'accueil glisse depuis la gauche. */
+  const go = (fn: () => unknown) => () => {
+    away = true;
+    void fn();
+    navIn(app, 'fwd');
+  };
 
   const money = (n: number) => new Intl.NumberFormat(LOCALE, { style: 'currency', currency: (data?.fiat ?? 'usd').toUpperCase() }).format(n);
   const ago = (at: number) => {
@@ -157,7 +169,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       ),
       h('span', { class: 'spacer' }),
       opts.mode === 'popup' && icon(t('openSidePanel'), 'sidebar', openSidePanel),
-      icon(t('settings'), 'gear', settings),
+      icon(t('settings'), 'gear', () => settings()),
       icon(t('lock'), 'lock', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
     );
   }
@@ -187,6 +199,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
                     if (on) return;
                     await send({ type: 'home:select', walletId: wl.id, index: ac.index });
                     activity = null;
+                    animateList = true;
+                    shownTotal = null;
                     await load();
                   },
                 },
@@ -222,6 +236,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
               await navigator.clipboard.writeText(addr);
               btn.dataset.copied = '1';
               label.textContent = t('copied');
+              pulse(btn);
               setTimeout(() => (delete btn.dataset.copied, (label.textContent = t('copy'))), 1400);
             },
           },
@@ -249,7 +264,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       pnl != null && p?.pnl24hPct != null
         ? h('p', { class: `pill ${up ? 'gain' : 'loss'}` }, glyph(up ? 'trendUp' : 'trendDown', 14), `${up ? '+' : '−'}${money(Math.abs(pnl))} (${up ? '+' : '−'}${Math.abs(p.pnl24hPct).toFixed(1)} %) · 24 h`)
         : null,
-      h('p', { class: 'pill quiet status' }, status),
+      h('p', { class: 'pill quiet status' }, refreshing ? h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }) : null, status),
       addressPill(),
     );
   }
@@ -271,9 +286,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return h(
       'nav',
       { class: 'acts' },
-      act('send primary', 'send', t('send'), () => ((away = true), sendScreen(app, home))),
-      act('rx', 'receive', t('receive'), () => ((away = true), void receiveScreen(app, home, { close: opts.mode === 'popup' }))),
-      act('sites', 'dapps', t('sitesShort'), () => ((away = true), void sitesScreen(app, home))),
+      act('send primary', 'send', t('send'), go(() => sendScreen(app, home))),
+      act('rx', 'receive', t('receive'), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))),
+      act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
     );
   }
 
@@ -323,14 +338,52 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return h('span', { class: 'logos' }, main, src && chainLogo ? h('img', { class: 'badge', src: chainLogo, alt: '' }) : null);
   }
 
+  const pct = (c: number) => `${c >= 0 ? '+' : '−'}${Math.abs(c).toFixed(2)} %`;
+
   function tokenRow(x: HoldingView) {
+    const priced = x.verified && x.price > 0;
     return h(
-      'div',
-      { class: `row token${x.verified ? '' : ' unverified'}` },
+      'button',
+      { class: `row link-row token${x.verified ? '' : ' unverified'}`, type: 'button', title: x.name || x.symbol, on: { click: () => tokenSheet(x) } },
       tokenLogo(x.logo, x.symbol, x.chainLogo),
-      // Le token et son réseau à gauche ; la valeur, puis la quantité, à droite.
-      h('div', { class: 'grow' }, h('strong', {}, x.symbol), h('p', { class: 'small muted' }, x.chainName)),
-      h('div', { class: 'right' }, h('strong', {}, x.verified && x.price > 0 ? money(x.fiat) : '—'), h('p', { class: 'small muted' }, `${x.amount} ${x.symbol}`)),
+      // Le token et sa quantité à gauche ; la valeur et sa variation sur 24 h à droite.
+      h('div', { class: 'grow' }, h('strong', {}, x.symbol), h('p', { class: 'small muted' }, `${x.amount} ${x.symbol}`)),
+      h(
+        'div',
+        { class: 'right' },
+        h('strong', {}, priced ? money(x.fiat) : '—'),
+        priced && x.change24h != null ? h('p', { class: `small ${x.change24h >= 0 ? 'up' : 'down'}` }, pct(x.change24h)) : h('p', { class: 'small muted' }, x.chainName),
+      ),
+    );
+  }
+
+  /** Détail d'un token : valeur, prix, variation, quantité, réseau ; et les gestes. */
+  function tokenSheet(x: HoldingView) {
+    const priced = x.verified && x.price > 0;
+    const kv = (k: string, v: Node | string) => h('div', { class: 'kv-row' }, h('span', { class: 'muted' }, k), typeof v === 'string' ? h('strong', {}, v) : v);
+    const sheet = openSheet(
+      x.name || x.symbol,
+      h(
+        'section',
+        { class: 'token-hero' },
+        tokenLogo(x.logo, x.symbol, x.chainLogo),
+        h('p', { class: 'token-value' }, priced ? money(x.fiat) : `${x.amount} ${x.symbol}`),
+        priced && x.change24h != null ? h('p', { class: `pill ${x.change24h >= 0 ? 'gain' : 'loss'}` }, glyph(x.change24h >= 0 ? 'trendUp' : 'trendDown', 14), `${pct(x.change24h)} · 24 h`) : null,
+      ),
+      h(
+        'div',
+        { class: 'card kv-card' },
+        kv(t('tdBalance'), `${x.amount} ${x.symbol}`),
+        priced ? kv(t('tdPrice'), money(x.price)) : null,
+        kv(t('tdNetwork'), h('span', { class: 'net' }, x.chainLogo ? h('img', { src: x.chainLogo, alt: '' }) : null, x.chainName)),
+      ),
+      !x.verified && h('div', { class: 'banner warn' }, glyph('warning', 16), h('span', { class: 'grow' }, t('tdUnverified'))),
+      h(
+        'div',
+        { class: 'actions' },
+        h('button', { class: 'btn', type: 'button', on: { click: () => (sheet.close(), go(() => sendScreen(app, home))()) } }, glyph('send', 18), t('send')),
+        h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))()) } }, glyph('receive', 18), t('receive')),
+      ),
     );
   }
 
@@ -396,6 +449,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
             click: () => {
               if (tab === id) return;
               tab = id;
+              animateList = true;
               render();
               if (id === 'activity') void loadActivity(false);
             },
@@ -403,8 +457,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         },
         label,
       );
-    const el = h('div', { class: 'tabs', role: 'tablist', 'data-on': shownTab }, b('tokens', t('tabTokens')), b('activity', t('tabActivity')));
-    if (shownTab !== tab) requestAnimationFrame(() => (el.dataset.on = tab));
+    const idx = (x: typeof tab) => (x === 'tokens' ? 0 : 1);
+    const el = h('div', { class: 'tabs', role: 'tablist', style: `--n:2;--i:${idx(shownTab)}` }, b('tokens', t('tabTokens')), b('activity', t('tabActivity')));
+    if (shownTab !== tab) requestAnimationFrame(() => el.style.setProperty('--i', String(idx(tab))));
     shownTab = tab;
     return el;
   }
@@ -412,17 +467,35 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   let entered = false;
   function render() {
     if (!data) return;
+    const back = away && entered;
     away = false;
     const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), header(), summary(), actions());
-    const sheet = h('section', { class: 'sheet' }, banners(), tabs(), h('div', { class: 'pane' }, tab === 'tokens' ? tokens() : activityList()));
+    const pane = h('div', { class: 'pane' }, tab === 'tokens' ? tokens() : activityList());
+    const sheet = h('section', { class: 'sheet' }, banners(), tabs(), pane);
     const root = h('div', { class: `home${opts.mode === 'popup' ? ' compact' : ''}${entered ? '' : ' enter'}` }, hero, sheet);
     entered = true;
     app.replaceChildren(root);
+    if (back) navIn(app, 'back');
+    // Cascade : seulement quand de vraies lignes arrivent (pas les squelettes, pas une actualisation).
+    const rows = pane.querySelectorAll('.list:not([aria-hidden]) > .row, .day');
+    if (animateList && rows.length) {
+      cascade(rows);
+      animateList = false;
+    }
+    // Solde : il compte depuis la dernière valeur affichée (même devise), sinon il s'affiche.
+    const total = data.portfolio?.total ?? null;
+    const fiat = data.fiat ?? '';
+    const el = root.querySelector<HTMLElement>('[data-testid=total]');
+    if (el && total != null && shownTotal != null && fiat === shownFiat && shownTotal !== total) countUp(el, shownTotal, total, money);
+    else if (el && total != null && shownTotal == null) el.classList.add('pop');
+    shownTotal = total;
+    shownFiat = fiat;
   }
 
   /* ── Réglages ── */
-  function settings() {
+  function settings(dir: 'fwd' | 'back' | 'none' = 'fwd') {
     away = true;
+    if (dir !== 'none') navIn(app, dir);
     const fiat = h('select', { class: 'inline', 'aria-label': t('currency'), on: { change: async () => (await send({ type: 'home:set-fiat', fiat: fiat.value }), await load()) } }, ...FIATS.map((f) => h('option', { value: f, selected: f === data?.fiat }, f.toUpperCase())));
     const lock = h(
       'select',
@@ -437,7 +510,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       askPw.onclick = async () => {
         askPw.setAttribute('aria-checked', String(!on));
         await send({ type: 'settings:set-ask-password', on: !on });
-        settings();
+        settings('none');
       };
     });
     const item = (icon: string, label: string, end: Node | null, fn?: () => void, testid?: string) =>
@@ -459,8 +532,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         group(
           t('setSecurity'),
           askPw,
-          item('dapps', t('sitesTitle'), null, () => void sitesScreen(app, () => settings())),
-          item('check', t('wlTitle'), null, () => whitelistScreen(app, () => settings())),
+          item('dapps', t('sitesTitle'), null, () => (void sitesScreen(app, () => settings('back')), navIn(app, 'fwd'))),
+          item('check', t('wlTitle'), null, () => (whitelistScreen(app, () => settings('back')), navIn(app, 'fwd'))),
         ),
         group(t('setHelp'), item('support', t('reportIssue'), null, () => void reportIssue(), 'report')),
         h('p', { class: 'small muted note' }, t('reportNote')),

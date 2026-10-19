@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'Beta-Feedback — Kalyx-Erweiterung {v}',
   reportMailBody: 'Was ist passiert? Was hast du erwartet?',
   chooseAccount: 'Konto wählen', myAddresses: 'Meine Adressen', setGeneral: 'Allgemein', setSecurity: 'Sicherheit', setHelp: 'Hilfe', sitesShort: 'Seiten', networksShort: '{n} Netzwerke antworten nicht',
+  tdBalance: 'Guthaben', tdPrice: 'Preis', tdNetwork: 'Netzwerk', tdUnverified: 'Nicht verifiziert: Preis und Wert zählen nicht zu deinem Gesamtbetrag. Vorsicht bei Tokens, die du nicht angefordert hast.',
 };

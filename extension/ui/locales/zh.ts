@@ -122,4 +122,5 @@ export default {
   reportMailSubject: '测试版反馈 — Kalyx 扩展程序 {v}',
   reportMailBody: '发生了什么？你原本期望什么？',
   chooseAccount: '选择账户', myAddresses: '我的地址', setGeneral: '通用', setSecurity: '安全', setHelp: '帮助', sitesShort: '网站', networksShort: '{n} 个网络无响应',
+  tdBalance: '余额', tdPrice: '价格', tdNetwork: '网络', tdUnverified: '未验证：价格和价值不计入你的总额。请警惕你未曾索取却收到的代币。',
 };

@@ -10,6 +10,8 @@ import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
 import { qrSvg } from './qr';
 import { groupAddress } from '../../src/domain/validation/poisoning';
+import { pulse } from './motion';
+import { segmented } from './segmented';
 
 interface Info {
   walletId: string;
@@ -31,7 +33,8 @@ function warnScreen(app: HTMLElement, info: Info, back: () => void, opts: { clos
     h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))),
     h(
       'div',
-      { class: 'center' },
+      { class: 'center notice' },
+      h('span', { class: 'notice-ico' }, glyph('warning', 28)),
       h('h1', {}, t('warnReceiveTitle')),
       h('p', { class: 'muted' }, t('warnReceiveBody')),
       h(
@@ -74,33 +77,40 @@ function show(app: HTMLElement, info: Info, back: () => void) {
   const body = h('div', { class: 'stack receive' });
 
   function draw() {
+    const label = h('span', {}, t('copyAddress'));
     const copy = h(
       'button',
       {
-        class: 'btn secondary',
+        class: 'btn',
         type: 'button',
         on: {
           click: async () => {
             await navigator.clipboard.writeText(current.address);
-            copy.textContent = t('copied');
-            setTimeout(() => (copy.textContent = t('copyAddress')), 1400);
+            label.textContent = t('copied');
+            copy.classList.add('done');
+            pulse(copy);
+            setTimeout(() => (copy.classList.remove('done'), (label.textContent = t('copyAddress'))), 1400);
           },
         },
       },
-      t('copyAddress'),
+      glyph('copy', 18),
+      label,
     );
-    body.replaceChildren(...nodes(
-      fams.length > 1 &&
+    body.replaceChildren(
+      ...nodes(
+        fams.length > 1 && segmented(fams.map((f) => f.label), fams.indexOf(current), (i) => ((current = fams[i]), draw()), fams),
+        // Le QR et l'adresse dans une même carte : ce qu'on montre à l'autre personne.
         h(
           'div',
-          { class: 'tabs', role: 'tablist' },
-          ...fams.map((f) => h('button', { class: `tab${f === current ? ' on' : ''}`, type: 'button', role: 'tab', 'aria-selected': String(f === current), on: { click: () => ((current = f), draw()) } }, f.label)),
+          { class: 'card receive-card' },
+          h('div', { class: 'qr' }, qrSvg(current.address, 196)),
+          h('p', { class: 'micro' }, current.label),
+          h('p', { class: 'mono addr', 'data-testid': 'receive-address' }, groupAddress(current.address)),
         ),
-      h('div', { class: 'qr' }, qrSvg(current.address, 196)),
-      h('p', { class: 'mono addr', 'data-testid': 'receive-address' }, groupAddress(current.address)),
-      copy,
-      h('p', { class: 'small muted' }, current.note),
-    ));
+        copy,
+        h('div', { class: 'perm' }, glyph('alert', 18), h('p', { class: 'small' }, current.note)),
+      ),
+    );
   }
   draw();
   app.replaceChildren(h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))), h('h1', {}, t('receiveTitle')), body);
