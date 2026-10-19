@@ -1,6 +1,6 @@
 /**
  * RELAIS DES API À CLÉ (hors JSON-RPC) : CoinGecko, LI.FI, Relay.link,
- * Etherscan, Covalent, Helius (REST). Même règle que partout dans ce Worker :
+ * Etherscan, Helius (REST). Même règle que partout dans ce Worker :
  * ce n'est pas un proxy ouvert. Chaque service n'expose que les chemins dont
  * Kalyx a besoin, avec des paramètres contrôlés ; la clé est ajoutée ICI et ne
  * repart jamais vers le client.
@@ -8,14 +8,13 @@
  * Fonctions pures, testées sans Cloudflare (`apis.test.ts`).
  */
 
-export type ApiProvider = 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'covalent' | 'helius';
+export type ApiProvider = 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'helius';
 
 export interface ApiKeys {
   coingecko?: string;
   lifi?: string;
   relaylink?: string;
   etherscan?: string;
-  covalent?: string;
   helius?: string;
 }
 
@@ -139,22 +138,6 @@ function etherscan(path: string, search: URLSearchParams): ApiRoute {
   };
 }
 
-/* ── Covalent (historique, repli) ────────────────────────────────────────── */
-function covalent(path: string, search: URLSearchParams): ApiRoute {
-  const m = path.match(/^\/v1\/(\d{1,12})\/address\/(0x[0-9a-fA-F]{40})\/transactions_v3\/page\/(\d{1,3})\/$/);
-  if (!m) return notFound;
-  const q = checkQuery(search, { 'no-logs': /^(?:true|false)$/ });
-  if (q === null) return bad();
-  return {
-    ok: true,
-    provider: 'covalent',
-    method: 'GET',
-    cacheSeconds: 15,
-    maxBody: 0,
-    upstream: (k) => (k.covalent ? { url: `https://api.covalenthq.com${path}${q ? `?${q}` : ''}`, headers: { authorization: `Bearer ${k.covalent}`, accept: 'application/json' } } : null),
-  };
-}
-
 /* ── Helius REST (historique Solana, noms, simulation) ───────────────────── */
 function helius(method: string, path: string, search: URLSearchParams): ApiRoute {
   const tx = path.match(/^\/v0\/addresses\/([1-9A-HJ-NP-Za-km-z]{32,44})\/(transactions|names)$/);
@@ -185,14 +168,13 @@ function helius(method: string, path: string, search: URLSearchParams): ApiRoute
   return notFound;
 }
 
-/** Routage : `/cg/api/v3/…`, `/lifi/v1/…`, `/relaylink/…`, `/etherscan/…`, `/covalent/…`, `/helius/…`. */
+/** Routage : `/cg/api/v3/…`, `/lifi/v1/…`, `/relaylink/…`, `/etherscan/…`, `/helius/…`. */
 export function resolveApi(method: string, pathname: string, search: URLSearchParams): ApiRoute | null {
   const get = method === 'GET';
   if (pathname.startsWith('/cg/api/v3/')) return get ? coingecko(pathname.slice('/cg/api/v3'.length), search) : { ok: false, status: 405, error: 'method not allowed' };
   if (pathname.startsWith('/lifi/v1/')) return get ? lifi(pathname.slice('/lifi/v1'.length), search) : { ok: false, status: 405, error: 'method not allowed' };
   if (pathname.startsWith('/relaylink/')) return relaylink(method, pathname.slice('/relaylink'.length));
   if (pathname.startsWith('/etherscan/')) return get ? etherscan(pathname.slice('/etherscan'.length), search) : { ok: false, status: 405, error: 'method not allowed' };
-  if (pathname.startsWith('/covalent/')) return get ? covalent(pathname.slice('/covalent'.length), search) : { ok: false, status: 405, error: 'method not allowed' };
   if (pathname.startsWith('/helius/')) return helius(method, pathname.slice('/helius'.length), search);
   return null;
 }

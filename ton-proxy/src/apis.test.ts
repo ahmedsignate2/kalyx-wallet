@@ -5,7 +5,7 @@ import { etherscanError, resolveApi, sanitizeJsonBody } from './apis.ts';
 
 const ADDR = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
 const SOL = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM';
-const KEYS = { coingecko: 'CLE-CG', lifi: 'CLE-LIFI', relaylink: 'CLE-RL', etherscan: 'CLE-ES', covalent: 'CLE-CV', helius: 'CLE-HL' };
+const KEYS = { coingecko: 'CLE-CG', lifi: 'CLE-LIFI', relaylink: 'CLE-RL', etherscan: 'CLE-ES', helius: 'CLE-HL' };
 const q = (s: string) => new URLSearchParams(s);
 const ok = (method: string, path: string, search = '') => {
   const r = resolveApi(method, path, q(search));
@@ -71,11 +71,8 @@ test('Etherscan : historique de compte seulement', () => {
   assert.equal(ko('GET', '/etherscan/v2/api', `chainid=1&module=account&action=txlist&address=${ADDR}&apikey=x`).status, 400);
 });
 
-test('Covalent : transactions d’une adresse, clé en Bearer', () => {
-  const r = ok('GET', `/covalent/v1/1/address/${ADDR}/transactions_v3/page/0/`, 'no-logs=true');
-  assert.equal(r.upstream(KEYS)!.url, `https://api.covalenthq.com/v1/1/address/${ADDR}/transactions_v3/page/0/?no-logs=true`);
-  assert.equal(r.upstream(KEYS)!.headers.authorization, 'Bearer CLE-CV');
-  assert.equal(ko('GET', `/covalent/v1/1/address/${ADDR}/balances_v2/`).status, 404);
+test('Covalent : abandonné, plus de route', () => {
+  assert.equal(resolveApi('GET', `/covalent/v1/1/address/${ADDR}/transactions_v3/page/0/`, q('')), null);
 });
 
 test('Helius REST : historique, noms, simulation', () => {

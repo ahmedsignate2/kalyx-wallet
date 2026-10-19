@@ -35,9 +35,8 @@ import { WalletError } from '../errors';
 import { tryInOrder, withTimeout, withRetry } from './net';
 import { parseTxList } from './etherscan';
 import { computeFeeTiers, type FeeOptions } from './gas';
-import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY } from './configs';
-import { RELAY_URL, relayOrDirect } from '../net/relay';
-import { parseCovalentTxList } from './covalent';
+import { ETHERSCAN_V2_API, EXPLORER_API_KEY } from './configs';
+import { relayOrDirect } from '../net/relay';
 import { technicalLogger } from '../../../lib/technicalLogger';
 
 // Limite de gas d'un transfert natif simple (pas d'appel de contrat).
@@ -249,30 +248,6 @@ export class EvmChainAdapter implements ChainAdapter {
       `module=account&action=txlist&address=${owner}` +
       `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc`;
       
-    // 1. Covalent Primary (clé locale, sinon par le relais Kalyx qui garde la clé)
-    if (COVALENT_API_KEY || RELAY_URL) {
-      try {
-        return await withRetry(async () => {
-          const path = `/v1/${this.config.evmChainId}/address/${owner}/transactions_v3/page/0/?no-logs=true`;
-          const res = await withTimeout(
-            COVALENT_API_KEY
-              ? fetch(`https://api.covalenthq.com${path}`, { headers: { Authorization: `Bearer ${COVALENT_API_KEY}` } })
-              : relayOrDirect('covalent', `/covalent${path}`, null),
-            RPC_TIMEOUT_MS,
-            () => new Error('timeout')
-          );
-          if (!res) throw new Error('Covalent indisponible');
-          const json = await res.json();
-          if (json && json.data && Array.isArray(json.data.items)) {
-            return parseCovalentTxList(json, owner);
-          }
-          throw new Error('Covalent invalid format');
-        }, READ_RETRIES, READ_BACKOFF_MS);
-      } catch {
-        // Ignorer et essayer le suivant
-      }
-    }
-
     // 1.5. Tenter l'API unifiée Etherscan V2 avec retry
     try {
       return await withRetry(async () => {

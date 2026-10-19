@@ -37,12 +37,11 @@ export interface Env {
   ALCHEMY_KEY?: string;
   /** Helius (Solana) — SECRET : `wrangler secret put HELIUS_KEY`. */
   HELIUS_KEY?: string;
-  /** CoinGecko (clé Demo), LI.FI, Relay.link, Etherscan, Covalent — SECRETS : `wrangler secret put <NOM>`. */
+  /** CoinGecko (clé Demo), LI.FI, Relay.link, Etherscan — SECRETS : `wrangler secret put <NOM>`. */
   COINGECKO_KEY?: string;
   LIFI_KEY?: string;
   RELAY_LINK_KEY?: string;
   ETHERSCAN_KEY?: string;
-  COVALENT_KEY?: string;
   /** Extensions autorisées (identifiants séparés par des virgules, `*` = toutes). */
   ALLOWED_EXTENSIONS?: string;
 }
@@ -344,13 +343,13 @@ async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, 
 }
 
 /**
- * API REST à clé (CoinGecko, LI.FI, Relay.link, Etherscan, Covalent, Helius) :
+ * API REST à clé (CoinGecko, LI.FI, Relay.link, Etherscan, Helius) :
  * chemins et paramètres en liste blanche (src/apis.ts), clé ajoutée ici,
  * lectures gardées en cache pour TOUS les clients, quota mémorisé par service.
  */
 async function api(request: Request, r: ApiRoute, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
   if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
-  const keys: ApiKeys = { coingecko: env.COINGECKO_KEY, lifi: env.LIFI_KEY, relaylink: env.RELAY_LINK_KEY, etherscan: env.ETHERSCAN_KEY, covalent: env.COVALENT_KEY, helius: env.HELIUS_KEY };
+  const keys: ApiKeys = { coingecko: env.COINGECKO_KEY, lifi: env.LIFI_KEY, relaylink: env.RELAY_LINK_KEY, etherscan: env.ETHERSCAN_KEY, helius: env.HELIUS_KEY };
   const up = r.upstream(keys);
   if (!up) return json(503, { error: 'relay not configured' }, corsHeaders);
   let body: string | undefined;
