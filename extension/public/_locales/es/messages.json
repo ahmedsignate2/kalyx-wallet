@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Kalyx Wallet"
+  },
+  "extDescription": {
+    "message": "Cartera no custodial para Ethereum, las redes EVM y Solana. Tus claves se quedan cifradas en tu ordenador."
+  }
+}

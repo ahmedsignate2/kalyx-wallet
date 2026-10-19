@@ -5,7 +5,7 @@ import { handleInternal } from '../lib/router';
 import { makeWallets } from '../lib/wallets';
 import { makePortfolio } from '../lib/portfolio';
 import { makeHome } from '../lib/home';
-import { activityT, explainT, explainTFor, IS_FR, LOCALE } from '../ui/i18n';
+import { activityT, defaultFiat, explainT, explainTFor, LOCALE } from '../ui/i18n';
 import { makeChainTime } from '../lib/chainTime';
 import { makeWhitelist } from '../lib/whitelist';
 import { makeSend } from '../lib/send';
@@ -33,7 +33,7 @@ export default defineBackground(() => {
   const disk = makeStore(browser.storage.local);
   const wallets = makeWallets(disk, session);
   const portfolio = makePortfolio({ disk, t: activityT, locale: LOCALE });
-  const home = makeHome(disk, session, wallets, portfolio, IS_FR ? 'eur' : 'usd');
+  const home = makeHome(disk, session, wallets, portfolio, defaultFiat());
   const whitelist = makeWhitelist(disk, session, wallets, makeChainTime());
   const send = makeSend({ session, wallets, home, portfolio, whitelist });
 

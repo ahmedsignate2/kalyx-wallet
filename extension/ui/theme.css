@@ -37,10 +37,13 @@ input:focus, textarea:focus, select:focus { border-color: var(--text2); }
 textarea { resize: none; min-height: 110px; }
 .error { color: var(--danger); font-size: 14px; }
 .ok { color: var(--ok); font-size: 14px; }
-.option { display: flex; flex-direction: column; gap: 2px; text-align: left; background: var(--surface1); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; cursor: pointer; color: var(--text); font: inherit; width: 100%; }
+.option { display: flex; flex-direction: column; gap: 2px; text-align: start; background: var(--surface1); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; cursor: pointer; color: var(--text); font: inherit; width: 100%; }
 .option strong { font-weight: 600; }
 .meter { height: 6px; border-radius: 3px; background: var(--surface2); overflow: hidden; }
 .meter > i { display: block; height: 100%; border-radius: 3px; transition: width 0.2s, background 0.2s; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; }
+/* Adresses, clés, montants : toujours de gauche à droite, même en arabe. */
+.mono, .addr, input, textarea { unicode-bidi: plaintext; }
+.mono, .addr { direction: ltr; }
 .banner { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--goldBg); color: var(--gold); border-radius: 14px; padding: 10px 12px; font-size: 13px; font-weight: 500; }
 .banner button { background: none; border: 0; color: inherit; font: 600 13px 'General Sans', system-ui, sans-serif; cursor: pointer; }

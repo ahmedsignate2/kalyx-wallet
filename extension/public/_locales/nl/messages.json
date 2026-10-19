@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Kalyx Wallet"
+  },
+  "extDescription": {
+    "message": "Non-custodial wallet voor Ethereum, EVM-netwerken en Solana. Je sleutels blijven versleuteld op je computer."
+  }
+}

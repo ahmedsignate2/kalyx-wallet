@@ -33,6 +33,22 @@ const TEXT_CODES: Record<string, string> = {
   LOCKED: 'Kalyx est verrouillé.',
 };
 
+/** Codes texte qui reviennent au même pour l'utilisateur. */
+const SAME_REASON: Record<string, string> = { NETWORK_ERROR: 'RPC_UNAVAILABLE', TIMEOUT: 'RPC_UNAVAILABLE', SERVER_ERROR: 'RPC_UNAVAILABLE' };
+
+/**
+ * Raison d'un échec sous forme de CODE (INSUFFICIENT_FUNDS, CALL_EXCEPTION…),
+ * pour que la fenêtre de Kalyx l'écrive dans la langue de l'utilisateur.
+ * Jamais renvoyée aux sites : eux reçoivent toRpcError.
+ */
+export function reasonOf(e: unknown): string | undefined {
+  if (e instanceof RpcError) return undefined;
+  const c = (e as { code?: unknown })?.code;
+  if (typeof c === 'string' && /^[A-Z][A-Z0-9_]{1,40}$/.test(c)) return SAME_REASON[c] ?? c;
+  if ((e as Error)?.message && /fetch|network|timeout|délai|injoignable/i.test((e as Error).message)) return 'RPC_UNAVAILABLE';
+  return undefined;
+}
+
 export function toRpcError(e: unknown): { code: number; message: string; data?: unknown } {
   if (e instanceof RpcError) return { code: e.code, message: e.message.slice(0, 300), ...(e.data !== undefined ? { data: e.data } : {}) };
   const textCode = (e as { code?: unknown })?.code;

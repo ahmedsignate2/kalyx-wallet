@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Kalyx Wallet"
+  },
+  "extDescription": {
+    "message": "Некастодиальный кошелёк для Ethereum, сетей EVM и Solana. Твои ключи хранятся в зашифрованном виде на твоём компьютере."
+  }
+}

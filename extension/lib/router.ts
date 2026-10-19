@@ -232,7 +232,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (r.ok) return { ok: true };
         if (r.error.message === 'REQUEST_EXPIRED') return { ok: false, error: 'REQUEST_EXPIRED' };
         // L'action a échoué : la fenêtre reste ouverte et montre pourquoi.
-        return { ok: false, error: 'ACTION_FAILED', params: { code: String(r.error.code), message: r.error.message.slice(0, 300) } };
+        return { ok: false, error: 'ACTION_FAILED', params: { code: String(r.error.code), message: r.error.message.slice(0, 300), ...('reason' in r && r.reason ? { reason: r.reason } : {}) } };
       }
       case 'approval:review': {
         if (!dapp || !str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };

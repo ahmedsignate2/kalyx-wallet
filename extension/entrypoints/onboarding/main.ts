@@ -9,7 +9,7 @@
  * vérifier ; elle est oubliée dès la fin du parcours.
  */
 import { h, send } from '../../ui/dom';
-import { errorText, reasonText, t } from '../../ui/i18n';
+import { applyLang, errorText, reasonText, t } from '../../ui/i18n';
 import { passwordStrength } from '../../../src/security/passwordStrength';
 import { createBackupChallenge, unknownWords, type WordChallenge } from '../../../src/domain/wallet/backupChallenge';
 import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH } from '../../lib/policy';
@@ -22,6 +22,7 @@ interface WalletMeta {
   accounts: { index: number; evm?: string; solana?: string }[];
 }
 
+applyLang();
 const app = document.getElementById('app')!;
 let afterAuth: () => void = () => {};
 /** Phrase en cours de création (oubliée à la fin du parcours). */

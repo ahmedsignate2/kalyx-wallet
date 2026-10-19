@@ -1,8 +1,24 @@
 /**
- * Textes de l'extension. Français et anglais au lot 2 ; les 15 langues de
- * l'app au lot 7 (mêmes termes web3 gardés tels quels : token, swap…).
+ * Textes de l'extension, dans les 15 langues de l'app (termes web3 et marques
+ * gardés tels quels : token, swap, gwei…). Français et anglais ici ; les 13
+ * autres dans ui/locales/. Les phrases d'explication et d'activité sont celles
+ * de l'app, mot pour mot (ui/appText.ts, généré). Repli : anglais.
  */
-import { EN as EXPLAIN_EN, FR as EXPLAIN_FR } from './explainText';
+import { APP_TEXT } from './appText';
+import { EXTRA } from './explainText';
+import es from './locales/es';
+import pt from './locales/pt';
+import de from './locales/de';
+import it from './locales/it';
+import nl from './locales/nl';
+import pl from './locales/pl';
+import tr from './locales/tr';
+import ru from './locales/ru';
+import ar from './locales/ar';
+import hi from './locales/hi';
+import zh from './locales/zh';
+import ja from './locales/ja';
+import ko from './locales/ko';
 
 const fr = {
   back: 'Retour',
@@ -253,30 +269,6 @@ const fr = {
   e_WRONG_PASSWORD: 'Mot de passe incorrect.',
   e_THROTTLED: 'Trop d’essais : patiente un instant.',
   e_ACTION_FAILED: 'L’opération a échoué : {message}',
-  // Activité : mêmes phrases que l'app (lib/i18n).
-  actSent: "Envoyé {amount} {symbol}",
-  actReceived: "Reçu {amount} {symbol}",
-  actSwapped: "Swappé {amount} {symbol}",
-  actApproved: "Autorisé {name} à dépenser tes {symbol}",
-  actNftIn: "Reçu 1 NFT de {name}",
-  actNftOut: "Envoyé 1 NFT à {name}",
-  actInternal: "Transfert interne · {amount} {symbol}",
-  actInteraction: "Interaction avec {name}",
-  actTo: "à {name}",
-  actFrom: "de {name}",
-  actUnverified: "Token non vérifié — n’interagis pas avec lui",
-  actFailedPrefix: "Échouée · {what}",
-  actFailedBody: "Rien n’a été débité (sauf les frais réseau). Cause fréquente : frais trop bas ou autorisation manquante.",
-  actSwappedPair: "Swappé {from} → {to}",
-  actLabelSent: "Envoyé",
-  actLabelReceived: "Reçu",
-  actLabelSwapped: "Swappé",
-  actLabelApproved: "Autorisation",
-  actLabelNftIn: "NFT reçu",
-  actLabelNftOut: "NFT envoyé",
-  actLabelInternal: "À toi-même",
-  actLabelInteraction: "Interaction avec une app",
-  actLabelFailed: "Échouée",
 };
 
 type Dict = typeof fr;
@@ -530,40 +522,47 @@ const en: Dict = {
   e_WRONG_PASSWORD: 'Wrong password.',
   e_THROTTLED: 'Too many attempts: wait a moment.',
   e_ACTION_FAILED: 'The operation failed: {message}',
-  // Activité : mêmes phrases que l'app (lib/i18n).
-  actSent: "Sent {amount} {symbol}",
-  actReceived: "Received {amount} {symbol}",
-  actSwapped: "Swapped {amount} {symbol}",
-  actApproved: "Approved {name} to spend your {symbol}",
-  actNftIn: "Received 1 NFT from {name}",
-  actNftOut: "Sent 1 NFT to {name}",
-  actInternal: "Internal transfer · {amount} {symbol}",
-  actInteraction: "Interaction with {name}",
-  actTo: "to {name}",
-  actFrom: "from {name}",
-  actUnverified: "Unverified token — do not interact with it",
-  actFailedPrefix: "Failed · {what}",
-  actFailedBody: "Nothing was debited (except network fees). Common cause: fee too low or missing approval.",
-  actSwappedPair: "Swapped {from} → {to}",
-  actLabelSent: "Sent",
-  actLabelReceived: "Received",
-  actLabelSwapped: "Swapped",
-  actLabelApproved: "Approval",
-  actLabelNftIn: "NFT received",
-  actLabelNftOut: "NFT sent",
-  actLabelInternal: "To yourself",
-  actLabelInteraction: "App interaction",
-  actLabelFailed: "Failed",
 };
 
 export type Key = keyof Dict;
-/** Français si le navigateur l'est, anglais sinon (15 langues au lot 7). */
-export const IS_FR = typeof navigator !== 'undefined' && !!navigator.language?.toLowerCase().startsWith('fr');
-export const LOCALE = IS_FR ? 'fr-FR' : 'en-US';
-const dict: Dict = IS_FR ? fr : en;
+
+export const LANGS = ['fr', 'en', 'es', 'pt', 'de', 'it', 'nl', 'pl', 'tr', 'ru', 'ar', 'hi', 'zh', 'ja', 'ko'] as const;
+export type Lang = (typeof LANGS)[number];
+export const DICTS: Record<Lang, Partial<Dict>> = { fr, en, es, pt, de, it, nl, pl, tr, ru, ar, hi, zh, ja, ko };
+
+/** Langue d'une étiquette BCP 47 (« pt-BR » → pt), anglais si elle n'est pas prise en charge. */
+export function langOf(tag: string | undefined): Lang {
+  const base = (tag ?? '').toLowerCase().split(/[-_]/)[0];
+  return (LANGS as readonly string[]).includes(base) ? (base as Lang) : 'en';
+}
+
+const NAV = typeof navigator !== 'undefined' ? navigator.language : undefined;
+/** Langue du navigateur. */
+export const LANG: Lang = langOf(NAV);
+export const IS_FR = LANG === 'fr';
+/** Formats (nombres, dates) : ceux du navigateur, s'il parle une langue prise en charge. */
+export const LOCALE = NAV && langOf(NAV) !== 'en' ? NAV : NAV?.toLowerCase().startsWith('en') ? NAV : 'en-US';
+export const IS_RTL = LANG === 'ar';
+const dict: Dict = { ...en, ...DICTS[LANG] };
+
+/** Devise par défaut : l'euro dans la zone euro, le dollar ailleurs. */
+const EUROZONE = new Set(['AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PT', 'SI', 'SK']);
+export function defaultFiat(tag: string | undefined = NAV): 'eur' | 'usd' {
+  const [base, region] = (tag ?? '').split(/[-_]/);
+  if (region) return EUROZONE.has(region.toUpperCase()) ? 'eur' : 'usd';
+  return ['fr', 'de', 'it', 'nl'].includes((base ?? '').toLowerCase()) ? 'eur' : 'usd';
+}
+
+/** Pose la langue et le sens d'écriture sur la page (l'arabe s'écrit de droite à gauche). */
+export function applyLang(doc: Document = document): void {
+  doc.documentElement.lang = LANG;
+  doc.documentElement.dir = IS_RTL ? 'rtl' : 'ltr';
+}
+
+const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
 
 export function t(key: Key, vars: Record<string, string | number> = {}): string {
-  return dict[key].replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
+  return fill(dict[key], vars);
 }
 
 /** Message d'une erreur renvoyée par le service worker (code), avec repli générique. */
@@ -573,27 +572,37 @@ export function errorText(code: string | undefined, params: Record<string, strin
   return k in dict ? t(k, params) : dict.e_INTERNAL;
 }
 
+/** Le code d'erreur a-t-il une phrase (dans toutes les langues, grâce au repli) ? */
+export function hasErrorText(code: string | undefined): boolean {
+  return !!code && `e_${code.split(':')[0]}` in dict;
+}
+
 /** Raison pour laquelle un portefeuille d'une sauvegarde n'a pas été repris. */
 export function reasonText(code: string): string {
   const k = `r_${code}` as Key;
   return k in dict ? dict[k] : errorText(code);
 }
 
+/** Phrases de l'app (et propres à l'extension) dans une langue, anglais en repli. */
+function appDict(lang: Lang): Record<string, string> {
+  return { ...APP_TEXT.en, ...EXTRA.en, ...APP_TEXT[lang], ...EXTRA[lang] };
+}
+const appDicts = new Map<Lang, Record<string, string>>();
+const appFor = (lang: Lang) => appDicts.get(lang) ?? (appDicts.set(lang, appDict(lang)), appDicts.get(lang)!);
+
 /** Traducteur de la fenêtre de signature (src/domain/wc/explain) : phrases reprises de l'app. */
 export function explainT(key: string, params: Record<string, string> = {}): string {
-  return explainTFor(IS_FR ? 'fr' : 'en')(key, params);
+  return explainTFor(LANG)(key, params);
 }
 
 /** Même traducteur, pour une langue donnée (celle de la fenêtre qui affiche l'explication). */
 export const explainTFor = (lang: string | undefined) => (key: string, params: Record<string, string> = {}): string => {
-  const d = lang?.toLowerCase().startsWith('fr') ? EXPLAIN_FR : EXPLAIN_EN;
-  const s = d[key];
-  return s === undefined ? key : s.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? ''));
+  const s = appFor(langOf(lang))[key];
+  return s === undefined ? key : fill(s, params);
 };
 
 /** Traducteur des phrases d'activité (src/domain/tx/humanize). */
 export function activityT(key: string, params: Record<string, string> = {}): string {
-  return key in dict ? t(key as Key, params) : key;
+  const s = appFor(LANG)[key];
+  return s === undefined ? key : fill(s, params);
 }
-
-export const DICTS = { fr, en };
