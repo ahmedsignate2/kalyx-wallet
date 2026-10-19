@@ -41,6 +41,16 @@ function withAlchemy(slug: string, fallbacks: string[]): string[] {
   return RELAY_URL ? [...fallbacks, `${RELAY_URL}/rpc/alchemy/${slug}`] : fallbacks;
 }
 
+/**
+ * Réseaux qu'Alchemy sert mais dont l'identifiant n'a pas été vérifié avec
+ * une clé directe : SEULEMENT par le relais, qui contrôle `eth_chainId` avant
+ * de répondre (un mauvais appariement ne peut pas montrer les soldes d'un
+ * autre réseau). Avec une clé directe, rien ne change : nœuds publics.
+ */
+function viaRelay(slug: string, fallbacks: string[]): string[] {
+  return RELAY_URL ? [...fallbacks, `${RELAY_URL}/rpc/alchemy/${slug}`] : fallbacks;
+}
+
 const HELIUS_KEY: string = process.env.EXPO_PUBLIC_HELIUS_KEY ?? '';
 function withHelius(fallbacks: string[]): string[] {
   if (HELIUS_KEY) return [`https://mainnet.helius-rpc.com/?api-key=${HELIUS_KEY}`, ...fallbacks];
@@ -289,7 +299,7 @@ export const BERACHAIN: ChainConfig = {
   evmChainId: 80094,
   nativeSymbol: 'BERA',
   nativeDecimals: 18,
-  rpcUrls: ['https://rpc.berachain.com', 'https://berachain-rpc.publicnode.com'],
+  rpcUrls: viaRelay('berachain-mainnet', ['https://rpc.berachain.com', 'https://berachain-rpc.publicnode.com']),
   explorerUrl: 'https://berascan.com',
   coingeckoId: 'berachain-bera',
   coingeckoPlatform: 'berachain',
@@ -302,7 +312,7 @@ export const HYPEREVM: ChainConfig = {
   evmChainId: 999,
   nativeSymbol: 'HYPE',
   nativeDecimals: 18,
-  rpcUrls: ['https://rpc.hyperliquid.xyz/evm', 'https://hyperliquid.drpc.org', 'https://rpc.hypurrscan.io'],
+  rpcUrls: viaRelay('hyperliquid-mainnet', ['https://rpc.hyperliquid.xyz/evm', 'https://hyperliquid.drpc.org', 'https://rpc.hypurrscan.io']),
   explorerUrl: 'https://hyperevmscan.io',
   coingeckoId: 'hyperliquid',
   coingeckoPlatform: 'hyperevm',
@@ -315,7 +325,7 @@ export const MONAD_TESTNET: ChainConfig = {
   evmChainId: 10143,
   nativeSymbol: 'MON',
   nativeDecimals: 18,
-  rpcUrls: ['https://testnet-rpc.monad.xyz'],
+  rpcUrls: viaRelay('monad-testnet', ['https://testnet-rpc.monad.xyz']),
   explorerUrl: 'https://testnet.monadexplorer.com',
   testnet: true,
 };
@@ -323,22 +333,22 @@ export const MONAD_TESTNET: ChainConfig = {
 // --- Lot supplémentaire de chaînes EVM (RPC publics) ---
 export const SONIC: ChainConfig = {
   id: 'sonic', name: 'Sonic', family: 'evm', evmChainId: 146, nativeSymbol: 'S', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.soniclabs.com', 'https://sonic-rpc.publicnode.com', 'https://sonic.drpc.org'], explorerUrl: 'https://sonicscan.org', coingeckoId: 'sonic-3',
+  rpcUrls: viaRelay('sonic-mainnet', ['https://rpc.soniclabs.com', 'https://sonic-rpc.publicnode.com', 'https://sonic.drpc.org']), explorerUrl: 'https://sonicscan.org', coingeckoId: 'sonic-3',
   coingeckoPlatform: 'sonic',
 };
 export const CRONOS: ChainConfig = {
   id: 'cronos', name: 'Cronos', family: 'evm', evmChainId: 25, nativeSymbol: 'CRO', nativeDecimals: 18,
-  rpcUrls: ['https://evm.cronos.org', 'https://cronos-evm-rpc.publicnode.com'], explorerUrl: 'https://cronoscan.com', explorerApi: 'https://explorer.cronos.org/api', coingeckoId: 'crypto-com-chain',
+  rpcUrls: viaRelay('cronos-mainnet', ['https://evm.cronos.org', 'https://cronos-evm-rpc.publicnode.com']), explorerUrl: 'https://cronoscan.com', explorerApi: 'https://explorer.cronos.org/api', coingeckoId: 'crypto-com-chain',
   coingeckoPlatform: 'cronos',
 };
 export const MOONBEAM: ChainConfig = {
   id: 'moonbeam', name: 'Moonbeam', family: 'evm', evmChainId: 1284, nativeSymbol: 'GLMR', nativeDecimals: 18,
-  rpcUrls: ['https://moonbeam.drpc.org', 'https://1rpc.io/glmr', 'https://rpc.api.moonbeam.network'], explorerUrl: 'https://moonscan.io', coingeckoId: 'moonbeam',
+  rpcUrls: viaRelay('moonbeam-mainnet', ['https://moonbeam.drpc.org', 'https://1rpc.io/glmr', 'https://rpc.api.moonbeam.network']), explorerUrl: 'https://moonscan.io', coingeckoId: 'moonbeam',
   coingeckoPlatform: 'moonbeam',
 };
 export const METIS: ChainConfig = {
   id: 'metis', name: 'Metis', family: 'evm', evmChainId: 1088, nativeSymbol: 'METIS', nativeDecimals: 18,
-  rpcUrls: ['https://andromeda.metis.io/?owner=1088', 'https://metis-rpc.publicnode.com'], explorerUrl: 'https://explorer.metis.io', coingeckoId: 'metis-token',
+  rpcUrls: viaRelay('metis-mainnet', ['https://andromeda.metis.io/?owner=1088', 'https://metis-rpc.publicnode.com']), explorerUrl: 'https://explorer.metis.io', coingeckoId: 'metis-token',
   coingeckoPlatform: 'metis-andromeda',
 };
 export const POLYGON_ZKEVM: ChainConfig = {
@@ -348,7 +358,7 @@ export const POLYGON_ZKEVM: ChainConfig = {
 };
 export const MODE: ChainConfig = {
   id: 'mode', name: 'Mode', family: 'evm', evmChainId: 34443, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.mode.network', 'https://mode.drpc.org'], explorerUrl: 'https://explorer.mode.network', explorerApi: 'https://explorer.mode.network/api', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('mode-mainnet', ['https://mainnet.mode.network', 'https://mode.drpc.org']), explorerUrl: 'https://explorer.mode.network', explorerApi: 'https://explorer.mode.network/api', coingeckoId: 'ethereum',
   coingeckoPlatform: 'mode',
 };
 export const MANTA: ChainConfig = {
@@ -358,7 +368,7 @@ export const MANTA: ChainConfig = {
 };
 export const OPBNB: ChainConfig = {
   id: 'opbnb', name: 'opBNB', family: 'evm', evmChainId: 204, nativeSymbol: 'BNB', nativeDecimals: 18,
-  rpcUrls: ['https://opbnb-mainnet-rpc.bnbchain.org', 'https://opbnb-rpc.publicnode.com'], explorerUrl: 'https://opbnbscan.com', explorerApi: 'https://opbnb.blockscout.com/api', coingeckoId: 'binancecoin',
+  rpcUrls: viaRelay('opbnb-mainnet', ['https://opbnb-mainnet-rpc.bnbchain.org', 'https://opbnb-rpc.publicnode.com']), explorerUrl: 'https://opbnbscan.com', explorerApi: 'https://opbnb.blockscout.com/api', coingeckoId: 'binancecoin',
   coingeckoPlatform: 'opbnb',
 };
 export const TAIKO: ChainConfig = {
@@ -368,17 +378,17 @@ export const TAIKO: ChainConfig = {
 };
 export const UNICHAIN: ChainConfig = {
   id: 'unichain', name: 'Unichain', family: 'evm', evmChainId: 130, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.unichain.org', 'https://unichain.drpc.org'], explorerUrl: 'https://uniscan.xyz', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('unichain-mainnet', ['https://mainnet.unichain.org', 'https://unichain.drpc.org']), explorerUrl: 'https://uniscan.xyz', coingeckoId: 'ethereum',
   coingeckoPlatform: 'unichain',
 };
 export const WORLDCHAIN: ChainConfig = {
   id: 'worldchain', name: 'World Chain', family: 'evm', evmChainId: 480, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://worldchain-mainnet.gateway.tenderly.co', 'https://worldchain.drpc.org'], explorerUrl: 'https://worldscan.org', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('worldchain-mainnet', ['https://worldchain-mainnet.gateway.tenderly.co', 'https://worldchain.drpc.org']), explorerUrl: 'https://worldscan.org', coingeckoId: 'ethereum',
   coingeckoPlatform: 'world-chain',
 };
 export const SEI: ChainConfig = {
   id: 'sei', name: 'Sei', family: 'evm', evmChainId: 1329, nativeSymbol: 'SEI', nativeDecimals: 18,
-  rpcUrls: ['https://evm-rpc.sei-apis.com', 'https://sei-evm-rpc.publicnode.com'], explorerUrl: 'https://seitrace.com', coingeckoId: 'sei-network',
+  rpcUrls: viaRelay('sei-mainnet', ['https://evm-rpc.sei-apis.com', 'https://sei-evm-rpc.publicnode.com']), explorerUrl: 'https://seitrace.com', coingeckoId: 'sei-network',
   coingeckoPlatform: 'sei-v2',
 };
 export const FLARE: ChainConfig = {
@@ -406,27 +416,27 @@ export const FANTOM: ChainConfig = {
 };
 export const FRAXTAL: ChainConfig = {
   id: 'fraxtal', name: 'Fraxtal', family: 'evm', evmChainId: 252, nativeSymbol: 'frxETH', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.frax.com', 'https://fraxtal-rpc.publicnode.com', 'https://fraxtal.drpc.org'], explorerUrl: 'https://fraxscan.com', coingeckoId: 'frax-ether',
+  rpcUrls: viaRelay('frax-mainnet', ['https://rpc.frax.com', 'https://fraxtal-rpc.publicnode.com', 'https://fraxtal.drpc.org']), explorerUrl: 'https://fraxscan.com', coingeckoId: 'frax-ether',
   coingeckoPlatform: 'fraxtal',
 };
 export const INK: ChainConfig = {
   id: 'ink', name: 'Ink', family: 'evm', evmChainId: 57073, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://rpc-gel.inkonchain.com', 'https://rpc-qnd.inkonchain.com', 'https://ink.drpc.org'], explorerUrl: 'https://explorer.inkonchain.com', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('ink-mainnet', ['https://rpc-gel.inkonchain.com', 'https://rpc-qnd.inkonchain.com', 'https://ink.drpc.org']), explorerUrl: 'https://explorer.inkonchain.com', coingeckoId: 'ethereum',
   coingeckoPlatform: 'ink',
 };
 export const SONEIUM: ChainConfig = {
   id: 'soneium', name: 'Soneium', family: 'evm', evmChainId: 1868, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.soneium.org', 'https://soneium.drpc.org'], explorerUrl: 'https://soneium.blockscout.com', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('soneium-mainnet', ['https://rpc.soneium.org', 'https://soneium.drpc.org']), explorerUrl: 'https://soneium.blockscout.com', coingeckoId: 'ethereum',
   coingeckoPlatform: 'soneium',
 };
 export const ABSTRACT: ChainConfig = {
   id: 'abstract', name: 'Abstract', family: 'evm', evmChainId: 2741, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://api.mainnet.abs.xyz', 'https://abstract.drpc.org'], explorerUrl: 'https://abscan.org', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('abstract-mainnet', ['https://api.mainnet.abs.xyz', 'https://abstract.drpc.org']), explorerUrl: 'https://abscan.org', coingeckoId: 'ethereum',
   coingeckoPlatform: 'abstract',
 };
 export const ZORA: ChainConfig = {
   id: 'zora', name: 'Zora', family: 'evm', evmChainId: 7777777, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.zora.energy', 'https://zora.drpc.org'], explorerUrl: 'https://explorer.zora.energy', explorerApi: 'https://explorer.zora.energy/api', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('zora-mainnet', ['https://rpc.zora.energy', 'https://zora.drpc.org']), explorerUrl: 'https://explorer.zora.energy', explorerApi: 'https://explorer.zora.energy/api', coingeckoId: 'ethereum',
   coingeckoPlatform: 'zora-network',
 };
 export const LISK: ChainConfig = {
@@ -436,12 +446,12 @@ export const LISK: ChainConfig = {
 };
 export const BOBA: ChainConfig = {
   id: 'boba', name: 'Boba Network', family: 'evm', evmChainId: 288, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.boba.network', 'https://boba-eth.drpc.org', 'https://boba-ethereum.gateway.tenderly.co'], explorerUrl: 'https://bobascan.com', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('boba-mainnet', ['https://mainnet.boba.network', 'https://boba-eth.drpc.org', 'https://boba-ethereum.gateway.tenderly.co']), explorerUrl: 'https://bobascan.com', coingeckoId: 'ethereum',
   coingeckoPlatform: 'boba',
 };
 export const BOB: ChainConfig = {
   id: 'bob', name: 'BOB', family: 'evm', evmChainId: 60808, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.gobob.xyz', 'https://bob.drpc.org'], explorerUrl: 'https://explorer.gobob.xyz', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('bob-mainnet', ['https://rpc.gobob.xyz', 'https://bob.drpc.org']), explorerUrl: 'https://explorer.gobob.xyz', coingeckoId: 'ethereum',
 };
 export const IMMUTABLE: ChainConfig = {
   id: 'immutable', name: 'Immutable zkEVM', family: 'evm', evmChainId: 13371, nativeSymbol: 'IMX', nativeDecimals: 18,
@@ -450,7 +460,7 @@ export const IMMUTABLE: ChainConfig = {
 };
 export const ASTAR: ChainConfig = {
   id: 'astar', name: 'Astar', family: 'evm', evmChainId: 592, nativeSymbol: 'ASTR', nativeDecimals: 18,
-  rpcUrls: ['https://evm.astar.network', 'https://astar.drpc.org', 'https://1rpc.io/astr'], explorerUrl: 'https://astar.blockscout.com', coingeckoId: 'astar',
+  rpcUrls: viaRelay('astar-mainnet', ['https://evm.astar.network', 'https://astar.drpc.org', 'https://1rpc.io/astr']), explorerUrl: 'https://astar.blockscout.com', coingeckoId: 'astar',
   coingeckoPlatform: 'astar',
 };
 export const FUSE: ChainConfig = {
@@ -460,7 +470,7 @@ export const FUSE: ChainConfig = {
 };
 export const KAIA: ChainConfig = {
   id: 'kaia', name: 'Kaia', family: 'evm', evmChainId: 8217, nativeSymbol: 'KAIA', nativeDecimals: 18,
-  rpcUrls: ['https://public-en.node.kaia.io', 'https://klaytn.drpc.org'], explorerUrl: 'https://kaiascan.io', coingeckoId: 'kaia',
+  rpcUrls: viaRelay('kaia-mainnet', ['https://public-en.node.kaia.io', 'https://klaytn.drpc.org']), explorerUrl: 'https://kaiascan.io', coingeckoId: 'kaia',
   coingeckoPlatform: 'klay-token',
 };
 export const GRAVITY: ChainConfig = {
@@ -470,18 +480,18 @@ export const GRAVITY: ChainConfig = {
 };
 export const ROOTSTOCK: ChainConfig = {
   id: 'rootstock', name: 'Rootstock', family: 'evm', evmChainId: 30, nativeSymbol: 'RBTC', nativeDecimals: 18,
-  rpcUrls: ['https://public-node.rsk.co', 'https://rootstock.drpc.org', 'https://mycrypto.rsk.co'], explorerUrl: 'https://explorer.rsk.co',
+  rpcUrls: viaRelay('rootstock-mainnet', ['https://public-node.rsk.co', 'https://rootstock.drpc.org', 'https://mycrypto.rsk.co']), explorerUrl: 'https://explorer.rsk.co',
   coingeckoId: 'rootstock', coingeckoPlatform: 'rootstock',
 };
 
 // --- Lot 3 de chaînes EVM (RPC + prix CoinGecko vérifiés 2026-07-05) ---
 export const RONIN: ChainConfig = {
   id: 'ronin', name: 'Ronin', family: 'evm', evmChainId: 2020, nativeSymbol: 'RON', nativeDecimals: 18,
-  rpcUrls: ['https://api.roninchain.com/rpc', 'https://ronin.drpc.org'], explorerUrl: 'https://app.roninchain.com', coingeckoId: 'ronin', coingeckoPlatform: 'ronin',
+  rpcUrls: viaRelay('ronin-mainnet', ['https://api.roninchain.com/rpc', 'https://ronin.drpc.org']), explorerUrl: 'https://app.roninchain.com', coingeckoId: 'ronin', coingeckoPlatform: 'ronin',
 };
 export const APECHAIN: ChainConfig = {
   id: 'apechain', name: 'ApeChain', family: 'evm', evmChainId: 33139, nativeSymbol: 'APE', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.apechain.com/http', 'https://apechain.drpc.org'], explorerUrl: 'https://apescan.io', coingeckoId: 'apecoin',
+  rpcUrls: viaRelay('apechain-mainnet', ['https://rpc.apechain.com/http', 'https://apechain.drpc.org']), explorerUrl: 'https://apescan.io', coingeckoId: 'apecoin',
   coingeckoPlatform: 'apechain',
 };
 export const CORE: ChainConfig = {
@@ -491,7 +501,7 @@ export const CORE: ChainConfig = {
 };
 export const ZETACHAIN: ChainConfig = {
   id: 'zetachain', name: 'ZetaChain', family: 'evm', evmChainId: 7000, nativeSymbol: 'ZETA', nativeDecimals: 18,
-  rpcUrls: ['https://zetachain-evm.blockpi.network/v1/rpc/public', 'https://zeta-chain.drpc.org'], explorerUrl: 'https://zetascan.com', coingeckoId: 'zetachain',
+  rpcUrls: viaRelay('zetachain-mainnet', ['https://zetachain-evm.blockpi.network/v1/rpc/public', 'https://zeta-chain.drpc.org']), explorerUrl: 'https://zetascan.com', coingeckoId: 'zetachain',
   coingeckoPlatform: 'zetachain',
 };
 export const ETHERLINK: ChainConfig = {
@@ -501,7 +511,7 @@ export const ETHERLINK: ChainConfig = {
 };
 export const STORY: ChainConfig = {
   id: 'story', name: 'Story', family: 'evm', evmChainId: 1514, nativeSymbol: 'IP', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.storyrpc.io'], explorerUrl: 'https://www.storyscan.io', coingeckoId: 'story-2',
+  rpcUrls: viaRelay('story-mainnet', ['https://mainnet.storyrpc.io']), explorerUrl: 'https://www.storyscan.io', coingeckoId: 'story-2',
   coingeckoPlatform: 'story',
 };
 export const ZIRCUIT: ChainConfig = {
@@ -526,7 +536,7 @@ export const SWELL: ChainConfig = {
 };
 export const SUPERSEED: ChainConfig = {
   id: 'superseed', name: 'Superseed', family: 'evm', evmChainId: 5330, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: ['https://mainnet.superseed.xyz', 'https://superseed.drpc.org'], explorerUrl: 'https://explorer.superseed.xyz', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('superseed-mainnet', ['https://mainnet.superseed.xyz', 'https://superseed.drpc.org']), explorerUrl: 'https://explorer.superseed.xyz', coingeckoId: 'ethereum',
   coingeckoPlatform: 'superseed',
 };
 export const HEMI: ChainConfig = {

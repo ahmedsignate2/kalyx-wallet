@@ -34,6 +34,33 @@ export const ALCHEMY_SLUGS: Record<string, number> = {
   'gnosis-mainnet': 100,
   'mantle-mainnet': 5000,
   'celo-mainnet': 42220,
+  'berachain-mainnet': 80094,
+  'hyperliquid-mainnet': 999,
+  'monad-testnet': 10143,
+  'sonic-mainnet': 146,
+  'cronos-mainnet': 25,
+  'moonbeam-mainnet': 1284,
+  'metis-mainnet': 1088,
+  'mode-mainnet': 34443,
+  'opbnb-mainnet': 204,
+  'unichain-mainnet': 130,
+  'worldchain-mainnet': 480,
+  'sei-mainnet': 1329,
+  'frax-mainnet': 252,
+  'ink-mainnet': 57073,
+  'soneium-mainnet': 1868,
+  'abstract-mainnet': 2741,
+  'zora-mainnet': 7777777,
+  'boba-mainnet': 288,
+  'bob-mainnet': 60808,
+  'astar-mainnet': 592,
+  'kaia-mainnet': 8217,
+  'rootstock-mainnet': 30,
+  'ronin-mainnet': 2020,
+  'apechain-mainnet': 33139,
+  'zetachain-mainnet': 7000,
+  'story-mainnet': 1514,
+  'superseed-mainnet': 5330,
   'eth-sepolia': 11155111,
   'base-sepolia': 84532,
 };
@@ -170,6 +197,9 @@ export function quotaPause(status: number, text: string): number {
 /** Adresse EVM. */
 export const isEvmAddress = (s: unknown): s is string => typeof s === 'string' && /^0x[0-9a-fA-F]{40}$/.test(s);
 
+/** Réseaux par requête `/v1/erc20` (les clients découpent au-delà). */
+export const MAX_ERC20_CHAINS = 8;
+
 export type Erc20Request = { ok: true; address: string; slugs: string[] } | { ok: false; error: string };
 
 /** `/v1/erc20` : `{ address, chains: [réseaux Alchemy] }`. */
@@ -183,7 +213,8 @@ export function parseErc20Request(text: string): Erc20Request {
   }
   const { address, chains } = (b ?? {}) as { address?: unknown; chains?: unknown };
   if (!isEvmAddress(address)) return { ok: false, error: 'invalid address' };
-  if (!Array.isArray(chains) || !chains.length || chains.length > 16) return { ok: false, error: 'invalid chains' };
+  // 8 réseaux au plus par requête : ~3 appels amont chacun, sous la limite de 50 sous-requêtes d'un Worker gratuit.
+  if (!Array.isArray(chains) || !chains.length || chains.length > MAX_ERC20_CHAINS) return { ok: false, error: 'invalid chains' };
   const slugs = [...new Set(chains)].filter((c): c is string => typeof c === 'string' && c in ALCHEMY_SLUGS);
   if (slugs.length !== new Set(chains).size) return { ok: false, error: 'unknown chain' };
   return { ok: true, address: address.toLowerCase(), slugs: slugs.sort() };
@@ -257,4 +288,15 @@ export function extensionAllowed(origin: string, allowed: string | undefined): b
   if (!m) return false;
   const ids = (allowed ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   return ids.includes('*') || ids.includes(m[1]);
+}
+
+/** Requête de contrôle : le nœud Alchemy d'un réseau sert-il bien CE réseau ? */
+export const CHAIN_ID_PROBE = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] });
+
+/** Réponse `eth_chainId` conforme à l'identifiant attendu du réseau. */
+export function chainIdMatches(slug: string, reply: unknown): boolean {
+  const want = ALCHEMY_SLUGS[slug];
+  const got = (reply as { result?: unknown } | null)?.result;
+  if (!want || typeof got !== 'string' || !/^0x[0-9a-fA-F]{1,16}$/.test(got)) return false;
+  return Number.parseInt(got, 16) === want;
 }
