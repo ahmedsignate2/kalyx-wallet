@@ -12,6 +12,10 @@ import type { Home } from './home';
 import type { Send } from './send';
 import type { Whitelist } from './whitelist';
 import type { Store } from './storage';
+import type { Sites } from './sites';
+import type { Approvals } from './approvals';
+import type { Dapp } from './dapp';
+import { listChains } from '../../src/domain/chains/registry';
 import { WalletError as CoreError } from '../../src/domain/errors';
 
 /** Services de l'écran principal (absents des tests qui ne les visent pas). */
@@ -20,6 +24,11 @@ export interface Services {
   send?: Send;
   whitelist?: Whitelist;
   disk?: Store;
+  sites?: Sites;
+  approvals?: Approvals;
+  dapp?: Dapp;
+  /** « Kalyx par défaut » : enregistre le script de page en conséquence. */
+  setDefault?: (on: boolean) => Promise<void>;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -34,7 +43,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -186,6 +195,62 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         await unlocked();
         if (!str(m.address, 200)) return { ok: false, error: 'BAD_REQUEST' };
         return { ok: true, whitelist: await whitelist.remove(m.address) };
+      case 'approval:get': {
+        if (!approvals) break;
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        const req = approvals.get(m.id);
+        if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
+        const st = await session.status();
+        const cur = st.unlocked && home ? await home.current() : null;
+        return { ok: true, request: req, unlocked: st.unlocked, wallets: st.unlocked ? await wallets.list() : [], selected: cur ? { walletId: cur.wallet.id, index: cur.index } : null };
+      }
+      case 'approval:respond': {
+        if (!approvals) break;
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        if (m.approve !== true) return approvals.respond(m.id, { approve: false }) ? { ok: true } : { ok: false, error: 'REQUEST_EXPIRED' };
+        await unlocked();
+        const req = approvals.get(m.id);
+        if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
+        // Le compte choisi doit exister ET avoir une adresse pour la famille demandée.
+        const w = (await wallets.list()).find((x) => x.id === m.walletId);
+        const a = w?.accounts.find((x) => x.index === m.index);
+        if (!a || !(req.family === 'evm' ? a.evm : a.solana)) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
+        return approvals.respond(m.id, { approve: true, walletId: w!.id, index: a.index }) ? { ok: true } : { ok: false, error: 'REQUEST_EXPIRED' };
+      }
+      case 'sites:list': {
+        if (!sites) break;
+        await unlocked();
+        const ws = await wallets.list();
+        const label = (g?: { walletId: string; index: number; address: string }) => {
+          if (!g) return null;
+          const w = ws.find((x) => x.id === g.walletId);
+          return { address: g.address, wallet: w?.label ?? '?', index: g.index };
+        };
+        const chains = listChains();
+        return {
+          ok: true,
+          sites: (await sites.list()).map((s) => ({
+            origin: s.origin,
+            evm: label(s.evm),
+            solana: label(s.solana),
+            chain: chains.find((c) => c.family === 'evm' && c.evmChainId === Number.parseInt(s.chainId, 16))?.name ?? s.chainId,
+          })),
+        };
+      }
+      case 'sites:disconnect':
+        if (!dapp) break;
+        await unlocked();
+        if (!str(m.origin, 300)) return { ok: false, error: 'BAD_REQUEST' };
+        await dapp.disconnect(m.origin);
+        return { ok: true };
+      case 'settings:get-default':
+        if (!disk) break;
+        return { ok: true, on: (await disk.get<boolean>('defaultProvider')) === true };
+      case 'settings:set-default':
+        if (!setDefault || typeof m.on !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        await setDefault(m.on);
+        return { ok: true };
     }
     return { ok: false, error: 'UNKNOWN_MESSAGE' };
   } catch (e) {

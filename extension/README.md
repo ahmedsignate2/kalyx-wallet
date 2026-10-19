@@ -32,5 +32,20 @@ Aucune clé d'API n'est embarquée : les listes de tokens ERC-20 (indexeur
 Alchemy) attendent le relais Kalyx. Les soldes natifs et Solana passent par
 les RPC publics.
 
+## Pont vers les dApps
+
+```
+page (dApp) ── inpage.js (monde MAIN : EIP-1193 + EIP-6963, Wallet Standard)
+                 │ window.postMessage (même origine, même fenêtre)
+              relay.js (script isolé, page principale seulement) ── port ──►
+              service worker : origine lue par CHROME, permissions par site,
+              réseau par site, fenêtre d'approbation séparée (approval.html)
+```
+
+`inpage.js` est enregistré dynamiquement (`scripting`) : précédé de
+`inpage-flag.js` quand « Kalyx par défaut » est activé (il prend alors aussi
+`window.ethereum`). Rien n'est contacté tant qu'une page ne s'adresse pas à un
+portefeuille. Signatures depuis une dApp : lot 6.
+
 Le cahier des charges (sécurité, onboarding, multi-chaîne) et le plan par lots
 sont dans l'historique du projet.

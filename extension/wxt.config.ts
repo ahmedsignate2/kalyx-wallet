@@ -4,9 +4,9 @@ import { extensionRegistry } from './scripts/registryPlugin';
 /**
  * Extension Kalyx — Manifest V3, Chromium (Chrome, Brave, Edge) en v1.
  *
- * Permissions réduites à ce que le cahier des charges prévoit. L'injection
- * dans les pages (accès à tous les sites) n'arrive qu'au lot 5, avec le pont
- * vers les dApps : rien n'est demandé avant d'en avoir besoin.
+ * Permissions réduites à ce que le cahier des charges prévoit. L'accès aux
+ * sites (http/https) sert UNIQUEMENT au pont vers les dApps (lot 5) : un
+ * script de page inerte et un relais, en page principale seulement.
  */
 export default defineConfig({
   /*
@@ -19,7 +19,9 @@ export default defineConfig({
     name: 'Kalyx Wallet',
     description: 'Portefeuille non-custodial pour Ethereum, les réseaux EVM et Solana.',
     minimum_chrome_version: '116',
-    permissions: ['storage', 'alarms', 'idle', 'sidePanel'],
+    permissions: ['storage', 'alarms', 'idle', 'sidePanel', 'scripting'],
+    // Le script de page (monde MAIN) est enregistré par le service worker : il lui faut l'accès aux sites.
+    host_permissions: ['http://*/*', 'https://*/*'],
     icons: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png', 128: 'icon/128.png' },
     action: { default_title: 'Kalyx Wallet', default_icon: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png' } },
   },
