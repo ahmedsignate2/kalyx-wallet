@@ -12,6 +12,7 @@
  */
 import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
 import { balancesBatch, CHAIN_ID_PROBE, chainIdMatches, extensionAllowed, nftUpstream, parsePriceRequest, parsePrices, pricesUpstream, resolveNft, solanaFallbackUrl, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
+import { etherscanError, resolveApi, sanitizeJsonBody, type ApiKeys, type ApiRoute } from './apis';
 import { API_HOST, buyParams, canonicalIp, isTxId, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, trimRegion, trimTx, type MoonpayEnvName } from './moonpay';
 
 export interface Env {
@@ -36,6 +37,12 @@ export interface Env {
   ALCHEMY_KEY?: string;
   /** Helius (Solana) — SECRET : `wrangler secret put HELIUS_KEY`. */
   HELIUS_KEY?: string;
+  /** CoinGecko (clé Demo), LI.FI, Relay.link, Etherscan, Covalent — SECRETS : `wrangler secret put <NOM>`. */
+  COINGECKO_KEY?: string;
+  LIFI_KEY?: string;
+  RELAY_LINK_KEY?: string;
+  ETHERSCAN_KEY?: string;
+  COVALENT_KEY?: string;
   /** Extensions autorisées (identifiants séparés par des virgules, `*` = toutes). */
   ALLOWED_EXTENSIONS?: string;
 }
@@ -69,6 +76,8 @@ export default {
     if (url.pathname === '/v1/erc20') return erc20(request, env, ctx, corsHeaders);
     if (url.pathname.startsWith('/nft/')) return nft(request, url, env, ctx, corsHeaders);
     if (url.pathname === '/v1/prices') return prices(request, env, ctx, corsHeaders);
+    const a = resolveApi(request.method, url.pathname, url.searchParams);
+    if (a) return api(request, a, env, ctx, corsHeaders);
     if (!env.TONAPI_KEY) return json(503, { error: 'proxy not configured' }, corsHeaders);
 
     const r = resolve(request.method, url.pathname, url.searchParams);
@@ -247,11 +256,11 @@ async function sha256(text: string): Promise<string> {
 }
 
 /** Quota du fournisseur épuisé récemment ? (mémorisé à la périphérie, sans rappeler le fournisseur). */
-async function quotaHit(provider: Provider): Promise<boolean> {
+async function quotaHit(provider: string): Promise<boolean> {
   return !!(await caches.default.match(internal(`quota/${provider}`)));
 }
 
-function rememberQuota(provider: Provider, seconds: number, ctx: ExecutionContext) {
+function rememberQuota(provider: string, seconds: number, ctx: ExecutionContext) {
   ctx.waitUntil(caches.default.put(internal(`quota/${provider}`), new Response('1', { headers: { 'cache-control': `max-age=${seconds}` } })));
 }
 
@@ -332,6 +341,51 @@ async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, 
   // Helius saturé ou en panne : la même requête part chez Alchemy Solana.
   const second = backup ? await attempt(backup, 'alchemy') : null;
   return second ?? first ?? quotaReply(corsHeaders);
+}
+
+/**
+ * API REST à clé (CoinGecko, LI.FI, Relay.link, Etherscan, Covalent, Helius) :
+ * chemins et paramètres en liste blanche (src/apis.ts), clé ajoutée ici,
+ * lectures gardées en cache pour TOUS les clients, quota mémorisé par service.
+ */
+async function api(request: Request, r: ApiRoute, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
+  if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
+  const keys: ApiKeys = { coingecko: env.COINGECKO_KEY, lifi: env.LIFI_KEY, relaylink: env.RELAY_LINK_KEY, etherscan: env.ETHERSCAN_KEY, covalent: env.COVALENT_KEY, helius: env.HELIUS_KEY };
+  const up = r.upstream(keys);
+  if (!up) return json(503, { error: 'relay not configured' }, corsHeaders);
+  let body: string | undefined;
+  if (r.method === 'POST') {
+    const len = Number(request.headers.get('content-length') ?? '0');
+    if (len > r.maxBody) return json(413, { error: 'body too large' }, corsHeaders);
+    const b = sanitizeJsonBody(await request.text(), r.maxBody);
+    if (b === null) return json(400, { error: 'bad body' }, corsHeaders);
+    body = b;
+  }
+  if (await limited(request, env, r.method === 'POST', r.provider)) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
+  // Clé de cache : le chemin public (déjà normalisé), jamais l'URL amont qui porte la clé.
+  const url = new URL(request.url);
+  const key = r.cacheSeconds ? internal(`api/${r.provider}/${await sha256(`${url.pathname}?${[...url.searchParams].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join('&')}`)}`) : null;
+  if (key) {
+    const hit = await caches.default.match(key);
+    if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  }
+  if (await quotaHit(r.provider)) return quotaReply(corsHeaders);
+  let res: Response;
+  try {
+    res = await fetch(up.url, { method: r.method, headers: up.headers, body });
+  } catch {
+    return json(502, { error: 'upstream unreachable' }, corsHeaders);
+  }
+  const text = await res.text();
+  const softError = res.ok && r.provider === 'etherscan' ? etherscanError(text) : '';
+  const pause = quotaPause(res.status, res.ok ? softError : text);
+  if (pause) {
+    rememberQuota(r.provider, pause, ctx);
+    return quotaReply(corsHeaders, pause);
+  }
+  if (key && res.ok && !softError) ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${r.cacheSeconds}` } })));
+  // Statut et corps seulement : aucun en-tête amont.
+  return new Response(text, { status: res.status, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
 }
 
 /** NFT (Alchemy NFT v3) : méthodes en liste blanche, réponses en cache. */

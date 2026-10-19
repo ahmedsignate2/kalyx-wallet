@@ -12,6 +12,7 @@
  */
 import { withTimeout } from '../chains/net';
 import { SwapError } from './swapError';
+import { RELAY_URL, relayOrDirect } from '../net/relay';
 import type { SwapQuote, SwapTxRequest } from './lifi';
 
 export interface RelayQuoteParams {
@@ -32,8 +33,9 @@ const RELAY_SOLANA = '792703809';
 const TIMEOUT = 15_000;
 const KEY = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_RELAY_API_KEY) || '';
 
+/** Clé locale, ou relais Kalyx (la clé Relay.link reste côté serveur). */
 export function relayEnabled(): boolean {
-  return KEY.length > 0;
+  return KEY.length > 0 || RELAY_URL.length > 0;
 }
 
 /** Spender d'un calldata `approve(address,uint256)` (0x095ea7b3 + 32 octets). */
@@ -77,14 +79,18 @@ export async function getRelayQuote(params: RelayQuoteParams): Promise<SwapQuote
 
   try {
     const res = await withTimeout(
-      fetch(`${RELAY_API}/quote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-        body: JSON.stringify(body),
-      }),
+      KEY
+        ? fetch(`${RELAY_API}/quote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+            body: JSON.stringify(body),
+          })
+        : // Sans clé, Relay.link refuse les devis : relais seulement ; saturé → LI.FI prend le relais.
+          relayOrDirect('relaylink', '/relaylink/quote', null, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
       TIMEOUT,
       () => new Error('timeout'),
     );
+    if (!res) return null;
     if (!res.ok) throw parseRelayError(res.status, await res.json().catch(() => ({})));
 
     const data = await res.json();

@@ -1,6 +1,7 @@
 /**
  * LE RELAIS KALYX (Worker Cloudflare) vu des clients : les fournisseurs à clé
- * (Alchemy, Helius) passent par lui, la clé reste côté serveur.
+ * (Alchemy, Helius, CoinGecko, LI.FI, Relay.link, Etherscan, Covalent)
+ * passent par lui, la clé reste côté serveur.
  *
  * Activé par `EXPO_PUBLIC_KALYX_RELAY_URL` (l'extension le fixe à la
  * construction). Vide : rien ne change, les clés éventuelles sont utilisées
@@ -14,7 +15,7 @@
  */
 export const RELAY_URL: string = (process.env.EXPO_PUBLIC_KALYX_RELAY_URL ?? '').replace(/\/+$/, '');
 
-export type RelayService = 'alchemy' | 'helius';
+export type RelayService = 'alchemy' | 'helius' | 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'covalent' | 'heliusapi';
 
 const pausedUntil = new Map<RelayService, number>();
 const DEFAULT_PAUSE_S = 300;
@@ -65,4 +66,34 @@ export function noteRelayResponse(url: string, res: { status: number; headers: {
 export function noteRelayUnreachable(url: string): void {
   const svc = relayServiceOf(url);
   if (svc) pauseRelay(svc, 60);
+}
+
+/**
+ * API REST par le relais (`relayPath` : `/cg/api/v3/…`, `/lifi/v1/…`…), avec
+ * repli sur `direct` (l'accès public sans clé, ou `null` s'il n'y en a pas) :
+ *  - pas de relais configuré, ou relais en pause pour ce service → `direct` ;
+ *  - relais injoignable, saturé (503) ou débit dépassé (429) → pause, puis
+ *    `direct` tout de suite : l'utilisateur n'attend pas la prochaine fois.
+ * Rend `null` quand aucune voie n'est possible.
+ */
+export async function relayOrDirect(
+  service: RelayService,
+  relayPath: string,
+  direct: (() => Promise<Response>) | null,
+  init?: RequestInit,
+): Promise<Response | null> {
+  if (RELAY_URL && !relayPaused(service)) {
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${RELAY_URL}${relayPath}`, init);
+    } catch {
+      pauseRelay(service, 60);
+    }
+    if (res) {
+      const p = pauseFromResponse(res.status, res.headers.get('retry-after'));
+      if (!p) return res;
+      pauseRelay(service, p);
+    }
+  }
+  return direct ? direct() : null;
 }

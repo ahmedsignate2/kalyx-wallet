@@ -42,6 +42,7 @@ import {
   sendComputeUnits,
 } from './solPriority';
 import { technicalLogger } from '../../../lib/technicalLogger';
+import { RELAY_URL, relayOrDirect } from '../net/relay';
 
 /**
  * Réessais pour une LECTURE d'historique.
@@ -164,14 +165,18 @@ export class SolanaChainAdapter implements ChainAdapter {
     if (!isValidSolanaAddress(address)) return [];
     
     const HELIUS_KEY = process.env.EXPO_PUBLIC_HELIUS_KEY;
-    if (HELIUS_KEY) {
+    // Clé locale, sinon le relais Kalyx (clé côté serveur) ; ni l'un ni l'autre → signatures RPC.
+    if (HELIUS_KEY || RELAY_URL) {
       try {
         return await withRetry(async () => {
           const res = await withTimeout(
-            fetch(`https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_KEY}`),
+            HELIUS_KEY
+              ? fetch(`https://api.helius.xyz/v0/addresses/${address}/transactions?api-key=${HELIUS_KEY}`)
+              : relayOrDirect('heliusapi', `/helius/v0/addresses/${address}/transactions`, null),
             API_TIMEOUT_MS,
             () => new Error('timeout')
           );
+          if (!res) throw new Error('Helius indisponible');
           if (res.ok) {
             const json = await res.json();
             if (Array.isArray(json)) {
@@ -542,18 +547,21 @@ export class SolanaChainAdapter implements ChainAdapter {
    */
   async simulateTransaction(base64Tx: string): Promise<any> {
     const HELIUS_KEY = process.env.EXPO_PUBLIC_HELIUS_KEY;
-    if (!HELIUS_KEY) throw new WalletError('RPC_UNAVAILABLE', 'Clé Helius manquante pour la simulation');
-    
-    const res = await fetch(`https://api.helius.xyz/v0/transactions/simulate?api-key=${HELIUS_KEY}`, {
+    if (!HELIUS_KEY && !RELAY_URL) throw new WalletError('RPC_UNAVAILABLE', 'Clé Helius manquante pour la simulation');
+
+    const init = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         transactions: [base64Tx],
         commitment: 'finalized'
       })
-    });
-    
-    if (!res.ok) throw new WalletError('RPC_UNAVAILABLE', 'Erreur lors de la simulation Helius');
+    };
+    const res = HELIUS_KEY
+      ? await fetch(`https://api.helius.xyz/v0/transactions/simulate?api-key=${HELIUS_KEY}`, init)
+      : await relayOrDirect('heliusapi', '/helius/v0/transactions/simulate', null, init);
+
+    if (!res || !res.ok) throw new WalletError('RPC_UNAVAILABLE', 'Erreur lors de la simulation Helius');
     return await res.json();
   }
 }

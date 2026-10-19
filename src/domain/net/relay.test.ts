@@ -45,3 +45,69 @@ describe('relais Kalyx : tokens ERC-20', () => {
     expect(() => parseRelayTokens({})).toThrow();
   });
 });
+
+describe('relais Kalyx : API REST avec repli', () => {
+  const realFetch = global.fetch;
+  const resp = (status: number, retryAfter?: string) =>
+    ({ status, ok: status < 400, headers: { get: (k: string) => (k === 'retry-after' ? retryAfter ?? null : null) } }) as unknown as Response;
+  const load = (url: string) => {
+    let mod!: typeof import('./relay');
+    process.env.EXPO_PUBLIC_KALYX_RELAY_URL = url;
+    jest.isolateModules(() => {
+      mod = require('./relay');
+    });
+    delete process.env.EXPO_PUBLIC_KALYX_RELAY_URL;
+    return mod;
+  };
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it('sans relais configuré : appel direct', async () => {
+    const m = load('');
+    const direct = jest.fn(async () => resp(200));
+    global.fetch = jest.fn() as never;
+    expect((await m.relayOrDirect('coingecko', '/cg/api/v3/search/trending', direct))?.status).toBe(200);
+    expect(direct).toHaveBeenCalledTimes(1);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('relais disponible : sa réponse, sans appel direct', async () => {
+    const m = load('https://relay.example/');
+    const direct = jest.fn(async () => resp(200));
+    global.fetch = jest.fn(async () => resp(200)) as never;
+    expect((await m.relayOrDirect('coingecko', '/cg/api/v3/search/trending', direct))?.status).toBe(200);
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toBe('https://relay.example/cg/api/v3/search/trending');
+    expect(direct).not.toHaveBeenCalled();
+  });
+
+  it('relais saturé : pause du seul service concerné, repli direct tout de suite', async () => {
+    const m = load('https://relay.example');
+    const direct = jest.fn(async () => resp(200));
+    global.fetch = jest.fn(async () => resp(503, '600')) as never;
+    expect((await m.relayOrDirect('lifi', '/lifi/v1/tokens?chains=1', direct))?.status).toBe(200);
+    expect(direct).toHaveBeenCalledTimes(1);
+    expect(m.relayPaused('lifi')).toBe(true);
+    expect(m.relayPaused('coingecko')).toBe(false);
+    // En pause : plus d'appel au relais.
+    await m.relayOrDirect('lifi', '/lifi/v1/tokens?chains=1', direct);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('relais injoignable et aucun accès direct : null', async () => {
+    const m = load('https://relay.example');
+    global.fetch = jest.fn(async () => {
+      throw new Error('offline');
+    }) as never;
+    expect(await m.relayOrDirect('heliusapi', '/helius/v0/transactions/simulate', null, { method: 'POST' })).toBeNull();
+    expect(m.relayPaused('heliusapi')).toBe(true);
+  });
+
+  it('une erreur ordinaire du service (400) est rendue telle quelle', async () => {
+    const m = load('https://relay.example');
+    const direct = jest.fn(async () => resp(200));
+    global.fetch = jest.fn(async () => resp(400)) as never;
+    expect((await m.relayOrDirect('etherscan', '/etherscan/v2/api', direct))?.status).toBe(400);
+    expect(direct).not.toHaveBeenCalled();
+  });
+});

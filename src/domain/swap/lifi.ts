@@ -9,6 +9,7 @@
  */
 import { withTimeout } from '../chains/net';
 import { SwapError } from './swapError';
+import { relayOrDirect } from '../net/relay';
 
 const API = 'https://li.quest/v1';
 const KEY = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_LIFI_KEY) || '';
@@ -256,6 +257,13 @@ function isFeeConfigError(e: SwapError): boolean {
   return /integrator|["']?fee["']? must|fee[ _-]?(config|recipient|percent|percentage|bps)|invalid fee/i.test(e.message);
 }
 
+/** Clé locale : en direct, comme avant. Sans clé : par le relais Kalyx (clé côté serveur), LI.FI public en repli. */
+async function quoteFetch(qs: URLSearchParams, headers: Record<string, string>): Promise<Response> {
+  const direct = () => fetch(`${API}/quote?${qs.toString()}`, { headers });
+  if (KEY) return direct();
+  return (await relayOrDirect('lifi', `/lifi/v1/quote?${qs.toString()}`, direct))!;
+}
+
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {
   const FEE_RECIPIENT = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_FEE_RECIPIENT_EVM) || '';
   const qs = new URLSearchParams({
@@ -293,7 +301,7 @@ async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQu
   while (true) {
     try {
       const res = await withTimeout(
-        fetch(`${API}/quote?${qs.toString()}`, { headers }),
+        quoteFetch(qs, headers),
         TIMEOUT,
         () => new Error('timeout'),
       );
