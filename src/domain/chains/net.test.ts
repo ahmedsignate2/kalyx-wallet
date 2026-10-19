@@ -57,6 +57,19 @@ describe('tryInOrder (fallback)', () => {
     }
   });
 
+  it("accès refusé par un serveur (clé exigée, origine bloquée) : le suivant est essayé", async () => {
+    for (const msg of ['Access forbidden', 'HTTP 403', 'Unauthorized: You must authenticate your request with an API key', '401 Unauthorized']) {
+      const tried: string[] = [];
+      const res = await tryInOrder(['public', 'relais'], async (x) => {
+        tried.push(x);
+        if (x === 'public') throw new Error(msg);
+        return x;
+      }, { timeoutMs: 30 });
+      expect(res).toBe('relais');
+      expect(tried).toEqual(['public', 'relais']);
+    }
+  });
+
   it('relance immédiatement une erreur déterministe (revert) sans essayer les autres RPC', async () => {
     const tried: string[] = [];
     await expect(

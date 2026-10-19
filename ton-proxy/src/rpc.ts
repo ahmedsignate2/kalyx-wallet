@@ -103,6 +103,7 @@ const SOLANA_METHODS = new Set([
   'getRecentPrioritizationFees',
   'getSlot',
   'getBlockHeight',
+  'getEpochInfo',
   'simulateTransaction',
   'sendTransaction',
   'getAssetsByOwner',
