@@ -19,5 +19,8 @@
     "typescript": "5.7.3",
     "vitest": "4.1.12",
     "wxt": "0.21.4"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4"
   }
 }

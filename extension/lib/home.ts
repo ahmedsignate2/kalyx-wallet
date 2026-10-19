@@ -84,7 +84,7 @@ export function makeHome(disk: Store, session: Session, wallets: Wallets, portfo
     return fresh ? portfolio.refreshActivity(cur.acct, f) : portfolio.cachedActivity(cur.acct, f);
   }
 
-  return { get, select, setFiat, refresh, activity };
+  return { get, select, setFiat, refresh, activity, current, fiat };
 }
 
 export type Home = ReturnType<typeof makeHome>;

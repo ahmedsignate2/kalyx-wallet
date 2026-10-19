@@ -145,6 +145,27 @@ export function makeSession(deps: SessionDeps) {
     await deps.disk.set(K.throttle, NO_THROTTLE);
   }
 
+  /**
+   * Re-saisie du mot de passe pour une action sensible (afficher la phrase),
+   * session déjà ouverte ou non. Même freinage que le déverrouillage.
+   */
+  async function checkPassword(password: string): Promise<void> {
+    const vault = await readVault();
+    if (!vault) throw new SessionError('NO_VAULT');
+    const t = await throttle();
+    const wait = waitMs(t, now());
+    if (wait > 0) throw new SessionError('THROTTLED', wait);
+    try {
+      (await unlockVault(vault, password)).fill(0);
+    } catch (e) {
+      if ((e as Error).message !== 'WRONG_PASSWORD') throw new SessionError((e as Error).message);
+      const next = afterFailure(t, now());
+      await deps.disk.set(K.throttle, next);
+      throw new SessionError('WRONG_PASSWORD', waitMs(next, now()));
+    }
+    await deps.disk.set(K.throttle, NO_THROTTLE);
+  }
+
   /** Activité de l'utilisateur : le délai d'inactivité repart de zéro. */
   async function touch(): Promise<void> {
     if (await deps.session.get(K.key)) await arm();
@@ -193,6 +214,7 @@ export function makeSession(deps: SessionDeps) {
     create: (pw: string) => serial(() => create(pw)),
     unlock: (pw: string) => serial(() => unlock(pw)),
     changePassword: (oldPw: string, newPw: string) => serial(() => changePassword(oldPw, newPw)),
+    checkPassword: (pw: string) => serial(() => checkPassword(pw)),
     lock: () => serial(lock),
     touch,
     setAutoLock,

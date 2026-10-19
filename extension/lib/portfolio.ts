@@ -20,7 +20,7 @@ import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import { chainIconUrl, embeddedChainLogo } from '../../src/domain/chains/icons';
 import { formatTokenAmount } from '../../src/domain/validation/format';
 import { humanizeTx, type ActivityTranslate, type HumanTx } from '../../src/domain/tx/humanize';
-import { knownCounterparties, spamReason } from '../../src/domain/tx/spam';
+import { knownCounterparties, paidCounterparties, spamReason } from '../../src/domain/tx/spam';
 import type { ChainConfig, TxSummary } from '../../src/domain/chains/types';
 import type { Store } from './storage';
 
@@ -166,6 +166,9 @@ export function makePortfolio(deps: PortfolioDeps) {
     return p;
   };
 
+  /** Comptes dont les soldes ne sont plus justes (après un envoi) : relus à la prochaine ouverture. */
+  const dirty = new Set<string>();
+
   const erc20Unavailable = !listChains({ includeTestnets: false }).some((c) => c.family === 'evm' && c.rpcUrls.some((u) => u.includes('.alchemy.com')));
 
   async function readSnapshot(a: Acct, fiat: string): Promise<{ snap: Snapshot | null; failed: string[] }> {
@@ -194,7 +197,7 @@ export function makePortfolio(deps: PortfolioDeps) {
   /** Dernier cliché (disque), sans réseau : c'est ce que le popup montre d'abord. */
   async function cached(a: Acct, fiat: string): Promise<PortfolioView & { stale: boolean }> {
     const { snap, failed } = await readSnapshot(a, fiat);
-    return { ...toView(snap, failed, fiat), stale: !snap || now() - snap.at > STALE_MS };
+    return { ...toView(snap, failed, fiat), stale: !snap || now() - snap.at > STALE_MS || dirty.has(key('portfolio', a)) };
   }
 
   /** Relit le réseau (une seule lecture à la fois par compte et devise). */
@@ -209,6 +212,7 @@ export function makePortfolio(deps: PortfolioDeps) {
       const snap: Snapshot = { holdings, ...summarize(holdings), at: now() };
       const failedChains = [...new Set([...failed].map((f) => f.split(':')[0]))].filter((id) => FAMILIES.has(chainOf(id)?.family ?? ''));
       await deps.disk.set(key('portfolio', a, fiat), { json: serialize(snap), failed: failedChains } satisfies StoredSnapshot);
+      dirty.delete(key('portfolio', a));
       return toView(snap, failedChains, fiat);
     });
   }
@@ -287,7 +291,7 @@ export function makePortfolio(deps: PortfolioDeps) {
 
   async function cachedActivity(a: Acct, fiat: string): Promise<ActivityView & { stale: boolean }> {
     const { at, txs, failed } = await readActivity(a);
-    return { ...(await activityView(a, fiat, at, txs, failed)), stale: !at || now() - at > STALE_MS };
+    return { ...(await activityView(a, fiat, at, txs, failed)), stale: !at || now() - at > STALE_MS || dirty.has(key('activity', a)) };
   }
 
   /** Historique des réseaux principaux et de ceux où le compte détient quelque chose. */
@@ -335,11 +339,32 @@ export function makePortfolio(deps: PortfolioDeps) {
         .slice(0, MAX_ACTIVITY);
       const at = now();
       await deps.disk.set(key('activity', a), { at, json: JSON.stringify(txs, replacer), failed } satisfies StoredActivity);
+      dirty.delete(key('activity', a));
       return activityView(a, fiat, at, txs, failed);
     });
   }
 
-  return { cached, refresh, cachedActivity, refreshActivity };
+  /** Après un envoi : soldes et activité de ce compte à relire. */
+  function markStale(a: Acct) {
+    dirty.add(key('portfolio', a));
+    dirty.add(key('activity', a));
+  }
+
+  /** Actifs lus du compte (dernier cliché), bigint compris : pour l'écran d'envoi. */
+  async function holdings(a: Acct, fiat: string): Promise<Holding[]> {
+    return (await readSnapshot(a, fiat)).snap?.holdings ?? [];
+  }
+
+  /**
+   * Adresses à qui ce compte a RÉELLEMENT payé (historique en cache, natif ou
+   * token de confiance) : la référence de l'anti-empoisonnement.
+   */
+  async function paidAddresses(a: Acct, fiat: string): Promise<string[]> {
+    const [{ txs }, h] = await Promise.all([readActivity(a), holdings(a, fiat)]);
+    return paidCounterparties(txs, buildTrusted(verifiedContracts(h)));
+  }
+
+  return { cached, refresh, cachedActivity, refreshActivity, markStale, holdings, paidAddresses };
 }
 
 export type Portfolio = ReturnType<typeof makePortfolio>;

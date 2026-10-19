@@ -27,3 +27,8 @@ export type Reply = { ok: boolean; error?: string; waitMs?: number; [k: string]:
 export function send<T = Reply>(msg: Record<string, unknown>): Promise<T & Reply> {
   return browser.runtime.sendMessage(msg) as Promise<T & Reply>;
 }
+
+/** Enfants conditionnels pour `replaceChildren` (`cond && h(…)` → rien si faux). */
+export function nodes(...xs: (Node | string | false | null | undefined)[]): (Node | string)[] {
+  return xs.filter((x): x is Node | string => !!x);
+}

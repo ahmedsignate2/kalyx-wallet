@@ -199,7 +199,16 @@ export function makeWallets(disk: Store, session: Session) {
     });
   }
 
-  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable };
+  /** Phrase d'un portefeuille, pour la vérifier plus tard. L'appelant a déjà redemandé le mot de passe. */
+  async function revealPhrase(walletId: string): Promise<string> {
+    return session.withVault(async (vault, key) => {
+      const w = (await list()).find((x) => x.id === walletId);
+      if (!w || w.kind !== 'seed') throw new WalletError('UNKNOWN_WALLET');
+      return { result: readSecret(vault, key, walletId).secret };
+    });
+  }
+
+  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase };
 }
 
 export type Wallets = ReturnType<typeof makeWallets>;
