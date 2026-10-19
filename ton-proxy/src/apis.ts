@@ -19,7 +19,7 @@ export interface ApiKeys {
 }
 
 export type ApiRoute =
-  | { ok: true; provider: ApiProvider; method: 'GET' | 'POST'; upstream: (keys: ApiKeys) => { url: string; headers: Record<string, string> } | null; cacheSeconds: number; maxBody: number }
+  | { ok: true; provider: ApiProvider; method: 'GET' | 'POST'; upstream: (keys: ApiKeys) => { url: string; headers: Record<string, string> } | null; cacheSeconds: number; staleSeconds: number; maxBody: number }
   | { ok: false; status: number; error: string };
 
 const ADDR = /^0x[0-9a-fA-F]{40}$/;
@@ -46,14 +46,19 @@ const notFound: ApiRoute = { ok: false, status: 404, error: 'not found' };
 /* ── CoinGecko (clé « Demo ») ─────────────────────────────────────────────── */
 const CG = 'https://api.coingecko.com/api/v3';
 const VS = /^[a-z]{3,5}(?:,[a-z]{3,5}){0,9}$/;
-const CG_ROUTES: { re: RegExp; params: Record<string, RegExp>; required: string[]; cache: number }[] = [
-  { re: /^\/simple\/price$/, params: { ids: /^[a-z0-9-]+(?:,[a-z0-9-]+){0,99}$/, vs_currencies: VS, include_24hr_change: /^(?:true|false)$/ }, required: ['ids', 'vs_currencies'], cache: 60 },
-  { re: /^\/simple\/token_price\/[a-z0-9-]{1,40}$/, params: { contract_addresses: /^[0-9a-zA-Zx,]{1,4000}$/, vs_currencies: VS, include_24hr_change: /^(?:true|false)$/ }, required: ['contract_addresses', 'vs_currencies'], cache: 60 },
-  { re: /^\/coins\/[a-z0-9-]{1,80}\/market_chart$/, params: { vs_currency: /^[a-z]{3,5}$/, days: /^(?:\d{1,4}|max)$/ }, required: ['vs_currency', 'days'], cache: 300 },
-  { re: /^\/coins\/markets$/, params: { vs_currency: /^[a-z]{3,5}$/, ids: /^[a-z0-9-]+(?:,[a-z0-9-]+){0,249}$/, order: /^[a-z_]{1,30}$/, per_page: /^\d{1,3}$/, page: /^\d{1,3}$/, sparkline: /^(?:true|false)$/, price_change_percentage: /^[0-9a-z,]{1,40}$/ }, required: ['vs_currency'], cache: 120 },
-  { re: /^\/coins\/[a-z0-9-]{1,80}$/, params: Object.fromEntries(['localization', 'tickers', 'market_data', 'community_data', 'developer_data', 'sparkline'].map((k) => [k, /^(?:true|false)$/])), required: [], cache: 300 },
-  { re: /^\/search$/, params: { query: /^.{1,60}$/ }, required: ['query'], cache: 3_600 },
-  { re: /^\/search\/trending$/, params: {}, required: [], cache: 600 },
+/**
+ * `cache` : fraîcheur partagée entre tous les clients. `stale` : âge maximal
+ * d'une copie de SECOURS, rendue seulement si CoinGecko ET l'appel direct de
+ * l'appareil échouent (voir `relayOrDirect` côté client).
+ */
+const CG_ROUTES: { re: RegExp; params: Record<string, RegExp>; required: string[]; cache: number; stale: number }[] = [
+  { re: /^\/simple\/price$/, params: { ids: /^[a-z0-9-]+(?:,[a-z0-9-]+){0,99}$/, vs_currencies: VS, include_24hr_change: /^(?:true|false)$/ }, required: ['ids', 'vs_currencies'], cache: 60, stale: 600 },
+  { re: /^\/simple\/token_price\/[a-z0-9-]{1,40}$/, params: { contract_addresses: /^[0-9a-zA-Zx,]{1,4000}$/, vs_currencies: VS, include_24hr_change: /^(?:true|false)$/ }, required: ['contract_addresses', 'vs_currencies'], cache: 60, stale: 600 },
+  { re: /^\/coins\/[a-z0-9-]{1,80}\/market_chart$/, params: { vs_currency: /^[a-z]{3,5}$/, days: /^(?:\d{1,4}|max)$/ }, required: ['vs_currency', 'days'], cache: 300, stale: 21_600 },
+  { re: /^\/coins\/markets$/, params: { vs_currency: /^[a-z]{3,5}$/, ids: /^[a-z0-9-]+(?:,[a-z0-9-]+){0,249}$/, order: /^[a-z_]{1,30}$/, per_page: /^\d{1,3}$/, page: /^\d{1,3}$/, sparkline: /^(?:true|false)$/, price_change_percentage: /^[0-9a-z,]{1,40}$/ }, required: ['vs_currency'], cache: 120, stale: 3_600 },
+  { re: /^\/coins\/[a-z0-9-]{1,80}$/, params: Object.fromEntries(['localization', 'tickers', 'market_data', 'community_data', 'developer_data', 'sparkline'].map((k) => [k, /^(?:true|false)$/])), required: [], cache: 300, stale: 21_600 },
+  { re: /^\/search$/, params: { query: /^.{1,60}$/ }, required: ['query'], cache: 3_600, stale: 86_400 },
+  { re: /^\/search\/trending$/, params: {}, required: [], cache: 600, stale: 21_600 },
 ];
 
 function coingecko(path: string, search: URLSearchParams): ApiRoute {
@@ -66,6 +71,7 @@ function coingecko(path: string, search: URLSearchParams): ApiRoute {
     provider: 'coingecko',
     method: 'GET',
     cacheSeconds: r.cache,
+    staleSeconds: r.stale,
     maxBody: 0,
     // Sans clé : « non configuré ». L'API publique, appelée depuis les IP partagées de
     // Cloudflare, est vite bridée ; chaque appareil l'appelle alors lui-même (son propre débit).
@@ -81,6 +87,7 @@ function lifi(path: string, search: URLSearchParams): ApiRoute {
   let params: Record<string, RegExp>;
   let required: string[];
   let cache: number;
+  let stale = 0;
   if (path === '/quote') {
     params = Object.fromEntries(['fromChain', 'toChain', 'fromToken', 'toToken', 'fromAmount', 'fromAddress', 'toAddress', 'slippage', 'fee', 'feeRecipient', 'integrator', 'order', 'allowBridges', 'denyBridges', 'allowExchanges', 'denyExchanges', 'referrer'].map((k) => [k, LIFI_PARAM]));
     required = ['fromChain', 'toChain', 'fromToken', 'toToken', 'fromAmount', 'fromAddress'];
@@ -89,6 +96,7 @@ function lifi(path: string, search: URLSearchParams): ApiRoute {
     params = { chains: /^[A-Za-z0-9,]{1,200}$/, chainTypes: /^[A-Z,]{1,40}$/ };
     required = [];
     cache = 3_600;
+    stale = 86_400; // listes de tokens : une copie d'hier vaut mieux qu'aucune
   } else if (path === '/status') {
     params = { txHash: /^(?:0x[0-9a-fA-F]{64}|[1-9A-HJ-NP-Za-km-z]{43,90})$/, bridge: /^[a-z0-9-]{1,40}$/, fromChain: /^[A-Za-z0-9]{1,20}$/, toChain: /^[A-Za-z0-9]{1,20}$/ };
     required = ['txHash'];
@@ -101,6 +109,7 @@ function lifi(path: string, search: URLSearchParams): ApiRoute {
     provider: 'lifi',
     method: 'GET',
     cacheSeconds: cache,
+    staleSeconds: stale,
     maxBody: 0,
     upstream: (k) => ({ url: `${LIFI}${path}${q ? `?${q}` : ''}`, headers: { accept: 'application/json', ...(k.lifi ? { 'x-lifi-api-key': k.lifi } : {}) } }),
   };
@@ -115,6 +124,7 @@ function relaylink(method: string, path: string): ApiRoute {
     provider: 'relaylink',
     method: 'POST',
     cacheSeconds: 0,
+    staleSeconds: 0,
     maxBody: 16 * 1024,
     upstream: (k) => (k.relaylink ? { url: 'https://api.relay.link/quote', headers: { 'content-type': 'application/json', authorization: `Bearer ${k.relaylink}` } } : null),
   };
@@ -134,6 +144,7 @@ function etherscan(path: string, search: URLSearchParams): ApiRoute {
     provider: 'etherscan',
     method: 'GET',
     cacheSeconds: 15,
+    staleSeconds: 3_600,
     maxBody: 0,
     upstream: (k) => (k.etherscan ? { url: `https://api.etherscan.io/v2/api?${q}&apikey=${encodeURIComponent(k.etherscan)}`, headers: { accept: 'application/json' } } : null),
   };
@@ -151,6 +162,7 @@ function helius(method: string, path: string, search: URLSearchParams): ApiRoute
       provider: 'helius',
       method: 'GET',
       cacheSeconds: tx[2] === 'names' ? 3_600 : 10,
+      staleSeconds: tx[2] === 'names' ? 86_400 : 3_600,
       maxBody: 0,
       upstream: (k) => (k.helius ? { url: `https://api.helius.xyz${path}?${q ? `${q}&` : ''}api-key=${encodeURIComponent(k.helius)}`, headers: { accept: 'application/json' } } : null),
     };
@@ -162,6 +174,7 @@ function helius(method: string, path: string, search: URLSearchParams): ApiRoute
       provider: 'helius',
       method: 'POST',
       cacheSeconds: 0,
+      staleSeconds: 0,
       maxBody: 64 * 1024,
       upstream: (k) => (k.helius ? { url: `https://api.helius.xyz/v0/transactions/simulate?api-key=${encodeURIComponent(k.helius)}`, headers: { 'content-type': 'application/json' } } : null),
     };

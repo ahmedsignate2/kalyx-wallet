@@ -346,6 +346,10 @@ async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, 
  * API REST à clé (CoinGecko, LI.FI, Relay.link, Etherscan, Helius) :
  * chemins et paramètres en liste blanche (src/apis.ts), clé ajoutée ici,
  * lectures gardées en cache pour TOUS les clients, quota mémorisé par service.
+ *
+ * Fournisseur en échec (quota, panne, clé refusée) : 503 avec, si elle existe,
+ * la dernière réponse RÉELLE d'âge borné (`x-kalyx-stale`). Le client tente
+ * d'abord l'appel direct et ne se sert de cette copie que si lui aussi échoue.
  */
 async function api(request: Request, r: ApiRoute, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
   if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
@@ -363,29 +367,60 @@ async function api(request: Request, r: ApiRoute, env: Env, ctx: ExecutionContex
   if (await limited(request, env, r.method === 'POST', r.provider)) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
   // Clé de cache : le chemin public (déjà normalisé), jamais l'URL amont qui porte la clé.
   const url = new URL(request.url);
-  const key = r.cacheSeconds ? internal(`api/${r.provider}/${await sha256(`${url.pathname}?${[...url.searchParams].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join('&')}`)}`) : null;
+  const id = r.cacheSeconds ? await sha256(`${url.pathname}?${[...url.searchParams].sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)).map(([k, v]) => `${k}=${v}`).join('&')}`) : null;
+  const key = id ? internal(`api/${r.provider}/${id}`) : null;
+  const staleKey = id && r.staleSeconds ? internal(`stale/${r.provider}/${id}`) : null;
+  const reply = (text: string, status: number, extra: Record<string, string> = {}) =>
+    new Response(text, { status, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders, ...extra } });
   if (key) {
     const hit = await caches.default.match(key);
-    if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+    if (hit) return reply(await hit.text(), 200);
   }
-  if (await quotaHit(r.provider)) return quotaReply(corsHeaders);
-  let res: Response;
-  try {
-    res = await fetch(up.url, { method: r.method, headers: up.headers, body });
-  } catch {
-    return json(502, { error: 'upstream unreachable' }, corsHeaders);
-  }
-  const text = await res.text();
-  const softError = res.ok && r.provider === 'etherscan' ? etherscanError(text) : '';
-  // Clé refusée (révoquée, mal copiée) : service indisponible 5 min, les clients passent en direct.
-  const pause = res.status === 401 || res.status === 403 ? 300 : quotaPause(res.status, res.ok ? softError : text);
-  if (pause) {
-    rememberQuota(r.provider, pause, ctx);
-    return quotaReply(corsHeaders, pause);
-  }
-  if (key && res.ok && !softError) ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${r.cacheSeconds}` } })));
+  /** Échec du fournisseur : 503 (le client passe en direct), copie de secours jointe si on en a une. */
+  const unavailable = async (retryAfter: number): Promise<Response> => {
+    const stale = staleKey ? await caches.default.match(staleKey) : undefined;
+    if (!stale) return quotaReply(corsHeaders, retryAfter);
+    return reply(await stale.text(), 503, { 'retry-after': String(retryAfter), 'x-kalyx-stale': '1' });
+  };
+  if (await quotaHit(r.provider)) return unavailable(300);
+
+  // Requêtes identiques simultanées (même isolat) : UN seul appel au fournisseur.
+  const run = async (): Promise<Upstream> => {
+    let res: Response;
+    try {
+      res = await fetch(up.url, { method: r.method, headers: up.headers, body });
+    } catch {
+      return { status: 0, text: '', pause: 60 };
+    }
+    const text = await res.text();
+    const softError = res.ok && r.provider === 'etherscan' ? etherscanError(text) : '';
+    // Clé refusée (révoquée, mal copiée) : service indisponible 5 min, les clients passent en direct.
+    const pause = res.status === 401 || res.status === 403 ? 300 : quotaPause(res.status, res.ok ? softError : text);
+    if (pause) rememberQuota(r.provider, pause, ctx);
+    else if (res.ok && !softError) {
+      if (key) ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${r.cacheSeconds}` } })));
+      if (staleKey) ctx.waitUntil(caches.default.put(staleKey, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${r.staleSeconds}` } })));
+    }
+    return { status: res.status, text, pause };
+  };
+  const out = await coalesce(key?.url ?? null, run);
+  if (out.pause) return unavailable(out.pause);
+  if (out.status >= 500) return unavailable(60);
   // Statut et corps seulement : aucun en-tête amont.
-  return new Response(text, { status: res.status, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  return reply(out.text, out.status);
+}
+
+type Upstream = { status: number; text: string; pause: number };
+const inflight = new Map<string, Promise<Upstream>>();
+
+/** Partage la même réponse amont entre les requêtes identiques en cours. */
+function coalesce(id: string | null, run: () => Promise<Upstream>): Promise<Upstream> {
+  if (!id) return run();
+  const pending = inflight.get(id);
+  if (pending) return pending;
+  const p = run().finally(() => inflight.delete(id));
+  inflight.set(id, p);
+  return p;
 }
 
 /** NFT (Alchemy NFT v3) : méthodes en liste blanche, réponses en cache. */
