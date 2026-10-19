@@ -9,7 +9,7 @@
  * En danger, signer demande de MAINTENIR le bouton 2 s.
  */
 import { h, nodes, send } from '../../ui/dom';
-import { errorText, t } from '../../ui/i18n';
+import { applyLang, errorText, hasErrorText, t } from '../../ui/i18n';
 import { lockedScreen } from '../../ui/screens';
 import { groupAddress } from '../../../src/domain/validation/poisoning';
 
@@ -33,6 +33,7 @@ interface WalletMeta {
   accounts: { index: number; evm?: string; solana?: string }[];
 }
 
+applyLang();
 const app = document.getElementById('app')!;
 const id = location.hash.slice(1);
 /** Le bouton d'accord s'active après un instant : un clic resté en vol ne vaut pas accord. */
@@ -88,7 +89,9 @@ async function signScreen(req: Req) {
     if (x?.ok) return window.close();
     if (x?.error === 'REQUEST_EXPIRED') return gone();
     // L'action a échoué : on reste, on dit pourquoi ; réessayer ou refuser.
-    err.textContent = x?.error === 'ACTION_FAILED' ? t('apFailed', { m: x.params?.message ?? '' }) : errorText(x?.error, x?.params);
+    // Raison connue : dans la langue de la fenêtre ; sinon le message (court) de l'échec.
+    const reason = x?.params?.reason;
+    err.textContent = x?.error === 'ACTION_FAILED' ? t('apFailed', { m: hasErrorText(reason) ? errorText(reason) : (x.params?.message ?? '') }) : errorText(x?.error, x?.params);
     ok.disabled = false;
   };
 

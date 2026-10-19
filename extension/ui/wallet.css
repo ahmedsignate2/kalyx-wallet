@@ -22,14 +22,14 @@
 .link-row:hover { background: var(--surface1); }
 .row .grow { flex: 1; min-width: 0; }
 .row .grow strong, .row .grow p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row .right { text-align: right; flex: none; max-width: 48%; }
+.row .right { text-align: end; flex: none; max-width: 48%; }
 .row .right p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row strong { font-weight: 600; font-variant-numeric: tabular-nums; }
 .row.unverified { opacity: 0.6; }
 .logos { position: relative; flex: none; width: 36px; height: 36px; }
 .logo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--surface2); flex: none; }
 .logo.letter { display: inline-flex; align-items: center; justify-content: center; font-weight: 600; color: var(--text2); }
-.badge { position: absolute; right: -3px; bottom: -3px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--bg); background: var(--surface2); }
+.badge { position: absolute; inset-inline-end: -3px; bottom: -3px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--bg); background: var(--surface2); }
 details summary { cursor: pointer; padding: 10px 6px; color: var(--text2); font-size: 13px; font-weight: 500; }
 .day { padding: 10px 6px 2px; font-weight: 500; }
 .note { padding: 10px 6px; }
@@ -41,7 +41,7 @@ details summary { cursor: pointer; padding: 10px 6px; color: var(--text2); font-
 .amount input { flex: 1; }
 .chip.on { border-color: var(--text); color: var(--text); }
 .fees { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
-.fee { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; border: 1px solid var(--border); background: var(--surface1); color: var(--text); border-radius: 12px; padding: 8px 10px; cursor: pointer; font: 500 13px 'General Sans', system-ui, sans-serif; min-width: 0; }
+.fee { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: start; border: 1px solid var(--border); background: var(--surface1); color: var(--text); border-radius: 12px; padding: 8px 10px; cursor: pointer; font: 500 13px 'General Sans', system-ui, sans-serif; min-width: 0; }
 .fee span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .fee.on { border-color: var(--text); background: var(--surface2); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

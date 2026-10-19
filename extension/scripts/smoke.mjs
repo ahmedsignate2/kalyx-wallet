@@ -25,16 +25,15 @@ const fail = (m) => {
   process.exitCode = 1;
 };
 
-const launch = () => chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'kalyx-ext-')), {
+const launch = (lang = 'fr') => chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'kalyx-ext-')), {
   headless: true,
-  locale: 'fr-FR',
+  locale: lang === 'fr' ? 'fr-FR' : lang,
   executablePath: process.env.CHROMIUM_PATH,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', '--lang=fr'],
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', `--lang=${lang}`],
 });
 // ONLY=dapps : seulement le pont vers les dApps (plus rapide à relancer).
-if (process.env.ONLY === 'dapps' || process.env.ONLY === 'attacks') {
-  if (process.env.ONLY === 'dapps') await dapps();
-  else await attacks();
+if (['dapps', 'attacks', 'langs'].includes(process.env.ONLY)) {
+  await { dapps, attacks, langs }[process.env.ONLY]();
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
 }
@@ -99,6 +98,33 @@ try {
 await onboarding();
 await dapps();
 await attacks();
+await langs();
+
+/**
+ * Langues (lot 7) : l'accueil s'affiche dans la langue du navigateur, l'arabe
+ * de droite à gauche, et une langue non prise en charge retombe sur l'anglais.
+ */
+async function langs() {
+  const cases = [
+    ['ar', 'مرحبًا بك في Kalyx', 'rtl'],
+    ['ja', 'Kalyx へようこそ', 'ltr'],
+    ['de', 'Willkommen bei Kalyx', 'ltr'],
+    ['sv', 'Welcome to Kalyx', 'ltr'],
+  ];
+  for (const [lang, title, dir] of cases) {
+    const ctx = await launch(lang);
+    try {
+      const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+      const page = await ctx.newPage();
+      await page.goto(`chrome-extension://${new URL(sw.url()).host}/onboarding.html`);
+      await page.locator('h1').first().waitFor({ timeout: 10_000 });
+      const got = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent, dir: document.documentElement.dir, lang: document.documentElement.lang }));
+      got.h1 === title && got.dir === dir ? console.log(`✓ langue ${lang} : « ${got.h1} » (${got.dir})`) : fail(`langue ${lang} : ${JSON.stringify(got)}`);
+    } finally {
+      await ctx.close();
+    }
+  }
+}
 
 /**
  * Onboarding piloté comme un utilisateur, dans un profil neuf : créer

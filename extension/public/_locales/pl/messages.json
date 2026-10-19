@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Kalyx Wallet"
+  },
+  "extDescription": {
+    "message": "Portfel non-custodial dla Ethereum, sieci EVM i Solany. Twoje klucze pozostają zaszyfrowane na twoim komputerze."
+  }
+}

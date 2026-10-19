@@ -16,7 +16,7 @@
  * tout de suite : 10 s, puis le double à chaque refus (5 min au plus) — un
  * site qui harcèle jusqu'au clic par lassitude n'obtient plus de fenêtre.
  */
-import { RpcError, toRpcError } from './rpcError';
+import { reasonOf, RpcError, toRpcError } from './rpcError';
 import type { Family } from './sites';
 
 export type ApprovalKind = 'connect' | 'sign';
@@ -115,7 +115,7 @@ export function makeApprovals(deps: ApprovalDeps) {
    * reçoit sa réponse et la fenêtre se ferme ; échouée, l'erreur revient à la
    * fenêtre, qui reste ouverte.
    */
-  async function respond(id: string, d: Decision): Promise<{ ok: true } | { ok: false; error: { code: number; message: string } }> {
+  async function respond(id: string, d: Decision): Promise<{ ok: true } | { ok: false; error: { code: number; message: string }; reason?: string }> {
     const e = pending.get(id);
     if (!e) return { ok: false, error: { code: 4100, message: 'REQUEST_EXPIRED' } };
     if (!d.approve) {
@@ -134,7 +134,8 @@ export function makeApprovals(deps: ApprovalDeps) {
       return { ok: true };
     } catch (err) {
       e.busy = false;
-      return { ok: false, error: toRpcError(err) };
+      const reason = reasonOf(err);
+      return { ok: false, error: toRpcError(err), ...(reason ? { reason } : {}) };
     }
   }
 
