@@ -362,4 +362,37 @@ function welcomeWithError(code?: string) {
   app.querySelector('.stack')?.append(h('p', { class: 'error' }, errorText(code)));
 }
 
-welcome();
+/* ── Vérifier plus tard (« Vérifier » du rappel, ou avant le premier « Recevoir ») ── */
+function verifyLaterScreen(walletId: string) {
+  const err = errorLine();
+  const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'current-password' });
+  const form = h(
+    'form',
+    {
+      class: 'stack',
+      on: {
+        submit: async (e) => {
+          e.preventDefault();
+          if (!pw.value) return;
+          // Mot de passe REDEMANDÉ même déverrouillé : afficher la phrase donne tout.
+          const r = await send<{ phrase: string }>({ type: 'wallet:reveal-phrase', id: walletId, password: pw.value });
+          pw.value = '';
+          if (!r.ok) return showError(err, r);
+          phrase = r.phrase;
+          createdId = walletId;
+          history.replaceState(null, '', location.pathname);
+          phraseScreen();
+        },
+      },
+    },
+    pw,
+    err,
+    h('button', { class: 'btn', type: 'submit' }, t('continue')),
+  );
+  screen(h('h1', {}, t('verifyLaterTitle')), h('p', { class: 'muted' }, t('verifyLaterSub')), form);
+  pw.focus();
+}
+
+const verifyId = /^#verify=([a-z0-9-]{1,64})$/.exec(location.hash)?.[1];
+if (verifyId) verifyLaterScreen(verifyId);
+else welcome();

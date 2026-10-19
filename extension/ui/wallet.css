@@ -34,3 +34,23 @@ details summary { cursor: pointer; padding: 10px 6px; color: var(--text2); font-
 .day { padding: 10px 6px 2px; font-weight: 500; }
 .note { padding: 10px 6px; }
 .empty { padding: 24px 6px; text-align: center; }
+/* Envoyer / Recevoir / Liste blanche */
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.actions .btn { padding: 12px; }
+.amount { display: flex; gap: 8px; align-items: center; }
+.amount input { flex: 1; }
+.chip.on { border-color: var(--text); color: var(--text); }
+.fees { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
+.fee { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; border: 1px solid var(--border); background: var(--surface1); color: var(--text); border-radius: 12px; padding: 8px 10px; cursor: pointer; font: 500 13px 'General Sans', system-ui, sans-serif; min-width: 0; }
+.fee span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.fee.on { border-color: var(--text); background: var(--surface2); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.row2 label { display: flex; flex-direction: column; gap: 4px; }
+.kv { display: flex; flex-direction: column; gap: 2px; }
+.addr { font-size: 13.5px; letter-spacing: 0.02em; line-height: 1.6; word-spacing: 0.15em; }
+.banner.danger { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); align-items: flex-start; }
+.banner.danger p { margin-top: 4px; font-weight: 400; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
+.qr { align-self: center; background: #fff; border-radius: 16px; padding: 6px; line-height: 0; }
+.receive { align-items: stretch; }
+.receive .addr { text-align: center; }

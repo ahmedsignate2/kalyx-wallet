@@ -245,7 +245,90 @@ async function onboarding() {
     console.log('✓ panneau latéral affiché');
     if (SHOTS) for (const scheme of ['light', 'dark']) await panel.emulateMedia({ colorScheme: scheme }), await panel.screenshot({ path: join(SHOTS, `sidepanel-${scheme}.png`) });
 
+    // ── Envoyer et recevoir (lot 4) ──
+    const bg = (m) => popup.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await popup.reload();
+    await popup.locator('select.account').waitFor();
+    // Portefeuille à phrase NON vérifiée : l'écran intermédiaire passe au premier « Recevoir ».
+    const fresh = await bg({ type: 'wallet:create' });
+    await bg({ type: 'home:select', walletId: fresh.id, index: 0 });
+    await popup.reload();
+    await popup.getByRole('button', { name: /Recevoir/ }).click();
+    await popup.getByText('Ta phrase n’est pas vérifiée').waitFor();
+    console.log('✓ premier « Recevoir » sans phrase vérifiée : écran intermédiaire');
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `receive-warn-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+    await popup.getByRole('button', { name: 'Continuer quand même' }).click();
+    await popup.locator('.qr svg').waitFor();
+    const shownAddr = (await popup.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '');
+    const freshMeta = (await bg({ type: 'wallet:list' })).wallets.find((w) => w.id === fresh.id);
+    shownAddr === freshMeta.accounts[0].evm ? console.log('✓ Recevoir : QR + adresse EVM du compte affiché') : fail(`adresse reçue ${shownAddr}`);
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `receive-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+    await popup.getByRole('tab', { name: 'Solana' }).click();
+    ((await popup.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '') === freshMeta.accounts[0].solana) ? console.log('✓ Recevoir : onglet Solana') : fail('adresse Solana');
+    await popup.getByRole('button', { name: /Retour/ }).click();
+    await popup.getByRole('button', { name: /Recevoir/ }).click();
+    await popup.locator('.qr svg').waitFor();
+    console.log('✓ écran intermédiaire une seule fois');
+    await popup.getByRole('button', { name: /Retour/ }).click();
+
+    // Vérifier plus tard : mot de passe redemandé, puis le défi des 3 mots.
+    const verifyPage = await ctx.newPage();
+    await verifyPage.goto(`chrome-extension://${id}/onboarding.html#verify=${fresh.id}`);
+    await verifyPage.locator('input[type=password]').fill('faux-mot-de-passe');
+    await verifyPage.getByRole('button', { name: 'Continuer' }).click();
+    await verifyPage.waitForFunction(() => document.querySelector('.error')?.textContent);
+    (await verifyPage.locator('.error').textContent()) === 'Mot de passe incorrect.' ? console.log('✓ vérifier plus tard : mauvais mot de passe refusé') : fail('mot de passe');
+    await verifyPage.locator('input[type=password]').fill('Plage-Orange-47!');
+    await verifyPage.getByRole('button', { name: 'Continuer' }).click();
+    await verifyPage.getByText('Afficher la phrase').click();
+    const later = await verifyPage.locator('.word').evaluateAll((els) => els.map((e) => e.lastChild.textContent));
+    later.join(' ') === fresh.phrase ? console.log('✓ la phrase affichée est celle du portefeuille') : fail('phrase différente');
+    await verifyPage.getByText('J’ai noté ma phrase').click();
+    for (let i = 0; i < 3; i++) {
+      const n = Number((await verifyPage.locator('h1 + p').textContent()).match(/\d+/)[0]);
+      await verifyPage.locator('.choices button', { hasText: new RegExp(`^${later[n - 1]}$`) }).click();
+    }
+    await verifyPage.getByText('Ton portefeuille est prêt').waitFor();
+    (await bg({ type: 'wallet:list' })).wallets.find((w) => w.id === fresh.id).backedUp ? console.log('✓ phrase vérifiée plus tard : rappel levé') : fail('backedUp');
+    await verifyPage.close();
+
+    // Envoyer : réseau injoignable ici → erreur nommée, rien n'est signé.
+    await popup.reload();
+    await popup.getByRole('button', { name: /Envoyer/ }).click();
+    await popup.locator('form select').waitFor();
+    await popup.waitForFunction(() => document.querySelectorAll('form select option').length > 0);
+    await popup.locator('form input[type=text]').first().fill('0x123');
+    await popup.locator('form input[inputmode=decimal]').first().fill('0.01');
+    await popup.getByRole('button', { name: 'Vérifier' }).click();
+    await popup.waitForFunction(() => document.querySelector('.error')?.textContent);
+    console.log(`✓ Envoyer, adresse invalide : « ${await popup.locator('.error').textContent()} »`);
+    await popup.locator('form input[type=text]').first().fill('0x1111111111111111111111111111111111111111');
+    await popup.getByRole('button', { name: 'Vérifier' }).click();
+    await popup.waitForFunction(() => !document.querySelector('.error')?.textContent?.startsWith('Adresse'), null, { timeout: 60_000 });
+    await popup.waitForFunction(() => document.querySelector('.error')?.textContent, null, { timeout: 60_000 });
+    console.log(`✓ Envoyer sans réseau : « ${await popup.locator('.error').textContent()} »`);
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `send-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+
+    // Liste blanche : activée, un inconnu est bloqué AVANT tout réseau.
+    await popup.getByRole('button', { name: /Retour/ }).click();
+    await popup.getByRole('button', { name: 'Réglages' }).click();
+    await popup.getByRole('button', { name: 'Liste blanche' }).click();
+    await popup.getByRole('button', { name: 'Activer' }).click();
+    await popup.waitForFunction(() => document.querySelector('[data-testid=wl-state]')?.textContent === 'Activée');
+    console.log('✓ liste blanche activée');
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `whitelist-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+    const blocked = await bg({ type: 'send:prepare', assetKey: 'ethereum:native', to: '0x1111111111111111111111111111111111111111', amount: '0.01' });
+    blocked.error === 'NOT_WHITELISTED' ? console.log('✓ liste blanche : destinataire inconnu bloqué') : fail(`liste blanche : ${JSON.stringify(blocked)}`);
+    const wlDisk = JSON.stringify(await popup.evaluate(() => chrome.storage.local.get('kalyx.whitelist')));
+    wlDisk.includes('"ct"') && !wlDisk.includes('"enabled"') ? console.log('✓ liste blanche scellée sur le disque') : fail('liste blanche en clair');
+
     // Verrouillé : plus rien d'affiché.
+    await popup.reload();
+    await popup.locator('select.account').waitFor();
     await popup.getByRole('button', { name: 'Verrouiller' }).click();
     await popup.locator('input[type=password]').waitFor();
     (await popup.locator('[data-testid=total]').count()) === 0 ? console.log('✓ verrouillé : soldes masqués') : fail('soldes visibles verrouillé');

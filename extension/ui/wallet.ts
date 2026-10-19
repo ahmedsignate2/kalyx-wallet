@@ -12,6 +12,9 @@
  */
 import { h, send } from './dom';
 import { openOnboarding } from './screens';
+import { sendScreen } from './send';
+import { receiveScreen } from './receive';
+import { whitelistScreen } from './whitelistScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
@@ -52,6 +55,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   let activity: (ActivityView & { stale?: boolean }) | null = null;
   let activityLoading = false;
   let lastError = '';
+  /** Sur un autre écran (envoyer, recevoir, réglages), revenir sur la fenêtre ne l'efface pas. */
+  let away = false;
 
   const money = (n: number) => new Intl.NumberFormat(LOCALE, { style: 'currency', currency: (data?.fiat ?? 'usd').toUpperCase() }).format(n);
   const ago = (at: number) => {
@@ -78,17 +83,22 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     if (tab === 'activity') void loadActivity(true);
   }
 
+  /** Redessine l'écran principal seulement s'il est affiché. */
+  const redraw = () => {
+    if (!away) render();
+  };
+
   async function refresh() {
     if (refreshing) return;
     refreshing = true;
     lastError = '';
-    render();
+    redraw();
     const r = await send<{ portfolio: PortfolioView }>({ type: 'portfolio:refresh' }).catch(() => null);
     refreshing = false;
     if (r?.ok && data) data.portfolio = { ...r.portfolio, stale: false };
     else if (r && !r.ok && (r.error === 'LOCKED' || r.error === 'NO_VAULT')) return void load();
     else lastError = errorText(r?.error);
-    render();
+    redraw();
   }
 
   async function loadActivity(fresh: boolean) {
@@ -96,15 +106,15 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     if (!activity) {
       const c = await send<{ activity: ActivityView & { stale: boolean } }>({ type: 'activity:get', fresh: false });
       if (c.ok) activity = c.activity;
-      render();
+      redraw();
       if (c.ok && !c.activity.stale && !fresh) return;
     }
     activityLoading = true;
-    render();
+    redraw();
     const r = await send<{ activity: ActivityView }>({ type: 'activity:get', fresh: true }).catch(() => null);
     activityLoading = false;
     if (r?.ok) activity = r.activity;
-    render();
+    redraw();
   }
 
   /* ── Rendu ── */
@@ -190,13 +200,44 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     );
   }
 
+  /** Retour à l'écran principal après Envoyer/Recevoir : relu (un envoi a changé les soldes). */
+  const home = () => void load();
+
+  function actions() {
+    return h(
+      'div',
+      { class: 'actions' },
+      h('button', { class: 'btn', type: 'button', on: { click: () => ((away = true), sendScreen(app, home)) } }, `↑ ${t('send')}`),
+      h('button', { class: 'btn secondary', type: 'button', on: { click: () => ((away = true), void receiveScreen(app, home, { close: opts.mode === 'popup' })) } }, `↓ ${t('receive')}`),
+    );
+  }
+
   function banners() {
     const { w } = current();
     const p = data?.portfolio;
     return h(
       'div',
       { class: 'stack', style: 'gap:8px' },
-      w && !w.backedUp && h('div', { class: 'banner' }, h('span', {}, t('backupBanner'))),
+      w &&
+        !w.backedUp &&
+        h(
+          'div',
+          { class: 'banner' },
+          h('span', {}, t('backupBanner')),
+          h(
+            'button',
+            {
+              type: 'button',
+              on: {
+                click: async () => {
+                  await browser.tabs.create({ url: browser.runtime.getURL(`/onboarding.html#verify=${encodeURIComponent(w.id)}`) });
+                  if (opts.mode === 'popup') window.close();
+                },
+              },
+            },
+            t('verifyNow'),
+          ),
+        ),
       !!p?.failed.length && h('div', { class: 'banner warn', role: 'status' }, h('span', {}, t(p.main.length || p.small.length || p.hidden.length ? 'networksDown' : 'networksDownNoData', { list: names(p.failed) }))),
       lastError && h('div', { class: 'banner warn' }, h('span', {}, t('loadFailed')), h('button', { type: 'button', on: { click: () => void refresh() } }, t('retry'))),
     );
@@ -285,11 +326,13 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
 
   function render() {
     if (!data) return;
-    app.replaceChildren(header(), addresses(), summary(), banners(), tabs(), tab === 'tokens' ? tokens() : activityList());
+    away = false;
+    app.replaceChildren(header(), addresses(), summary(), actions(), banners(), tabs(), tab === 'tokens' ? tokens() : activityList());
   }
 
   /* ── Réglages ── */
   function settings() {
+    away = true;
     const fiat = h('select', { on: { change: async () => (await send({ type: 'home:set-fiat', fiat: fiat.value }), await load()) } }, ...FIATS.map((f) => h('option', { value: f, selected: f === data?.fiat }, f.toUpperCase())));
     const lock = h(
       'select',
@@ -306,6 +349,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         fiat,
         h('label', { class: 'small muted' }, t('autoLock')),
         lock,
+        h('button', { class: 'btn secondary', type: 'button', on: { click: () => whitelistScreen(app, () => settings()) } }, t('wlTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => void openOnboardingTab() } }, t('addWallet')),
       ),
     );
@@ -321,7 +365,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
 
   // Revenir sur la fenêtre relit le cliché (une autre vue a pu l'actualiser).
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void load();
+    if (document.visibilityState === 'visible' && !away) void load();
   });
 
   /*
