@@ -254,9 +254,9 @@ async function onboarding() {
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-wallet-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
     await popup.getByRole('tab', { name: 'Activité' }).click();
-    await popup.waitForFunction(() => !document.querySelector('.list')?.textContent?.includes('Actualisation'), null, { timeout: 120_000 });
-    const act = await popup.locator('.list').textContent();
-    console.log(`✓ onglet Activité : ${(await popup.locator('.list .row').count())} ligne(s)${act.includes('Sans réponse') ? ' · réseaux muets nommés' : ''}`);
+    await popup.waitForFunction(() => !document.querySelector('[data-testid=activity]')?.textContent?.includes('Actualisation'), null, { timeout: 120_000 });
+    const act = await popup.locator('[data-testid=activity]').textContent();
+    console.log(`✓ onglet Activité : ${(await popup.locator('[data-testid=activity] .row').count())} ligne(s)${act.includes('Sans réponse') ? ' · réseaux muets nommés' : ''}`);
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-activity-${scheme}.png`) });
 
     // Changer de compte : l'écran suit.

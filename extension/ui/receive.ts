@@ -5,6 +5,7 @@
  * un écran intermédiaire passe d'abord : recevoir des fonds sur une phrase
  * jamais notée, c'est les perdre avec l'ordinateur.
  */
+import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
 import { qrSvg } from './qr';
@@ -27,7 +28,7 @@ export async function receiveScreen(app: HTMLElement, back: () => void, opts: { 
 
 function warnScreen(app: HTMLElement, info: Info, back: () => void, opts: { close: boolean }) {
   app.replaceChildren(
-    h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, `← ${t('back')}`)),
+    h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))),
     h(
       'div',
       { class: 'center' },
@@ -102,5 +103,5 @@ function show(app: HTMLElement, info: Info, back: () => void) {
     ));
   }
   draw();
-  app.replaceChildren(h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, `← ${t('back')}`)), h('h1', {}, t('receiveTitle')), body);
+  app.replaceChildren(h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))), h('h1', {}, t('receiveTitle')), body);
 }

@@ -8,6 +8,8 @@
  * La phrase créée n'existe dans cette page que le temps de la noter et de la
  * vérifier ; elle est oubliée dès la fin du parcours.
  */
+import { mountScene } from '../../ui/landscape';
+import { glyph } from '../../ui/glyph';
 import { h, send } from '../../ui/dom';
 import { applyLang, errorText, reasonText, t } from '../../ui/i18n';
 import { passwordStrength } from '../../../src/security/passwordStrength';
@@ -23,6 +25,7 @@ interface WalletMeta {
 }
 
 applyLang();
+mountScene();
 const app = document.getElementById('app')!;
 let afterAuth: () => void = () => {};
 /** Phrase en cours de création (oubliée à la fin du parcours). */
@@ -37,7 +40,7 @@ function screen(...children: (Node | false | null)[]) {
 }
 
 const errorLine = () => h('p', { class: 'error', role: 'alert' });
-const backLink = (to: () => void) => h('button', { class: 'link', type: 'button', on: { click: to } }, `← ${t('back')}`);
+const backLink = (to: () => void) => h('button', { class: 'link', type: 'button', on: { click: to } }, glyph('back', 18), t('back'));
 const short = (a?: string) => (a ? `${a.slice(0, 8)}…${a.slice(-6)}` : '');
 
 function showError(el: HTMLElement, r: { error?: string; waitMs?: number }) {
@@ -71,7 +74,7 @@ function passwordScreen() {
   const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'new-password' });
   const pw2 = h('input', { type: 'password', placeholder: t('pwConfirm'), autocomplete: 'new-password' });
   const go = h('button', { class: 'btn', type: 'submit', disabled: true }, t('continue'));
-  const colors = ['var(--danger)', 'var(--danger)', 'var(--gold)', 'var(--ok)'];
+  const colors = ['var(--danger)', 'var(--danger)', 'var(--warning)', 'var(--up)'];
   const update = () => {
     const s = passwordStrength(pw.value);
     bar.style.width = pw.value ? `${25 + s.level * 25}%` : '0';

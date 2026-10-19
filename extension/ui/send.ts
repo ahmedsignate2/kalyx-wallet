@@ -7,6 +7,7 @@
  * identifiant. Le bouton de confirmation s'active après un court délai : un
  * double-clic hérité de l'écran précédent ne confirme rien.
  */
+import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { activityT, errorText, LOCALE, t } from './i18n';
 import { groupAddress } from '../../src/domain/validation/poisoning';
@@ -167,7 +168,7 @@ export function sendScreen(app: HTMLElement, back: () => void) {
   );
 
   function render() {
-    app.replaceChildren(h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, `← ${t('back')}`)), h('h1', {}, t('send')), form);
+    app.replaceChildren(h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))), h('h1', {}, t('send')), form);
   }
 
   void (async () => {
@@ -208,7 +209,7 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
   const line = (k: string, ...v: (Node | string)[]) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, k), h('div', {}, ...v));
   const sameAsset = a.contract == null;
   app.replaceChildren(...nodes(
-    h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: edit } }, `← ${t('back')}`)),
+    h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: edit } }, glyph('back', 18), t('back'))),
     h('h1', {}, t('reviewTitle')),
     h('p', { class: 'total' }, `${d.amountFmt} ${d.symbol}`),
     d.poisoning &&
