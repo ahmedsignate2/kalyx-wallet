@@ -30,7 +30,6 @@ export const ALCHEMY_SLUGS: Record<string, number> = {
   'avax-mainnet': 43114,
   'linea-mainnet': 59144,
   'scroll-mainnet': 534352,
-  'blast-mainnet': 81457,
   'zksync-mainnet': 324,
   'gnosis-mainnet': 100,
   'mantle-mainnet': 5000,
