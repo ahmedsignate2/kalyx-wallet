@@ -12,11 +12,12 @@
     "typecheck": "tsc --noEmit",
     "test:smoke": "node scripts/smoke.mjs",
     "postinstall": "wxt prepare",
-    "test": "node --experimental-strip-types --no-warnings --test lib/*.test.ts"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
     "typescript": "5.7.3",
+    "vitest": "4.1.12",
     "wxt": "0.21.4"
   }
 }

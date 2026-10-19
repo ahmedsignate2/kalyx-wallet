@@ -12,13 +12,16 @@
       img { width: 72px; height: 72px; }
       h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
       p { margin: 0; color: var(--muted); }
+      button { margin-top: 8px; padding: 10px 22px; border-radius: 999px; border: 0; background: var(--text); color: var(--bg); font: 600 14px system-ui, sans-serif; cursor: pointer; }
     </style>
   </head>
   <body>
     <main>
       <img src="/icon/128.png" alt="" />
       <h1>Kalyx Wallet</h1>
-      <p>Bientôt disponible</p>
+      <p id="status">…</p>
+      <button id="lock" type="button" hidden>Verrouiller</button>
     </main>
+    <script type="module" src="./main.ts"></script>
   </body>
 </html>
