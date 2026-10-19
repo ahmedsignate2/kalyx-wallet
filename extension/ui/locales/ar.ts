@@ -107,4 +107,5 @@ export default {
   reportNote: 'يفتح تطبيق البريد لديك. لا ترسل أبدًا عبارة الاسترداد أو مفتاحك الخاص، ولا حتى إلى دعم Kalyx.',
   reportMailSubject: 'ملاحظات النسخة التجريبية — إضافة Kalyx {v}',
   reportMailBody: 'ماذا حدث؟ وماذا كنت تتوقع؟',
+  chooseAccount: 'اختر حسابًا', myAddresses: 'عناويني', setGeneral: 'عام', setSecurity: 'الأمان', setHelp: 'المساعدة', sitesShort: 'المواقع', networksShort: 'شبكات لا تستجيب: {n}',
 };

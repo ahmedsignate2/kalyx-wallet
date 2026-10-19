@@ -107,4 +107,5 @@ export default {
   reportNote: 'Откроется почтовое приложение. Никогда не отправляй фразу восстановления или приватный ключ, даже поддержке Kalyx.',
   reportMailSubject: 'Отзыв о бете — расширение Kalyx {v}',
   reportMailBody: 'Что произошло? Чего ты ожидал?',
+  chooseAccount: 'Выберите аккаунт', myAddresses: 'Мои адреса', setGeneral: 'Общие', setSecurity: 'Безопасность', setHelp: 'Помощь', sitesShort: 'Сайты', networksShort: 'Сети без ответа: {n}',
 };

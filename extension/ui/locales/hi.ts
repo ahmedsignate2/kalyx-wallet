@@ -107,4 +107,5 @@ export default {
   reportNote: 'आपका ईमेल ऐप खुलेगा। अपना रिकवरी फ़्रेज़ या प्राइवेट की कभी न भेजें, Kalyx सपोर्ट को भी नहीं।',
   reportMailSubject: 'बीटा फ़ीडबैक — Kalyx एक्सटेंशन {v}',
   reportMailBody: 'क्या हुआ? आप क्या उम्मीद कर रहे थे?',
+  chooseAccount: 'खाता चुनें', myAddresses: 'मेरे पते', setGeneral: 'सामान्य', setSecurity: 'सुरक्षा', setHelp: 'सहायता', sitesShort: 'साइटें', networksShort: '{n} नेटवर्क जवाब नहीं दे रहे',
 };

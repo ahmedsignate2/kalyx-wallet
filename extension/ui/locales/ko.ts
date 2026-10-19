@@ -121,4 +121,5 @@ export default {
   reportNote: '이메일 앱이 열립니다. 복구 구문이나 개인 키는 Kalyx 지원팀에도 절대 보내지 마세요.',
   reportMailSubject: '베타 피드백 — Kalyx 확장 프로그램 {v}',
   reportMailBody: '무슨 일이 있었나요? 어떻게 될 거라고 예상했나요?',
+  chooseAccount: '계정 선택', myAddresses: '내 주소', setGeneral: '일반', setSecurity: '보안', setHelp: '도움말', sitesShort: '사이트', networksShort: '{n}개 네트워크 응답 없음',
 };

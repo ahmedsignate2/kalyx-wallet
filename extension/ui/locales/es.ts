@@ -107,4 +107,5 @@ export default {
   reportNote: 'Abre tu aplicación de correo. Nunca envíes tu frase de recuperación ni tu clave privada, ni siquiera al soporte de Kalyx.',
   reportMailSubject: 'Comentarios beta — extensión Kalyx {v}',
   reportMailBody: '¿Qué ha pasado? ¿Qué esperabas?',
+  chooseAccount: 'Elegir una cuenta', myAddresses: 'Mis direcciones', setGeneral: 'General', setSecurity: 'Seguridad', setHelp: 'Ayuda', sitesShort: 'Sitios', networksShort: '{n} redes no responden',
 };

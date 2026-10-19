@@ -121,4 +121,5 @@ export default {
   reportNote: 'メールアプリが開きます。リカバリーフレーズや秘密鍵は、Kalyx サポートにも絶対に送らないでください。',
   reportMailSubject: 'ベータ版フィードバック — Kalyx 拡張機能 {v}',
   reportMailBody: '何が起きましたか？ 本来はどうなるはずでしたか？',
+  chooseAccount: 'アカウントを選択', myAddresses: 'マイアドレス', setGeneral: '一般', setSecurity: 'セキュリティ', setHelp: 'ヘルプ', sitesShort: 'サイト', networksShort: '{n} 件のネットワークが応答なし',
 };

@@ -12,6 +12,8 @@
  */
 import { h, send } from './dom';
 import { glyph } from './glyph';
+import { avatar } from './avatar';
+import { openSheet } from './sheet';
 import { landscape } from './landscape';
 import { openOnboarding } from './screens';
 import { sendScreen } from './send';
@@ -133,79 +135,103 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return { w, a };
   }
 
-  /** Un <select> prend la largeur de son option la plus longue : on le ramène au compte affiché. */
-  function fitAccount() {
-    const sel = app.querySelector<HTMLSelectElement>('select.account');
-    const text = sel?.selectedOptions[0]?.textContent;
-    if (!sel || !text) return;
-    const ctx = document.createElement('canvas').getContext('2d');
-    if (!ctx) return;
-    ctx.font = getComputedStyle(sel).font;
-    sel.style.width = `${Math.ceil(ctx.measureText(text).width) + 26}px`;
-  }
+  const seedOf = (w?: WalletMeta, a?: WalletMeta['accounts'][number]) => a?.evm ?? a?.solana ?? `${w?.id}:${a?.index}`;
 
+  /** En-tête : le compte (avatar, nom, adresse) ouvre le choix des comptes ; les gestes à droite. */
   function header() {
-    const { w } = current();
-    const select = h(
-      'select',
-      {
-        class: 'account',
-        'aria-label': t('account', { n: '' }).trim(),
-        on: {
-          change: async () => {
-            const [walletId, index] = select.value.split('|');
-            await send({ type: 'home:select', walletId, index: Number(index) });
-            activity = null;
-            await load();
-          },
-        },
-      },
-      ...(data?.wallets ?? []).flatMap((wl) =>
-        wl.accounts.map((a) => h('option', { value: `${wl.id}|${a.index}`, selected: wl.id === w?.id && a.index === data?.selected?.index }, `${wl.label} · ${t('account', { n: a.index + 1 })}`)),
-      ),
-    );
-    const icon = (label: string, name: string, fn: () => void) => h('button', { class: 'icon', type: 'button', title: label, 'aria-label': label, on: { click: fn } }, glyph(name, 22));
-    return [
-      // En-tête de l'app : la marque à gauche, les gestes à droite, posés nus sur le ciel.
-      h(
-        'header',
-        { class: 'bar' },
-        h('span', { class: 'brand' }, h('img', { src: '/icon/128.png', alt: '' }), 'Kalyx', h('span', { class: 'beta', title: VERSION }, t('beta'))),
-        opts.mode === 'popup' && icon(t('openSidePanel'), 'sidebar', openSidePanel),
-        icon(t('settings'), 'gear', settings),
-        icon(t('lock'), 'lock', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
-      ),
-      select,
-    ];
-  }
-
-  function addresses() {
-    const { a } = current();
-    const chip = (tag: string, addr?: string) =>
-      addr &&
+    const { w, a } = current();
+    const icon = (label: string, name: string, fn: () => void) => h('button', { class: 'icon glass', type: 'button', title: label, 'aria-label': label, on: { click: fn } }, glyph(name, 20));
+    return h(
+      'header',
+      { class: 'bar' },
       h(
         'button',
+        { class: 'acct', type: 'button', 'aria-haspopup': 'dialog', 'data-testid': 'account', title: t('chooseAccount'), on: { click: pickAccount } },
+        avatar(seedOf(w, a), 36),
+        h(
+          'span',
+          { class: 'acct-text' },
+          h('span', { class: 'acct-name' }, h('span', { class: 'ellipsis' }, a ? t('account', { n: a.index + 1 }) : ''), glyph('caretDown', 14)),
+          h('span', { class: 'acct-sub' }, h('span', { class: 'ellipsis' }, w?.label ?? ''), h('span', { class: 'beta', title: VERSION }, t('beta'))),
+        ),
+      ),
+      h('span', { class: 'spacer' }),
+      opts.mode === 'popup' && icon(t('openSidePanel'), 'sidebar', openSidePanel),
+      icon(t('settings'), 'gear', settings),
+      icon(t('lock'), 'lock', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
+    );
+  }
+
+  /** Choix du compte : une feuille, groupée par portefeuille, le compte courant coché. */
+  function pickAccount() {
+    const sel = data?.selected;
+    const groups = (data?.wallets ?? []).map((wl) =>
+      h(
+        'section',
+        { class: 'group' },
+        h('p', { class: 'group-title' }, wl.label),
+        h(
+          'div',
+          { class: 'list card' },
+          ...wl.accounts.map((ac) => {
+            const on = wl.id === sel?.walletId && ac.index === sel?.index;
+            return h(
+              'button',
+              {
+                class: `row link-row acct-row${on ? ' on' : ''}`,
+                type: 'button',
+                'aria-current': on ? 'true' : false,
+                on: {
+                  click: async () => {
+                    sheet.close();
+                    if (on) return;
+                    await send({ type: 'home:select', walletId: wl.id, index: ac.index });
+                    activity = null;
+                    await load();
+                  },
+                },
+              },
+              avatar(seedOf(wl, ac), 36),
+              h('span', { class: 'grow' }, h('strong', {}, t('account', { n: ac.index + 1 })), h('p', { class: 'small muted mono' }, short(ac.evm ?? ac.solana))),
+              on ? h('span', { class: 'tick' }, glyph('check', 18)) : null,
+            );
+          }),
+        ),
+      ),
+    );
+    const sheet = openSheet(
+      t('chooseAccount'),
+      ...groups,
+      h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), void openOnboardingTab()) } }, glyph('add', 18), t('addWallet')),
+    );
+  }
+
+  /** Les adresses du compte, entières, chacune copiable. */
+  function showAddresses() {
+    const { a } = current();
+    const row = (tag: string, addr?: string) => {
+      if (!addr) return null;
+      const label = h('span', {}, t('copy'));
+      const btn = h(
+        'button',
         {
-          class: 'chip',
+          class: 'chip copy',
           type: 'button',
-          title: t('copy'),
           on: {
-            click: async (e) => {
+            click: async () => {
               await navigator.clipboard.writeText(addr);
-              const b = e.currentTarget as HTMLElement;
-              b.dataset.copied = '1';
-              b.lastChild!.textContent = t('copied');
-              setTimeout(() => {
-                delete b.dataset.copied;
-                b.lastChild!.textContent = short(addr);
-              }, 1400);
+              btn.dataset.copied = '1';
+              label.textContent = t('copied');
+              setTimeout(() => (delete btn.dataset.copied, (label.textContent = t('copy'))), 1400);
             },
           },
         },
-        h('b', {}, tag),
-        h('span', { class: 'mono' }, short(addr)),
+        glyph('copy', 16),
+        label,
       );
-    return h('div', { class: 'chips' }, chip('EVM', a?.evm), chip('SOL', a?.solana));
+      return h('div', { class: 'addr-card card' }, h('p', { class: 'micro' }, tag), h('p', { class: 'addr mono' }, addr), btn);
+    };
+    openSheet(t('myAddresses'), row('EVM · Ethereum, Base, Arbitrum…', a?.evm), row('Solana', a?.solana));
   }
 
   function summary() {
@@ -218,26 +244,36 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return h(
       'section',
       { class: 'summary' },
-      // Le solde, en grand sur le ciel ; inconnu reste « — », jamais un 0 inventé.
-      h('p', { class: 'total', 'data-testid': 'total' }, total == null ? '—' : money(total)),
+      // Le solde, en grand sur le ciel ; inconnu reste « — », jamais un 0 inventé. Premier chargement : un reflet.
+      h('p', { class: `total${total == null && firstLoad ? ' skel' : ''}`, 'data-testid': 'total' }, total == null ? '—' : money(total)),
       pnl != null && p?.pnl24hPct != null
-        ? h('p', { class: 'pill' }, glyph(up ? 'trendUp' : 'trendDown', 14), `${up ? '+' : '−'}${money(Math.abs(pnl))} (${up ? '+' : '−'}${Math.abs(p.pnl24hPct).toFixed(1)} %) · 24 h`)
+        ? h('p', { class: `pill ${up ? 'gain' : 'loss'}` }, glyph(up ? 'trendUp' : 'trendDown', 14), `${up ? '+' : '−'}${money(Math.abs(pnl))} (${up ? '+' : '−'}${Math.abs(p.pnl24hPct).toFixed(1)} %) · 24 h`)
         : null,
       h('p', { class: 'pill quiet status' }, status),
+      addressPill(),
     );
+  }
+
+  /** L'adresse du compte sous le solde : un clic ouvre les adresses entières, à copier. */
+  function addressPill() {
+    const { a } = current();
+    const addr = a?.evm ?? a?.solana;
+    return addr ? h('button', { class: 'pill addr-pill', type: 'button', title: t('myAddresses'), 'aria-label': t('myAddresses'), on: { click: showAddresses } }, h('span', { class: 'mono' }, short(addr)), glyph('copy', 14)) : null;
   }
 
   /** Retour à l'écran principal après Envoyer/Recevoir : relu (un envoi a changé les soldes). */
   const home = () => void load();
 
-  /** Tuiles d'action de l'app, à cheval sur le bord du ciel : Envoyer (geste principal), Recevoir. */
+  /** Gestes : des boutons ronds, le libellé dessous. Envoyer est le geste principal. */
   function actions() {
-    const tile = (cls: string, icon: string, label: string, fn: () => void) => h('button', { class: `tile ${cls}`, type: 'button', 'aria-label': label, on: { click: fn } }, h('span', { class: 'disc' }, glyph(icon, 19)), label);
+    const act = (cls: string, icon: string, label: string, fn: () => void) =>
+      h('button', { class: `act ${cls}`, type: 'button', 'aria-label': label, on: { click: fn } }, h('span', { class: 'disc' }, glyph(icon, 22)), h('span', { class: 'act-label' }, label));
     return h(
-      'div',
-      { class: 'tiles' },
-      tile('send primary', 'send', t('send'), () => ((away = true), sendScreen(app, home))),
-      tile('rx', 'receive', t('receive'), () => ((away = true), void receiveScreen(app, home, { close: opts.mode === 'popup' }))),
+      'nav',
+      { class: 'acts' },
+      act('send primary', 'send', t('send'), () => ((away = true), sendScreen(app, home))),
+      act('rx', 'receive', t('receive'), () => ((away = true), void receiveScreen(app, home, { close: opts.mode === 'popup' }))),
+      act('sites', 'dapps', t('sitesShort'), () => ((away = true), void sitesScreen(app, home))),
     );
   }
 
@@ -252,7 +288,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         h(
           'div',
           { class: 'banner' },
-          h('span', {}, t('backupBanner')),
+          glyph('warning', 18),
+          h('span', { class: 'grow' }, t('backupBanner')),
           h(
             'button',
             {
@@ -267,8 +304,15 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
             t('verifyNow'),
           ),
         ),
-      !!p?.failed.length && h('div', { class: 'banner warn', role: 'status' }, h('span', {}, t(p.main.length || p.small.length || p.hidden.length ? 'networksDown' : 'networksDownNoData', { list: names(p.failed) }))),
-      lastError && h('div', { class: 'banner warn' }, h('span', {}, t('loadFailed')), h('button', { type: 'button', on: { click: () => void refresh() } }, t('retry'))),
+      // Réseaux muets : une ligne, le détail en dépliant (le total reste « — » ou partiel, jamais faux).
+      !!p?.failed.length &&
+        h(
+          'details',
+          { class: 'banner warn', role: 'status' },
+          h('summary', {}, glyph('alert', 16), h('span', { class: 'grow' }, t('networksShort', { n: p.failed.length })), glyph('caretDown', 14)),
+          h('p', {}, t(p.main.length || p.small.length || p.hidden.length ? 'networksDown' : 'networksDownNoData', { list: names(p.failed) })),
+        ),
+      lastError && h('div', { class: 'banner warn' }, glyph('alert', 16), h('span', { class: 'grow' }, t('loadFailed')), h('button', { type: 'button', on: { click: () => void refresh() } }, t('retry'))),
     );
   }
 
@@ -282,17 +326,20 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   function tokenRow(x: HoldingView) {
     return h(
       'div',
-      { class: `row${x.verified ? '' : ' unverified'}` },
+      { class: `row token${x.verified ? '' : ' unverified'}` },
       tokenLogo(x.logo, x.symbol, x.chainLogo),
-      // Comme la ligne de token de l'app : nom et solde à gauche, valeur à droite.
-      h('div', { class: 'grow' }, h('strong', {}, `${x.symbol} · ${x.chainName}`), h('p', { class: 'small' }, `${x.amount} ${x.symbol}`)),
-      h('div', { class: 'right' }, h('strong', {}, x.verified && x.price > 0 ? money(x.fiat) : '—')),
+      // Le token et son réseau à gauche ; la valeur, puis la quantité, à droite.
+      h('div', { class: 'grow' }, h('strong', {}, x.symbol), h('p', { class: 'small muted' }, x.chainName)),
+      h('div', { class: 'right' }, h('strong', {}, x.verified && x.price > 0 ? money(x.fiat) : '—'), h('p', { class: 'small muted' }, `${x.amount} ${x.symbol}`)),
     );
   }
 
+  /** Lignes fantômes pendant le premier chargement : la place est réservée, rien ne saute. */
+  const skeleton = (n: number) => h('div', { class: 'list card', 'aria-hidden': 'true' }, ...Array.from({ length: n }, () => h('div', { class: 'row' }, h('span', { class: 'logo skel' }), h('div', { class: 'grow' }, h('i', { class: 'skel line w40' }), h('i', { class: 'skel line w25' })), h('div', { class: 'right' }, h('i', { class: 'skel line w50' })))));
+
   function tokens() {
     const p = data?.portfolio;
-    if (!p) return h('p', { class: 'empty' }, '');
+    if (!p || (!p.at && refreshing && !p.main.length)) return skeleton(4);
     const list: (Node | false | null)[] = [];
     if (!p.main.length && !p.small.length && p.at && !p.failed.length) list.push(h('p', { class: 'empty' }, t('noTokens')));
     // Une carte par groupe (Card de l'app) : les lignes portent leurs séparateurs.
@@ -320,12 +367,12 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   function activityList() {
-    if (!activity) return h('p', { class: 'empty', 'data-testid': 'activity' }, activityLoading ? t('refreshing') : '');
+    if (!activity) return h('div', { 'data-testid': 'activity' }, activityLoading ? h('span', { class: 'sr' }, t('refreshing')) : null, skeleton(3));
     const groups = groupByDay(activity.rows, Date.now(), LOCALE, { today: t('today'), yesterday: t('yesterday') });
     return h(
       'div',
       { class: 'stack', style: 'gap:12px', 'data-testid': 'activity' },
-      !!activity.failed.length && h('div', { class: 'banner warn' }, h('span', {}, t('networksDownActivity', { list: names(activity.failed) }))),
+      !!activity.failed.length && h('div', { class: 'banner warn' }, glyph('alert', 16), h('span', { class: 'grow' }, t('networksDownActivity', { list: names(activity.failed) }))),
       activityLoading && h('p', { class: 'small muted' }, t('refreshing')),
       !activity.rows.length && !activityLoading && !activity.failed.length && h('p', { class: 'empty' }, t('noActivity')),
       // Un jour = une carte, comme l'activité de l'app.
@@ -334,6 +381,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     );
   }
 
+  /** Onglets : la pilule glisse de l'ancien onglet vers le nouveau. */
+  let shownTab: 'tokens' | 'activity' = tab;
   function tabs() {
     const b = (id: typeof tab, label: string) =>
       h(
@@ -345,6 +394,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           'aria-selected': String(tab === id),
           on: {
             click: () => {
+              if (tab === id) return;
               tab = id;
               render();
               if (id === 'activity') void loadActivity(false);
@@ -353,56 +403,68 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         },
         label,
       );
-    return h('div', { class: 'tabs', role: 'tablist' }, b('tokens', t('tabTokens')), b('activity', t('tabActivity')));
+    const el = h('div', { class: 'tabs', role: 'tablist', 'data-on': shownTab }, b('tokens', t('tabTokens')), b('activity', t('tabActivity')));
+    if (shownTab !== tab) requestAnimationFrame(() => (el.dataset.on = tab));
+    shownTab = tab;
+    return el;
   }
 
+  let entered = false;
   function render() {
     if (!data) return;
     away = false;
-    const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), ...header(), summary(), addresses());
-    const sheet = h('section', { class: 'sheet' }, actions(), banners(), tabs(), tab === 'tokens' ? tokens() : activityList());
-    app.replaceChildren(h('div', { class: opts.mode === 'popup' ? 'home compact' : 'home' }, hero, sheet));
-    fitAccount();
-    void document.fonts?.ready.then(fitAccount); // la police chargée change la largeur
+    const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), header(), summary(), actions());
+    const sheet = h('section', { class: 'sheet' }, banners(), tabs(), h('div', { class: 'pane' }, tab === 'tokens' ? tokens() : activityList()));
+    const root = h('div', { class: `home${opts.mode === 'popup' ? ' compact' : ''}${entered ? '' : ' enter'}` }, hero, sheet);
+    entered = true;
+    app.replaceChildren(root);
   }
 
   /* ── Réglages ── */
   function settings() {
     away = true;
-    const fiat = h('select', { on: { change: async () => (await send({ type: 'home:set-fiat', fiat: fiat.value }), await load()) } }, ...FIATS.map((f) => h('option', { value: f, selected: f === data?.fiat }, f.toUpperCase())));
+    const fiat = h('select', { class: 'inline', 'aria-label': t('currency'), on: { change: async () => (await send({ type: 'home:set-fiat', fiat: fiat.value }), await load()) } }, ...FIATS.map((f) => h('option', { value: f, selected: f === data?.fiat }, f.toUpperCase())));
     const lock = h(
       'select',
-      { on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(lock.value) }) } },
+      { class: 'inline', 'aria-label': t('autoLock'), on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(lock.value) }) } },
       ...AUTO_LOCK_CHOICES.map((m) => h('option', { value: String(m), selected: m === data?.status.autoLockMin }, t('minutes', { n: m }))),
     );
-    // Redemander le mot de passe pour signer (désactivé par défaut) : état lu puis bouton bascule.
-    const askPw = h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'ask-password' }, t('askPwTitle'));
+    // Redemander le mot de passe pour signer (désactivé par défaut) : un interrupteur.
+    const askPw = h('button', { class: 'row link-row', type: 'button', role: 'switch', 'aria-checked': 'false', 'data-testid': 'ask-password' }, h('span', { class: 'set-ico' }, glyph('security', 18)), h('span', { class: 'grow' }, h('strong', {}, t('askPwTitle')), h('p', { class: 'small muted' }, t('askPwBody'))), h('span', { class: 'switch', 'aria-hidden': 'true' }));
     void send<{ on: boolean }>({ type: 'settings:get-ask-password' }).then((r) => {
       const on = !!(r.ok && r.on);
-      askPw.textContent = `${t('askPwTitle')} : ${on ? t('on') : t('off')}`;
+      askPw.setAttribute('aria-checked', String(on));
       askPw.onclick = async () => {
+        askPw.setAttribute('aria-checked', String(!on));
         await send({ type: 'settings:set-ask-password', on: !on });
         settings();
       };
     });
+    const item = (icon: string, label: string, end: Node | null, fn?: () => void, testid?: string) =>
+      h(
+        fn ? 'button' : 'div',
+        fn ? { class: 'row link-row', type: 'button', 'data-testid': testid ?? false, on: { click: fn } } : { class: 'row' },
+        h('span', { class: 'set-ico' }, glyph(icon, 18)),
+        h('span', { class: 'grow' }, h('strong', {}, label)),
+        end ?? glyph('chevron', 16),
+      );
+    const group = (title: string, ...rows: Node[]) => h('section', { class: 'group' }, h('p', { class: 'group-title' }, title), h('div', { class: 'list card' }, ...rows));
     app.replaceChildren(
-      h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
       h(
         'div',
-        { class: 'stack' },
+        { class: 'screen settings enter' },
+        h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        h('label', { class: 'small muted' }, t('currency')),
-        fiat,
-        h('label', { class: 'small muted' }, t('autoLock')),
-        lock,
-        askPw,
-        h('p', { class: 'small muted' }, t('askPwBody')),
-        h('button', { class: 'btn secondary', type: 'button', on: { click: () => void sitesScreen(app, () => settings()) } }, t('sitesTitle')),
-        h('button', { class: 'btn secondary', type: 'button', on: { click: () => whitelistScreen(app, () => settings()) } }, t('wlTitle')),
-        h('button', { class: 'btn secondary', type: 'button', on: { click: () => void openOnboardingTab() } }, t('addWallet')),
-        h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'report', on: { click: () => void reportIssue() } }, t('reportIssue')),
-        h('p', { class: 'small muted' }, t('reportNote')),
-        h('p', { class: 'small muted' }, `${t('version', { v: VERSION })} · ${t('beta')}`),
+        group(t('setGeneral'), item('currency', t('currency'), fiat), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab())),
+        group(
+          t('setSecurity'),
+          askPw,
+          item('dapps', t('sitesTitle'), null, () => void sitesScreen(app, () => settings())),
+          item('check', t('wlTitle'), null, () => whitelistScreen(app, () => settings())),
+        ),
+        group(t('setHelp'), item('support', t('reportIssue'), null, () => void reportIssue(), 'report')),
+        h('p', { class: 'small muted note' }, t('reportNote')),
+        h('p', { class: 'small muted note' }, `${t('version', { v: VERSION })} · ${t('beta')}`),
       ),
     );
   }

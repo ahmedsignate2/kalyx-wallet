@@ -107,4 +107,5 @@ export default {
   reportNote: 'Otwiera aplikację poczty. Nigdy nie wysyłaj frazy odzyskiwania ani klucza prywatnego, nawet do wsparcia Kalyx.',
   reportMailSubject: 'Opinia o becie — rozszerzenie Kalyx {v}',
   reportMailBody: 'Co się stało? Czego się spodziewałeś?',
+  chooseAccount: 'Wybierz konto', myAddresses: 'Moje adresy', setGeneral: 'Ogólne', setSecurity: 'Bezpieczeństwo', setHelp: 'Pomoc', sitesShort: 'Strony', networksShort: 'Sieci bez odpowiedzi: {n}',
 };
