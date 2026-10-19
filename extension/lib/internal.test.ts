@@ -1,22 +1,21 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { isOwnExtensionPage } from './internal.ts';
+import { test, expect } from 'vitest';
+import { isOwnExtensionPage } from './internal';
 
 const ID = 'abcdefghijklmnopabcdefghijklmnop';
 
 test('page de l’extension : acceptée', () => {
-  assert.equal(isOwnExtensionPage({ id: ID, url: `chrome-extension://${ID}/popup.html` }, ID), true);
+  expect(isOwnExtensionPage({ id: ID, url: `chrome-extension://${ID}/popup.html` }, ID)).toBe(true);
 });
 
 test('script de contenu (même id, URL d’un site) : refusé', () => {
-  assert.equal(isOwnExtensionPage({ id: ID, url: 'https://evil.example/', tab: {} }, ID), false);
+  expect(isOwnExtensionPage({ id: ID, url: 'https://evil.example/', tab: {} }, ID)).toBe(false);
 });
 
 test('autre extension : refusée, même si son URL imite la nôtre', () => {
-  assert.equal(isOwnExtensionPage({ id: 'zzzz', url: `chrome-extension://${ID}/popup.html` }, ID), false);
-  assert.equal(isOwnExtensionPage({ id: ID, url: `chrome-extension://${ID}.evil/x` }, ID), false);
+  expect(isOwnExtensionPage({ id: 'zzzz', url: `chrome-extension://${ID}/popup.html` }, ID)).toBe(false);
+  expect(isOwnExtensionPage({ id: ID, url: `chrome-extension://${ID}.evil/x` }, ID)).toBe(false);
 });
 
 test('expéditeur sans URL : refusé', () => {
-  assert.equal(isOwnExtensionPage({ id: ID }, ID), false);
+  expect(isOwnExtensionPage({ id: ID }, ID)).toBe(false);
 });

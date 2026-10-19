@@ -8,7 +8,7 @@ l'interface et les adaptateurs de plateforme sont propres à l'extension.
 cd extension
 npm install          # dépendances de l'extension uniquement (pas celles de l'app)
 npm run build        # → .output/chrome-mv3
-npm test             # tests unitaires (node:test)
+npm test             # tests unitaires (Vitest, faux navigateur)
 npm run test:smoke   # charge l'extension dans Chromium et vérifie le cœur
 npm run icons        # régénère les icônes depuis ../assets/icon.png
 ```
