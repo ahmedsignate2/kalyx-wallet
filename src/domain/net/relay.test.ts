@@ -111,3 +111,47 @@ describe('relais Kalyx : API REST avec repli', () => {
     expect(direct).not.toHaveBeenCalled();
   });
 });
+
+describe('relais Kalyx : relais trop lent', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+  const load = () => {
+    let mod!: typeof import('./relay');
+    process.env.EXPO_PUBLIC_KALYX_RELAY_URL = 'https://relay.example';
+    jest.isolateModules(() => {
+      mod = require('./relay');
+    });
+    delete process.env.EXPO_PUBLIC_KALYX_RELAY_URL;
+    return mod;
+  };
+  // fetch qui ne répond jamais, sauf annulation.
+  const hanging = jest.fn(
+    (_u: string, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))),
+  );
+
+  it('au-delà du délai : appel direct, sans attendre le relais', async () => {
+    const m = load();
+    global.fetch = hanging as never;
+    const direct = jest.fn(async () => ({ status: 200, ok: true, headers: { get: () => null } }) as unknown as Response);
+    const t0 = Date.now();
+    const res = await m.relayOrDirect('coingecko', '/cg/api/v3/search/trending', direct, undefined, 50);
+    expect(res?.status).toBe(200);
+    expect(Date.now() - t0).toBeLessThan(2_000);
+    expect(m.relayPaused('coingecko')).toBe(true);
+  });
+
+  it("annulé par l'appelant : pas de pause, pas de repli", async () => {
+    const m = load();
+    global.fetch = hanging as never;
+    const ctrl = new AbortController();
+    const direct = jest.fn();
+    const p = m.relayOrDirect('heliusapi', '/helius/v0/addresses/x/names', direct as never, { signal: ctrl.signal }, 10_000);
+    ctrl.abort();
+    await expect(p).rejects.toThrow();
+    expect(direct).not.toHaveBeenCalled();
+    expect(m.relayPaused('heliusapi')).toBe(false);
+  });
+});

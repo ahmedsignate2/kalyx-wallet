@@ -12,7 +12,7 @@
  */
 import { withTimeout } from '../chains/net';
 import { SwapError } from './swapError';
-import { RELAY_URL, relayOrDirect } from '../net/relay';
+import { RELAY_QUOTE_TIMEOUT_MS, RELAY_URL, relayOrDirect } from '../net/relay';
 import type { SwapQuote, SwapTxRequest } from './lifi';
 
 export interface RelayQuoteParams {
@@ -86,7 +86,7 @@ export async function getRelayQuote(params: RelayQuoteParams): Promise<SwapQuote
             body: JSON.stringify(body),
           })
         : // Sans clé, Relay.link refuse les devis : relais seulement ; saturé → LI.FI prend le relais.
-          relayOrDirect('relaylink', '/relaylink/quote', null, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+          relayOrDirect('relaylink', '/relaylink/quote', null, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, RELAY_QUOTE_TIMEOUT_MS),
       TIMEOUT,
       () => new Error('timeout'),
     );

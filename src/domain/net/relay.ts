@@ -19,6 +19,10 @@ export type RelayService = 'alchemy' | 'helius' | 'coingecko' | 'lifi' | 'relayl
 
 const pausedUntil = new Map<RelayService, number>();
 const DEFAULT_PAUSE_S = 300;
+/** Délai laissé au relais avant de passer à l'appel direct (lectures). */
+export const RELAY_TIMEOUT_MS = 5_000;
+/** Devis de swap : le fournisseur lui-même peut prendre plusieurs secondes. */
+export const RELAY_QUOTE_TIMEOUT_MS = 15_000;
 const MAX_PAUSE_S = 3_600;
 
 export function relayPaused(service: RelayService, now = Date.now()): boolean {
@@ -74,6 +78,7 @@ export function noteRelayUnreachable(url: string): void {
  *  - pas de relais configuré, ou relais en pause pour ce service → `direct` ;
  *  - relais injoignable, saturé (503) ou débit dépassé (429) → pause, puis
  *    `direct` tout de suite : l'utilisateur n'attend pas la prochaine fois.
+ *  - relais trop lent (`timeoutMs`) → même chose : on n'attend pas pour rien.
  * Rend `null` quand aucune voie n'est possible.
  */
 export async function relayOrDirect(
@@ -81,13 +86,24 @@ export async function relayOrDirect(
   relayPath: string,
   direct: (() => Promise<Response>) | null,
   init?: RequestInit,
+  timeoutMs = RELAY_TIMEOUT_MS,
 ): Promise<Response | null> {
   if (RELAY_URL && !relayPaused(service)) {
     let res: Response | null = null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const outer = init?.signal;
+    const onAbort = () => ctrl.abort();
+    outer?.addEventListener?.('abort', onAbort);
     try {
-      res = await fetch(`${RELAY_URL}${relayPath}`, init);
-    } catch {
+      res = await fetch(`${RELAY_URL}${relayPath}`, { ...init, signal: ctrl.signal });
+    } catch (e) {
+      // Annulé par l'appelant : ni pause ni repli, l'appel n'est plus voulu.
+      if (outer?.aborted) throw e;
       pauseRelay(service, 60);
+    } finally {
+      clearTimeout(timer);
+      outer?.removeEventListener?.('abort', onAbort);
     }
     if (res) {
       const p = pauseFromResponse(res.status, res.headers.get('retry-after'));
