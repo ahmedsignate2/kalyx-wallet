@@ -59,4 +59,4 @@ disconnect a site at any time (Settings → Connected sites).
 
 ## Contact
 
-For any question: [CONTACT]
+For any question: support@kalyxwallet.com (or Telegram @kalyxntw)

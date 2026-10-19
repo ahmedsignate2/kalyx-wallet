@@ -270,7 +270,7 @@ const ko: Dict = {
     notice: '아래 문서는 프랑스어로 작성되었으며, 프랑스어 버전만 법적 효력을 가집니다.',
     privacyTitle: '개인정보 처리방침',
     privacyIntro: 'Kalyx에서 개인정보 보호는 선택이 아니라 아키텍처의 기반입니다. 우리는 데이터를 수집하지 않음으로써 당신의 데이터를 보호합니다.',
-    privacyMeta: ['업데이트: 2026년 10월 3일', 'Kalyx', '프랑스 법 및 GDPR'],
+    privacyMeta: ['업데이트: 2026년 10월 19일', 'Kalyx', '프랑스 법 및 GDPR'],
     privacyContact: '데이터에 관한 질문이 있으신가요?',
     termsTitle: '이용약관',
     termsIntro: 'Kalyx Wallet을 사용하기 전에 이 약관을 주의 깊게 읽어주세요. 책임 있는 사용의 틀과 논커스터디얼 모델의 특성을 정의합니다.',

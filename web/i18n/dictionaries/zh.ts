@@ -269,7 +269,7 @@ const zh: Dict = {
     notice: '以下文本以法语撰写；仅法语版本具有法律效力。',
     privacyTitle: '隐私政策',
     privacyIntro: '在 Kalyx，隐私不是一个选项，而是架构的基石。我们保护你数据的方式，就是拒绝收集它。',
-    privacyMeta: ['更新：2026 年 10 月 3 日', 'Kalyx', '法国法律与 GDPR'],
+    privacyMeta: ['更新：2026 年 10 月 19 日', 'Kalyx', '法国法律与 GDPR'],
     privacyContact: '对你的数据有疑问？',
     termsTitle: '通用使用条款',
     termsIntro: '使用 Kalyx Wallet 前请仔细阅读这些条款。它们界定了负责任使用的框架以及非托管模式的特性。',
