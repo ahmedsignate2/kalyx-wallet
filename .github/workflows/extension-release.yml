@@ -41,15 +41,18 @@ jobs:
           npm run hash | tee ../BUILD-HASH.txt
           npm run zip
           cd .output && sha256sum *.zip > ../../SHA256SUMS.txt && cat ../../SHA256SUMS.txt
+          # upload-artifact ignore les dossiers cachés (.output) : le paquet est copié à la racine.
+          cp *.zip ../../
       - uses: actions/upload-artifact@v4
         with:
           name: kalyx-extension
+          if-no-files-found: error
           path: |
-            extension/.output/*.zip
+            kalyx-extension-*.zip
             SHA256SUMS.txt
             BUILD-HASH.txt
       - name: Release GitHub (tag seulement)
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" extension/.output/*.zip SHA256SUMS.txt BUILD-HASH.txt --prerelease --title "Extension Kalyx ${GITHUB_REF_NAME#extension-v} (bêta)" --notes-file extension/store/RELEASE-NOTES.md
+        run: gh release create "${GITHUB_REF_NAME}" kalyx-extension-*.zip SHA256SUMS.txt BUILD-HASH.txt --prerelease --title "Extension Kalyx ${GITHUB_REF_NAME#extension-v} (bêta)" --notes-file extension/store/RELEASE-NOTES.md
