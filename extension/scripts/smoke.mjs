@@ -156,7 +156,7 @@ async function onboarding() {
     await popup.goto(`chrome-extension://${id}/popup.html`);
     await popup.getByText('Commencer').waitFor();
     console.log('✓ popup sans coffre : « Commencer »');
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-start-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `popup-start-${scheme}.png`) });
 
     await page.goto(`chrome-extension://${id}/onboarding.html`);
     await page.getByText('Bienvenue dans Kalyx').waitFor();
@@ -224,9 +224,14 @@ async function onboarding() {
 
     // ── Portefeuille (lot 3) ──
     await popup.reload();
-    await popup.locator('select.account').waitFor();
-    const options = await popup.locator('select.account option').count();
+    await popup.locator('[data-testid=account]').waitFor();
+    await popup.locator('[data-testid=account]').click();
+    await popup.waitForTimeout(350);
+    if (SHOTS) await popup.screenshot({ path: join(SHOTS, 'popup-accounts-light.png') });
+    const options = await popup.locator('.modal .acct-row').count();
     options >= 2 ? console.log(`✓ popup : sélecteur de comptes (${options})`) : fail(`popup : ${options} compte(s)`);
+    await popup.keyboard.press('Escape');
+    await popup.waitForFunction(() => !document.querySelector('.veil'));
     // Première lecture réseau terminée (ou réseaux muets) : plus de « Actualisation… ».
     await popup.waitForFunction(() => !document.querySelector('.status')?.textContent?.includes('…'), null, { timeout: 120_000 });
     const total = (await popup.locator('[data-testid=total]').textContent()).trim();
@@ -250,25 +255,28 @@ async function onboarding() {
     median < 200 ? console.log(`✓ popup affiché en ${median} ms (médiane de 5, min ${best} ms)`) : fail(`popup trop lent : ${times.join(', ')} ms`);
 
     await popup.reload();
-    await popup.locator('select.account').waitFor();
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-wallet-${scheme}.png`) });
+    await popup.locator('[data-testid=account]').waitFor();
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `popup-wallet-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
     await popup.getByRole('tab', { name: 'Activité' }).click();
     await popup.waitForFunction(() => !document.querySelector('[data-testid=activity]')?.textContent?.includes('Actualisation'), null, { timeout: 120_000 });
     const act = await popup.locator('[data-testid=activity]').textContent();
     console.log(`✓ onglet Activité : ${(await popup.locator('[data-testid=activity] .row').count())} ligne(s)${act.includes('Sans réponse') ? ' · réseaux muets nommés' : ''}`);
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-activity-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `popup-activity-${scheme}.png`) });
 
     // Changer de compte : l'écran suit.
-    const first = await popup.locator('select.account').inputValue();
-    const other = await popup.locator('select.account option').evaluateAll((os, cur) => os.map((o) => o.value).find((v) => v !== cur), first);
-    await popup.locator('select.account').selectOption(other);
-    await popup.waitForFunction((v) => document.querySelector('select.account')?.value === v, other);
+    const first = await popup.locator('[data-testid=account]').textContent();
+    await popup.locator('[data-testid=account]').click();
+    await popup.locator('.modal .acct-row:not(.on)').first().click();
+    await popup.waitForFunction((v) => { const n = document.querySelector('[data-testid=account]')?.textContent; return n && n !== v; }, first);
     console.log('✓ changement de compte');
 
     // Bêta (lot 8) : badge, version et « Signaler un problème » (e-mail sans donnée du portefeuille).
     (await popup.locator('header .beta').textContent()) === 'Bêta' ? console.log('✓ badge Bêta') : fail('badge Bêta absent');
     await popup.getByRole('button', { name: 'Réglages' }).click();
+    await popup.waitForTimeout(350);
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `settings-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
     const ver = await popup.getByText('Version 0.9.0 beta').count();
     ver === 1 ? console.log('✓ version 0.9.0 beta affichée') : fail('version absente des réglages');
     // Le mailto part vers l'application d'e-mail (pas d'onglet sans écran) : on lit l'adresse demandée.
@@ -284,7 +292,7 @@ async function onboarding() {
       : fail(`signaler : « ${mailUrl.slice(0, 120)} »`);
     await popup.locator('header .link').click();
     await popup.getByRole('button', { name: 'Réglages' }).click();
-    await popup.locator('select').first().selectOption('usd');
+    await popup.locator('select[aria-label="Devise"]').selectOption('usd');
     await popup.waitForFunction(() => document.querySelector('[data-testid=total]'), null, { timeout: 30_000 });
     const totalUsd = await popup.locator('[data-testid=total]').textContent();
     totalUsd === '—' || totalUsd.includes('$') ? console.log(`✓ devise USD (« ${totalUsd} »)`) : fail(`devise : « ${totalUsd} »`);
@@ -293,14 +301,14 @@ async function onboarding() {
     const panel = await ctx.newPage();
     await panel.setViewportSize({ width: 420, height: 820 });
     await panel.goto(`chrome-extension://${id}/sidepanel.html`);
-    await panel.locator('select.account').waitFor();
+    await panel.locator('[data-testid=account]').waitFor();
     console.log('✓ panneau latéral affiché');
-    if (SHOTS) for (const scheme of ['light', 'dark']) await panel.emulateMedia({ colorScheme: scheme }), await panel.screenshot({ path: join(SHOTS, `sidepanel-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await panel.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await panel.screenshot({ path: join(SHOTS, `sidepanel-${scheme}.png`) });
 
     // ── Envoyer et recevoir (lot 4) ──
     const bg = (m) => popup.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await popup.reload();
-    await popup.locator('select.account').waitFor();
+    await popup.locator('[data-testid=account]').waitFor();
     // Portefeuille à phrase NON vérifiée : l'écran intermédiaire passe au premier « Recevoir ».
     const fresh = await bg({ type: 'wallet:create' });
     await bg({ type: 'home:select', walletId: fresh.id, index: 0 });
@@ -308,14 +316,14 @@ async function onboarding() {
     await popup.getByRole('button', { name: /Recevoir/ }).click();
     await popup.getByText('Ta phrase n’est pas vérifiée').waitFor();
     console.log('✓ premier « Recevoir » sans phrase vérifiée : écran intermédiaire');
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `receive-warn-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `receive-warn-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
     await popup.getByRole('button', { name: 'Continuer quand même' }).click();
     await popup.locator('.qr svg').waitFor();
     const shownAddr = (await popup.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '');
     const freshMeta = (await bg({ type: 'wallet:list' })).wallets.find((w) => w.id === fresh.id);
     shownAddr === freshMeta.accounts[0].evm ? console.log('✓ Recevoir : QR + adresse EVM du compte affiché') : fail(`adresse reçue ${shownAddr}`);
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `receive-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `receive-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
     await popup.getByRole('tab', { name: 'Solana' }).click();
     ((await popup.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '') === freshMeta.accounts[0].solana) ? console.log('✓ Recevoir : onglet Solana') : fail('adresse Solana');
@@ -361,7 +369,7 @@ async function onboarding() {
     await popup.waitForFunction(() => !document.querySelector('.error')?.textContent?.startsWith('Adresse'), null, { timeout: 60_000 });
     await popup.waitForFunction(() => document.querySelector('.error')?.textContent, null, { timeout: 60_000 });
     console.log(`✓ Envoyer sans réseau : « ${await popup.locator('.error').textContent()} »`);
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `send-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `send-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
 
     // Liste blanche : activée, un inconnu est bloqué AVANT tout réseau.
@@ -371,7 +379,7 @@ async function onboarding() {
     await popup.getByRole('button', { name: 'Activer' }).click();
     await popup.waitForFunction(() => document.querySelector('[data-testid=wl-state]')?.textContent === 'Activée');
     console.log('✓ liste blanche activée');
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `whitelist-${scheme}.png`) });
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `whitelist-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
     const blocked = await bg({ type: 'send:prepare', assetKey: 'ethereum:native', to: '0x1111111111111111111111111111111111111111', amount: '0.01' });
     blocked.error === 'NOT_WHITELISTED' ? console.log('✓ liste blanche : destinataire inconnu bloqué') : fail(`liste blanche : ${JSON.stringify(blocked)}`);
@@ -380,7 +388,7 @@ async function onboarding() {
 
     // Verrouillé : plus rien d'affiché.
     await popup.reload();
-    await popup.locator('select.account').waitFor();
+    await popup.locator('[data-testid=account]').waitFor();
     await popup.getByRole('button', { name: 'Verrouiller' }).click();
     await popup.locator('input[type=password]').waitFor();
     (await popup.locator('[data-testid=total]').count()) === 0 ? console.log('✓ verrouillé : soldes masqués') : fail('soldes visibles verrouillé');
@@ -458,6 +466,9 @@ async function dapps() {
       window.kx.pendingConnect = window.kx.call('eth_requestAccounts');
     });
     const win = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 10_000 });
+    await win.locator('input[type=password]').waitFor();
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await win.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 400)), await win.screenshot({ path: join(process.env.SHOTS, `locked-${scheme}.png`) });
+    await win.emulateMedia({ colorScheme: 'light' });
     await win.locator('input[type=password]').fill(PW);
     await win.getByRole('button', { name: 'Déverrouiller' }).click();
     await win.locator('[data-testid=site-host]').waitFor();

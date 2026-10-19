@@ -4,14 +4,23 @@
  */
 import { h, send } from './dom';
 import { errorText, t } from './i18n';
+import { landscape } from './landscape';
 
 export async function openOnboarding(close: boolean) {
   await browser.tabs.create({ url: browser.runtime.getURL('/onboarding.html') });
   if (close) window.close();
 }
 
+/** Le ciel de l'accueil, le logo qui luit dessus ; la feuille porte le texte et le geste. */
 function center(app: HTMLElement, ...children: (Node | false)[]) {
-  app.replaceChildren(h('div', { class: 'center' }, h('img', { src: '/icon/128.png', alt: '' }), h('h1', {}, 'Kalyx Wallet'), ...children));
+  app.replaceChildren(
+    h(
+      'div',
+      { class: 'home access enter' },
+      h('section', { class: 'hero on-sky access-hero' }, landscape({ veil: true, glow: 0.4 }), h('span', { class: 'access-logo' }, h('img', { src: '/icon/128.png', alt: '' })), h('h1', {}, 'Kalyx Wallet')),
+      h('section', { class: 'sheet access-sheet' }, ...children.filter((c): c is Node => !!c)),
+    ),
+  );
 }
 
 /** Aucun coffre (« Commencer »), ou coffre sans portefeuille : onboarding interrompu (« Ajouter un portefeuille »). */

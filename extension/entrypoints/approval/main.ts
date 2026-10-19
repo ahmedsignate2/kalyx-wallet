@@ -13,6 +13,9 @@ import { h, nodes, send } from '../../ui/dom';
 import { applyLang, errorText, hasErrorText, t } from '../../ui/i18n';
 import { lockedScreen } from '../../ui/screens';
 import { groupAddress } from '../../../src/domain/validation/poisoning';
+import { glyph } from '../../ui/glyph';
+import { avatar } from '../../ui/avatar';
+import { openSheet } from '../../ui/sheet';
 
 interface Req {
   id: string;
@@ -55,8 +58,25 @@ async function load() {
 
 const HOLD_MS = 2000;
 
+/**
+ * Le site en tête : son monogramme relié à Kalyx, son domaine en grand, son
+ * origine exacte avec le cadenas (ou l'alerte s'il n'est pas en https).
+ */
+function siteHero(origin: string, testid = true) {
+  const url = new URL(origin);
+  const secure = url.protocol === 'https:';
+  const name = url.hostname.replace(/^www\./, '');
+  const mark = h('span', { class: 'site-mark', 'aria-hidden': 'true' }, avatar(name, 52), h('b', {}, name.slice(0, 1).toUpperCase()));
+  return h(
+    'section',
+    { class: 'site-hero' },
+    h('div', { class: 'link-visual', 'aria-hidden': 'true' }, mark, h('span', { class: 'link-dots' }, h('i'), h('i'), h('i')), h('img', { class: 'kalyx-mark', src: '/icon/128.png', alt: '' })),
+    h('p', { class: 'site', 'data-testid': testid ? 'site-host' : false }, url.host),
+    h('p', { class: `origin ${secure ? 'secure' : 'insecure'}` }, glyph(secure ? 'lock' : 'warning', 12), h('span', { class: 'mono' }, origin)),
+  );
+}
+
 async function signScreen(req: Req) {
-  const url = new URL(req.origin);
   app.replaceChildren(h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')), h('p', { class: 'muted', role: 'status' }, t('apAnalyzing')));
   const r = await send<{ review: Review; askPassword: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
   if (!r?.ok) return r?.error === 'REQUEST_EXPIRED' ? gone() : void app.append(h('p', { class: 'error' }, errorText(r?.error)));
@@ -117,8 +137,8 @@ async function signScreen(req: Req) {
   const refuseBtn = h('button', { class: 'btn secondary', type: 'button', on: { click: () => void refuse() } }, t('apRefuse'));
   app.replaceChildren(
     ...nodes(
-      h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx'), h('span', { class: 'small muted', style: 'margin-left:auto' }, url.host)),
-      h('p', { class: 'small muted' }, ex.title + (rv.chainName ? ` · ${t('apNetwork', { n: rv.chainName })}` : '')),
+      siteHero(req.origin, false),
+      h('div', { class: 'kicker' }, h('span', { class: `risk-pill ${ex.risk}` }, glyph(ex.risk === 'none' ? 'check' : 'warning', 12), ex.risk === 'none' ? ex.title : t(`apRisk_${ex.risk}` as 'apRisk_danger')), rv.chainName && h('span', { class: 'small muted' }, rv.chainName)),
       h('h1', { 'data-testid': 'headline' }, ex.headline),
       ex.detail && h('p', { class: 'muted' }, ex.detail),
       ex.risk !== 'none' &&
@@ -139,7 +159,7 @@ async function signScreen(req: Req) {
       ex.holdToSign && h('p', { class: 'small muted' }, t('apHoldHint')),
       err,
       // Danger : Refuser en premier (et focalisé), signer à droite.
-      h('div', { class: 'actions' }, refuseBtn, ok),
+      h('div', { class: 'dock' }, h('div', { class: 'actions' }, refuseBtn, ok)),
     ),
   );
   if (ex.risk === 'danger') refuseBtn.focus();
@@ -153,11 +173,35 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
       .filter((a) => (req.family === 'evm' ? a.evm : a.solana))
       .map((a) => ({ value: `${w.id}|${a.index}`, label: `${w.label} · ${t('account', { n: a.index + 1 })}`, address: (req.family === 'evm' ? a.evm : a.solana)! })),
   );
-  const sel = h('select', {}, ...options.map((o) => h('option', { value: o.value, selected: o.value === `${selected?.walletId}|${selected?.index}` }, o.label)));
-  const addr = h('p', { class: 'mono small muted' });
-  const showAddr = () => (addr.textContent = groupAddress(options.find((o) => o.value === sel.value)?.address ?? ''));
-  sel.addEventListener('change', showAddr);
-  showAddr();
+  // Le compte proposé : celui de l'accueil, sinon le premier ; une feuille pour en choisir un autre.
+  let chosen = options.find((o) => o.value === `${selected?.walletId}|${selected?.index}`) ?? options[0];
+  const acctCard = h('button', { class: 'card acct-card', type: 'button', 'aria-haspopup': 'dialog', 'data-testid': 'connect-account', on: { click: () => pick() } });
+  const paint = () =>
+    acctCard.replaceChildren(
+      ...(chosen
+        ? [avatar(chosen.address, 40), h('span', { class: 'grow' }, h('strong', {}, chosen.label), h('p', { class: 'mono small muted' }, groupAddress(chosen.address))), options.length > 1 ? glyph('caretDown', 16) : '']
+        : [h('span', { class: 'muted' }, '—')]),
+    );
+  const pick = () => {
+    if (options.length < 2) return;
+    const sheet = openSheet(
+      t('apAccount'),
+      h(
+        'div',
+        { class: 'list card' },
+        ...options.map((o) =>
+          h(
+            'button',
+            { class: `row link-row acct-row${o === chosen ? ' on' : ''}`, type: 'button', on: { click: () => ((chosen = o), paint(), sheet.close()) } },
+            avatar(o.address, 36),
+            h('span', { class: 'grow' }, h('strong', {}, o.label), h('p', { class: 'small muted mono' }, `${o.address.slice(0, 6)}…${o.address.slice(-4)}`)),
+            o === chosen ? h('span', { class: 'tick' }, glyph('check', 18)) : null,
+          ),
+        ),
+      ),
+    );
+  };
+  paint();
   const err = h('p', { class: 'error', role: 'alert' });
   const ok = h('button', { class: 'btn arming', type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, t('apConnect'));
   setTimeout(() => ((ok.disabled = !options.length), ok.classList.remove('arming')), ARM_MS);
@@ -167,7 +211,8 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
   };
   ok.addEventListener('click', async () => {
     ok.disabled = true;
-    const [walletId, index] = sel.value.split('|');
+    if (!chosen) return;
+    const [walletId, index] = chosen.value.split('|');
     const r = await send({ type: 'approval:respond', id, approve: true, walletId, index: Number(index) }).catch(() => null);
     if (r?.ok) return window.close();
     if (r?.error === 'REQUEST_EXPIRED') return gone();
@@ -178,18 +223,15 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
 
   app.replaceChildren(
     ...nodes(
-      h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')),
-      h('h1', {}, t('apTitle')),
-      h('div', { class: 'card stack', style: 'gap:6px' }, h('p', { class: 'site', 'data-testid': 'site-host' }, url.host), h('p', { class: 'mono small muted' }, req.origin)),
+      siteHero(req.origin),
+      h('p', { class: 'kicker center-text' }, t('apTitle')),
       url.hostname.split('.').some((p) => p.startsWith('xn--')) && h('div', { class: 'banner danger' }, h('span', {}, t('apIdn'))),
       url.protocol === 'http:' && h('div', { class: 'banner warn' }, h('span', {}, t('apLocal'))),
-      h('p', { class: 'small muted' }, req.family === 'evm' ? t('apFamilyEvm') : t('apFamilySol')),
-      h('label', { class: 'small muted' }, t('apAccount')),
-      sel,
-      addr,
-      h('p', { class: 'small muted' }, t('apBody')),
+      h('p', { class: 'group-title' }, `${t('apAccount')} · ${req.family === 'evm' ? t('apFamilyEvm') : t('apFamilySol')}`),
+      acctCard,
+      h('div', { class: 'perm' }, glyph('eye', 18), h('p', { class: 'small' }, t('apBody'))),
       err,
-      h('div', { class: 'actions' }, h('button', { class: 'btn secondary', type: 'button', on: { click: () => void refuse() } }, t('apRefuse')), ok),
+      h('div', { class: 'dock' }, h('div', { class: 'actions' }, h('button', { class: 'btn secondary', type: 'button', on: { click: () => void refuse() } }, t('apRefuse')), ok)),
     ),
   );
 }

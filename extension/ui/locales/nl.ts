@@ -107,4 +107,5 @@ export default {
   reportNote: 'Opent je e-mailapp. Stuur nooit je herstelzin of privésleutel, ook niet naar de support van Kalyx.',
   reportMailSubject: 'Bèta-feedback — Kalyx-extensie {v}',
   reportMailBody: 'Wat gebeurde er? Wat verwachtte je?',
+  chooseAccount: 'Kies een account', myAddresses: 'Mijn adressen', setGeneral: 'Algemeen', setSecurity: 'Beveiliging', setHelp: 'Hulp', sitesShort: 'Sites', networksShort: '{n} netwerken reageren niet',
 };

@@ -107,4 +107,5 @@ export default {
   reportNote: 'E-posta uygulamanı açar. Kurtarma ifadeni veya özel anahtarını asla gönderme, Kalyx desteğine bile.',
   reportMailSubject: 'Beta geri bildirimi — Kalyx uzantısı {v}',
   reportMailBody: 'Ne oldu? Ne bekliyordun?',
+  chooseAccount: 'Hesap seç', myAddresses: 'Adreslerim', setGeneral: 'Genel', setSecurity: 'Güvenlik', setHelp: 'Yardım', sitesShort: 'Siteler', networksShort: '{n} ağ yanıt vermiyor',
 };

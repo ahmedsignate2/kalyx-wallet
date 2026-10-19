@@ -107,4 +107,5 @@ export default {
   reportNote: 'Öffnet deine E-Mail-App. Sende niemals deine Wiederherstellungsphrase oder deinen privaten Schlüssel, auch nicht an den Kalyx-Support.',
   reportMailSubject: 'Beta-Feedback — Kalyx-Erweiterung {v}',
   reportMailBody: 'Was ist passiert? Was hast du erwartet?',
+  chooseAccount: 'Konto wählen', myAddresses: 'Meine Adressen', setGeneral: 'Allgemein', setSecurity: 'Sicherheit', setHelp: 'Hilfe', sitesShort: 'Seiten', networksShort: '{n} Netzwerke antworten nicht',
 };

@@ -121,4 +121,5 @@ export default {
   reportNote: '将打开你的邮件应用。永远不要发送你的助记词或私钥，即使是发给 Kalyx 支持团队。',
   reportMailSubject: '测试版反馈 — Kalyx 扩展程序 {v}',
   reportMailBody: '发生了什么？你原本期望什么？',
+  chooseAccount: '选择账户', myAddresses: '我的地址', setGeneral: '通用', setSecurity: '安全', setHelp: '帮助', sitesShort: '网站', networksShort: '{n} 个网络无响应',
 };
