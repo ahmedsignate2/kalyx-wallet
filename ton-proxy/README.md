@@ -118,7 +118,7 @@ npx wrangler secret put ALCHEMY_KEY      # clé Alchemy
 npx wrangler secret put HELIUS_KEY       # clé Helius
 npx wrangler secret put ETHERSCAN_KEY    # clé Etherscan (V2, tous réseaux)
 npx wrangler secret put LIFI_KEY         # clé LI.FI
-npx wrangler secret put COINGECKO_KEY    # clé CoinGecko « Demo » (facultative)
+npx wrangler secret put COINGECKO_KEY    # clé CoinGecko « Demo » (facultative : sans elle, chaque appareil appelle CoinGecko lui-même)
 npx wrangler secret put RELAY_LINK_KEY   # clé Relay.link (sans elle : pas de devis Relay)
 npx wrangler deploy
 ```

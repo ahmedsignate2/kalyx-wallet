@@ -29,7 +29,8 @@ test('CoinGecko : routes connues, paramètres contrôlés, clé en en-tête', ()
   // Paramètres triés : même requête = même entrée de cache.
   assert.equal(up.url, 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin%2Cethereum&include_24hr_change=true&vs_currencies=eur');
   assert.equal(up.headers['x-cg-demo-api-key'], 'CLE-CG');
-  assert.equal(r.upstream({})!.headers['x-cg-demo-api-key'], undefined);
+  // Sans clé côté serveur : pas d'appel depuis les IP partagées de Cloudflare.
+  assert.equal(r.upstream({}), null);
   ok('GET', '/cg/api/v3/coins/bitcoin', 'localization=true&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false');
   ok('GET', '/cg/api/v3/coins/markets', 'vs_currency=eur&order=market_cap_desc&per_page=20&page=1&sparkline=true&price_change_percentage=24h');
   ok('GET', '/cg/api/v3/coins/bitcoin/market_chart', 'vs_currency=eur&days=max');
