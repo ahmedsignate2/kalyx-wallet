@@ -93,7 +93,7 @@ beforeEach(async () => {
   });
   home = makeHome(makeStore(disk), session, wallets, portfolio, 'eur');
   whitelist = makeWhitelist(makeStore(disk), session, wallets, async () => chainMs);
-  send = makeSend({ session, home, portfolio, whitelist, now: () => clock, adapterFor: (c) => fakeAdapter(c, log), resolveEns: async (n) => (n === 'vitalik.eth' ? PAID : null) });
+  send = makeSend({ session, wallets, home, portfolio, whitelist, now: () => clock, adapterFor: (c) => fakeAdapter(c, log), resolveEns: async (n) => (n === 'vitalik.eth' ? PAID : null) });
   await session.create(PW);
   await wallets.importPhrase(ABOUT);
   await home.refresh();

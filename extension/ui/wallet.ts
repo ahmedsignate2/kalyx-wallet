@@ -340,6 +340,16 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(lock.value) }) } },
       ...AUTO_LOCK_CHOICES.map((m) => h('option', { value: String(m), selected: m === data?.status.autoLockMin }, t('minutes', { n: m }))),
     );
+    // Redemander le mot de passe pour signer (désactivé par défaut) : état lu puis bouton bascule.
+    const askPw = h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'ask-password' }, t('askPwTitle'));
+    void send<{ on: boolean }>({ type: 'settings:get-ask-password' }).then((r) => {
+      const on = !!(r.ok && r.on);
+      askPw.textContent = `${t('askPwTitle')} : ${on ? t('on') : t('off')}`;
+      askPw.onclick = async () => {
+        await send({ type: 'settings:set-ask-password', on: !on });
+        settings();
+      };
+    });
     app.replaceChildren(
       h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, `← ${t('back')}`)),
       h(
@@ -350,6 +360,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         fiat,
         h('label', { class: 'small muted' }, t('autoLock')),
         lock,
+        askPw,
+        h('p', { class: 'small muted' }, t('askPwBody')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => void sitesScreen(app, () => settings()) } }, t('sitesTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => whitelistScreen(app, () => settings()) } }, t('wlTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => void openOnboardingTab() } }, t('addWallet')),

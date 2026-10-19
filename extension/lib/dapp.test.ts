@@ -30,6 +30,7 @@ let events: [string, string, unknown][];
 let opened: string[];
 let decide: (id: string) => Decision;
 let rpcCalls: [string[], string][];
+let lastError: { code: number; message: string } | null;
 let walletId: string;
 
 const code = async (p: Promise<unknown>) => {
@@ -49,16 +50,24 @@ beforeEach(async () => {
   opened = [];
   rpcCalls = [];
   decide = () => ({ approve: true, walletId, index: 0 });
+  lastError = null;
   // La « fenêtre » répond tout de suite, avec la décision du test.
   approvals = makeApprovals({
     open: async (id) => {
       opened.push(id);
-      queueMicrotask(() => approvals.respond(id, decide(id)));
+      // Une action qui échoue laisse la fenêtre ouverte : le test la referme (refus).
+      queueMicrotask(async () => {
+        const r = await approvals.respond(id, decide(id));
+        if (!r.ok) {
+          lastError = r.error;
+          await approvals.respond(id, { approve: false });
+        }
+      });
       return opened.length;
     },
     close: async () => {},
   });
-  dapp = makeDapp({ session, wallets, sites: makeSites(disk), approvals, emit: (o, e, d) => events.push([o, e, d]), rpc: async (urls, method) => (rpcCalls.push([urls, method]), '0x10') });
+  dapp = makeDapp({ session, wallets, sites: makeSites(disk), approvals, t: (k) => k, dappAllowed: async () => true, emit: (o, e, d) => events.push([o, e, d]), rpc: async (urls, method) => (rpcCalls.push([urls, method]), '0x10') });
   await session.create('Plage-Orange-47!');
   walletId = (await wallets.importPhrase(ABOUT)).id;
 });
@@ -114,11 +123,6 @@ describe('EVM (EIP-1193)', () => {
     expect(await code(dapp.handle(A, 'evm', 'debug_traceTransaction', []))).toBe(4200);
   });
 
-  test('signatures : refusées proprement (4200) en attendant la fenêtre d’approbation', async () => {
-    await dapp.handle(A, 'evm', 'eth_requestAccounts', []);
-    for (const m of ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData_v4', 'eth_sign']) expect(await code(dapp.handle(A, 'evm', m, [{}]))).toBe(4200);
-  });
-
   test('permissions EIP-2255 ; déconnexion depuis Kalyx', async () => {
     expect(await dapp.handle(A, 'evm', 'wallet_getPermissions', [])).toEqual([]);
     expect(await code(dapp.handle(A, 'evm', 'wallet_requestPermissions', [{ eth_sign: {} }]))).toBe(-32602);
@@ -142,14 +146,11 @@ describe('Solana (Wallet Standard)', () => {
     expect(await dapp.handle(B, 'solana', 'sol_connect', [{ silent: true }])).toEqual({ address: null });
   });
 
-  test('signatures Solana : 4200 en attendant le lot 6', async () => {
-    expect(await code(dapp.handle(B, 'solana', 'sol_signTransaction', [{}]))).toBe(4200);
-  });
-
   test('compte sans adresse Solana (clé EVM importée) : refusé', async () => {
     const k = await wallets.importKey('0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318', 'evm');
     decide = () => ({ approve: true, walletId: k.id, index: 0 });
-    expect(await code(dapp.handle(B, 'solana', 'sol_connect', [{}]))).toBe(4100);
+    expect(await code(dapp.handle(B, 'solana', 'sol_connect', [{}]))).toBe(4001);
+    expect(lastError?.code).toBe(4100);
   });
 });
 
@@ -158,11 +159,11 @@ describe('fenêtres et inondation', () => {
     decide = () => ({ approve: false });
     let pendingIds: string[] = [];
     const slow = makeApprovals({ open: async (id) => (pendingIds.push(id), 1), close: async () => {} });
-    const p1 = slow.request(A, 'connect', 'evm');
-    const p2 = slow.request(A, 'connect', 'evm');
+    const p1 = slow.request(A, 'connect', 'evm', async () => 'ok');
+    const p2 = slow.request(A, 'connect', 'evm', async () => 'ok');
     await Promise.resolve();
     expect(pendingIds).toHaveLength(1);
-    void slow.request(A, 'connect', 'solana').catch(() => {});
+    void slow.request(A, 'connect', 'solana', async () => 'ok').catch(() => {});
     expect(slow.size()).toBe(2);
     // Fenêtre fermée par l'utilisateur : refus pour tous ceux qui attendaient.
     slow.windowClosed(1);
@@ -170,15 +171,15 @@ describe('fenêtres et inondation', () => {
     expect(await code(p2)).toBe(4001);
     pendingIds = [];
     const many = makeApprovals({ open: async () => 7, close: async () => {} });
-    for (const f of ['evm', 'solana'] as const) void many.request(A, 'connect', f).catch(() => {});
-    void many.request(`${A}:8443`, 'connect', 'evm').catch(() => {});
+    for (const f of ['evm', 'solana'] as const) void many.request(A, 'connect', f, async () => 'ok').catch(() => {});
+    void many.request(`${A}:8443`, 'connect', 'evm', async () => 'ok').catch(() => {});
     await Promise.resolve();
     expect(many.size()).toBe(3);
   });
 
   test('onglet fermé : sa demande en attente est refusée', async () => {
     const slow = makeApprovals({ open: async () => 1, close: async () => {} });
-    const p = slow.request(A, 'connect', 'evm');
+    const p = slow.request(A, 'connect', 'evm', async () => 'ok');
     await Promise.resolve();
     slow.originGone(A);
     expect(await code(p)).toBe(4001);

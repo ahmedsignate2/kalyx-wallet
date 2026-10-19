@@ -1,0 +1,237 @@
+import { beforeEach, describe, expect, test } from 'vitest';
+import { Interface, Wallet, verifyMessage, verifyTypedData, hexlify, toUtf8Bytes } from 'ethers';
+import { ed25519 } from '@noble/curves/ed25519';
+import { base58, base64 } from '@scure/base';
+import { makeDapp } from './dapp';
+import { makeApprovals, type Decision } from './approvals';
+import { makeSites } from './sites';
+import { makeSession } from './session';
+import { makeStore, type StorageArea } from './storage';
+import { makeWallets } from './wallets';
+import { review, utf8B64 } from './dappSign';
+import { explainT } from '../ui/i18n';
+import type { RawTxRequest } from '../../src/domain/chains/EvmChainAdapter';
+
+const ABOUT = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const EVM0 = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
+const SOL0 = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
+const SITE = 'https://app.uniswap.org';
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const SPENDER = '0x000000000022D473030F116dDEE9F6B43aC78BA3';
+const MAX = (1n << 256n) - 1n;
+
+function area(): StorageArea {
+  const data: Record<string, unknown> = {};
+  return {
+    async get(keys) { return Object.fromEntries(keys.filter((k) => k in data).map((k) => [k, structuredClone(data[k])])); },
+    async set(items) { Object.assign(data, structuredClone(items)); },
+    async remove(keys) { for (const k of keys) delete data[k]; },
+  };
+}
+
+let session: ReturnType<typeof makeSession>;
+let wallets: ReturnType<typeof makeWallets>;
+let dapp: ReturnType<typeof makeDapp>;
+let approvals: ReturnType<typeof makeApprovals>;
+let walletId: string;
+let decide: (id: string) => Decision;
+let lastError: { code: number; message: string } | null;
+let allowed: boolean;
+let sentEvm: { req: RawTxRequest; from: string; pkAddress: string }[];
+let sentSol: string[];
+let opened: number;
+
+const code = async (p: Promise<unknown>) => {
+  try {
+    await p;
+    return 'ok';
+  } catch (e) {
+    return (e as { code: number }).code;
+  }
+};
+
+beforeEach(async () => {
+  const disk = makeStore(area());
+  session = makeSession({ disk, session: makeStore(area()), alarms: { create() {}, clear() {} }, kdf: { N: 1 << 10, r: 8, p: 1 } });
+  wallets = makeWallets(disk, session);
+  lastError = null;
+  allowed = true;
+  sentEvm = [];
+  sentSol = [];
+  opened = 0;
+  decide = () => ({ approve: true, walletId, index: 0 });
+  approvals = makeApprovals({
+    open: async (id) => {
+      opened++;
+      queueMicrotask(async () => {
+        const r = await approvals.respond(id, decide(id));
+        if (!r.ok) {
+          lastError = r.error;
+          await approvals.respond(id, { approve: false });
+        }
+      });
+      return opened;
+    },
+    close: async () => {},
+  });
+  dapp = makeDapp({
+    session,
+    wallets,
+    sites: makeSites(disk),
+    approvals,
+    emit: () => {},
+    t: explainT,
+    dappAllowed: async () => allowed,
+    executeDeps: {
+      sendEvm: async (_c, req, from, pk) => (sentEvm.push({ req, from, pkAddress: new Wallet(pk).address }), `0x${'cd'.repeat(32)}`),
+      sendSolana: async (b64) => (sentSol.push(b64), base58.encode(new Uint8Array(64).fill(7))),
+      tokenMeta: async () => ({ symbol: 'USDC', decimals: 6 }),
+    },
+  });
+  await session.create('Plage-Orange-47!');
+  walletId = (await wallets.importPhrase(ABOUT)).id;
+  await dapp.handle(SITE, 'evm', 'eth_requestAccounts', []);
+  await dapp.handle(SITE, 'solana', 'sol_connect', [{}]);
+});
+
+const approveData = (amount: bigint) => new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [SPENDER, amount]);
+
+describe('EVM : messages', () => {
+  test('personal_sign : signature valide du compte accordé', async () => {
+    const msg = 'Bienvenue sur Uniswap';
+    const sig = (await dapp.handle(SITE, 'evm', 'personal_sign', [hexlify(toUtf8Bytes(msg)), EVM0])) as string;
+    expect(verifyMessage(msg, sig)).toBe(EVM0);
+  });
+
+  test('eth_sign (hachage brut) refusé ; site non connecté refusé ; autre compte refusé', async () => {
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_sign', [EVM0, `0x${'11'.repeat(32)}`]))).toBe(4200);
+    expect(await code(dapp.handle('https://autre.example', 'evm', 'personal_sign', ['0x6869', EVM0]))).toBe(4100);
+    expect(await code(dapp.handle(SITE, 'evm', 'personal_sign', ['0x6869', '0x1111111111111111111111111111111111111111']))).toBe(4100);
+  });
+
+  test('EIP-712 : signature valide ; domaine d’un autre réseau refusé (rejouable là-bas)', async () => {
+    const domain = { name: 'USD Coin', version: '2', chainId: 1, verifyingContract: USDC };
+    const types = { Permit: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }, { name: 'value', type: 'uint256' }, { name: 'nonce', type: 'uint256' }, { name: 'deadline', type: 'uint256' }] };
+    const message = { owner: EVM0, spender: SPENDER, value: '1000000', nonce: 0, deadline: 1_900_000_000 };
+    const typed = JSON.stringify({ domain, types: { EIP712Domain: [{ name: 'name', type: 'string' }], ...types }, primaryType: 'Permit', message });
+    const sig = (await dapp.handle(SITE, 'evm', 'eth_signTypedData_v4', [EVM0, typed])) as string;
+    expect(verifyTypedData(domain, types, message, sig)).toBe(EVM0);
+    const other = JSON.stringify({ domain: { ...domain, chainId: 137 }, types, primaryType: 'Permit', message });
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_signTypedData_v4', [EVM0, other]))).toBe(4001);
+    expect(lastError?.code).toBe(4901);
+  });
+});
+
+describe('EVM : transactions', () => {
+  test('signée par le compte accordé, sur le réseau DU SITE', async () => {
+    await dapp.handle(SITE, 'evm', 'wallet_switchEthereumChain', [{ chainId: '0x2105' }]);
+    const hash = await dapp.handle(SITE, 'evm', 'eth_sendTransaction', [{ from: EVM0, to: SPENDER, value: '0x10', data: '0x' }]);
+    expect(hash).toBe(`0x${'cd'.repeat(32)}`);
+    expect(sentEvm[0].pkAddress).toBe(EVM0);
+    expect(sentEvm[0].req.chainId).toBe(8453);
+    expect(sentEvm[0].req.value).toBe(16n);
+  });
+
+  test('refus : déploiement, autre compte, autre réseau', async () => {
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_sendTransaction', [{ from: EVM0, data: '0x6080' }]))).toBe(4200);
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_sendTransaction', [{ from: '0x1111111111111111111111111111111111111111', to: SPENDER }]))).toBe(4100);
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_sendTransaction', [{ from: EVM0, to: SPENDER, chainId: '0x89' }]))).toBe(4901);
+    expect(sentEvm).toHaveLength(0);
+  });
+
+  test('approbation illimitée RÉDUITE au montant choisi', async () => {
+    decide = () => ({ approve: true, walletId, index: 0, reduceTo: '5' });
+    await dapp.handle(SITE, 'evm', 'eth_sendTransaction', [{ from: EVM0, to: USDC, data: approveData(MAX) }]);
+    const [, amount] = new Interface(['function approve(address,uint256)']).decodeFunctionData('approve', sentEvm[0].req.data!);
+    expect(amount).toBe(5_000_000n);
+  });
+
+  test('liste blanche en vigueur : aucune signature de dApp', async () => {
+    allowed = false;
+    expect(await code(dapp.handle(SITE, 'evm', 'personal_sign', ['0x6869', EVM0]))).toBe(4100);
+    expect(opened).toBe(2); // seulement les deux connexions du début
+  });
+
+  test('refus dans la fenêtre : 4001, rien de signé', async () => {
+    decide = (id) => (approvals.get(id)?.kind === 'sign' ? { approve: false } : { approve: true, walletId, index: 0 });
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_sendTransaction', [{ from: EVM0, to: SPENDER }]))).toBe(4001);
+    expect(sentEvm).toHaveLength(0);
+  });
+});
+
+/** Transaction Solana « legacy » minimale : virement système de `from` vers `to`. */
+function solTransfer(from: string, to: string, signers = [from]): Uint8Array {
+  const SYS = '11111111111111111111111111111111';
+  const keys = [...signers, ...[from, to].filter((k) => !signers.includes(k)), SYS];
+  const header = [signers.length, 0, 1];
+  const ix = [keys.length - 1, 2, keys.indexOf(from), keys.indexOf(to), 12, 2, 0, 0, 0, 0x40, 0x42, 0x0f, 0, 0, 0, 0, 0];
+  const msg = Uint8Array.from([...header, keys.length, ...keys.flatMap((k) => [...base58.decode(k)]), ...new Uint8Array(32).fill(9), 1, ...ix]);
+  return Uint8Array.from([signers.length, ...new Uint8Array(64 * signers.length), ...msg]);
+}
+
+describe('Solana', () => {
+  const pub = base58.decode(SOL0);
+  const RECIPIENT = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM';
+
+  test('signMessage : signature ed25519 valide du compte accordé', async () => {
+    const msg = utf8B64('Connexion à Jupiter');
+    const [r] = (await dapp.handle(SITE, 'solana', 'sol_signMessage', [{ message: msg }])) as { signature: string }[];
+    expect(ed25519.verify(base64.decode(r.signature), base64.decode(msg), pub)).toBe(true);
+  });
+
+  test('un « message » qui est une transaction : refusé', async () => {
+    const tx = solTransfer(SOL0, RECIPIENT);
+    expect(await code(dapp.handle(SITE, 'solana', 'sol_signMessage', [{ message: base64.encode(tx.subarray(65)) }]))).toBe(4200);
+  });
+
+  test('signTransaction : notre signature, à notre place, sur le message exact', async () => {
+    const tx = solTransfer(SOL0, RECIPIENT);
+    const [r] = (await dapp.handle(SITE, 'solana', 'sol_signTransaction', [{ transaction: base64.encode(tx), chain: 'solana:mainnet' }])) as { signedTransaction: string }[];
+    const signed = base64.decode(r.signedTransaction);
+    expect(ed25519.verify(signed.subarray(1, 65), tx.subarray(65), pub)).toBe(true);
+    expect(signed.subarray(65)).toEqual(tx.subarray(65));
+  });
+
+  test('transaction que notre compte ne signe pas : refusée ; autre réseau : refusé', async () => {
+    const tx = solTransfer(RECIPIENT, SOL0);
+    expect(await code(dapp.handle(SITE, 'solana', 'sol_signTransaction', [{ transaction: base64.encode(tx) }]))).toBe(4001);
+    expect(lastError?.code).toBe(4100);
+    expect(await code(dapp.handle(SITE, 'solana', 'sol_signTransaction', [{ transaction: base64.encode(solTransfer(SOL0, RECIPIENT)), chain: 'solana:devnet' }]))).toBe(4200);
+  });
+
+  test('signAndSend : diffusée, signature rendue', async () => {
+    const [r] = (await dapp.handle(SITE, 'solana', 'sol_signAndSendTransaction', [{ transaction: base64.encode(solTransfer(SOL0, RECIPIENT)) }])) as { signature: string }[];
+    expect(sentSol).toHaveLength(1);
+    expect(base64.decode(r.signature)).toEqual(new Uint8Array(64).fill(7));
+  });
+});
+
+describe('explication (fenêtre)', () => {
+  test('plusieurs transactions Solana : le risque monte, et la fenêtre le dit', async () => {
+    const one = base64.encode(solTransfer('HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk', '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'));
+    const r = await review({ kind: 'solTx', from: 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk', txs: [one, one, one], send: false }, SITE, { t: explainT, phishing: async () => false });
+    expect(r.explanation.risk).not.toBe('none');
+    expect(r.explanation.reasons.join(' ')).toMatch(/3 transactions/);
+  });
+
+  const quiet = { t: explainT, phishing: async () => false, assess: async () => null as never, simulate: async () => ({ source: 'static', changes: [], approvals: [] }) as never, tokenMeta: async () => ({ symbol: 'USDC', decimals: 6 }) };
+
+  test('approbation illimitée : risque signalé, réduction proposée', async () => {
+    const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveData(MAX), value: '0x0' } }, SITE, quiet);
+    expect(r.explanation.risk).not.toBe('none');
+    expect(r.explanation.canReduceApproval).toBe(true);
+    expect(r.reduce).toMatchObject({ symbol: 'USDC', decimals: 6 });
+  });
+
+  test('SIWE pour un autre domaine que le site : danger', async () => {
+    const text = `evil.example wants you to sign in with your Ethereum account:\n${EVM0}\n\nSign in\n\nURI: https://evil.example\nVersion: 1\nChain ID: 1\nNonce: abcdefgh\nIssued At: 2026-01-01T00:00:00Z`;
+    const r = await review({ kind: 'personal', from: EVM0, hex: hexlify(toUtf8Bytes(text)), text, siwe: (await import('../../src/domain/wc/message')).parseSiwe(text) }, SITE, quiet);
+    expect(r.explanation.risk).toBe('danger');
+  });
+
+  test('site signalé comme hameçonnage : danger', async () => {
+    const r = await review({ kind: 'personal', from: EVM0, hex: '0x6869', text: 'hi', siwe: null }, SITE, { ...quiet, phishing: async () => true });
+    expect(r.explanation.risk).toBe('danger');
+    expect(r.explanation.holdToSign).toBe(true);
+  });
+});

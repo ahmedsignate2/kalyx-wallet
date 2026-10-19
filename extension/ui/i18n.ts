@@ -2,6 +2,8 @@
  * Textes de l'extension. Français et anglais au lot 2 ; les 15 langues de
  * l'app au lot 7 (mêmes termes web3 gardés tels quels : token, swap…).
  */
+import { EN as EXPLAIN_EN, FR as EXPLAIN_FR } from './explainText';
+
 const fr = {
   back: 'Retour',
   continue: 'Continuer',
@@ -229,6 +231,28 @@ const fr = {
   on: 'Activé',
   off: 'Désactivé',
   networkLabel: 'Réseau : {n}',
+  apAnalyzing: 'Analyse de la demande…',
+  apLose: 'Tu perds',
+  apReceive: 'Tu reçois',
+  apDetails: 'Détails techniques',
+  apMessage: 'Message à signer',
+  apReduce: 'Limiter l’autorisation à',
+  apReduceHint: 'Montant maximum que ce contrat pourra dépenser, en {s}.',
+  apSign: 'Signer',
+  apConfirm: 'Confirmer',
+  apHold: 'Maintenir pour signer',
+  apHoldHint: 'Demande à risque : garde le bouton enfoncé 2 secondes pour signer.',
+  apPassword: 'Ton mot de passe (demandé à chaque signature)',
+  apFailed: 'Échec : {m}',
+  apRisk_warning: 'À vérifier',
+  apRisk_danger: 'Danger',
+  apNetwork: 'Réseau : {n}',
+  askPwTitle: 'Redemander le mot de passe pour signer',
+  askPwBody: 'Activé, chaque signature demandée par un site exige ton mot de passe, même déverrouillé.',
+  e_PASSWORD_REQUIRED: 'Saisis ton mot de passe pour signer.',
+  e_WRONG_PASSWORD: 'Mot de passe incorrect.',
+  e_THROTTLED: 'Trop d’essais : patiente un instant.',
+  e_ACTION_FAILED: 'L’opération a échoué : {message}',
   // Activité : mêmes phrases que l'app (lib/i18n).
   actSent: "Envoyé {amount} {symbol}",
   actReceived: "Reçu {amount} {symbol}",
@@ -484,6 +508,28 @@ const en: Dict = {
   on: 'On',
   off: 'Off',
   networkLabel: 'Network: {n}',
+  apAnalyzing: 'Analysing the request…',
+  apLose: 'You lose',
+  apReceive: 'You receive',
+  apDetails: 'Technical details',
+  apMessage: 'Message to sign',
+  apReduce: 'Limit the approval to',
+  apReduceHint: 'Maximum this contract will be able to spend, in {s}.',
+  apSign: 'Sign',
+  apConfirm: 'Confirm',
+  apHold: 'Hold to sign',
+  apHoldHint: 'Risky request: keep the button pressed for 2 seconds to sign.',
+  apPassword: 'Your password (asked for every signature)',
+  apFailed: 'Failed: {m}',
+  apRisk_warning: 'Check this',
+  apRisk_danger: 'Danger',
+  apNetwork: 'Network: {n}',
+  askPwTitle: 'Ask for the password to sign',
+  askPwBody: 'When on, every signature requested by a site requires your password, even when unlocked.',
+  e_PASSWORD_REQUIRED: 'Enter your password to sign.',
+  e_WRONG_PASSWORD: 'Wrong password.',
+  e_THROTTLED: 'Too many attempts: wait a moment.',
+  e_ACTION_FAILED: 'The operation failed: {message}',
   // Activité : mêmes phrases que l'app (lib/i18n).
   actSent: "Sent {amount} {symbol}",
   actReceived: "Received {amount} {symbol}",
@@ -532,6 +578,18 @@ export function reasonText(code: string): string {
   const k = `r_${code}` as Key;
   return k in dict ? dict[k] : errorText(code);
 }
+
+/** Traducteur de la fenêtre de signature (src/domain/wc/explain) : phrases reprises de l'app. */
+export function explainT(key: string, params: Record<string, string> = {}): string {
+  return explainTFor(IS_FR ? 'fr' : 'en')(key, params);
+}
+
+/** Même traducteur, pour une langue donnée (celle de la fenêtre qui affiche l'explication). */
+export const explainTFor = (lang: string | undefined) => (key: string, params: Record<string, string> = {}): string => {
+  const d = lang?.toLowerCase().startsWith('fr') ? EXPLAIN_FR : EXPLAIN_EN;
+  const s = d[key];
+  return s === undefined ? key : s.replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? ''));
+};
 
 /** Traducteur des phrases d'activité (src/domain/tx/humanize). */
 export function activityT(key: string, params: Record<string, string> = {}): string {

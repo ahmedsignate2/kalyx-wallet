@@ -138,6 +138,8 @@ export function makeWhitelist(disk: Store, session: Session, wallets: Wallets, c
         const next = removeEntry(s, address, addressKey);
         return { next, result: view(next, now) };
       }),
+    /** Signatures de dApps permises ? Non tant que la protection est en vigueur (comme sur mobile). */
+    dappAllowed: () => withState((s, now) => ({ result: !isEnforced(s, now) })),
     /** Adresses de la liste (pour l'anti-empoisonnement : elles sont « connues »). */
     known: () => withState((s) => ({ result: s.entries.map((e) => e.address) })),
   };
