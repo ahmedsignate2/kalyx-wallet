@@ -10,6 +10,7 @@
  * un résultat vide en cas d'échec, ne bloque jamais l'UI).
  */
 import { withTimeout } from '../chains/net';
+import { relayOrDirect } from '../net/relay';
 
 const API = 'https://api.coingecko.com/api/v3';
 const KEY =
@@ -120,7 +121,7 @@ export async function searchCoins(query: string): Promise<SearchCoin[]> {
   if (!q) return [];
   try {
     const res = await withTimeout(
-      fetch(url(`/search?query=${encodeURIComponent(q)}`)),
+      cgFetch(url(`/search?query=${encodeURIComponent(q)}`)),
       TIMEOUT,
       () => new Error('timeout'),
     );
@@ -324,6 +325,17 @@ function url(path: string): string {
   return `${API}${path}${path.includes('?') ? '&' : '?'}${KEY ? `x_cg_demo_api_key=${KEY}` : ''}`;
 }
 
+/**
+ * Clé locale : en direct, comme avant. Sans clé : par le relais Kalyx (clé
+ * côté serveur, réponses partagées en cache), l'API publique en repli s'il
+ * est saturé ou injoignable.
+ */
+async function cgFetch(u: string, init?: RequestInit): Promise<Response> {
+  const direct = () => fetch(u, init);
+  if (KEY || !u.startsWith(API)) return direct();
+  return (await relayOrDirect('coingecko', `/cg/api/v3${u.slice(API.length).replace(/[?&]$/, '')}`, direct, init))!;
+}
+
 /** En-tête recommandé par CoinGecko pour une clé Demo (en plus du paramètre d'URL, gardé pour compat). */
 function headers(): Record<string, string> {
   return KEY ? { 'x-cg-demo-api-key': KEY } : {};
@@ -347,7 +359,7 @@ export async function getPrices(ids: string[], vs = 'eur', opts?: { maxStaleMs?:
 async function fetchPrices(ids: string[], vs: string, key: string, maxStale: number): Promise<Record<string, CoinPrice>> {
   try {
     const res = await withTimeout(
-      fetch(url(`/simple/price?ids=${ids.join(',')}&vs_currencies=${vs}&include_24hr_change=true`), { headers: headers() }),
+      cgFetch(url(`/simple/price?ids=${ids.join(',')}&vs_currencies=${vs}&include_24hr_change=true`), { headers: headers() }),
       TIMEOUT,
       () => new Error('timeout'),
     );
@@ -368,7 +380,7 @@ export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promis
   if (cached) return cached;
   try {
     const res = await withTimeout(
-      fetch(
+      cgFetch(
         url(
           `/coins/${id}?localization=true&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`,
         ),
@@ -394,7 +406,7 @@ export async function getCoinDetail(id: string, vs = 'eur', lang = 'en'): Promis
 export async function getMarketChart(id: string, vs = 'eur', days = '7'): Promise<number[]> {
   try {
     const res = await withTimeout(
-      fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${effectiveDays(days)}`), { headers: headers() }),
+      cgFetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${effectiveDays(days)}`), { headers: headers() }),
       TIMEOUT,
       () => new Error('timeout'),
     );
@@ -418,7 +430,7 @@ export async function getMarketChartPoints(id: string, vs = 'eur', days = '7'): 
   return once(key, async () => {
     try {
       const res = await withTimeout(
-        fetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${d}`), { headers: headers() }),
+        cgFetch(url(`/coins/${id}/market_chart?vs_currency=${vs}&days=${d}`), { headers: headers() }),
         TIMEOUT,
         () => new Error('timeout'),
       );
@@ -455,7 +467,7 @@ export async function getTokenPrices(
   if (cached) return cached;
   try {
     const res = await withTimeout(
-      fetch(url(`/simple/token_price/${platform}?contract_addresses=${contracts.join(',')}&vs_currencies=${vs}`), {
+      cgFetch(url(`/simple/token_price/${platform}?contract_addresses=${contracts.join(',')}&vs_currencies=${vs}`), {
         headers: headers(),
       }),
       TIMEOUT,
@@ -476,7 +488,7 @@ export async function getMarkets(vs = 'eur', perPage = 20): Promise<MarketCoin[]
   return once(key, async () => {
     try {
       const res = await withTimeout(
-        fetch(
+        cgFetch(
           url(
             `/coins/markets?vs_currency=${vs}&order=market_cap_desc&per_page=${perPage}&page=1&sparkline=true&price_change_percentage=24h`,
           ),
@@ -526,7 +538,7 @@ export async function getMarketsByIds(vs: string, ids: string[]): Promise<Market
   return once(key, async () => {
     try {
       const res = await withTimeout(
-        fetch(
+        cgFetch(
           url(
             `/coins/markets?vs_currency=${vs}&ids=${encodeURIComponent(list.join(','))}&order=market_cap_desc&per_page=${list.length}&page=1&sparkline=true&price_change_percentage=24h`,
           ),
@@ -563,7 +575,7 @@ export async function getTrendingIds(): Promise<string[]> {
   if (cached) return cached;
   return once(key, async () => {
     try {
-      const res = await withTimeout(fetch(url('/search/trending'), { headers: headers() }), TIMEOUT, () => new Error('timeout'));
+      const res = await withTimeout(cgFetch(url('/search/trending'), { headers: headers() }), TIMEOUT, () => new Error('timeout'));
       const ids = parseTrendingIds(await res.json());
       if (ids.length > 0) cacheSet(key, ids);
       return ids.length > 0 ? ids : cacheGetStale<string[]>(key) ?? [];

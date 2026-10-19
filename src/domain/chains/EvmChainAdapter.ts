@@ -36,6 +36,7 @@ import { tryInOrder, withTimeout, withRetry } from './net';
 import { parseTxList } from './etherscan';
 import { computeFeeTiers, type FeeOptions } from './gas';
 import { ETHERSCAN_V2_API, EXPLORER_API_KEY, COVALENT_API_KEY } from './configs';
+import { RELAY_URL, relayOrDirect } from '../net/relay';
 import { parseCovalentTxList } from './covalent';
 import { technicalLogger } from '../../../lib/technicalLogger';
 
@@ -248,16 +249,19 @@ export class EvmChainAdapter implements ChainAdapter {
       `module=account&action=txlist&address=${owner}` +
       `&startblock=0&endblock=99999999&page=1&offset=25&sort=desc`;
       
-    // 1. Covalent Primary
-    if (COVALENT_API_KEY) {
+    // 1. Covalent Primary (clé locale, sinon par le relais Kalyx qui garde la clé)
+    if (COVALENT_API_KEY || RELAY_URL) {
       try {
         return await withRetry(async () => {
-          const url = `https://api.covalenthq.com/v1/${this.config.evmChainId}/address/${owner}/transactions_v3/page/0/?no-logs=true`;
+          const path = `/v1/${this.config.evmChainId}/address/${owner}/transactions_v3/page/0/?no-logs=true`;
           const res = await withTimeout(
-            fetch(url, { headers: { Authorization: `Bearer ${COVALENT_API_KEY}` } }),
+            COVALENT_API_KEY
+              ? fetch(`https://api.covalenthq.com${path}`, { headers: { Authorization: `Bearer ${COVALENT_API_KEY}` } })
+              : relayOrDirect('covalent', `/covalent${path}`, null),
             RPC_TIMEOUT_MS,
             () => new Error('timeout')
           );
+          if (!res) throw new Error('Covalent indisponible');
           const json = await res.json();
           if (json && json.data && Array.isArray(json.data.items)) {
             return parseCovalentTxList(json, owner);
@@ -275,7 +279,14 @@ export class EvmChainAdapter implements ChainAdapter {
         const url =
           `${ETHERSCAN_V2_API}?chainid=${this.config.evmChainId}&${query}` +
           (EXPLORER_API_KEY ? `&apikey=${EXPLORER_API_KEY}` : '');
-        const res = await withTimeout(fetch(url), RPC_TIMEOUT_MS, () => new Error('timeout'));
+        // Sans clé locale : par le relais Kalyx (clé côté serveur), l'appel public en repli.
+        const res = await withTimeout(
+          EXPLORER_API_KEY
+            ? fetch(url)
+            : relayOrDirect('etherscan', `/etherscan/v2/api?chainid=${this.config.evmChainId}&${query}`, () => fetch(url)).then((r) => r!),
+          RPC_TIMEOUT_MS,
+          () => new Error('timeout'),
+        );
         const json = (await res.json()) as { result?: unknown };
         if (Array.isArray(json?.result)) return parseTxList(json, owner);
         throw new Error('Etherscan V2 invalid format');

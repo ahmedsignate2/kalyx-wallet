@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { formatAmount } from '../../domain/validation/amount';
 import { trimDecimalZeros } from '../../domain/validation/format';
+import { RELAY_URL, relayOrDirect } from '../../domain/net/relay';
 
 /** Montant exact (entiers, aucune perte au-delà de 2⁵³), sans zéros de fin : « 1 », « 0.5 ». */
 const exact = (raw: bigint, decimals: number) => trimDecimalZeros(formatAmount(raw, decimals));
@@ -91,13 +92,13 @@ export async function checkSolanaAddressReputation(
   try {
     // 1. Contrôle Helius si clé disponible
     const heliusKey = process.env.EXPO_PUBLIC_HELIUS_KEY;
-    if (heliusKey) {
+    if (heliusKey || RELAY_URL) {
       try {
-        const res = await fetch(
-          `https://api.helius.xyz/v0/addresses/${address}/names?api-key=${heliusKey}`,
-          { signal: controller.signal }
-        );
-        if (res.ok) {
+        // Clé locale, sinon le relais Kalyx (clé côté serveur).
+        const res = heliusKey
+          ? await fetch(`https://api.helius.xyz/v0/addresses/${address}/names?api-key=${heliusKey}`, { signal: controller.signal })
+          : await relayOrDirect('heliusapi', `/helius/v0/addresses/${address}/names`, null, { signal: controller.signal });
+        if (res?.ok) {
           const data = await res.json().catch(() => null);
           if (data?.isScam || data?.malicious || data?.warning || (Array.isArray(data) && data.some((n: any) => n?.isScam))) {
             return { isMalicious: true, flags: ['helius_scam_flag'] };
