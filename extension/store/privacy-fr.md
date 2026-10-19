@@ -62,4 +62,4 @@ fois. Tu peux déconnecter un site à tout moment (Réglages → Sites connecté
 
 ## Contact
 
-Pour toute question : [CONTACT]
+Pour toute question : support@kalyxwallet.com (ou Telegram @kalyxntw)

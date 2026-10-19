@@ -270,7 +270,7 @@ const es: Dict = {
     notice: 'El texto siguiente está redactado en francés; solo la versión francesa tiene valor legal.',
     privacyTitle: 'Política de privacidad',
     privacyIntro: 'En Kalyx, tu privacidad no es una opción: es la base de la arquitectura. Así protegemos tus datos: negándonos a recogerlos.',
-    privacyMeta: ['Actualizado: 3 de octubre de 2026', 'Kalyx', 'Derecho francés y RGPD'],
+    privacyMeta: ['Actualizado: 19 de octubre de 2026', 'Kalyx', 'Derecho francés y RGPD'],
     privacyContact: '¿Una pregunta sobre tus datos?',
     termsTitle: 'Condiciones generales de uso',
     termsIntro: 'Lee atentamente estas condiciones antes de usar Kalyx Wallet. Definen el marco de uso responsable y las particularidades del modelo no custodial.',

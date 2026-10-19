@@ -7,6 +7,8 @@ Portefeuille non-custodial pour Ethereum, les réseaux EVM et Solana. Tes clés 
 
 **Catégorie** : Outils · **Langues** : 15 (français, anglais, espagnol, portugais, allemand, italien, néerlandais, polonais, turc, russe, arabe, hindi, chinois, japonais, coréen)
 
+**Politique de confidentialité** : https://kalyxwallet.com/privacy · **Contact** : support@kalyxwallet.com
+
 **Description** :
 
 Kalyx Wallet est un portefeuille crypto non-custodial : toi seul détiens tes clés.

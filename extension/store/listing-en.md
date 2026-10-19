@@ -7,6 +7,8 @@ Non-custodial wallet for Ethereum, EVM networks and Solana. Your keys stay encry
 
 **Category**: Tools · **Languages**: 15 (French, English, Spanish, Portuguese, German, Italian, Dutch, Polish, Turkish, Russian, Arabic, Hindi, Chinese, Japanese, Korean)
 
+**Privacy policy**: https://kalyxwallet.com/privacy · **Contact**: support@kalyxwallet.com
+
 **Description**:
 
 Kalyx Wallet is a non-custodial crypto wallet: only you hold your keys.

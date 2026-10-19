@@ -270,7 +270,7 @@ const nl: Dict = {
     notice: 'De onderstaande tekst is in het Frans opgesteld; alleen de Franse versie is juridisch bindend.',
     privacyTitle: 'Privacybeleid',
     privacyIntro: 'Bij Kalyx is je privacy geen optie: het is de basis van de architectuur. Zo beschermen we je gegevens — door ze niet te verzamelen.',
-    privacyMeta: ['Bijgewerkt: 3 oktober 2026', 'Kalyx', 'Frans recht en AVG'],
+    privacyMeta: ['Bijgewerkt: 19 oktober 2026', 'Kalyx', 'Frans recht en AVG'],
     privacyContact: 'Een vraag over je gegevens?',
     termsTitle: 'Algemene gebruiksvoorwaarden',
     termsIntro: 'Lees deze voorwaarden aandachtig voordat je Kalyx Wallet gebruikt. Ze bepalen het kader voor verantwoord gebruik en de bijzonderheden van het non-custodial model.',

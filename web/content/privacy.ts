@@ -70,18 +70,28 @@ Chacun de ces tiers applique sa propre politique de confidentialité. Le navigat
 Les commandes de prix, de gas et d'analyse de token interrogent des services publics (CoinGecko, DefiLlama, Binance, GoPlus, nœuds publics) sans transmettre votre identité. Une limitation de débit utilise un compteur temporaire (quelques minutes). Vous pouvez supprimer vos alertes à tout moment (/alerts), et demander l'effacement complet de vos données à support@kalyxwallet.com.`,
   },
   {
+    id: 'extension',
+    title: '7. Extension de navigateur Kalyx',
+    body: `L'extension Kalyx Wallet (Chrome et navigateurs Chromium) est un portefeuille non-custodial indépendant de l'app : vos clés et votre phrase de récupération sont chiffrées sur votre ordinateur avec votre mot de passe (scrypt, puis AES-256-GCM) et n'en sortent jamais. Votre mot de passe n'est jamais enregistré ; quand l'extension est déverrouillée, la clé du coffre reste en mémoire du navigateur et s'efface au verrouillage ou à la fermeture du navigateur.
+• Restent sur votre ordinateur : le coffre chiffré, vos réglages, votre liste blanche, les sites connectés et le cache des soldes. Désinstaller l'extension efface tout.
+• Aucune statistique d'usage, aucune télémétrie, aucun traceur.
+• Pour afficher soldes et activité et envoyer vos transactions, l'extension interroge directement les nœuds publics des réseaux et des explorateurs de blocs (adresses PUBLIQUES et transactions signées), DefiLlama et CoinGecko (identifiants de jetons, pas vos adresses), GoPlus (adresse d'un contrat ou d'un destinataire, domaine d'un site, avant une signature) et les hébergeurs des logos de jetons.
+• Un site web ne voit votre adresse que si vous acceptez de le connecter, dans une fenêtre de Kalyx ; il ne peut rien signer sans votre accord, demandé à chaque fois. Vous pouvez le déconnecter à tout moment.
+• Permissions demandées : stockage local, alarmes et état de veille (verrouillage automatique), panneau latéral, et accès aux sites pour que ceux-ci puissent proposer une connexion ou une signature.`,
+  },
+  {
     id: 'droits',
-    title: '7. Vos droits (RGPD)',
-    body: `Les seules données personnelles que l'éditeur peut détenir sont celles du bot Telegram (§ précédent) et les messages que vous adressez volontairement au support. Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL (cnil.fr). Pour les exercer : support@kalyxwallet.com. Les données de l'application, elles, ne quittent pas votre appareil : vous en gardez l'entière maîtrise.`,
+    title: '8. Vos droits (RGPD)',
+    body: `Les seules données personnelles que l'éditeur peut détenir sont celles du bot Telegram (§ 6) et les messages que vous adressez volontairement au support. Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL (cnil.fr). Pour les exercer : support@kalyxwallet.com. Les données de l'application, elles, ne quittent pas votre appareil : vous en gardez l'entière maîtrise.`,
   },
   {
     id: 'notifications',
-    title: '8. Notifications & alertes',
+    title: '9. Notifications & alertes',
     body: `Toutes les notifications générées par Kalyx Wallet sont strictement locales (générées au niveau du système d'exploitation de votre téléphone). Aucun serveur distant de notification push n'est sollicité, ce qui garantit qu'aucun jeton d'appareil (device push token) n'est jamais transmis à un tiers.`,
   },
   {
     id: 'securite',
-    title: '9. Mesures de sécurité cryptographiques',
+    title: '10. Mesures de sécurité cryptographiques',
     body: `La phrase de récupération est chiffrée en AES-256-GCM avec une clé dérivée de votre code PIN (scrypt), puis stockée dans le stockage sécurisé du système (Keychain iOS / Keystore Android).
 L'application dispose d'un verrouillage automatique dès la mise en veille, d'un écran de garde anti-capture d'écran et d'un ralentisseur anti brute-force sur le code PIN.
 Bien que ces défenses soient à l'état de l'art, aucun système informatique n'est inviolable : il est impératif de conserver votre phrase de récupération écrite sur papier hors ligne.
@@ -89,12 +99,12 @@ Protections supplémentaires, toutes locales : liste blanche des destinataires (
   },
   {
     id: 'mineurs',
-    title: '10. Protection des mineurs',
+    title: '11. Protection des mineurs',
     body: `L'application Kalyx Wallet n'est pas destinée aux personnes de moins de 16 ans. Nous ne sollicitons ni ne conservons sciemment aucune information relative à des mineurs.`,
   },
   {
     id: 'hosting',
-    title: '11. Mentions légales & Hébergement (LCEN)',
+    title: '12. Mentions légales & Hébergement (LCEN)',
     body: `Conformément à l'article 6 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN) :
 • Éditeur : KALYX (Ahamed Signate)
 • Statut : Entrepreneur individuel
@@ -106,7 +116,7 @@ Le détail complet de ces mentions figure sur la page dédiée « Mentions léga
   },
   {
     id: 'contact',
-    title: '12. Évolution de la politique & Contact',
+    title: '13. Évolution de la politique & Contact',
     body: `La présente politique de confidentialité peut être révisée pour refléter l'évolution des fonctionnalités ou du cadre réglementaire. La date de mise à jour fait foi. Pour toute demande relative à la protection des données ou pour signaler un problème de sécurité : support@kalyxwallet.com ou sur Telegram @kalyxntw.`,
   },
 ];

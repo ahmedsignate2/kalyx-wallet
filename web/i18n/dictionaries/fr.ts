@@ -273,7 +273,7 @@ const fr = {
     notice: 'Le texte ci-dessous est rédigé en français ; seule la version française fait foi.',
     privacyTitle: 'Politique de confidentialité',
     privacyIntro: 'Chez Kalyx, votre vie privée n’est pas une option : c’est le fondement de l’architecture. Voici comment nous protégeons vos données, en refusant de les collecter.',
-    privacyMeta: ['Mise à jour : 3 octobre 2026', 'Kalyx', 'Droit français et RGPD'],
+    privacyMeta: ['Mise à jour : 19 octobre 2026', 'Kalyx', 'Droit français et RGPD'],
     privacyContact: 'Une question sur vos données ?',
     termsTitle: 'Conditions générales d’utilisation',
     termsIntro: 'Lisez attentivement ces conditions avant d’utiliser Kalyx Wallet. Elles définissent le cadre d’utilisation responsable et les spécificités du modèle non-custodial.',

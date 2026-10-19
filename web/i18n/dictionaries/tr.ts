@@ -270,7 +270,7 @@ const tr: Dict = {
     notice: 'Aşağıdaki metin Fransızca yazılmıştır; yalnızca Fransızca sürüm bağlayıcıdır.',
     privacyTitle: 'Gizlilik politikası',
     privacyIntro: 'Kalyx’te gizliliğiniz bir seçenek değil: mimarinin temelidir. Verilerinizi nasıl koruduğumuz: onları toplamayı reddederek.',
-    privacyMeta: ['Güncelleme: 3 Ekim 2026', 'Kalyx', 'Fransız hukuku ve GDPR'],
+    privacyMeta: ['Güncelleme: 19 Ekim 2026', 'Kalyx', 'Fransız hukuku ve GDPR'],
     privacyContact: 'Verileriniz hakkında bir sorunuz mu var?',
     termsTitle: 'Genel kullanım koşulları',
     termsIntro: 'Kalyx Wallet’ı kullanmadan önce bu koşulları dikkatle okuyun. Sorumlu kullanım çerçevesini ve saklama gerektirmeyen modelin özelliklerini tanımlar.',
