@@ -101,4 +101,10 @@ export default {
   askPwTitle: 'Wachtwoord vragen om te ondertekenen', askPwBody: 'Ingeschakeld vereist elke handtekening die een site vraagt je wachtwoord, ook als Kalyx ontgrendeld is.',
   e_PASSWORD_REQUIRED: 'Voer je wachtwoord in om te ondertekenen.', e_WRONG_PASSWORD: 'Onjuist wachtwoord.',
   e_THROTTLED: 'Te veel pogingen: wacht even.', e_ACTION_FAILED: 'De bewerking is mislukt: {message}',
+  beta: 'Bèta',
+  version: 'Versie {v}',
+  reportIssue: 'Een probleem melden',
+  reportNote: 'Opent je e-mailapp. Stuur nooit je herstelzin of privésleutel, ook niet naar de support van Kalyx.',
+  reportMailSubject: 'Bèta-feedback — Kalyx-extensie {v}',
+  reportMailBody: 'Wat gebeurde er? Wat verwachtte je?',
 };

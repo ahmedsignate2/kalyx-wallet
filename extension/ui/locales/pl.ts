@@ -101,4 +101,10 @@ export default {
   askPwTitle: 'Pytaj o hasło przy podpisywaniu', askPwBody: 'Gdy włączone, każdy podpis żądany przez stronę wymaga hasła, nawet po odblokowaniu.',
   e_PASSWORD_REQUIRED: 'Wpisz hasło, aby podpisać.', e_WRONG_PASSWORD: 'Nieprawidłowe hasło.',
   e_THROTTLED: 'Zbyt wiele prób: poczekaj chwilę.', e_ACTION_FAILED: 'Operacja nie powiodła się: {message}',
+  beta: 'Beta',
+  version: 'Wersja {v}',
+  reportIssue: 'Zgłoś problem',
+  reportNote: 'Otwiera aplikację poczty. Nigdy nie wysyłaj frazy odzyskiwania ani klucza prywatnego, nawet do wsparcia Kalyx.',
+  reportMailSubject: 'Opinia o becie — rozszerzenie Kalyx {v}',
+  reportMailBody: 'Co się stało? Czego się spodziewałeś?',
 };

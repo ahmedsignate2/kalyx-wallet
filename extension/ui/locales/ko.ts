@@ -115,4 +115,10 @@ export default {
   askPwTitle: '서명 시 비밀번호 요구', askPwBody: '켜면 잠금 해제 상태에서도 사이트가 요청하는 모든 서명에 비밀번호가 필요합니다.',
   e_PASSWORD_REQUIRED: '서명하려면 비밀번호를 입력하세요.', e_WRONG_PASSWORD: '비밀번호가 틀렸습니다.',
   e_THROTTLED: '시도 횟수가 너무 많습니다. 잠시 기다리세요.', e_ACTION_FAILED: '작업에 실패했습니다: {message}',
+  beta: '베타',
+  version: '버전 {v}',
+  reportIssue: '문제 신고',
+  reportNote: '이메일 앱이 열립니다. 복구 구문이나 개인 키는 Kalyx 지원팀에도 절대 보내지 마세요.',
+  reportMailSubject: '베타 피드백 — Kalyx 확장 프로그램 {v}',
+  reportMailBody: '무슨 일이 있었나요? 어떻게 될 거라고 예상했나요?',
 };

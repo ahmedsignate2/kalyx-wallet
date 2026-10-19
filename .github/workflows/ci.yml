@@ -50,3 +50,27 @@ jobs:
             exit 1
           fi
           echo "OK : aucun log de secret détecté."
+
+  # Extension de navigateur : typecheck, tests, build et empreinte du build.
+  # Le cœur (src/, lib/) vient de la racine : ses dépendances aussi.
+  extension:
+    name: Extension (typecheck, tests, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            extension/package-lock.json
+      - name: Install (racine, puis extension)
+        run: npm ci && npm ci --prefix extension
+      - name: Typecheck
+        run: npm run typecheck --prefix extension
+      - name: Tests
+        run: npm test --prefix extension
+      - name: Build et empreinte
+        run: npm run build --prefix extension && npm run hash --prefix extension

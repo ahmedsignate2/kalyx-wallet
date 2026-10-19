@@ -1,5 +1,8 @@
 import { defineConfig } from 'wxt';
 import { extensionRegistry } from './scripts/registryPlugin';
+import { readFileSync } from 'node:fs';
+
+const PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 /**
  * Extension Kalyx — Manifest V3, Chromium (Chrome, Brave, Edge) en v1.
@@ -20,6 +23,8 @@ export default defineConfig({
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
     default_locale: 'en',
+    // Bêta non répertoriée (lot 8) : affichée dans Chrome et dans les réglages.
+    version_name: `${PKG.version} beta`,
     minimum_chrome_version: '116',
     permissions: ['storage', 'alarms', 'idle', 'sidePanel', 'scripting'],
     // Le script de page (monde MAIN) est enregistré par le service worker : il lui faut l'accès aux sites.
