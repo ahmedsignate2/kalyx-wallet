@@ -31,9 +31,9 @@ const launch = (lang = 'fr') => chromium.launchPersistentContext(mkdtempSync(joi
   executablePath: process.env.CHROMIUM_PATH,
   args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', `--lang=${lang}`],
 });
-// ONLY=dapps : seulement le pont vers les dApps (plus rapide à relancer).
-if (['dapps', 'attacks', 'langs'].includes(process.env.ONLY)) {
-  await { dapps, attacks, langs }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs }[process.env.ONLY]();
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
 }
@@ -266,7 +266,23 @@ async function onboarding() {
     await popup.waitForFunction((v) => document.querySelector('select.account')?.value === v, other);
     console.log('✓ changement de compte');
 
-    // Réglages : devise.
+    // Bêta (lot 8) : badge, version et « Signaler un problème » (e-mail sans donnée du portefeuille).
+    (await popup.locator('header .beta').textContent()) === 'Bêta' ? console.log('✓ badge Bêta') : fail('badge Bêta absent');
+    await popup.getByRole('button', { name: 'Réglages' }).click();
+    const ver = await popup.getByText('Version 0.9.0 beta').count();
+    ver === 1 ? console.log('✓ version 0.9.0 beta affichée') : fail('version absente des réglages');
+    // Le mailto part vers l'application d'e-mail (pas d'onglet sans écran) : on lit l'adresse demandée.
+    await popup.evaluate(() => {
+      const create = chrome.tabs.create.bind(chrome.tabs);
+      chrome.tabs.create = (o) => ((window.__mail = o.url), o.url.startsWith('mailto:') ? Promise.resolve({}) : create(o));
+    });
+    await popup.locator('[data-testid=report]').click();
+    const mailUrl = (await popup.waitForFunction(() => window.__mail, null, { timeout: 5_000 }).then((h) => h.jsonValue()).catch(() => '')) ?? '';
+    const decoded = decodeURIComponent(mailUrl);
+    mailUrl.startsWith('mailto:support@kalyxwallet.com?subject=') && decoded.includes('0.9.0 beta') && !/0x[0-9a-fA-F]{40}/.test(decoded)
+      ? console.log('✓ signaler un problème : e-mail au support, version, aucune adresse')
+      : fail(`signaler : « ${mailUrl.slice(0, 120)} »`);
+    await popup.locator('header .link').click();
     await popup.getByRole('button', { name: 'Réglages' }).click();
     await popup.locator('select').first().selectOption('usd');
     await popup.waitForFunction(() => document.querySelector('[data-testid=total]'), null, { timeout: 30_000 });

@@ -101,4 +101,10 @@ export default {
   askPwTitle: 'Pedir la contraseña para firmar', askPwBody: 'Activado, cada firma solicitada por un sitio exige tu contraseña, aunque esté desbloqueado.',
   e_PASSWORD_REQUIRED: 'Introduce tu contraseña para firmar.', e_WRONG_PASSWORD: 'Contraseña incorrecta.',
   e_THROTTLED: 'Demasiados intentos: espera un momento.', e_ACTION_FAILED: 'La operación ha fallado: {message}',
+  beta: 'Beta',
+  version: 'Versión {v}',
+  reportIssue: 'Informar de un problema',
+  reportNote: 'Abre tu aplicación de correo. Nunca envíes tu frase de recuperación ni tu clave privada, ni siquiera al soporte de Kalyx.',
+  reportMailSubject: 'Comentarios beta — extensión Kalyx {v}',
+  reportMailBody: '¿Qué ha pasado? ¿Qué esperabas?',
 };

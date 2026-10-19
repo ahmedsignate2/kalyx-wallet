@@ -21,6 +21,12 @@ import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
 
+const VERSION = (() => {
+  const m = browser.runtime.getManifest();
+  return m.version_name ?? m.version;
+})();
+const SUPPORT_EMAIL = 'support@kalyxwallet.com';
+
 interface WalletMeta {
   id: string;
   label: string;
@@ -149,7 +155,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return h(
       'header',
       { class: 'bar' },
-      h('img', { src: '/icon/128.png', alt: '' }),
+      // Le badge Bêta se pose sur le logo : il ne prend pas la place du compte.
+      h('span', { class: 'brand' }, h('img', { src: '/icon/128.png', alt: '' }), h('span', { class: 'beta', title: VERSION }, t('beta'))),
       select,
       opts.mode === 'popup' && icon(t('openSidePanel'), '◫', openSidePanel),
       icon(t('settings'), '⚙', settings),
@@ -365,11 +372,20 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => void sitesScreen(app, () => settings()) } }, t('sitesTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => whitelistScreen(app, () => settings()) } }, t('wlTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => void openOnboardingTab() } }, t('addWallet')),
+        h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'report', on: { click: () => void reportIssue() } }, t('reportIssue')),
+        h('p', { class: 'small muted' }, t('reportNote')),
+        h('p', { class: 'small muted' }, `${t('version', { v: VERSION })} · ${t('beta')}`),
       ),
     );
   }
 
   const openOnboardingTab = () => openOnboarding(opts.mode === 'popup');
+
+  /** Retour de bêta par e-mail : version et navigateur seulement, rien du portefeuille. */
+  async function reportIssue() {
+    const body = `${t('reportMailBody')}\n\n\n—\nKalyx ${VERSION}\n${navigator.userAgent}`;
+    await browser.tabs.create({ url: `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('reportMailSubject', { v: VERSION }))}&body=${encodeURIComponent(body)}` });
+  }
 
   async function openSidePanel() {
     const win = await browser.windows.getCurrent();

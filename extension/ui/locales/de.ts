@@ -101,4 +101,10 @@ export default {
   askPwTitle: 'Zum Signieren nach dem Passwort fragen', askPwBody: 'Aktiviert verlangt jede von einer Website angefragte Signatur dein Passwort, auch wenn entsperrt.',
   e_PASSWORD_REQUIRED: 'Gib dein Passwort ein, um zu signieren.', e_WRONG_PASSWORD: 'Falsches Passwort.',
   e_THROTTLED: 'Zu viele Versuche: warte einen Moment.', e_ACTION_FAILED: 'Der Vorgang ist fehlgeschlagen: {message}',
+  beta: 'Beta',
+  version: 'Version {v}',
+  reportIssue: 'Problem melden',
+  reportNote: 'Öffnet deine E-Mail-App. Sende niemals deine Wiederherstellungsphrase oder deinen privaten Schlüssel, auch nicht an den Kalyx-Support.',
+  reportMailSubject: 'Beta-Feedback — Kalyx-Erweiterung {v}',
+  reportMailBody: 'Was ist passiert? Was hast du erwartet?',
 };

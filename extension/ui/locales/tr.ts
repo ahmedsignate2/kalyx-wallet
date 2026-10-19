@@ -101,4 +101,10 @@ export default {
   askPwTitle: 'İmzalamak için parola iste', askPwBody: 'Açıkken, bir sitenin istediği her imza kilit açık olsa bile parolanı gerektirir.',
   e_PASSWORD_REQUIRED: 'İmzalamak için parolanı gir.', e_WRONG_PASSWORD: 'Yanlış parola.',
   e_THROTTLED: 'Çok fazla deneme: biraz bekle.', e_ACTION_FAILED: 'İşlem başarısız oldu: {message}',
+  beta: 'Beta',
+  version: 'Sürüm {v}',
+  reportIssue: 'Sorun bildir',
+  reportNote: 'E-posta uygulamanı açar. Kurtarma ifadeni veya özel anahtarını asla gönderme, Kalyx desteğine bile.',
+  reportMailSubject: 'Beta geri bildirimi — Kalyx uzantısı {v}',
+  reportMailBody: 'Ne oldu? Ne bekliyordun?',
 };

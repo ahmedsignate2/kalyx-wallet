@@ -269,6 +269,12 @@ const fr = {
   e_WRONG_PASSWORD: 'Mot de passe incorrect.',
   e_THROTTLED: 'Trop d’essais : patiente un instant.',
   e_ACTION_FAILED: 'L’opération a échoué : {message}',
+  beta: 'Bêta',
+  version: 'Version {v}',
+  reportIssue: 'Signaler un problème',
+  reportNote: 'Ouvre ton application d’e-mail. N’envoie jamais ta phrase de récupération ni ta clé privée, même au support de Kalyx.',
+  reportMailSubject: 'Retour bêta — extension Kalyx {v}',
+  reportMailBody: 'Que s’est-il passé ? Qu’attendais-tu ?',
 };
 
 type Dict = typeof fr;
@@ -522,6 +528,12 @@ const en: Dict = {
   e_WRONG_PASSWORD: 'Wrong password.',
   e_THROTTLED: 'Too many attempts: wait a moment.',
   e_ACTION_FAILED: 'The operation failed: {message}',
+  beta: 'Beta',
+  version: 'Version {v}',
+  reportIssue: 'Report a problem',
+  reportNote: 'Opens your email app. Never send your recovery phrase or private key, not even to Kalyx support.',
+  reportMailSubject: 'Beta feedback — Kalyx extension {v}',
+  reportMailBody: 'What happened? What did you expect?',
 };
 
 export type Key = keyof Dict;

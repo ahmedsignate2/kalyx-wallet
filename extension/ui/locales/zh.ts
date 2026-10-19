@@ -115,4 +115,10 @@ export default {
   askPwTitle: '签名时要求输入密码', askPwBody: '开启后，网站请求的每次签名都需要你的密码，即使已解锁。',
   e_PASSWORD_REQUIRED: '请输入密码以签名。', e_WRONG_PASSWORD: '密码错误。',
   e_THROTTLED: '尝试次数过多：请稍候。', e_ACTION_FAILED: '操作失败：{message}',
+  beta: '测试版',
+  version: '版本 {v}',
+  reportIssue: '报告问题',
+  reportNote: '将打开你的邮件应用。永远不要发送你的助记词或私钥，即使是发给 Kalyx 支持团队。',
+  reportMailSubject: '测试版反馈 — Kalyx 扩展程序 {v}',
+  reportMailBody: '发生了什么？你原本期望什么？',
 };

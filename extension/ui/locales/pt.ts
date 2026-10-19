@@ -101,4 +101,10 @@ export default {
   askPwTitle: 'Pedir a palavra-passe para assinar', askPwBody: 'Ativado, cada assinatura pedida por um site exige a tua palavra-passe, mesmo desbloqueada.',
   e_PASSWORD_REQUIRED: 'Introduz a tua palavra-passe para assinar.', e_WRONG_PASSWORD: 'Palavra-passe incorreta.',
   e_THROTTLED: 'Demasiadas tentativas: aguarda um momento.', e_ACTION_FAILED: 'A operação falhou: {message}',
+  beta: 'Beta',
+  version: 'Versão {v}',
+  reportIssue: 'Comunicar um problema',
+  reportNote: 'Abre a tua aplicação de e-mail. Nunca envies a tua frase de recuperação nem a tua chave privada, nem mesmo ao suporte da Kalyx.',
+  reportMailSubject: 'Feedback beta — extensão Kalyx {v}',
+  reportMailBody: 'O que aconteceu? O que esperavas?',
 };

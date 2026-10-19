@@ -115,4 +115,10 @@ export default {
   askPwTitle: '署名時にパスワードを求める', askPwBody: 'オンにすると、ロック解除中でも、サイトから求められる署名のたびにパスワードが必要になります。',
   e_PASSWORD_REQUIRED: '署名するにはパスワードを入力してください。', e_WRONG_PASSWORD: 'パスワードが違います。',
   e_THROTTLED: '試行回数が多すぎます：しばらくお待ちください。', e_ACTION_FAILED: '操作に失敗しました：{message}',
+  beta: 'ベータ',
+  version: 'バージョン {v}',
+  reportIssue: '問題を報告',
+  reportNote: 'メールアプリが開きます。リカバリーフレーズや秘密鍵は、Kalyx サポートにも絶対に送らないでください。',
+  reportMailSubject: 'ベータ版フィードバック — Kalyx 拡張機能 {v}',
+  reportMailBody: '何が起きましたか？ 本来はどうなるはずでしたか？',
 };
