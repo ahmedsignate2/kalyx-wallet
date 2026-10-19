@@ -12,6 +12,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = 
     if (k === 'on') for (const [ev, fn] of Object.entries(v as Record<string, (e: Event) => void>)) el.addEventListener(ev, fn);
     else if (k === 'class') el.className = String(v);
     else if (k === 'style') el.setAttribute('style', String(v));
+    // Attributs à tiret (aria-*, data-*) : ce ne sont pas des propriétés du DOM.
+    else if (k.includes('-')) { if (v !== false && v != null) el.setAttribute(k, v === true ? 'true' : String(v)); }
     else if (v === true) el.setAttribute(k, '');
     else if (v !== false && v != null) (el as unknown as Record<string, unknown>)[k] = v;
   }

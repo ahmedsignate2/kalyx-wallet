@@ -15,7 +15,9 @@
  * la clé publique stockée plutôt qu'une adresse figée.
  */
 import { hexToBytes } from '@noble/hashes/utils';
-import { formatTonAddress, tonWalletAddress, TON_DEFAULT_WALLET_VERSION, type ChainConfig, type TonWalletVersion } from '../src';
+import { formatTonAddress } from '../src/domain/chains/ton/tonAddress';
+import { tonWalletAddress, TON_DEFAULT_WALLET_VERSION, type TonWalletVersion } from '../src/domain/chains/ton/tonWallet';
+import type { ChainConfig } from '../src/domain/chains/types';
 
 /** Ce qu'il faut d'un compte pour connaître ses adresses — sans rien de secret. */
 export interface AccountAddresses {

@@ -8,6 +8,7 @@ import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
 import { WalletError, type Wallets } from './wallets';
 import { discoverAccounts, type Rpc } from './discovery';
+import type { Home } from './home';
 
 const MAX_PASSWORD = 1024;
 const pw = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= MAX_PASSWORD;
@@ -16,7 +17,7 @@ const optLabel = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().s
 
 export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: string; waitMs?: number };
 
-export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc): Promise<Reply> {
+export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, home?: Home): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
   try {
     switch (m.type) {
@@ -69,9 +70,26 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const wallet = r.found.length ? await wallets.addAccounts(m.id, r.found) : (await wallets.list()).find((w) => w.id === m.id);
         return { ok: true, found: r.found, uncertain: r.uncertain, wallet };
       }
-      default:
-        return { ok: false, error: 'UNKNOWN_MESSAGE' };
+      case 'home:get':
+        if (!home) break;
+        return { ok: true, ...(await home.get()) };
+      case 'home:select':
+        if (!home) break;
+        if (!str(m.walletId, 64) || !Number.isInteger(m.index) || (m.index as number) < 0 || (m.index as number) >= 100) return { ok: false, error: 'BAD_REQUEST' };
+        await home.select(m.walletId, m.index as number);
+        return { ok: true };
+      case 'home:set-fiat':
+        if (!home) break;
+        await home.setFiat(m.fiat);
+        return { ok: true };
+      case 'portfolio:refresh':
+        if (!home) break;
+        return { ok: true, portfolio: await home.refresh() };
+      case 'activity:get':
+        if (!home) break;
+        return { ok: true, activity: await home.activity(m.fresh === true) };
     }
+    return { ok: false, error: 'UNKNOWN_MESSAGE' };
   } catch (e) {
     if (e instanceof SessionError) return { ok: false, error: e.message, ...(e.waitMs ? { waitMs: e.waitMs } : {}) };
     if (e instanceof WalletError) return { ok: false, error: e.message };

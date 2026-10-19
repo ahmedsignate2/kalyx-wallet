@@ -1,0 +1,71 @@
+/**
+ * Registre des réseaux de l'EXTENSION : même interface que celui du cœur
+ * (src/domain/chains/registry), mais seuls les adaptateurs EVM et Solana sont
+ * construits. Substitué au registre du cœur au moment du build (voir
+ * scripts/registryPlugin.ts) : le cœur reste inchangé, et l'extension
+ * n'embarque ni Bitcoin ni TON (prévus plus tard).
+ *
+ * `listChains` rend tous les réseaux connus, comme dans l'app ; `getAdapter`
+ * lève sur un réseau non servi, exactement comme sur un réseau inconnu — les
+ * appelants du cœur savent déjà s'en passer.
+ */
+import type { ChainAdapter, ChainConfig } from '../../src/domain/chains/types';
+import { EvmChainAdapter } from '../../src/domain/chains/EvmChainAdapter';
+import { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
+import { ALL_CHAINS } from '../../src/domain/chains/configs';
+
+function createAdapter(config: ChainConfig): ChainAdapter | null {
+  if (config.family === 'evm') return new EvmChainAdapter(config);
+  if (config.family === 'solana') return new SolanaChainAdapter(config);
+  return null;
+}
+
+const adapters = new Map<string, ChainAdapter>();
+for (const c of ALL_CHAINS) {
+  const a = createAdapter(c);
+  if (a) adapters.set(c.id, a);
+}
+const customChains: ChainConfig[] = [];
+
+export function registerChain(config: ChainConfig): void {
+  if (adapters.has(config.id)) return;
+  const a = createAdapter(config);
+  if (!a) return;
+  adapters.set(config.id, a);
+  customChains.push(config);
+}
+
+export function unregisterChain(id: string): void {
+  adapters.delete(id);
+  const i = customChains.findIndex((c) => c.id === id);
+  if (i >= 0) customChains.splice(i, 1);
+}
+
+export function getAdapter(chainId: string): ChainAdapter {
+  const adapter = adapters.get(chainId);
+  if (!adapter) throw new Error(`Chaîne inconnue: ${chainId}`);
+  return adapter;
+}
+
+export function listChains(opts?: { includeTestnets?: boolean }): ChainConfig[] {
+  const includeTestnets = opts?.includeTestnets ?? true;
+  return [...ALL_CHAINS, ...customChains].filter((c) => includeTestnets || !c.testnet);
+}
+
+export function hasChain(chainId: string): boolean {
+  return adapters.has(chainId);
+}
+
+export function nativeOfChain(chainId: string): { symbol: string; decimals: number } | undefined {
+  const c = adapters.get(chainId)?.config;
+  return c ? { symbol: c.nativeSymbol, decimals: c.nativeDecimals } : undefined;
+}
+
+export function chainNameOf(chainId: string): string | undefined {
+  return adapters.get(chainId)?.config.name;
+}
+
+export function chainMetaOf(chainId: string): { name: string; nativeSymbol: string; nativeDecimals: number; explorerUrl?: string } | undefined {
+  const c = adapters.get(chainId)?.config;
+  return c ? { name: c.name, nativeSymbol: c.nativeSymbol, nativeDecimals: c.nativeDecimals, explorerUrl: c.explorerUrl } : undefined;
+}

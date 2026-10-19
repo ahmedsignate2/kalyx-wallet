@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import { extensionRegistry } from './scripts/registryPlugin';
 
 /**
  * Extension Kalyx — Manifest V3, Chromium (Chrome, Brave, Edge) en v1.
@@ -13,7 +14,7 @@ export default defineConfig({
    * inexistant dans un service worker. Aucune clé n'est embarquée dans
    * l'extension : elles passeront par un relais (cahier des charges, §8).
    */
-  vite: () => ({ define: { 'process.env': '{}' } }),
+  vite: () => ({ define: { 'process.env': '{}' }, plugins: [extensionRegistry()] }),
   manifest: {
     name: 'Kalyx Wallet',
     description: 'Portefeuille non-custodial pour Ethereum, les réseaux EVM et Solana.',

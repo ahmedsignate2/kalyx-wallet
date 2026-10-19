@@ -88,6 +88,61 @@ const fr = {
   addWallet: 'Ajouter un portefeuille',
   lock: 'Verrouiller',
   unavailable: 'Kalyx ne répond pas. Rouvre la fenêtre.',
+  tabTokens: 'Tokens',
+  tabActivity: 'Activité',
+  total: 'Valeur totale',
+  totalUnknown: 'Valeur inconnue',
+  updated: 'Mis à jour {t}',
+  justNow: 'à l’instant',
+  refreshing: 'Actualisation…',
+  networksDown: 'Sans réponse : {list}. Leurs soldes viennent de la dernière lecture.',
+  andMore: '{list} et {n} autres',
+  networksDownNoData: 'Sans réponse : {list}. Soldes inconnus pour l’instant.',
+  networksDownActivity: 'Sans réponse : {list}. Leur historique n’a pas pu être lu.',
+  erc20Soon: 'Les tokens ERC-20 arrivent avec le relais Kalyx. Les soldes natifs et Solana sont complets.',
+  smallBalances: 'Petits soldes ({n})',
+  hiddenTokens: 'Masqués, non vérifiés ({n})',
+  noTokens: 'Aucun solde pour l’instant.',
+  noActivity: 'Aucune activité récente.',
+  hiddenActivity: '{n} ligne(s) masquée(s) : spam probable.',
+  pending: 'En attente',
+  failedTx: 'Échouée',
+  viewExplorer: 'Voir sur l’explorateur',
+  account: 'Compte {n}',
+  settings: 'Réglages',
+  currency: 'Devise',
+  openSidePanel: 'Ouvrir dans le panneau latéral',
+  copied: 'Adresse copiée',
+  copy: 'Copier l’adresse',
+  firstLoad: 'Lecture des soldes sur tous les réseaux…',
+  loadFailed: 'Lecture impossible pour l’instant. Réessaie.',
+  retry: 'Réessayer',
+  today: 'Aujourd’hui',
+  yesterday: 'Hier',
+  // Activité : mêmes phrases que l'app (lib/i18n).
+  actSent: "Envoyé {amount} {symbol}",
+  actReceived: "Reçu {amount} {symbol}",
+  actSwapped: "Swappé {amount} {symbol}",
+  actApproved: "Autorisé {name} à dépenser tes {symbol}",
+  actNftIn: "Reçu 1 NFT de {name}",
+  actNftOut: "Envoyé 1 NFT à {name}",
+  actInternal: "Transfert interne · {amount} {symbol}",
+  actInteraction: "Interaction avec {name}",
+  actTo: "à {name}",
+  actFrom: "de {name}",
+  actUnverified: "Token non vérifié — n’interagis pas avec lui",
+  actFailedPrefix: "Échouée · {what}",
+  actFailedBody: "Rien n’a été débité (sauf les frais réseau). Cause fréquente : frais trop bas ou autorisation manquante.",
+  actSwappedPair: "Swappé {from} → {to}",
+  actLabelSent: "Envoyé",
+  actLabelReceived: "Reçu",
+  actLabelSwapped: "Swappé",
+  actLabelApproved: "Autorisation",
+  actLabelNftIn: "NFT reçu",
+  actLabelNftOut: "NFT envoyé",
+  actLabelInternal: "À toi-même",
+  actLabelInteraction: "Interaction avec une app",
+  actLabelFailed: "Échouée",
 };
 
 type Dict = typeof fr;
@@ -178,10 +233,68 @@ const en: Dict = {
   addWallet: 'Add a wallet',
   lock: 'Lock',
   unavailable: 'Kalyx isn’t responding. Reopen the window.',
+  tabTokens: 'Tokens',
+  tabActivity: 'Activity',
+  total: 'Total value',
+  totalUnknown: 'Value unknown',
+  updated: 'Updated {t}',
+  justNow: 'just now',
+  refreshing: 'Refreshing…',
+  networksDown: 'Not responding: {list}. Their balances come from the last reading.',
+  andMore: '{list} and {n} more',
+  networksDownNoData: 'Not responding: {list}. Balances unknown for now.',
+  networksDownActivity: 'Not responding: {list}. Their history couldn’t be read.',
+  erc20Soon: 'ERC-20 tokens arrive with the Kalyx relay. Native and Solana balances are complete.',
+  smallBalances: 'Small balances ({n})',
+  hiddenTokens: 'Hidden, unverified ({n})',
+  noTokens: 'No balance yet.',
+  noActivity: 'No recent activity.',
+  hiddenActivity: '{n} row(s) hidden: likely spam.',
+  pending: 'Pending',
+  failedTx: 'Failed',
+  viewExplorer: 'View on explorer',
+  account: 'Account {n}',
+  settings: 'Settings',
+  currency: 'Currency',
+  openSidePanel: 'Open in side panel',
+  copied: 'Address copied',
+  copy: 'Copy address',
+  firstLoad: 'Reading balances on every network…',
+  loadFailed: 'Can’t read balances right now. Try again.',
+  retry: 'Retry',
+  today: 'Today',
+  yesterday: 'Yesterday',
+  // Activité : mêmes phrases que l'app (lib/i18n).
+  actSent: "Sent {amount} {symbol}",
+  actReceived: "Received {amount} {symbol}",
+  actSwapped: "Swapped {amount} {symbol}",
+  actApproved: "Approved {name} to spend your {symbol}",
+  actNftIn: "Received 1 NFT from {name}",
+  actNftOut: "Sent 1 NFT to {name}",
+  actInternal: "Internal transfer · {amount} {symbol}",
+  actInteraction: "Interaction with {name}",
+  actTo: "to {name}",
+  actFrom: "from {name}",
+  actUnverified: "Unverified token — do not interact with it",
+  actFailedPrefix: "Failed · {what}",
+  actFailedBody: "Nothing was debited (except network fees). Common cause: fee too low or missing approval.",
+  actSwappedPair: "Swapped {from} → {to}",
+  actLabelSent: "Sent",
+  actLabelReceived: "Received",
+  actLabelSwapped: "Swapped",
+  actLabelApproved: "Approval",
+  actLabelNftIn: "NFT received",
+  actLabelNftOut: "NFT sent",
+  actLabelInternal: "To yourself",
+  actLabelInteraction: "App interaction",
+  actLabelFailed: "Failed",
 };
 
 export type Key = keyof Dict;
-const dict: Dict = typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('fr') ? fr : en;
+/** Français si le navigateur l'est, anglais sinon (15 langues au lot 7). */
+export const IS_FR = typeof navigator !== 'undefined' && !!navigator.language?.toLowerCase().startsWith('fr');
+export const LOCALE = IS_FR ? 'fr-FR' : 'en-US';
+const dict: Dict = IS_FR ? fr : en;
 
 export function t(key: Key, vars: Record<string, string | number> = {}): string {
   return dict[key].replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
@@ -197,6 +310,11 @@ export function errorText(code: string | undefined): string {
 export function reasonText(code: string): string {
   const k = `r_${code}` as Key;
   return k in dict ? dict[k] : errorText(code);
+}
+
+/** Traducteur des phrases d'activité (src/domain/tx/humanize). */
+export function activityT(key: string, params: Record<string, string> = {}): string {
+  return key in dict ? t(key as Key, params) : key;
 }
 
 export const DICTS = { fr, en };

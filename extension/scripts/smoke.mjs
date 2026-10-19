@@ -186,10 +186,69 @@ async function onboarding() {
     await page.waitForFunction(() => document.querySelector('.error[role=alert]')?.textContent);
     (await page.locator('.error[role=alert]').textContent()) === 'Ce portefeuille est déjà dans Kalyx.' ? console.log('✓ doublon refusé') : fail('doublon accepté');
 
+    // ── Portefeuille (lot 3) ──
     await popup.reload();
-    await popup.getByText('Ajouter un portefeuille').waitFor();
-    (await popup.locator('.card').count()) === 2 ? console.log('✓ popup : 2 portefeuilles') : fail('popup : portefeuilles');
-    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-wallets-${scheme}.png`) });
+    await popup.locator('select.account').waitFor();
+    const options = await popup.locator('select.account option').count();
+    options >= 2 ? console.log(`✓ popup : sélecteur de comptes (${options})`) : fail(`popup : ${options} compte(s)`);
+    // Première lecture réseau terminée (ou réseaux muets) : plus de « Actualisation… ».
+    await popup.waitForFunction(() => !document.querySelector('.status')?.textContent?.includes('…'), null, { timeout: 120_000 });
+    const total = (await popup.locator('[data-testid=total]').textContent()).trim();
+    const down = await popup.locator('.banner.warn').allTextContents();
+    console.log(`  total affiché : « ${total} »${down.length ? ` · ${down.join(' | ')}` : ''}`);
+    if (/^0[,.]00/.test(total.replace(/[^\d,.]/g, '')) && down.length) fail('total à 0 alors que des réseaux sont muets');
+    else console.log('✓ jamais de faux zéro : réseau muet nommé ou total réel');
+
+    // Ouverture avec le cliché en cache : mesurée, objectif < 200 ms.
+    const times = [];
+    for (let i = 0; i < 5; i++) {
+      const p = await ctx.newPage();
+      await p.setViewportSize({ width: 360, height: 600 });
+      await p.goto(`chrome-extension://${id}/popup.html`);
+      await p.waitForFunction(() => document.body.dataset.firstPaint);
+      times.push(Number(await p.evaluate(() => document.body.dataset.firstPaint)));
+      await p.close();
+    }
+    const best = Math.min(...times);
+    const median = times.sort((a, b) => a - b)[2];
+    median < 200 ? console.log(`✓ popup affiché en ${median} ms (médiane de 5, min ${best} ms)`) : fail(`popup trop lent : ${times.join(', ')} ms`);
+
+    await popup.reload();
+    await popup.locator('select.account').waitFor();
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-wallet-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+    await popup.getByRole('tab', { name: 'Activité' }).click();
+    await popup.waitForFunction(() => !document.querySelector('.list')?.textContent?.includes('Actualisation'), null, { timeout: 120_000 });
+    const act = await popup.locator('.list').textContent();
+    console.log(`✓ onglet Activité : ${(await popup.locator('.list .row').count())} ligne(s)${act.includes('Sans réponse') ? ' · réseaux muets nommés' : ''}`);
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-activity-${scheme}.png`) });
+
+    // Changer de compte : l'écran suit.
+    const first = await popup.locator('select.account').inputValue();
+    const other = await popup.locator('select.account option').evaluateAll((os, cur) => os.map((o) => o.value).find((v) => v !== cur), first);
+    await popup.locator('select.account').selectOption(other);
+    await popup.waitForFunction((v) => document.querySelector('select.account')?.value === v, other);
+    console.log('✓ changement de compte');
+
+    // Réglages : devise.
+    await popup.getByRole('button', { name: 'Réglages' }).click();
+    await popup.locator('select').first().selectOption('usd');
+    await popup.waitForFunction(() => document.querySelector('[data-testid=total]'), null, { timeout: 30_000 });
+    const totalUsd = await popup.locator('[data-testid=total]').textContent();
+    totalUsd === '—' || totalUsd.includes('$') ? console.log(`✓ devise USD (« ${totalUsd} »)`) : fail(`devise : « ${totalUsd} »`);
+
+    // Panneau latéral : la même interface, plus large.
+    const panel = await ctx.newPage();
+    await panel.setViewportSize({ width: 420, height: 820 });
+    await panel.goto(`chrome-extension://${id}/sidepanel.html`);
+    await panel.locator('select.account').waitFor();
+    console.log('✓ panneau latéral affiché');
+    if (SHOTS) for (const scheme of ['light', 'dark']) await panel.emulateMedia({ colorScheme: scheme }), await panel.screenshot({ path: join(SHOTS, `sidepanel-${scheme}.png`) });
+
+    // Verrouillé : plus rien d'affiché.
+    await popup.getByRole('button', { name: 'Verrouiller' }).click();
+    await popup.locator('input[type=password]').waitFor();
+    (await popup.locator('[data-testid=total]').count()) === 0 ? console.log('✓ verrouillé : soldes masqués') : fail('soldes visibles verrouillé');
   } finally {
     await ctx.close();
   }
