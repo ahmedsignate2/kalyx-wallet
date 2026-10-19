@@ -40,7 +40,8 @@ function isTransientRpcError(e: unknown): boolean {
   const code = String(err?.code ?? '');
   if (['NETWORK_ERROR', 'SERVER_ERROR', 'TIMEOUT'].includes(code)) return true;
   const msg = (err?.shortMessage || err?.message || '').toLowerCase();
-  return /timeout|failed to fetch|fetch failed|network error|could not detect network|econn|socket hang|502|503|504|429|too many requests|rate ?limit|service unavailable|bad gateway|gateway timeout/.test(
+  // Accès refusé par CE serveur (clé exigée, origine bloquée…) : un autre serveur peut répondre.
+  return /timeout|failed to fetch|fetch failed|network error|could not detect network|econn|socket hang|502|503|504|429|too many requests|rate ?limit|service unavailable|bad gateway|gateway timeout|\b40[13]\b|forbidden|unauthori[sz]ed|api key|access denied/.test(
     msg,
   );
 }

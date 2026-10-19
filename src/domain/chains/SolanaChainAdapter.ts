@@ -120,7 +120,13 @@ export class SolanaChainAdapter implements ChainAdapter {
             API_TIMEOUT_MS,
             () => new Error('timeout'),
           );
-          const json = (await res.json()) as { result?: T; error?: { message?: string } };
+          // Statut d'échec ou corps illisible (page HTML de refus) : la faute de CE serveur, on passe au suivant.
+          // Statut d'échec, corps illisible (page HTML de refus) ou erreur du relais lui-même
+          // (`{ error: "quota" }`) : la faute de CE serveur, on passe au suivant.
+          const json = (await res.json().catch(() => null)) as { result?: T; error?: string | { message?: string } } | null;
+          if (!res.ok || !json || typeof json.error === 'string') {
+            throw Object.assign(new Error(`HTTP ${res.status}${typeof json?.error === 'string' ? ` : ${json.error}` : json ? '' : ' : réponse illisible'}`), { code: 'SERVER_ERROR' });
+          }
           if (json.error) throw new Error(json.error.message ?? 'Erreur RPC Solana');
           return json.result as T;
         },
