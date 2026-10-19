@@ -3,6 +3,9 @@ import { lockSessionToExtension, makeStore } from '../lib/storage';
 import { makeSession, AUTO_LOCK_ALARM } from '../lib/session';
 import { handleInternal } from '../lib/router';
 import { makeWallets } from '../lib/wallets';
+import { makePortfolio } from '../lib/portfolio';
+import { makeHome } from '../lib/home';
+import { activityT, IS_FR, LOCALE } from '../ui/i18n';
 
 /**
  * Service worker : le cerveau de l'extension, seul à toucher au coffre.
@@ -20,7 +23,10 @@ export default defineBackground(() => {
     alarms: browser.alarms,
   });
 
-  const wallets = makeWallets(makeStore(browser.storage.local), session);
+  const disk = makeStore(browser.storage.local);
+  const wallets = makeWallets(disk, session);
+  const portfolio = makePortfolio({ disk, t: activityT, locale: LOCALE });
+  const home = makeHome(disk, session, wallets, portfolio, IS_FR ? 'eur' : 'usd');
 
   // Installation : l'onboarding s'ouvre dans un ONGLET complet (un popup se ferme au moindre clic à côté).
   browser.runtime.onInstalled.addListener((d) => {
@@ -36,7 +42,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg).then(reply);
+    handleInternal(session, wallets, msg, undefined, home).then(reply);
     return true; // réponse asynchrone
   });
 });

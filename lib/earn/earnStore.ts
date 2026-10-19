@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import { EARN_CATALOG, getPrices, formatAmount, type EarnProtocol, type EarnPosition } from '../../src';
 import { loadAll, loadApys, type EarnAccount, type EarnBalances } from './earnEngine';
 import { mergeFailed } from './merge';
+import { safeNum } from '../num';
 
 /** Position enrichie pour l'affichage. */
 export interface EarnPositionView {
@@ -120,11 +121,7 @@ export const useEarn = create<EarnState>((set, get) => ({
   },
 }));
 
-/** Nombre fini ou 0 — jamais de NaN/Infinity dans une somme affichée. */
-export function safeNum(v: unknown): number {
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
+export { safeNum } from '../num';
 
 /** Prix d'un token Earn dans la devise de l'app (0 si inconnu). */
 export function priceOf(prices: Record<string, number>, coingeckoId?: string): number {
