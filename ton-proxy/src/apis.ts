@@ -67,8 +67,9 @@ function coingecko(path: string, search: URLSearchParams): ApiRoute {
     method: 'GET',
     cacheSeconds: r.cache,
     maxBody: 0,
-    // Sans clé, l'API publique répond aussi (débit plus faible) : le relais garde alors son cache partagé.
-    upstream: (k) => ({ url: `${CG}${path}${q ? `?${q}` : ''}`, headers: { accept: 'application/json', ...(k.coingecko ? { 'x-cg-demo-api-key': k.coingecko } : {}) } }),
+    // Sans clé : « non configuré ». L'API publique, appelée depuis les IP partagées de
+    // Cloudflare, est vite bridée ; chaque appareil l'appelle alors lui-même (son propre débit).
+    upstream: (k) => (k.coingecko ? { url: `${CG}${path}${q ? `?${q}` : ''}`, headers: { accept: 'application/json', 'x-cg-demo-api-key': k.coingecko } } : null),
   };
 }
 
