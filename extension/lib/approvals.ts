@@ -12,6 +12,9 @@
  *
  * Contre l'inondation : une connexion identique déjà en attente n'ouvre pas
  * une deuxième fenêtre, et un site n'a que quelques demandes en attente.
+ * Après un REFUS, le même site ne peut pas rouvrir la même sorte de demande
+ * tout de suite : 10 s, puis le double à chaque refus (5 min au plus) — un
+ * site qui harcèle jusqu'au clic par lassitude n'obtient plus de fenêtre.
  */
 import { RpcError, toRpcError } from './rpcError';
 import type { Family } from './sites';
@@ -46,6 +49,10 @@ export interface ApprovalDeps {
 
 const MAX_PER_ORIGIN = 3;
 const MAX_TOTAL = 20;
+const COOLDOWN_MS = 10_000;
+const COOLDOWN_MAX_MS = 5 * 60_000;
+/** Refus oubliés au bout de ce temps sans nouveau refus. */
+const COOLDOWN_RESET_MS = 30 * 60_000;
 
 interface Entry {
   req: ApprovalRequest;
@@ -60,6 +67,16 @@ interface Entry {
 export function makeApprovals(deps: ApprovalDeps) {
   const now = deps.now ?? Date.now;
   const pending = new Map<string, Entry>();
+  /** Refus récents par site et sorte de demande. */
+  const refusals = new Map<string, { count: number; until: number; last: number }>();
+  const rkey = (origin: string, kind: ApprovalKind, family: Family) => `${kind}|${family}|${origin}`;
+  function noteRefusal(r: ApprovalRequest) {
+    const k = rkey(r.origin, r.kind, r.family);
+    const prev = refusals.get(k);
+    const count = prev && now() - prev.last < COOLDOWN_RESET_MS ? prev.count + 1 : 1;
+    refusals.set(k, { count, last: now(), until: now() + Math.min(COOLDOWN_MAX_MS, COOLDOWN_MS * 2 ** (count - 1)) });
+    if (refusals.size > 500) refusals.delete(refusals.keys().next().value!);
+  }
 
   function close(id: string, e: Entry) {
     pending.delete(id);
@@ -74,6 +91,8 @@ export function makeApprovals(deps: ApprovalDeps) {
     if (kind === 'connect') {
       for (const p of pending.values()) if (p.req.origin === origin && p.req.kind === 'connect' && p.req.family === family) return p.promise as Promise<T>;
     }
+    const cool = refusals.get(rkey(origin, kind, family));
+    if (cool && now() < cool.until) throw new RpcError(4001, 'Refusé récemment dans Kalyx : réessaie plus tard');
     const mine = [...pending.values()].filter((p) => p.req.origin === origin).length;
     if (mine >= MAX_PER_ORIGIN || pending.size >= MAX_TOTAL) throw new RpcError(-32002, 'Une demande est déjà en attente dans Kalyx');
     const id = crypto.randomUUID();
@@ -100,6 +119,7 @@ export function makeApprovals(deps: ApprovalDeps) {
     const e = pending.get(id);
     if (!e) return { ok: false, error: { code: 4100, message: 'REQUEST_EXPIRED' } };
     if (!d.approve) {
+      noteRefusal(e.req);
       close(id, e);
       e.reject(new RpcError(4001, 'Refusé par l’utilisateur'));
       return { ok: true };
@@ -108,6 +128,7 @@ export function makeApprovals(deps: ApprovalDeps) {
     e.busy = true;
     try {
       const result = await e.run({ walletId: d.walletId, index: d.index, reduceTo: d.reduceTo });
+      refusals.delete(rkey(e.req.origin, e.req.kind, e.req.family));
       close(id, e);
       e.resolve(result);
       return { ok: true };

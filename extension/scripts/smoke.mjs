@@ -32,8 +32,9 @@ const launch = () => chromium.launchPersistentContext(mkdtempSync(join(tmpdir(),
   args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', '--lang=fr'],
 });
 // ONLY=dapps : seulement le pont vers les dApps (plus rapide à relancer).
-if (process.env.ONLY === 'dapps') {
-  await dapps();
+if (process.env.ONLY === 'dapps' || process.env.ONLY === 'attacks') {
+  if (process.env.ONLY === 'dapps') await dapps();
+  else await attacks();
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
 }
@@ -97,6 +98,7 @@ try {
 }
 await onboarding();
 await dapps();
+await attacks();
 
 /**
  * Onboarding piloté comme un utilisateur, dans un profil neuf : créer
@@ -571,6 +573,143 @@ async function dapps() {
     await page.waitForFunction(() => window.kx.providers.length > 0);
     (await page.evaluate(() => window.ethereum?.isKalyx === true && window.ethereum.isMetaMask === true)) ? console.log('✓ « Kalyx par défaut » : window.ethereum') : fail('window.ethereum');
     (await page.evaluate(() => window.__kalyxDefault__ === undefined)) ? console.log('✓ drapeau effacé après lecture') : fail('drapeau');
+  } finally {
+    await ctx.close();
+    server.close();
+  }
+}
+
+/**
+ * PAGE MALVEILLANTE (lot 7) : tout ce qu'un site hostile peut tenter. Chaque
+ * attaque doit échouer CÔTÉ ATTAQUANT.
+ */
+async function attacks() {
+  const PAGE = `<!doctype html><meta charset="utf-8"><title>attaque</title><body><script>
+    window.kx = { providers: [] };
+    window.addEventListener('eip6963:announceProvider', (e) => window.kx.providers.push(e.detail));
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+    window.kx.evm = () => window.kx.providers.find((p) => p.info.rdns === 'com.kalyxwallet').provider;
+    window.kx.call = (method, params) => window.kx.evm().request({ method, params }).then((r) => ({ r }), (e) => ({ code: e.code, message: e.message }));
+    window.kx.leaked = [];
+    window.addEventListener('message', (e) => { if (e.data && e.data.k === 'kalyx:res' && e.data.id === 999001) window.kx.leaked.push(e.data); });
+  </script>`;
+  const FRAME = `<!doctype html><body><script>
+    // Cadre tiers : se fait passer pour la page principale auprès du relais.
+    parent.postMessage({ k: 'kalyx:req', id: 999001, family: 'evm', method: 'eth_requestAccounts', params: [] }, '*');
+  </script>`;
+  const server = createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(req.url === '/frame' ? FRAME : PAGE);
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const SITE = `http://localhost:${port}`;
+  const PW = 'Plage-Orange-47!';
+  const ctx = await launch();
+  const windows = () => ctx.pages().filter((p) => p.url().includes('/approval.html'));
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const ext = await ctx.newPage();
+    await ext.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => ext.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+
+    const page = await ctx.newPage();
+    await page.goto(SITE);
+    await page.waitForFunction(() => window.kx.providers.length > 0);
+
+    // 1. Un cadre tiers imite la page : ignoré par le relais.
+    await page.evaluate((u) => {
+      const f = document.createElement('iframe');
+      f.src = u;
+      document.body.append(f);
+    }, `http://127.0.0.1:${port}/frame`);
+    await page.waitForTimeout(1500);
+    windows().length === 0 && (await page.evaluate(() => window.kx.leaked.length)) === 0 ? console.log('✓ attaque : un cadre tiers qui imite la page est ignoré') : fail('cadre tiers entendu');
+
+    // 2. La page parle directement à l'extension, ou ouvre ses pages : impossible.
+    const direct = await page.evaluate(async (extId) => {
+      const out = {};
+      out.runtime = typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.sendMessage === 'function'
+        ? await chrome.runtime.sendMessage(extId, { type: 'vault:status' }).then(() => 'répondu', () => 'refusé')
+        : 'absent';
+      out.fetch = await fetch(`chrome-extension://${extId}/approval.html`).then(() => 'lu', () => 'refusé');
+      return out;
+    }, id);
+    direct.runtime !== 'répondu' && direct.fetch === 'refusé' ? console.log(`✓ attaque : pas d’accès direct à l’extension (runtime ${direct.runtime}, pages ${direct.fetch})`) : fail(`accès direct ${JSON.stringify(direct)}`);
+
+    // 3. Signer sans être connecté : refusé, sans fenêtre.
+    let r = await page.evaluate(() => window.kx.call('personal_sign', ['0x6869', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94']));
+    r.code === 4100 && windows().length === 0 ? console.log('✓ attaque : signature sans connexion refusée (4100), aucune fenêtre') : fail(`sans connexion ${JSON.stringify(r)}`);
+
+    // 4. Inondation de connexions : UNE fenêtre ; refus ; puis plus de fenêtre pendant le délai.
+    await page.evaluate(() => {
+      window.kx.flood = Promise.all(Array.from({ length: 40 }, () => window.kx.call('eth_requestAccounts')));
+    });
+    const w1 = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 10_000 });
+    await page.waitForTimeout(1000);
+    windows().length === 1 ? console.log('✓ attaque : 40 demandes de connexion → une seule fenêtre') : fail(`${windows().length} fenêtres`);
+    await w1.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
+    r = await page.evaluate(() => window.kx.flood);
+    // Au-delà de 30 demandes en vol, le relais répond lui-même « trop de demandes » (-32005).
+    r.every((x) => x.code === 4001 || x.code === -32005) && r.some((x) => x.code === 4001)
+      ? console.log(`✓ refus : ${r.filter((x) => x.code === 4001).length} reçoivent 4001, ${r.filter((x) => x.code === -32005).length} freinées par le relais`)
+      : fail(`inondation ${JSON.stringify(r.slice(0, 3))}`);
+    r = await page.evaluate(() => window.kx.call('eth_requestAccounts'));
+    await page.waitForTimeout(800);
+    r.code === 4001 && windows().length === 0 ? console.log('✓ attaque : redemander aussitôt après un refus → refusé sans fenêtre') : fail(`après refus ${JSON.stringify(r)}`);
+
+    // 5. Requête géante : refusée par le relais.
+    r = await page.evaluate(() => window.kx.call('eth_call', [{ data: '0x' + 'ab'.repeat(400_000) }]));
+    r.code === -32602 ? console.log('✓ attaque : requête de 800 Ko refusée') : fail(`géante ${JSON.stringify(r)}`);
+
+    // 6. Rafale : la limite de débit répond, le reste ne passe pas.
+    r = await page.evaluate(async () => (await Promise.all(Array.from({ length: 180 }, () => window.kx.call('eth_chainId')))).filter((x) => x.code === -32005).length);
+    r > 0 ? console.log(`✓ attaque : rafale de 180 requêtes → ${r} freinées (-32005)`) : fail('pas de limite de débit');
+
+    // 7. Inondation de signatures (site connecté) : 3 fenêtres au plus, le reste -32002.
+    await page.waitForTimeout(10_500); // fin du délai de la limite de débit
+    await bg({ type: 'vault:lock' });
+    // Le délai après refus (10 s) est écoulé : une nouvelle connexion ouvre une fenêtre.
+    await page.evaluate(() => {
+      window.kx.c = window.kx.call('wallet_requestPermissions', [{ eth_accounts: {} }]);
+    });
+    const wc = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 15_000 });
+    await wc.locator('input[type=password]').fill(PW);
+    await wc.getByRole('button', { name: 'Déverrouiller' }).click();
+    await wc.getByRole('button', { name: 'Connecter' }).waitFor();
+    await wc.waitForTimeout(800);
+    await wc.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
+    await page.evaluate(() => window.kx.c);
+    // 7. Double-clic hérité : un clic aussitôt la fenêtre ouverte ne signe pas.
+    const nextWin = ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 15_000 });
+    await page.evaluate(() => {
+      window.kx.one = window.kx.call('personal_sign', ['0x6f6b', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94']);
+    });
+    const ws = await nextWin;
+    await ws.getByRole('button', { name: 'Signer' }).click({ force: true, timeout: 3000 }).catch(() => {});
+    await ws.waitForTimeout(150);
+    !ws.isClosed() ? console.log('✓ attaque : clic immédiat (avant armement) sans effet') : fail('clic immédiat a signé');
+    await ws.waitForTimeout(800);
+    await ws.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true }).catch(() => {});
+    r = await page.evaluate(() => window.kx.one);
+    typeof r.r === 'string' ? console.log('✓ clic après armement : signé') : fail(`armement ${JSON.stringify(r)}`);
+
+    // 8. Inondation de signatures : 3 fenêtres au plus, le reste -32002 ; fermer = refus.
+    await page.evaluate(() => {
+      window.kx.sigs = Promise.all(Array.from({ length: 10 }, (_, i) => window.kx.call('personal_sign', ['0x' + (100 + i).toString(16), '0x9858EfFD232B4033E47d90003D41EC34EcaEda94'])));
+    });
+    await page.waitForTimeout(2500);
+    const n = windows().length;
+    n <= 3 && n > 0 ? console.log(`✓ attaque : 10 signatures d’un coup → ${n} fenêtres au plus`) : fail(`${n} fenêtres de signature`);
+    for (const w of windows()) await w.close();
+    r = await page.evaluate(() => window.kx.sigs);
+    r.every((x) => x.code === 4001 || x.code === -32002) ? console.log('✓ fenêtres fermées : refus (4001) ou demande en trop (-32002), rien de signé') : fail(`signatures ${JSON.stringify(r)}`);
+    r = await page.evaluate(() => window.kx.call('personal_sign', ['0x6869', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94']));
+    await page.waitForTimeout(600);
+    r.code === 4001 && windows().length === 0 ? console.log('✓ et pas de nouvelle fenêtre de signature aussitôt après les refus') : fail(`après refus ${JSON.stringify(r)}`);
   } finally {
     await ctx.close();
     server.close();

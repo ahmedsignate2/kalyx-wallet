@@ -11,6 +11,7 @@
     "icons": "node scripts/gen-icons.mjs",
     "typecheck": "tsc --noEmit",
     "test:smoke": "node scripts/smoke.mjs",
+    "hash": "node scripts/hash.mjs",
     "postinstall": "wxt prepare",
     "test": "vitest run"
   },
