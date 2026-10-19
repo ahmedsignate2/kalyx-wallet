@@ -10,6 +10,7 @@
  * CHROMIUM_PATH) : ce ne sont pas des dépendances de l'extension.
  */
 import { mkdtempSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -30,6 +31,12 @@ const launch = () => chromium.launchPersistentContext(mkdtempSync(join(tmpdir(),
   executablePath: process.env.CHROMIUM_PATH,
   args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', '--lang=fr'],
 });
+// ONLY=dapps : seulement le pont vers les dApps (plus rapide à relancer).
+if (process.env.ONLY === 'dapps') {
+  await dapps();
+  console.log(process.exitCode ? 'ÉCHEC' : 'OK');
+  process.exit();
+}
 const ctx = await launch();
 try {
   const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
@@ -89,6 +96,7 @@ try {
   await ctx.close();
 }
 await onboarding();
+await dapps();
 
 /**
  * Onboarding piloté comme un utilisateur, dans un profil neuf : créer
@@ -334,6 +342,169 @@ async function onboarding() {
     (await popup.locator('[data-testid=total]').count()) === 0 ? console.log('✓ verrouillé : soldes masqués') : fail('soldes visibles verrouillé');
   } finally {
     await ctx.close();
+  }
+}
+
+/**
+ * Pont vers les dApps (lot 5), dans un profil neuf, avec une VRAIE page web
+ * servie en local qui se comporte comme une dApp : découverte EIP-6963 et
+ * Wallet Standard, connexion par la fenêtre Kalyx, réseau par site, iframe,
+ * isolation entre sites, déconnexion, verrouillage, « Kalyx par défaut ».
+ */
+async function dapps() {
+  const PAGE = `<!doctype html><meta charset="utf-8"><title>dApp de test</title><body><iframe id="f" src="about:blank"></iframe><script>
+    window.kx = { providers: [], sol: [], events: [] };
+    window.addEventListener('eip6963:announceProvider', (e) => window.kx.providers.push(e.detail));
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+    const api = { register: (w) => window.kx.sol.push(w) };
+    window.addEventListener('wallet-standard:register-wallet', (e) => e.detail(api));
+    window.dispatchEvent(new CustomEvent('wallet-standard:app-ready', { detail: api }));
+    window.kx.evm = () => window.kx.providers.find((p) => p.info.rdns === 'com.kalyxwallet').provider;
+    window.kx.call = (method, params) => window.kx.evm().request({ method, params }).then((r) => ({ r }), (e) => ({ code: e.code, message: e.message }));
+  </script>`;
+  const server = createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    res.end(req.url === '/frame' ? '<!doctype html><body>cadre</body>' : PAGE);
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const SITE = `http://localhost:${port}`;
+  const OTHER = `http://127.0.0.1:${port}`;
+  const ABOUT = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  const PW = 'Plage-Orange-47!';
+
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const ext = await ctx.newPage();
+    await ext.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => ext.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'wallet:import-phrase', phrase: ABOUT });
+    await bg({ type: 'vault:lock' });
+
+    const page = await ctx.newPage();
+    await page.goto(SITE);
+    await page.waitForFunction(() => window.kx.providers.length > 0, null, { timeout: 10_000 });
+    const info = await page.evaluate(() => window.kx.providers.map((p) => p.info));
+    const kalyx = info.find((i) => i.rdns === 'com.kalyxwallet');
+    kalyx && kalyx.name === 'Kalyx' && kalyx.icon.startsWith('data:image/svg+xml') ? console.log('✓ dApp : Kalyx annoncé par EIP-6963 (com.kalyxwallet)') : fail(`EIP-6963 : ${JSON.stringify(info)}`);
+    (await page.evaluate(() => typeof window.ethereum)) === 'undefined' ? console.log('✓ window.ethereum laissé libre par défaut') : fail('window.ethereum pris sans l’option');
+    const sol = await page.evaluate(() => window.kx.sol.map((w) => ({ name: w.name, chains: w.chains, features: Object.keys(w.features) })));
+    sol.some((w) => w.name === 'Kalyx' && w.features.includes('standard:connect') && w.features.includes('solana:signTransaction'))
+      ? console.log('✓ dApp : Kalyx enregistré comme portefeuille Solana (Wallet Standard)')
+      : fail(`Wallet Standard : ${JSON.stringify(sol)}`);
+
+    // Iframe (même cliché d'une pub tierce) : rien d'injecté.
+    await page.evaluate((u) => (document.getElementById('f').src = u), `${OTHER}/frame`);
+    await page.waitForTimeout(800);
+    const frame = page.frames().find((f) => f.url().endsWith('/frame'));
+    (await frame.evaluate(() => window.__kalyxInjected__)) === undefined ? console.log('✓ iframe : aucun accès à Kalyx') : fail('iframe injectée');
+
+    let r = await page.evaluate(() => window.kx.call('eth_chainId'));
+    r.r === '0x1' ? console.log('✓ eth_chainId sans connexion : 0x1') : fail(`eth_chainId ${JSON.stringify(r)}`);
+    r = await page.evaluate(() => window.kx.call('eth_accounts'));
+    Array.isArray(r.r) && r.r.length === 0 ? console.log('✓ eth_accounts sans connexion : []') : fail(`eth_accounts ${JSON.stringify(r)}`);
+
+    // Connexion : la fenêtre s'ouvre ; verrouillé → mot de passe d'abord.
+    await page.evaluate(() => {
+      window.kx.evm().on('accountsChanged', (a) => window.kx.events.push(['accountsChanged', a]));
+      window.kx.evm().on('chainChanged', (c) => window.kx.events.push(['chainChanged', c]));
+      window.kx.pendingConnect = window.kx.call('eth_requestAccounts');
+    });
+    const win = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 10_000 });
+    await win.locator('input[type=password]').fill(PW);
+    await win.getByRole('button', { name: 'Déverrouiller' }).click();
+    await win.locator('[data-testid=site-host]').waitFor();
+    const host = await win.locator('[data-testid=site-host]').textContent();
+    host === `localhost:${port}` ? console.log(`✓ fenêtre de connexion : site « ${host} » (origine lue par Chrome)`) : fail(`hôte ${host}`);
+    (await win.getByText('Site local (développement).').count()) ? console.log('✓ site http local signalé') : fail('avertissement http');
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await win.emulateMedia({ colorScheme: scheme }), await win.screenshot({ path: join(process.env.SHOTS, `approval-connect-${scheme}.png`) });
+    // La fenêtre se ferme d'elle-même après l'accord.
+    await win.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
+    r = await page.evaluate(() => window.kx.pendingConnect);
+    JSON.stringify(r.r) === JSON.stringify(['0x9858EfFD232B4033E47d90003D41EC34EcaEda94']) ? console.log('✓ connecté : adresse du compte choisi rendue au site') : fail(`connexion ${JSON.stringify(r)}`);
+    r = await page.evaluate(() => window.kx.events);
+    r.some((e) => e[0] === 'accountsChanged' && e[1][0]) ? console.log('✓ événement accountsChanged reçu') : fail(`événements ${JSON.stringify(r)}`);
+    (await page.evaluate(() => window.kx.evm().selectedAddress)) ? console.log('✓ selectedAddress tenu à jour') : fail('selectedAddress');
+
+    r = await page.evaluate(() => window.kx.call('wallet_switchEthereumChain', [{ chainId: '0x2105' }]));
+    const chain = await page.evaluate(() => window.kx.call('eth_chainId'));
+    r.r === null && chain.r === '0x2105' && (await page.evaluate(() => window.kx.events.some((e) => e[0] === 'chainChanged' && e[1] === '0x2105')))
+      ? console.log('✓ réseau du site passé sur Base (chainChanged)')
+      : fail(`switch ${JSON.stringify([r, chain])}`);
+    r = await page.evaluate(() => window.kx.call('wallet_addEthereumChain', [{ chainId: '0x999999', rpcUrls: ['https://rpc.pirate.example'] }]));
+    r.code === 4902 ? console.log('✓ réseau inconnu proposé par la page : refusé (4902)') : fail(`addChain ${JSON.stringify(r)}`);
+    r = await page.evaluate(() => window.kx.call('personal_sign', ['0x68656c6c6f', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94']));
+    r.code === 4200 ? console.log('✓ signature : refusée proprement (4200) jusqu’au lot 6') : fail(`sign ${JSON.stringify(r)}`);
+
+    // Solana : silencieux sans fenêtre, puis connexion.
+    r = await page.evaluate(async () => {
+      const w = window.kx.sol.find((x) => x.name === 'Kalyx');
+      return (await w.features['standard:connect'].connect({ silent: true })).accounts.length;
+    });
+    r === 0 ? console.log('✓ Solana : reconnexion silencieuse sans fenêtre') : fail(`sol silent ${r}`);
+    await page.evaluate(() => {
+      const w = window.kx.sol.find((x) => x.name === 'Kalyx');
+      window.kx.solConnect = w.features['standard:connect'].connect().then((x) => x.accounts.map((a) => a.address));
+    });
+    const win2 = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 10_000 });
+    // La fenêtre se ferme d'elle-même après l'accord.
+    await win2.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
+    r = await page.evaluate(() => window.kx.solConnect);
+    r[0] === 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk' ? console.log('✓ Solana connecté : adresse du compte') : fail(`sol ${JSON.stringify(r)}`);
+
+    // Fenêtre fermée = refus.
+    const other = await ctx.newPage();
+    await other.goto(OTHER);
+    await other.waitForFunction(() => window.kx.providers.length > 0);
+    r = await other.evaluate(() => window.kx.call('eth_accounts'));
+    r.r.length === 0 ? console.log('✓ autre site : ne voit pas le compte connecté ailleurs') : fail('isolation');
+    await other.evaluate(() => {
+      window.kx.p = window.kx.call('eth_requestAccounts');
+    });
+    const win3 = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 10_000 });
+    await win3.close();
+    r = await other.evaluate(() => window.kx.p);
+    r.code === 4001 ? console.log('✓ fenêtre fermée : refus (4001)') : fail(`fermeture ${JSON.stringify(r)}`);
+
+    // Sites connectés : liste et déconnexion.
+    await ext.reload();
+    await ext.getByRole('button', { name: 'Réglages' }).click();
+    await ext.getByRole('button', { name: 'Sites connectés' }).click();
+    await ext.getByText(`localhost:${port}`).waitFor();
+    console.log('✓ « Sites connectés » liste le site');
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await ext.emulateMedia({ colorScheme: scheme }), await ext.screenshot({ path: join(process.env.SHOTS, `sites-${scheme}.png`) });
+    await ext.getByRole('button', { name: 'Déconnecter' }).click();
+    await ext.getByText('Aucun site connecté.').waitFor();
+    await page.waitForFunction(() => window.kx.events.some((e) => e[0] === 'accountsChanged' && e[1].length === 0));
+    r = await page.evaluate(() => window.kx.call('eth_accounts'));
+    r.r.length === 0 ? console.log('✓ déconnecté depuis Kalyx : le site perd l’adresse (événement reçu)') : fail('déconnexion');
+
+    // Verrouillage : un site connecté perd l'adresse.
+    await page.evaluate(() => {
+      window.kx.events = [];
+      window.kx.p = window.kx.call('eth_requestAccounts');
+    });
+    const win4 = await ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 10_000 });
+    // La fenêtre se ferme d'elle-même après l'accord.
+    await win4.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
+    await page.evaluate(() => window.kx.p);
+    await bg({ type: 'vault:lock' });
+    await page.waitForFunction(() => window.kx.events.some((e) => e[0] === 'accountsChanged' && e[1].length === 0), null, { timeout: 10_000 });
+    console.log('✓ verrouillage : le site reçoit accountsChanged []');
+
+    // « Kalyx par défaut » : window.ethereum pris aux pages ouvertes ensuite.
+    await bg({ type: 'vault:unlock', password: PW });
+    (await bg({ type: 'settings:set-default', on: true })).ok || fail('option par défaut');
+    await page.reload();
+    await page.waitForFunction(() => window.kx.providers.length > 0);
+    (await page.evaluate(() => window.ethereum?.isKalyx === true && window.ethereum.isMetaMask === true)) ? console.log('✓ « Kalyx par défaut » : window.ethereum') : fail('window.ethereum');
+    (await page.evaluate(() => window.__kalyxDefault__ === undefined)) ? console.log('✓ drapeau effacé après lecture') : fail('drapeau');
+  } finally {
+    await ctx.close();
+    server.close();
   }
 }
 if (!process.exitCode) console.log('OK');

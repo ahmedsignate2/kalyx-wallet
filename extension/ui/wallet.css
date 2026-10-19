@@ -54,3 +54,4 @@ details summary { cursor: pointer; padding: 10px 6px; color: var(--text2); font-
 .qr { align-self: center; background: #fff; border-radius: 16px; padding: 6px; line-height: 0; }
 .receive { align-items: stretch; }
 .receive .addr { text-align: center; }
+.site { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; word-break: break-all; }

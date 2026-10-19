@@ -15,6 +15,7 @@ import { openOnboarding } from './screens';
 import { sendScreen } from './send';
 import { receiveScreen } from './receive';
 import { whitelistScreen } from './whitelistScreen';
+import { sitesScreen } from './sitesScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
@@ -349,6 +350,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         fiat,
         h('label', { class: 'small muted' }, t('autoLock')),
         lock,
+        h('button', { class: 'btn secondary', type: 'button', on: { click: () => void sitesScreen(app, () => settings()) } }, t('sitesTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => whitelistScreen(app, () => settings()) } }, t('wlTitle')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => void openOnboardingTab() } }, t('addWallet')),
       ),
