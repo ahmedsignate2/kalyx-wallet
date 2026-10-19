@@ -102,3 +102,21 @@ test('Etherscan : erreur rendue en 200 détectée, « aucune transaction » non'
   assert.equal(etherscanError('{"status":"1","message":"OK","result":[]}'), '');
   assert.equal(etherscanError('<html>'), 'invalid json');
 });
+
+test('copies de secours : jamais pour un devis ou une simulation, âge borné ailleurs', () => {
+  assert.equal(ok('GET', '/lifi/v1/quote', `fromChain=1&toChain=1&fromToken=${ADDR}&toToken=${ADDR}&fromAmount=1&fromAddress=${ADDR}`).staleSeconds, 0);
+  assert.equal(ok('POST', '/relaylink/quote').staleSeconds, 0);
+  assert.equal(ok('POST', '/helius/v0/transactions/simulate').staleSeconds, 0);
+  // Un prix de secours : 10 minutes au plus.
+  assert.equal(ok('GET', '/cg/api/v3/simple/price', 'ids=bitcoin&vs_currencies=eur').staleSeconds, 600);
+  for (const [m, p, qs] of [
+    ['GET', '/cg/api/v3/coins/markets', 'vs_currency=eur'],
+    ['GET', '/cg/api/v3/search/trending', ''],
+    ['GET', '/lifi/v1/tokens', 'chains=1'],
+    ['GET', '/etherscan/v2/api', `chainid=1&module=account&action=txlist&address=${ADDR}`],
+    ['GET', `/helius/v0/addresses/${SOL}/names`, ''],
+  ] as const) {
+    const r = ok(m, p, qs);
+    assert.ok(r.staleSeconds >= r.cacheSeconds && r.staleSeconds <= 86_400, p);
+  }
+});

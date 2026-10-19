@@ -78,7 +78,9 @@ export function noteRelayUnreachable(url: string): void {
  *  - pas de relais configuré, ou relais en pause pour ce service → `direct` ;
  *  - relais injoignable, saturé (503) ou débit dépassé (429) → pause, puis
  *    `direct` tout de suite : l'utilisateur n'attend pas la prochaine fois.
- *  - relais trop lent (`timeoutMs`) → même chose : on n'attend pas pour rien.
+ *  - relais trop lent (`timeoutMs`) → même chose : on n'attend pas pour rien ;
+ *  - appel direct en échec aussi → la copie de secours du relais (dernière
+ *    réponse RÉELLE, d'âge borné côté relais), si elle a été jointe.
  * Rend `null` quand aucune voie n'est possible.
  */
 export async function relayOrDirect(
@@ -109,7 +111,40 @@ export async function relayOrDirect(
       const p = pauseFromResponse(res.status, res.headers.get('retry-after'));
       if (!p) return res;
       pauseRelay(service, p);
+      // Copie de secours du relais (dernière réponse réelle, d'âge borné) : gardée pour le cas où l'appel direct échoue aussi.
+      if (res.headers.get('x-kalyx-stale') === '1') {
+        if (lastStale.size >= STALE_MAX_ENTRIES) lastStale.delete(lastStale.keys().next().value as string);
+        lastStale.set(relayPath, { text: await res.text().catch(() => ''), at: Date.now() });
+      }
     }
   }
-  return direct ? direct() : null;
+  if (direct) {
+    try {
+      const res = await direct();
+      if (res.ok) return res;
+      const stale = staleFor(relayPath);
+      return stale ?? res;
+    } catch (e) {
+      const stale = staleFor(relayPath);
+      if (stale) return stale;
+      throw e;
+    }
+  }
+  return staleFor(relayPath);
+}
+
+/** Dernières copies de secours reçues du relais (mémoire seulement, 10 min). */
+const lastStale = new Map<string, { text: string; at: number }>();
+const STALE_KEEP_MS = 10 * 60_000;
+const STALE_MAX_ENTRIES = 50;
+
+function staleFor(relayPath: string): Response | null {
+  const s = lastStale.get(relayPath);
+  if (!s || !s.text || Date.now() - s.at > STALE_KEEP_MS) return null;
+  return new Response(s.text, { status: 200, headers: { 'content-type': 'application/json', 'x-kalyx-stale': '1' } });
+}
+
+/** Pour les tests. */
+export function resetRelayStale(): void {
+  lastStale.clear();
 }

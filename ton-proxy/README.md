@@ -109,6 +109,17 @@ POST /helius/v0/transactions/simulate                     (corps JSON ≤ 64 Ko)
 - **Cache partagé** par chemin normalisé (prix 1 min, marchés 2 min, graphiques 5 min,
   listes de tokens 1 h, historiques 10-15 s) ; quota mémorisé **par service**.
 - Etherscan répond 200 même en erreur : ces réponses-là ne sont jamais gardées.
+- **Requêtes regroupées** : des requêtes identiques simultanées ne déclenchent qu'UN
+  appel au fournisseur, partagé entre tous les clients.
+- **Copie de secours** : si le fournisseur tombe (quota, panne, clé refusée), le 503
+  joint la dernière réponse RÉELLE (`x-kalyx-stale: 1`), d'âge borné : prix 10 min,
+  marchés 1 h, graphiques et fiches 6 h, listes de tokens et recherches 1 jour,
+  historiques 1 h. Jamais pour un devis ni une simulation.
+
+**Ordre des replis vu par l'appareil** : relais (cache partagé) → fournisseur de
+secours côté relais (Helius → Alchemy Solana) → appel direct de l'appareil sans clé
+(CoinGecko, LI.FI) → copie de secours du relais → explorateurs Blockscout et nœuds
+publics (historique, soldes). Les données sont toujours réelles, au pire datées.
 - Côté clients : une clé locale `EXPO_PUBLIC_*` garde l'appel direct (comme avant) ;
   sans clé, le relais ; relais saturé → l'accès public sans clé (CoinGecko, LI.FI,
   Etherscan sans clé → explorateurs Blockscout ; Helius → signatures RPC).

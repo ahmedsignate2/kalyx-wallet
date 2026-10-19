@@ -155,3 +155,47 @@ describe('relais Kalyx : relais trop lent', () => {
     expect(m.relayPaused('heliusapi')).toBe(false);
   });
 });
+
+describe('relais Kalyx : copie de secours', () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+  const load = () => {
+    let mod!: typeof import('./relay');
+    process.env.EXPO_PUBLIC_KALYX_RELAY_URL = 'https://relay.example';
+    jest.isolateModules(() => {
+      mod = require('./relay');
+    });
+    delete process.env.EXPO_PUBLIC_KALYX_RELAY_URL;
+    return mod;
+  };
+  const staleReply = () =>
+    new Response('{"bitcoin":{"eur":1}}', { status: 503, headers: { 'retry-after': '60', 'x-kalyx-stale': '1' } });
+
+  it("l'appel direct réussit : c'est lui qui sert, pas la copie", async () => {
+    const m = load();
+    global.fetch = jest.fn(async () => staleReply()) as never;
+    const res = await m.relayOrDirect('coingecko', '/cg/api/v3/simple/price?ids=bitcoin&vs_currencies=eur', async () => new Response('{"bitcoin":{"eur":2}}', { status: 200 }));
+    expect(await res!.json()).toEqual({ bitcoin: { eur: 2 } });
+  });
+
+  it("l'appel direct échoue aussi : la copie de secours du relais", async () => {
+    const m = load();
+    global.fetch = jest.fn(async () => staleReply()) as never;
+    const res = await m.relayOrDirect('coingecko', '/cg/api/v3/simple/price?ids=bitcoin&vs_currencies=eur', async () => new Response('{}', { status: 429 }));
+    expect(res!.status).toBe(200);
+    expect(res!.headers.get('x-kalyx-stale')).toBe('1');
+    expect(await res!.json()).toEqual({ bitcoin: { eur: 1 } });
+  });
+
+  it('appel direct injoignable et pas de copie : l’erreur remonte', async () => {
+    const m = load();
+    global.fetch = jest.fn(async () => new Response('{"error":"quota"}', { status: 503, headers: { 'retry-after': '60' } })) as never;
+    await expect(
+      m.relayOrDirect('lifi', '/lifi/v1/tokens?chains=1', async () => {
+        throw new Error('offline');
+      }),
+    ).rejects.toThrow('offline');
+  });
+});
