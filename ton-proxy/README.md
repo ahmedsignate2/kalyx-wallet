@@ -74,8 +74,12 @@ Ajouter `kalyxwallet.com` aux domaines autorisés du tableau de bord MoonPay.
 ```
 POST /rpc/alchemy/<réseau>   → Alchemy (JSON-RPC, méthodes en liste blanche, lots ≤ 25)
 POST /rpc/helius             → Helius (Solana, méthodes en liste blanche)
-POST /v1/erc20  { address, chains: [réseaux] } → tokens ERC-20 de TOUS les réseaux en une requête
+POST /v1/erc20  { address, chains: [réseaux] } → tokens ERC-20, 8 réseaux par requête
+GET  /nft/<réseau>/<getNFTsForOwner|computeRarity|getFloorPrice>?…  → NFT (paramètres en liste blanche)
+POST /v1/prices { tokens: [{ chain, address }] } → prix Alchemy, 25 tokens, gardés 1 min
 ```
+- **Solana** : `/rpc/helius` bascule tout seul sur Alchemy Solana si Helius sature ou n'est pas configuré.
+- **Réseaux** : avant de servir un réseau Alchemy, le Worker vérifie `eth_chainId` (mémorisé 1 jour).
 
 **Économie du quota**, pour rester dans les plans gratuits :
 - **Une requête pour tous les réseaux** (`/v1/erc20`) au lieu d'une par réseau ; réponse gardée 30 s.

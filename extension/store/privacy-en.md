@@ -37,7 +37,7 @@ send your transactions, the extension contacts directly, from your browser:
 | DefiLlama / CoinGecko | Token identifiers (not your addresses) | Show value in your currency |
 | GoPlus Security | A contract or recipient address, a site's domain | Flag a dangerous contract or site before you sign |
 | Hosts of token logos (e.g. CoinGecko, wsrv.nl) | The image request, without your address | Show token logos |
-| Kalyx relay (Cloudflare), to Alchemy | Your **public** EVM address and the list of networks; a transaction to simulate before signing | List your ERC-20 tokens, history, simulation — with no API key inside the extension. No logs are kept. |
+| Kalyx relay (Cloudflare), to Alchemy | Your **public** EVM address and the list of networks; a transaction to simulate before signing | List your ERC-20 tokens and NFTs, fill in prices, history, simulation — with no API key inside the extension. No logs are kept. |
 
 These services see your IP address, like any website you visit. Blockchain
 addresses are public by nature. **Your phrase, keys and password are never

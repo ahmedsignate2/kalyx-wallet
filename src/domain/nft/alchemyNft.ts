@@ -6,6 +6,7 @@
 import { base64 } from '@scure/base';
 import { bytesToUtf8 } from '@noble/hashes/utils';
 import { withTimeout } from '../chains/net';
+import { isAlchemyRpc, isRelayUrl, noteRelayResponse, RELAY_URL, relayPaused } from '../net/relay';
 import type { ChainConfig } from '../chains/types';
 import { isSpamNft } from './nftSpam';
 import { parseRarity, parseTraits, type NftTrait, type NftTraitRarity } from './traits';
@@ -190,11 +191,19 @@ function openSeaFloor(m: NonNullable<RawNft['contract']>['openSeaMetadata']): Nf
   };
 }
 
-/** Dérive l'URL NFT API depuis l'URL RPC Alchemy (v2 -> nft/v3). */
-function nftBaseUrl(chain: ChainConfig): string | undefined {
-  const rpc = chain.rpcUrls.find((u) => u.includes('.alchemy.com'));
+/**
+ * URL de l'API NFT : dérivée du RPC Alchemy direct (v2 -> nft/v3), ou celle du
+ * RELAIS Kalyx (`…/nft/<réseau>`) quand Alchemy passe par lui. Relais en pause
+ * (quota) : pas d'URL, l'appelant le dit au lieu d'afficher « aucun NFT ».
+ */
+export function nftBaseUrl(chain: ChainConfig): string | undefined {
+  const rpc = chain.rpcUrls.find(isAlchemyRpc);
   if (!rpc) return undefined;
-  const m = rpc.match(/^(https:\/\/[^/]+)\/v2\/(.+)$/);
+  if (isRelayUrl(rpc)) {
+    const slug = rpc.match(/\/rpc\/alchemy\/([a-z0-9-]+)$/)?.[1];
+    return slug && !relayPaused('alchemy') ? `${RELAY_URL}/nft/${slug}` : undefined;
+  }
+  const m = rpc.match(/^(https:\/\/[^/]+\.alchemy\.com)\/v2\/(.+)$/);
   return m ? `${m[1]}/nft/v3/${m[2]}` : undefined;
 }
 
@@ -203,6 +212,8 @@ const MAX_PAGES = 4;
 
 export async function getNfts(chain: ChainConfig, address: string): Promise<NftItem[]> {
   const base = nftBaseUrl(chain);
+  // Relais en pause : une PANNE à dire, pas une liste vide (« aucun NFT » serait faux).
+  if (!base && chain.rpcUrls.some((u) => isAlchemyRpc(u) && isRelayUrl(u))) throw new Error('relais en pause (quota)');
   if (!base) return [];
   const out: NftItem[] = [];
   let pageKey: string | undefined;
@@ -226,6 +237,7 @@ async function getNftPage(base: string, address: string, pageKey?: string): Prom
       TIMEOUT,
       () => new Error('timeout'),
     );
+  noteRelayResponse(base, res);
   /*
    * Un réseau que l'API NFT ne couvre pas répond 4xx : ce n'est pas une panne,
    * il n'y a simplement rien à lire là. Une panne (5xx, délai) REMONTE : avant,
@@ -246,6 +258,7 @@ export async function getNftRarity(chain: ChainConfig, contract: string, tokenId
   const base = nftBaseUrl(chain);
   if (!base || !/^0x[0-9a-f]{40}$/i.test(contract) || !/^\d+$/.test(tokenId)) return [];
   const res = await withTimeout(fetch(`${base}/computeRarity?contractAddress=${contract}&tokenId=${tokenId}`), TIMEOUT, () => new Error('timeout'));
+  noteRelayResponse(base, res);
   if (!res.ok) return [];
   return parseRarity(await res.json());
 }
@@ -278,6 +291,7 @@ export async function getNftFloor(chain: ChainConfig, contract: string): Promise
   const base = nftBaseUrl(chain);
   if (!base || chain.evmChainId !== 1 || !/^0x[0-9a-f]{40}$/i.test(contract)) return null;
   const res = await withTimeout(fetch(`${base}/getFloorPrice?contractAddress=${contract}`), TIMEOUT, () => new Error('timeout'));
+  noteRelayResponse(base, res);
   if (!res.ok) return null;
   return parseFloorPrice(await res.json());
 }

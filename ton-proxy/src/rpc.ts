@@ -182,6 +182,9 @@ export function upstreamUrl(provider: Provider, slug: string, keys: { alchemy?: 
   return keys.helius ? `https://mainnet.helius-rpc.com/?api-key=${keys.helius}` : null;
 }
 
+/** Solana chez Alchemy : le SECOURS de Helius (saturé ou non configuré). */
+export const solanaFallbackUrl = (alchemyKey?: string): string | null => (alchemyKey ? `https://solana-mainnet.g.alchemy.com/v2/${alchemyKey}` : null);
+
 /**
  * Réponse amont qui signale un QUOTA (et non une erreur de la requête) :
  * HTTP 429, ou un message « capacity / limit exceeded ». Rend la durée de
@@ -299,4 +302,80 @@ export function chainIdMatches(slug: string, reply: unknown): boolean {
   const got = (reply as { result?: unknown } | null)?.result;
   if (!want || typeof got !== 'string' || !/^0x[0-9a-fA-F]{1,16}$/.test(got)) return false;
   return Number.parseInt(got, 16) === want;
+}
+
+/* ── API NFT (Alchemy NFT v3, REST) ──────────────────────────────────────── */
+
+const NFT_METHODS: Record<string, { params: Record<string, RegExp>; required: string[]; cacheSeconds: number }> = {
+  getNFTsForOwner: { params: { owner: /^0x[0-9a-fA-F]{40}$/, withMetadata: /^(?:true|false)$/, pageSize: /^(?:[1-9]|[1-9]\d|100)$/, pageKey: /^[A-Za-z0-9+/=_:.-]{1,300}$/ }, required: ['owner'], cacheSeconds: 60 },
+  computeRarity: { params: { contractAddress: /^0x[0-9a-fA-F]{40}$/, tokenId: /^[0-9a-fA-Fx]{1,80}$/ }, required: ['contractAddress', 'tokenId'], cacheSeconds: 86_400 },
+  getFloorPrice: { params: { contractAddress: /^0x[0-9a-fA-F]{40}$/ }, required: ['contractAddress'], cacheSeconds: 600 },
+};
+
+export type NftRoute = { ok: true; slug: string; method: string; query: string; cacheSeconds: number } | { ok: false; status: number; error: string };
+
+/** `GET /nft/<réseau>/<méthode>?…` : méthodes et paramètres en liste blanche, requête reconstruite. */
+export function resolveNft(method: string, pathname: string, search: URLSearchParams): NftRoute {
+  if (method !== 'GET') return { ok: false, status: 405, error: 'method not allowed' };
+  const m = pathname.match(/^\/nft\/([a-z0-9-]{3,32})\/([A-Za-z]{3,32})$/);
+  if (!m || !(m[1] in ALCHEMY_SLUGS) || !(m[2] in NFT_METHODS)) return { ok: false, status: 404, error: 'not found' };
+  const rule = NFT_METHODS[m[2]];
+  const out = new URLSearchParams();
+  for (const [k, v] of search) {
+    const re = rule.params[k];
+    if (!re || !re.test(v) || out.has(k)) return { ok: false, status: 400, error: `bad param ${k}` };
+    out.set(k, v);
+  }
+  if (rule.required.some((k) => !out.has(k))) return { ok: false, status: 400, error: 'missing param' };
+  out.sort();
+  return { ok: true, slug: m[1], method: m[2], query: out.toString(), cacheSeconds: rule.cacheSeconds };
+}
+
+export const nftUpstream = (slug: string, method: string, query: string, key: string) => `https://${slug}.g.alchemy.com/nft/v3/${key}/${method}?${query}`;
+
+/* ── API des prix (Alchemy Prices, par adresse) ──────────────────────────── */
+
+export const MAX_PRICE_TOKENS = 25;
+
+export type PriceRequest = { ok: true; tokens: { network: string; address: string }[] } | { ok: false; error: string };
+
+/** `/v1/prices` : `{ tokens: [{ chain: <réseau Alchemy>, address }] }`, 25 au plus. */
+export function parsePriceRequest(text: string): PriceRequest {
+  if (text.length > 8192) return { ok: false, error: 'body too large' };
+  let b: unknown;
+  try {
+    b = JSON.parse(text);
+  } catch {
+    return { ok: false, error: 'invalid json' };
+  }
+  const list = (b as { tokens?: unknown } | null)?.tokens;
+  if (!Array.isArray(list) || !list.length || list.length > MAX_PRICE_TOKENS) return { ok: false, error: 'invalid tokens' };
+  const seen = new Set<string>();
+  const tokens: { network: string; address: string }[] = [];
+  for (const t of list) {
+    const { chain, address } = (t ?? {}) as { chain?: unknown; address?: unknown };
+    if (typeof chain !== 'string' || !(chain in ALCHEMY_SLUGS) || !isEvmAddress(address)) return { ok: false, error: 'invalid token' };
+    const k = `${chain}:${address.toLowerCase()}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    tokens.push({ network: chain, address: address.toLowerCase() });
+  }
+  tokens.sort((a, b) => (a.network + a.address).localeCompare(b.network + b.address));
+  return { ok: true, tokens };
+}
+
+export const pricesUpstream = (key: string) => `https://api.g.alchemy.com/prices/v1/${key}/tokens/by-address`;
+
+/** Réponse Alchemy → `{ "<réseau>:<adresse>": prix en USD }` ; un prix illisible est absent, jamais 0. */
+export function parsePrices(reply: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  const data = (reply as { data?: unknown } | null)?.data;
+  if (!Array.isArray(data)) return out;
+  for (const d of data as { network?: unknown; address?: unknown; prices?: unknown }[]) {
+    if (typeof d.network !== 'string' || typeof d.address !== 'string' || !Array.isArray(d.prices)) continue;
+    const usd = (d.prices as { currency?: unknown; value?: unknown }[]).find((p) => typeof p.currency === 'string' && p.currency.toLowerCase() === 'usd');
+    const v = Number(usd?.value);
+    if (Number.isFinite(v) && v > 0) out[`${d.network}:${d.address.toLowerCase()}`] = v;
+  }
+  return out;
 }
