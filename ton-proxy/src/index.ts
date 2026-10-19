@@ -11,7 +11,7 @@
  * Aucune donnée n'est journalisée : ni adresse, ni message, ni IP.
  */
 import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
-import { balancesBatch, extensionAllowed, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
+import { balancesBatch, CHAIN_ID_PROBE, chainIdMatches, extensionAllowed, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
 import { API_HOST, buyParams, canonicalIp, isTxId, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, trimRegion, trimTx, type MoonpayEnvName } from './moonpay';
 
 export interface Env {
@@ -253,6 +253,27 @@ function rememberQuota(provider: Provider, seconds: number, ctx: ExecutionContex
   ctx.waitUntil(caches.default.put(internal(`quota/${provider}`), new Response('1', { headers: { 'cache-control': `max-age=${seconds}` } })));
 }
 
+/**
+ * Le réseau Alchemy sert-il bien l'identifiant attendu ? Contrôlé une fois par
+ * jour et par réseau (mémorisé à la périphérie) ; en cas de doute, on refuse :
+ * mieux vaut le repli sur les nœuds publics qu'un solde d'un autre réseau.
+ */
+async function chainVerified(slug: string, key: string, ctx: ExecutionContext): Promise<boolean> {
+  const k = internal(`chainid/${slug}`);
+  const hit = await caches.default.match(k);
+  if (hit) return (await hit.text()) === '1';
+  let ok: boolean;
+  try {
+    const res = await fetch(upstreamUrl('alchemy', slug, { alchemy: key })!, { method: 'POST', headers: { 'content-type': 'application/json' }, body: CHAIN_ID_PROBE });
+    if (!res.ok) return false; // non mémorisé : on réessaiera
+    ok = chainIdMatches(slug, await res.json());
+  } catch {
+    return false;
+  }
+  ctx.waitUntil(caches.default.put(k, new Response(ok ? '1' : '0', { headers: { 'cache-control': 'max-age=86400' } })));
+  return ok;
+}
+
 const quotaReply = (corsHeaders: Record<string, string>, seconds = 300) => json(503, { error: 'quota' }, { ...corsHeaders, 'retry-after': String(seconds) });
 
 async function limited(request: Request, env: Env, write: boolean, prefix: string): Promise<boolean> {
@@ -279,6 +300,8 @@ async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, 
     if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
   }
   if (!s.write && (await quotaHit(r.provider))) return quotaReply(corsHeaders);
+  // 421 et non 503 : un réseau mal apparié ne doit pas mettre en pause tous les autres côté client.
+  if (r.provider === 'alchemy' && !(await chainVerified(r.slug, env.ALCHEMY_KEY!, ctx))) return json(421, { error: 'chain not verified' }, corsHeaders);
   let res: Response;
   try {
     res = await fetch(target, { method: 'POST', headers: { 'content-type': 'application/json' }, body: s.body });
@@ -330,6 +353,7 @@ async function erc20(request: Request, env: Env, ctx: ExecutionContext, corsHead
   await Promise.all(
     q.slugs.map(async (slug) => {
       try {
+        if (!(await chainVerified(slug, env.ALCHEMY_KEY!, ctx))) throw new Error('upstream');
         const balances = nonZeroContracts(await post(slug, balancesBatch(slug, q.address)));
         chains[slug] = { tokens: balances.length ? joinTokens(balances, await post(slug, metadataBatch(balances.map((b) => b.contract)))) : [] };
       } catch (e) {

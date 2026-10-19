@@ -86,3 +86,13 @@ test('extensions : identifiant listé ou « * » (bêta)', () => {
   assert.equal(extensionAllowed(`chrome-extension://${id}`, ''), false);
   assert.equal(extensionAllowed('https://evil.example', '*'), false);
 });
+
+test('contrôle du réseau : eth_chainId doit correspondre', async () => {
+  const { chainIdMatches, ALCHEMY_SLUGS } = await import('./rpc.ts');
+  assert.equal(chainIdMatches('base-mainnet', { result: '0x2105' }), true);
+  assert.equal(chainIdMatches('base-mainnet', { result: '0x1' }), false);
+  assert.equal(chainIdMatches('hyperliquid-mainnet', { result: '0x3e7' }), true);
+  assert.equal(chainIdMatches('base-mainnet', { error: { message: 'x' } }), false);
+  assert.equal(chainIdMatches('inconnu', { result: '0x1' }), false);
+  assert.equal(ALCHEMY_SLUGS['blast-mainnet'], undefined);
+});

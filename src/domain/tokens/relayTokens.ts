@@ -13,6 +13,8 @@ import { withTimeout } from '../chains/net';
 import type { ChainConfig } from '../chains/types';
 
 const TIMEOUT_MS = 20_000;
+/** Réseaux par requête au relais (sa limite : 8, pour rester sous les sous-requêtes d'un Worker gratuit). */
+const CHAINS_PER_CALL = 8;
 const MAX_TOKENS = 60;
 
 /** Réseau Alchemy d'une chaîne servie par le relais (`…/rpc/alchemy/<réseau>`). */
@@ -56,18 +58,33 @@ export async function getErc20ViaRelay(address: string, chains: ChainConfig[]): 
   if (!bySlug.size) return out;
   if (relayPaused('alchemy')) throw new Error('relais en pause (quota)');
   const url = `${RELAY_URL}/v1/erc20`;
-  let res: Response;
-  try {
-    res = await withTimeout(fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, chains: [...bySlug.keys()] }) }), TIMEOUT_MS, () => new Error('timeout'));
-  } catch (e) {
-    noteRelayUnreachable(`${RELAY_URL}/rpc/alchemy/x`);
-    throw e;
-  }
-  noteRelayResponse(`${RELAY_URL}/rpc/alchemy/x`, res);
-  if (!res.ok) throw new Error(`relais HTTP ${res.status}`);
-  const body = (await res.json().catch(() => null)) as { chains?: Record<string, { tokens?: unknown; error?: unknown }> } | null;
+  const slugs = [...bySlug.keys()];
+  const groups: string[][] = [];
+  for (let i = 0; i < slugs.length; i += CHAINS_PER_CALL) groups.push(slugs.slice(i, i + CHAINS_PER_CALL));
+  type Reply = Record<string, { tokens?: unknown; error?: unknown }>;
+  // Un lot qui échoue n'emporte que ses réseaux : les autres gardent leur réponse.
+  const replies = await Promise.all(
+    groups.map(async (chains): Promise<Reply | Error> => {
+      try {
+        const res = await withTimeout(fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, chains }) }), TIMEOUT_MS, () => new Error('timeout'));
+        noteRelayResponse(`${RELAY_URL}/rpc/alchemy/x`, res);
+        if (!res.ok) return new Error(`relais HTTP ${res.status}`);
+        const body = (await res.json().catch(() => null)) as { chains?: Reply } | null;
+        return body?.chains ?? new Error('réponse du relais illisible');
+      } catch (e) {
+        noteRelayUnreachable(`${RELAY_URL}/rpc/alchemy/x`);
+        return e as Error;
+      }
+    }),
+  );
+  if (replies.every((r) => r instanceof Error)) throw replies[0] as Error;
+  const all: Reply = {};
+  groups.forEach((g, i) => {
+    const r = replies[i];
+    for (const slug of g) all[slug] = r instanceof Error ? { error: r.message } : (r[slug] ?? { error: 'absent' });
+  });
   for (const [slug, chain] of bySlug) {
-    const r = body?.chains?.[slug];
+    const r = all[slug];
     if (!r || r.error !== undefined) out.set(chain.id, new Error(`relais : ${String(r?.error ?? 'absent')}`));
     else {
       try {
