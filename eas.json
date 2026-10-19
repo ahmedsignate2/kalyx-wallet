@@ -16,7 +16,8 @@
       },
       "env": {
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com",
+        "EXPO_PUBLIC_KALYX_RELAY_URL": "https://kalyx-ton-proxy.ahamedsignate2.workers.dev"
       }
     },
     "production": {
@@ -28,7 +29,8 @@
       "env": {
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "800218617528-bhm4gfbcggo3bvisgnebf4djj7d8r9jg.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "800218617528-g10f1ko6ssrtb3e3kt6tgsfog90rjkog.apps.googleusercontent.com",
-        "EXPO_PUBLIC_APP_STAGE": "beta"
+        "EXPO_PUBLIC_APP_STAGE": "beta",
+        "EXPO_PUBLIC_KALYX_RELAY_URL": "https://kalyx-ton-proxy.ahamedsignate2.workers.dev"
       }
     },
     "production-apk": {
