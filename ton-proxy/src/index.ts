@@ -11,6 +11,7 @@
  * Aucune donnée n'est journalisée : ni adresse, ni message, ni IP.
  */
 import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
+import { balancesBatch, extensionAllowed, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
 import { API_HOST, buyParams, canonicalIp, isTxId, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, trimRegion, trimTx, type MoonpayEnvName } from './moonpay';
 
 export interface Env {
@@ -31,6 +32,12 @@ export interface Env {
   MOONPAY_IP_MATCH?: string;
   /** Page HTTPS de fin d'achat, interceptée par l'app. */
   MOONPAY_REDIRECT_URL?: string;
+  /** Alchemy (réseaux EVM) — SECRET : `wrangler secret put ALCHEMY_KEY`. */
+  ALCHEMY_KEY?: string;
+  /** Helius (Solana) — SECRET : `wrangler secret put HELIUS_KEY`. */
+  HELIUS_KEY?: string;
+  /** Extensions autorisées (identifiants séparés par des virgules, `*` = toutes). */
+  ALLOWED_EXTENSIONS?: string;
 }
 
 const json = (status: number, body: unknown, extra: Record<string, string> = {}) =>
@@ -39,7 +46,7 @@ const json = (status: number, body: unknown, extra: Record<string, string> = {})
 function cors(origin: string | null, env: Env): Record<string, string> | null {
   if (!origin) return {}; // app native : pas d'en-tête Origin
   const allowed = (env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (!allowed.includes(origin)) return null;
+  if (!allowed.includes(origin) && !extensionAllowed(origin, env.ALLOWED_EXTENSIONS)) return null;
   return { 'access-control-allow-origin': origin, vary: 'Origin' };
 }
 
@@ -58,6 +65,8 @@ export default {
     }
     if (url.pathname === '/health') return json(200, { ok: true }, corsHeaders);
     if (url.pathname.startsWith('/moonpay/')) return moonpay(request, url, env, ctx, corsHeaders);
+    if (url.pathname.startsWith('/rpc/')) return rpc(request, url, env, ctx, corsHeaders);
+    if (url.pathname === '/v1/erc20') return erc20(request, env, ctx, corsHeaders);
     if (!env.TONAPI_KEY) return json(503, { error: 'proxy not configured' }, corsHeaders);
 
     const r = resolve(request.method, url.pathname, url.searchParams);
@@ -223,4 +232,116 @@ async function moonpay(request: Request, url: URL, env: Env, ctx: ExecutionConte
     return json(502, { error: 'moonpay unreachable' }, corsHeaders);
   }
   return json(404, { error: 'not found' }, corsHeaders);
+}
+
+/* ── Relais RPC (Alchemy, Helius) : voir src/rpc.ts ─────────────────────── */
+
+/** Clé de cache interne (jamais une URL amont : elle contiendrait la clé). */
+const internal = (path: string) => new Request(`https://relay.kalyx.internal/${path}`, { method: 'GET' });
+
+async function sha256(text: string): Promise<string> {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Quota du fournisseur épuisé récemment ? (mémorisé à la périphérie, sans rappeler le fournisseur). */
+async function quotaHit(provider: Provider): Promise<boolean> {
+  return !!(await caches.default.match(internal(`quota/${provider}`)));
+}
+
+function rememberQuota(provider: Provider, seconds: number, ctx: ExecutionContext) {
+  ctx.waitUntil(caches.default.put(internal(`quota/${provider}`), new Response('1', { headers: { 'cache-control': `max-age=${seconds}` } })));
+}
+
+const quotaReply = (corsHeaders: Record<string, string>, seconds = 300) => json(503, { error: 'quota' }, { ...corsHeaders, 'retry-after': String(seconds) });
+
+async function limited(request: Request, env: Env, write: boolean, prefix: string): Promise<boolean> {
+  const limiter = write ? env.LIMITER_WRITE : env.LIMITER;
+  if (!limiter) return false;
+  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  return !(await limiter.limit({ key: `${prefix}:${ip}` })).success;
+}
+
+async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
+  const r = resolveRpc(request.method, url.pathname);
+  if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
+  const target = upstreamUrl(r.provider, r.slug, { alchemy: env.ALCHEMY_KEY, helius: env.HELIUS_KEY });
+  if (!target) return json(503, { error: 'relay not configured' }, corsHeaders);
+  const len = Number(request.headers.get('content-length') ?? '0');
+  if (len > 32 * 1024) return json(413, { error: 'body too large' }, corsHeaders);
+  const s = sanitizeRpc(r.provider, await request.text());
+  if (!s.ok) return json(400, { error: s.error }, corsHeaders);
+  if (await limited(request, env, s.write, r.provider)) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
+  // Le cache d'abord : une réponse gardée sert même quand le quota est épuisé.
+  const key = s.cacheSeconds ? internal(`rpc/${r.slug}/${await sha256(s.body)}`) : null;
+  if (key) {
+    const hit = await caches.default.match(key);
+    if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  }
+  if (!s.write && (await quotaHit(r.provider))) return quotaReply(corsHeaders);
+  let res: Response;
+  try {
+    res = await fetch(target, { method: 'POST', headers: { 'content-type': 'application/json' }, body: s.body });
+  } catch {
+    return json(502, { error: 'upstream unreachable' }, corsHeaders);
+  }
+  const text = await res.text();
+  const pause = quotaPause(res.status, res.ok ? '' : text);
+  if (pause) {
+    rememberQuota(r.provider, pause, ctx);
+    return quotaReply(corsHeaders, pause);
+  }
+  if (key && res.ok && !/"error"/.test(text)) {
+    ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${s.cacheSeconds}` } })));
+  }
+  // Statut et corps seulement : aucun en-tête amont.
+  return new Response(text, { status: res.status, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+}
+
+/**
+ * Tokens ERC-20 de plusieurs réseaux, en UNE requête au Worker : par réseau,
+ * un lot de soldes (énumération + tokens connus) puis un lot de métadonnées.
+ * Réponse gardée 30 s à la périphérie (même adresse, mêmes réseaux).
+ */
+async function erc20(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
+  if (request.method !== 'POST') return json(405, { error: 'method not allowed' }, corsHeaders);
+  if (!env.ALCHEMY_KEY) return json(503, { error: 'relay not configured' }, corsHeaders);
+  const q = parseErc20Request(await request.text());
+  if (!q.ok) return json(400, { error: q.error }, corsHeaders);
+  if (await limited(request, env, false, 'erc20')) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
+  const key = internal(`erc20/${await sha256(`${q.address}|${q.slugs.join(',')}`)}`);
+  const hit = await caches.default.match(key);
+  if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  if (await quotaHit('alchemy')) return quotaReply(corsHeaders);
+
+  let quota = 0;
+  const post = async (slug: string, body: string): Promise<unknown> => {
+    const res = await fetch(upstreamUrl('alchemy', slug, { alchemy: env.ALCHEMY_KEY })!, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+    const text = await res.text();
+    const p = quotaPause(res.status, res.ok ? '' : text);
+    if (p) {
+      quota = Math.max(quota, p);
+      throw new Error('quota');
+    }
+    if (!res.ok) throw new Error('upstream');
+    return JSON.parse(text) as unknown;
+  };
+  const chains: Record<string, { tokens: RelayToken[] } | { error: 'quota' | 'upstream' }> = {};
+  await Promise.all(
+    q.slugs.map(async (slug) => {
+      try {
+        const balances = nonZeroContracts(await post(slug, balancesBatch(slug, q.address)));
+        chains[slug] = { tokens: balances.length ? joinTokens(balances, await post(slug, metadataBatch(balances.map((b) => b.contract)))) : [] };
+      } catch (e) {
+        chains[slug] = { error: (e as Error).message === 'quota' ? 'quota' : 'upstream' };
+      }
+    }),
+  );
+  if (quota) rememberQuota('alchemy', quota, ctx);
+  const body = JSON.stringify({ chains });
+  // Une réponse complète seulement : un réseau en échec ne doit pas rester figé 30 s.
+  if (Object.values(chains).every((c) => 'tokens' in c)) {
+    ctx.waitUntil(caches.default.put(key, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=30' } })));
+  }
+  return new Response(body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
 }

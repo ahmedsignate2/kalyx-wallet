@@ -45,7 +45,7 @@ export default {
   updated: '{t} に更新', justNow: 'たった今', refreshing: '更新中…',
   networksDown: '応答なし：{list}。残高は前回の読み取り値です。', andMore: '{list} ほか {n} 件',
   networksDownNoData: '応答なし：{list}。残高は現在不明です。', networksDownActivity: '応答なし：{list}。履歴を読み取れませんでした。',
-  erc20Soon: 'ERC-20 トークンは Kalyx リレーとともに対応予定です。ネイティブ通貨と Solana の残高はすべて表示されています。',
+  erc20Partial: '現在、主要トークン（USDC、USDT…）のみ表示しています：トークンサービスが混雑しています。',
   smallBalances: '少額の残高（{n}）', hiddenTokens: '非表示・未確認（{n}）',
   noTokens: 'まだ残高はありません。', noActivity: '最近のアクティビティはありません。', hiddenActivity: '{n} 件を非表示：スパムの可能性があります。',
   pending: '処理中', failedTx: '失敗', viewExplorer: 'エクスプローラーで見る', account: 'アカウント {n}',

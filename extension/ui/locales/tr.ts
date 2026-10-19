@@ -43,7 +43,7 @@ export default {
   networksDown: 'Yanıt yok: {list}. Bakiyeleri son okumadan geliyor.', andMore: '{list} ve {n} diğer',
   networksDownNoData: 'Yanıt yok: {list}. Bakiyeler şimdilik bilinmiyor.',
   networksDownActivity: 'Yanıt yok: {list}. Geçmişleri okunamadı.',
-  erc20Soon: 'ERC-20 token’ları Kalyx aktarıcısıyla gelecek. Yerel ve Solana bakiyeleri eksiksiz.',
+  erc20Partial: 'Liste şimdilik ana token’larla sınırlı (USDC, USDT…): token hizmeti yoğun.',
   smallBalances: 'Küçük bakiyeler ({n})', hiddenTokens: 'Gizli, doğrulanmamış ({n})', noTokens: 'Henüz bakiye yok.',
   noActivity: 'Yakın zamanda etkinlik yok.', hiddenActivity: '{n} satır gizlendi: muhtemelen spam.', pending: 'Beklemede',
   failedTx: 'Başarısız', viewExplorer: 'Gezginde gör', account: 'Hesap {n}', settings: 'Ayarlar', currency: 'Para birimi',

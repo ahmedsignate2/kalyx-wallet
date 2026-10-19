@@ -68,3 +68,30 @@ Cartes de test : https://dev.moonpay.com/widget/sandbox-testing — jamais hors 
 `MOONPAY_ENV = "production"`, `pk_live_…`, `wrangler secret put MOONPAY_SECRET_KEY` (sk_live_…).
 Une clé de test avec `production` (ou l'inverse) est refusée net.
 Ajouter `kalyxwallet.com` aux domaines autorisés du tableau de bord MoonPay.
+
+## Relais RPC (Alchemy, Helius) — aucune clé dans l'app ni l'extension
+
+```
+POST /rpc/alchemy/<réseau>   → Alchemy (JSON-RPC, méthodes en liste blanche, lots ≤ 25)
+POST /rpc/helius             → Helius (Solana, méthodes en liste blanche)
+POST /v1/erc20  { address, chains: [réseaux] } → tokens ERC-20 de TOUS les réseaux en une requête
+```
+
+**Économie du quota**, pour rester dans les plans gratuits :
+- **Une requête pour tous les réseaux** (`/v1/erc20`) au lieu d'une par réseau ; réponse gardée 30 s.
+- **Cache à la périphérie** : métadonnées de token 1 jour (communes à tout le monde).
+- **Quota mémorisé** : si Alchemy ou Helius répond « quota » (429, capacité mensuelle),
+  le Worker le retient (1 min pour un débit, 1 h pour une capacité épuisée) et répond
+  aussitôt `503 { error: "quota" }` avec `retry-after`, sans rappeler le fournisseur.
+- **Côté clients** : sur ce 503, ou si le Worker lui-même dépasse son quota, l'app et
+  l'extension se mettent en pause sur le relais et passent à leurs replis GRATUITS
+  (nœuds publics, tokens principaux lus directement). Rien ne casse.
+- Les appels qui ne demandent pas de clé (soldes natifs, prix DefiLlama…) ne passent
+  PAS par le relais : ils partent directement de l'appareil, sans compter dans le quota.
+
+```bash
+npx wrangler secret put ALCHEMY_KEY   # clé Alchemy
+npx wrangler secret put HELIUS_KEY    # clé Helius
+npx wrangler deploy
+```
+`ALLOWED_EXTENSIONS` (wrangler.toml) : `*` pendant la bêta, puis l'identifiant du store.

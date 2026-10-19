@@ -43,7 +43,7 @@ export default {
   networksDown: 'Geen reactie: {list}. Hun saldi komen van de laatste uitlezing.', andMore: '{list} en {n} meer',
   networksDownNoData: 'Geen reactie: {list}. Saldi voorlopig onbekend.',
   networksDownActivity: 'Geen reactie: {list}. Hun geschiedenis kon niet worden gelezen.',
-  erc20Soon: 'ERC-20-tokens komen met de Kalyx-relay. Native en Solana-saldi zijn volledig.',
+  erc20Partial: 'Lijst voorlopig beperkt tot de belangrijkste tokens (USDC, USDT…): de tokendienst is overbelast.',
   smallBalances: 'Kleine saldi ({n})', hiddenTokens: 'Verborgen, niet geverifieerd ({n})', noTokens: 'Nog geen saldo.',
   noActivity: 'Geen recente activiteit.', hiddenActivity: '{n} regel(s) verborgen: waarschijnlijk spam.', pending: 'In behandeling',
   failedTx: 'Mislukt', viewExplorer: 'Bekijken in de explorer', account: 'Account {n}', settings: 'Instellingen', currency: 'Valuta',

@@ -11,7 +11,10 @@
  */
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import { getPrices, getMarkets, getTokenPrices } from '../../src/domain/prices/coingecko';
-import { getErc20TokensStrict } from '../../src/domain/tokens/alchemyTokens';
+import { getErc20TokensStrict, type Erc20Token } from '../../src/domain/tokens/alchemyTokens';
+import { getKnownErc20Tokens } from '../../src/domain/tokens/knownBalances';
+import { getErc20ViaRelay } from '../../src/domain/tokens/relayTokens';
+import { isAlchemyRpc, isRelayUrl } from '../../src/domain/net/relay';
 import { getLlamaTokenPricesUsd, getUsdFxRate, llamaKey } from '../../src/domain/prices/defillama';
 import { formatAmount } from '../../src/domain/validation/amount';
 import { knownTokensFor } from '../../src/domain/tokens/knownTokens';
@@ -214,25 +217,46 @@ export async function loadHoldings(acct: PortfolioAccount, fiat: string, include
     }),
   );
 
-  // ERC-20 sur les réseaux couverts par Alchemy ; le spam est déjà filtré par
-  // `getErc20Tokens`. Les LISTES seulement : les prix viennent ensuite, groupés.
-  // Sans adresse EVM (clé Solana importée), aucune liste à demander : ce n'est pas un échec.
-  const evmChains = !acct.evmAddress ? [] : VALUE_CHAINS.filter(
-    (c) => c.family === 'evm' && c.coingeckoPlatform && c.rpcUrls.some((u) => u.includes('.alchemy.com')) && !ALCHEMY_NO_TOKEN_API.has(c.id),
-  );
+  /*
+   * ERC-20. Trois sources, de la plus complète à la gratuite :
+   *  1. RELAIS Kalyx (sans clé dans l'app) : TOUS les réseaux en UNE requête ;
+   *  2. Alchemy en direct (clé) : réseau par réseau ;
+   *  3. REPLI GRATUIT : les tokens principaux (USDC, USDT…) lus sur les nœuds
+   *     publics — quand les deux premiers manquent ou sont au bout de leur
+   *     quota. La liste est alors réduite, jamais inventée.
+   * Le spam est déjà filtré. Les LISTES seulement : les prix viennent ensuite, groupés.
+   * Sans adresse EVM (clé Solana importée), aucune liste à demander : ce n'est pas un échec.
+   */
+  const evmAll = !acct.evmAddress ? [] : VALUE_CHAINS.filter((c) => c.family === 'evm' && c.coingeckoPlatform);
+  const alchemyOk = (c: ChainConfig) => c.rpcUrls.some(isAlchemyRpc) && !ALCHEMY_NO_TOKEN_API.has(c.id);
+  const evmChains = evmAll.filter((c) => alchemyOk(c) || knownTokensFor(c.evmChainId).length > 0);
+  const relayed = evmAll.filter((c) => alchemyOk(c) && c.rpcUrls.some((u) => isAlchemyRpc(u) && isRelayUrl(u)) && !c.rpcUrls.some((u) => isAlchemyRpc(u) && !isRelayUrl(u)));
+  const relayP: Promise<Map<string, Erc20Token[] | Error>> = relayed.length && acct.evmAddress ? getErc20ViaRelay(acct.evmAddress, relayed).catch((e: Error) => new Map(relayed.map((c) => [c.id, e]))) : Promise.resolve(new Map());
   // Quatre réseaux à la fois : quatorze requêtes simultanées déclenchaient les
   // refus d'Alchemy (HTTP 429) — et des jetons qui disparaissaient.
-  const erc20ListsP = mapLimit(evmChains, 4, async (chain) => {
+  const erc20ListsP = relayP.then((fromRelay) => mapLimit(evmChains, 4, async (chain) => {
+    let first: unknown = null;
     try {
-      const list = await getErc20TokensStrict(chain, acct.evmAddress);
-      if (diag) diag.erc20[chain.id] = list.length;
+      const r = fromRelay.get(chain.id);
+      if (r instanceof Error) throw r;
+      const list = r ?? (alchemyOk(chain) && !relayed.includes(chain) ? await getErc20TokensStrict(chain, acct.evmAddress) : null);
+      if (list) {
+        if (diag) diag.erc20[chain.id] = list.length;
+        return { chain, list };
+      }
+    } catch (e) {
+      first = e;
+    }
+    try {
+      const list = await getKnownErc20Tokens(chain, acct.evmAddress);
+      if (diag) diag.erc20[chain.id] = first ? `${list.length} (repli : tokens principaux — ${note(first)})` : list.length;
       return { chain, list };
     } catch (e) {
       failed.add(`${chain.id}:tokens`);
-      if (diag) diag.erc20[chain.id] = `ÉCHEC ${note(e)}`;
+      if (diag) diag.erc20[chain.id] = `ÉCHEC ${note(first ?? e)}`;
       return { chain, list: [] };
     }
-  });
+  }));
 
   // Jetons SPL. Lancé lui aussi sans attendre : il ne dépend de rien d'autre.
   const splListP = (async () => {

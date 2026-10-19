@@ -39,6 +39,7 @@ ton navigateur :
 | DefiLlama / CoinGecko | Les identifiants des jetons (pas tes adresses) | Afficher la valeur dans ta devise |
 | GoPlus Security | L'adresse d'un contrat ou d'un destinataire, le domaine d'un site | Signaler un contrat ou un site dangereux avant une signature |
 | Hébergeurs des logos de jetons (par ex. CoinGecko, wsrv.nl) | La demande de l’image, sans ton adresse | Afficher les logos des jetons |
+| Relais Kalyx (Cloudflare), vers Alchemy | Ton adresse EVM **publique** et la liste des réseaux ; une transaction à simuler avant signature | Lister tes tokens ERC-20, l’historique, la simulation — sans qu’aucune clé d’API soit dans l’extension. Aucun journal n’est gardé. |
 
 Ces services voient ton adresse IP, comme tout site que tu visites. Les
 adresses sur une blockchain sont publiques par nature. **Ni ta phrase, ni tes

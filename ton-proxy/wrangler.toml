@@ -5,6 +5,8 @@ compatibility_date = "2025-01-01"
 [vars]
 # Origines web autorisées (l'app native n'envoie pas d'en-tête Origin).
 ALLOWED_ORIGINS = "https://app.kalyxwallet.com,https://kalyxwallet.com"
+# Extension Kalyx : « * » pendant la bêta (identifiant pas encore fixé) ; ensuite l'identifiant du Chrome Web Store.
+ALLOWED_EXTENSIONS = "*"
 # MoonPay (achat de crypto) — MODE TEST. La clé publique pk_test_… se colle ici
 # (elle n'est pas secrète). Passage en production : pk_live_… + MOONPAY_ENV.
 MOONPAY_ENV = "sandbox"

@@ -2,6 +2,7 @@
  * Lecture du profil on-chain d'un compte (cf. `src/domain/profile/onchainProfile`).
  * Réseaux lus en parallèle, chacun borné dans le temps ; une panne est nommée.
  */
+import { isAlchemyRpc } from '../src/domain/net/relay';
 import {
   BitcoinChainAdapter,
   EvmChainAdapter,
@@ -32,7 +33,7 @@ async function firstTransfer(rpc: string, address: string, chainId: string): Pro
 async function evm(chainId: string, address: string): Promise<ChainActivity> {
   const a = getAdapter(chainId);
   if (!(a instanceof EvmChainAdapter)) throw new Error('not evm');
-  const alchemy = a.config.rpcUrls.find((u) => u.includes('.g.alchemy.com/v2/'));
+  const alchemy = a.config.rpcUrls.find(isAlchemyRpc);
   const [nonce, firstAt] = await Promise.all([a.getNonce(address), alchemy ? firstTransfer(alchemy, address, chainId) : Promise.resolve(undefined)]);
   return { chainId, txCount: nonce, ...(firstAt ? { firstAt } : {}) };
 }

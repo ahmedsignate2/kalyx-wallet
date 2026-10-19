@@ -43,7 +43,7 @@ export default {
   networksDown: 'لا استجابة: {list}. أرصدتها من آخر قراءة.', andMore: '{list} و{n} أخرى',
   networksDownNoData: 'لا استجابة: {list}. الأرصدة غير معروفة حاليًا.',
   networksDownActivity: 'لا استجابة: {list}. تعذّرت قراءة سجلها.',
-  erc20Soon: 'توكنات ERC-20 قادمة مع مُرحِّل Kalyx. الأرصدة الأصلية وأرصدة Solana كاملة.',
+  erc20Partial: 'القائمة مقتصرة حاليًا على التوكنات الرئيسية (USDC وUSDT…): خدمة التوكنات مزدحمة.',
   smallBalances: 'أرصدة صغيرة ({n})', hiddenTokens: 'مخفية، غير موثّقة ({n})', noTokens: 'لا يوجد رصيد بعد.',
   noActivity: 'لا يوجد نشاط حديث.', hiddenActivity: 'تم إخفاء {n} سطر: على الأرجح رسائل مزعجة.', pending: 'قيد الانتظار',
   failedTx: 'فشلت', viewExplorer: 'عرض في المستكشف', account: 'الحساب {n}', settings: 'الإعدادات', currency: 'العملة',

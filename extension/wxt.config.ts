@@ -2,6 +2,9 @@ import { defineConfig } from 'wxt';
 import { extensionRegistry } from './scripts/registryPlugin';
 import { readFileSync } from 'node:fs';
 
+/** Relais Kalyx (Worker Cloudflare) : les fournisseurs à clé passent par lui, aucune clé dans l'extension. */
+const RELAY_URL = 'https://kalyx-ton-proxy.ahamedsignate2.workers.dev';
+
 const PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 /**
@@ -17,7 +20,7 @@ export default defineConfig({
    * inexistant dans un service worker. Aucune clé n'est embarquée dans
    * l'extension : elles passeront par un relais (cahier des charges, §8).
    */
-  vite: () => ({ define: { 'process.env': '{}' }, plugins: [extensionRegistry()] }),
+  vite: () => ({ define: { 'process.env': JSON.stringify({ EXPO_PUBLIC_KALYX_RELAY_URL: RELAY_URL }) }, plugins: [extensionRegistry()] }),
   manifest: {
     // Nom et description dans la langue du navigateur : public/_locales.
     name: '__MSG_extName__',
