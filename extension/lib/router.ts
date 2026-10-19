@@ -207,16 +207,48 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'approval:respond': {
         if (!approvals) break;
         if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
-        if (m.approve !== true) return approvals.respond(m.id, { approve: false }) ? { ok: true } : { ok: false, error: 'REQUEST_EXPIRED' };
+        if (m.approve !== true) return (await approvals.respond(m.id, { approve: false })).ok ? { ok: true } : { ok: false, error: 'REQUEST_EXPIRED' };
         await unlocked();
         const req = approvals.get(m.id);
         if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
-        // Le compte choisi doit exister ET avoir une adresse pour la famille demandée.
-        const w = (await wallets.list()).find((x) => x.id === m.walletId);
-        const a = w?.accounts.find((x) => x.index === m.index);
-        if (!a || !(req.family === 'evm' ? a.evm : a.solana)) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
-        return approvals.respond(m.id, { approve: true, walletId: w!.id, index: a.index }) ? { ok: true } : { ok: false, error: 'REQUEST_EXPIRED' };
+        let walletId = '';
+        let index = 0;
+        if (req.kind === 'connect') {
+          // Le compte choisi doit exister ET avoir une adresse pour la famille demandée.
+          const w = (await wallets.list()).find((x) => x.id === m.walletId);
+          const a = w?.accounts.find((x) => x.index === m.index);
+          if (!w || !a || !(req.family === 'evm' ? a.evm : a.solana)) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
+          walletId = w.id;
+          index = a.index;
+        } else {
+          // Signature : le compte est celui ACCORDÉ au site, jamais choisi ici.
+          if (disk && (await disk.get<boolean>('askPasswordToSign')) === true) {
+            if (!pw(m.password)) return { ok: false, error: 'PASSWORD_REQUIRED' };
+            await session.checkPassword(m.password);
+          }
+          if (m.reduceTo !== undefined && (typeof m.reduceTo !== 'string' || !/^\d{1,40}([.,]\d{1,40})?$/.test(m.reduceTo.trim()))) return { ok: false, error: 'INVALID_AMOUNT' };
+        }
+        const r = await approvals.respond(m.id, { approve: true, walletId, index, reduceTo: typeof m.reduceTo === 'string' ? m.reduceTo.trim().replace(',', '.') : undefined });
+        if (r.ok) return { ok: true };
+        if (r.error.message === 'REQUEST_EXPIRED') return { ok: false, error: 'REQUEST_EXPIRED' };
+        // L'action a échoué : la fenêtre reste ouverte et montre pourquoi.
+        return { ok: false, error: 'ACTION_FAILED', params: { code: String(r.error.code), message: r.error.message.slice(0, 300) } };
       }
+      case 'approval:review': {
+        if (!dapp || !str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        const p = dapp.reviewOf(m.id, typeof m.lang === 'string' ? m.lang.slice(0, 20) : undefined);
+        if (!p) return { ok: false, error: 'REQUEST_EXPIRED' };
+        return { ok: true, review: await p, askPassword: disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false };
+      }
+      case 'settings:get-ask-password':
+        if (!disk) break;
+        return { ok: true, on: (await disk.get<boolean>('askPasswordToSign')) === true };
+      case 'settings:set-ask-password':
+        if (!disk || typeof m.on !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        await disk.set('askPasswordToSign', m.on);
+        return { ok: true };
       case 'sites:list': {
         if (!sites) break;
         await unlocked();

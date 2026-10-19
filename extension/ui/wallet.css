@@ -55,3 +55,9 @@ details summary { cursor: pointer; padding: 10px 6px; color: var(--text2); font-
 .receive { align-items: stretch; }
 .receive .addr { text-align: center; }
 .site { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; word-break: break-all; }
+/* Fenêtre de signature */
+.btn.danger { background: var(--danger); color: #fff; }
+.btn.holding { transition: box-shadow 2s linear; box-shadow: inset 600px 0 0 rgba(0, 0, 0, 0.25); }
+.msg { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--surface2); border-radius: 12px; padding: 12px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.card.lose strong { color: var(--danger); }
+.card.receive strong { color: var(--ok); }

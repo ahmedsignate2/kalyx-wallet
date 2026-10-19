@@ -10,8 +10,11 @@
  *  - verrouillé : aucune adresse (eth_accounts = []), et une connexion
  *    demande d'abord le mot de passe dans la fenêtre.
  *
- * Les signatures (transactions, messages) arrivent au lot 6 avec la fenêtre
- * d'approbation complète : d'ici là, elles sont refusées proprement (4200).
+ * Signatures (transactions, messages, EIP-712 ; EVM et Solana) : site
+ * connecté obligatoire, fenêtre d'approbation avec l'explication de l'app,
+ * signées par le compte ACCORDÉ au site (lib/dappSign). Liste blanche en
+ * vigueur : aucune signature de dApp (un message signé peut suffire à vider
+ * un portefeuille), comme sur le mobile.
  */
 import { READONLY_METHODS, rpcProxy } from '../../lib/dappProvider';
 import { listChains } from '../../src/domain/chains/registry';
@@ -21,10 +24,14 @@ import type { Approvals } from './approvals';
 import type { Session } from './session';
 import type { Sites, Family, Site } from './sites';
 import type { Wallets } from './wallets';
+import { execute, parseEvm, parseSolana, review, type Review, type SignRequest } from './dappSign';
+import type { ExplainT } from '../../src/domain/wc/explain';
 
-/** Signatures : servies au lot 6 (fenêtre d'approbation). */
-const SIGNING = new Set(['eth_sendTransaction', 'eth_signTransaction', 'personal_sign', 'eth_sign', 'eth_signTypedData', 'eth_signTypedData_v3', 'eth_signTypedData_v4', 'wallet_sendCalls']);
-const SOLANA_SIGNING = new Set(['sol_signTransaction', 'sol_signAndSendTransaction', 'sol_signMessage', 'sol_signIn']);
+/** Signatures servies (fenêtre d'approbation). */
+const SIGNING = new Set(['eth_sendTransaction', 'personal_sign', 'eth_sign', 'eth_signTypedData_v3', 'eth_signTypedData_v4']);
+/** Jamais servies : à éviter (eth_signTransaction sans diffusion, v1 sans domaine) ou à venir (lots d'appels). */
+const REFUSED = new Set(['eth_signTransaction', 'eth_signTypedData', 'wallet_sendCalls']);
+const SOLANA_SIGNING = new Set(['sol_signTransaction', 'sol_signAndSendTransaction', 'sol_signMessage']);
 
 export type Emit = (origin: string, event: string, data: unknown) => void;
 
@@ -34,6 +41,14 @@ export interface DappDeps {
   sites: Sites;
   approvals: Approvals;
   emit: Emit;
+  /** Traducteur des explications (clés ex*, gp*), par langue de la fenêtre. */
+  t: ExplainT;
+  tFor?: (lang: string | undefined) => ExplainT;
+  /** Liste blanche en vigueur → aucune signature de dApp. */
+  dappAllowed: () => Promise<boolean>;
+  /** Injectables (tests) : analyse et signature. */
+  reviewDeps?: Partial<Parameters<typeof review>[2]>;
+  executeDeps?: Partial<Parameters<typeof execute>[3]>;
   /** Injectable (tests) : relais JSON-RPC en lecture seule. */
   rpc?: (urls: string[], method: string, params: unknown[]) => Promise<unknown>;
 }
@@ -66,14 +81,57 @@ export function makeDapp(deps: DappDeps) {
     const already = await granted(site, family);
     if (already && (await unlocked())) return already;
     // La fenêtre demande le mot de passe si besoin, puis l'accord et le compte.
-    const g = await deps.approvals.request(origin, 'connect', family);
-    const w = (await deps.wallets.list()).find((x) => x.id === g.walletId);
-    const a = w?.accounts.find((x) => x.index === g.index);
-    const address = family === 'evm' ? a?.evm : a?.solana;
-    if (!address) throw new RpcError(4100, 'Ce compte n’a pas d’adresse pour ce réseau');
-    await deps.sites.grant(origin, family, { walletId: g.walletId, index: g.index, address, at: Date.now() });
+    const address = await deps.approvals.request(origin, 'connect', family, async (g) => {
+      const w = (await deps.wallets.list()).find((x) => x.id === g.walletId);
+      const a = w?.accounts.find((x) => x.index === g.index);
+      const addr = family === 'evm' ? a?.evm : a?.solana;
+      if (!addr) throw new RpcError(4100, 'Ce compte n’a pas d’adresse pour ce réseau');
+      await deps.sites.grant(origin, family, { walletId: g.walletId, index: g.index, address: addr, at: Date.now() });
+      return addr;
+    });
     if (family === 'evm') deps.emit(origin, 'accountsChanged', [address]);
     return address;
+  }
+
+  /**
+   * Signature : site connecté (compte accordé), liste blanche éteinte, demande
+   * figée, puis fenêtre. Revérifié à l'exécution : la permission ou la liste
+   * blanche ont pu changer pendant que la fenêtre était ouverte.
+   */
+  async function sign(origin: string, family: Family, parse: (from: string, site: Site) => SignRequest): Promise<unknown> {
+    const site = await deps.sites.get(origin);
+    const g = site[family];
+    if (!g || !(await granted(site, family))) throw new RpcError(4100, 'Connecte d’abord ce site à Kalyx');
+    // Verrouillé : la liste blanche (scellée) se lit après le mot de passe, dans la fenêtre.
+    if ((await unlocked()) && !(await deps.dappAllowed())) throw new RpcError(4100, 'Liste blanche active : signatures de dApps désactivées');
+    const req = parse(g.address, site);
+    return deps.approvals.request(
+      origin,
+      'sign',
+      family,
+      async (a) => {
+        const now = await deps.sites.get(origin);
+        if (now[family]?.walletId !== g.walletId || now[family]?.index !== g.index) throw new RpcError(4100, 'Le site a été déconnecté entre-temps');
+        if (!(await deps.dappAllowed())) throw new RpcError(4100, 'Liste blanche active : signatures de dApps désactivées');
+        return execute(req, { walletId: g.walletId, index: g.index }, { reduceTo: a.reduceTo }, { session: deps.session, wallets: deps.wallets, ...deps.executeDeps });
+      },
+      req,
+    );
+  }
+
+  /** Explication d'une demande en attente (calculée une fois : elle interroge le réseau). */
+  const reviews = new Map<string, Promise<Review>>();
+  function reviewOf(id: string, lang?: string): Promise<Review> | null {
+    const r = deps.approvals.get(id);
+    if (!r || r.kind !== 'sign') return null;
+    let p = reviews.get(id);
+    if (!p) {
+      p = review(r.payload as SignRequest, r.origin, { t: lang && deps.tFor ? deps.tFor(lang) : deps.t, ...deps.reviewDeps });
+      reviews.set(id, p);
+      void p.catch(() => reviews.delete(id));
+      if (reviews.size > 50) reviews.delete(reviews.keys().next().value!);
+    }
+    return p;
   }
 
   async function evm(origin: string, method: string, params: unknown[]): Promise<unknown> {
@@ -117,7 +175,8 @@ export function makeDapp(deps: DappDeps) {
       case 'web3_clientVersion':
         return 'Kalyx/extension';
     }
-    if (SIGNING.has(method)) throw new RpcError(4200, 'Signature depuis une dApp : bientôt disponible dans l’extension Kalyx');
+    if (SIGNING.has(method)) return sign(origin, 'evm', (from, s) => parseEvm(method, params, from, s.chainId));
+    if (REFUSED.has(method)) throw new RpcError(4200, `Méthode non prise en charge : ${method}`);
     if (READONLY_METHODS.has(method)) {
       const chain = evmChain(site.chainId);
       if (!chain) throw new RpcError(4901, 'Réseau du site indisponible');
@@ -141,7 +200,7 @@ export function makeDapp(deps: DappDeps) {
         await deps.sites.revoke(origin, 'solana');
         return null;
     }
-    if (SOLANA_SIGNING.has(method)) throw new RpcError(4200, 'Signature depuis une dApp : bientôt disponible dans l’extension Kalyx');
+    if (SOLANA_SIGNING.has(method)) return sign(origin, 'solana', (from) => parseSolana(method, params, from));
     throw new RpcError(4200, `Méthode non prise en charge : ${method.slice(0, 60)}`);
   }
 
@@ -182,7 +241,7 @@ export function makeDapp(deps: DappDeps) {
     deps.emit(origin, 'solanaAccountsChanged', []);
   }
 
-  return { handle, hello, lockChanged, disconnect };
+  return { handle, hello, lockChanged, disconnect, reviewOf };
 }
 
 export type Dapp = ReturnType<typeof makeDapp>;

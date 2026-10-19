@@ -16,28 +16,24 @@
  * Le brouillon vit en mémoire du service worker, deux minutes au plus : un
  * brouillon perdu (service worker redémarré) se refait, il ne se devine pas.
  */
-import { base58 } from '@scure/base';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { bytesToHex } from '@noble/hashes/utils';
 import { EvmAdapterV2 } from '../../src/domain/chains/v2/EvmAdapterV2';
 import { SolanaAdapterV2 } from '../../src/domain/chains/v2/SolanaAdapterV2';
-import { signerFromEvmPrivateKey, signerFromRawKey, signerFromSeed } from '../../src/domain/chains/v2/derive';
-import { withSigner, wipeSigner, type ChainSigner } from '../../src/domain/chains/v2/signer';
+import { withSigner } from '../../src/domain/chains/v2/signer';
+import { signerFor } from './signer';
 import type { ChainAdapterV2, FeeQuotes, SendDraft, SendSpeed, TokenRef, TxState } from '../../src/domain/chains/v2/types';
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import type { ChainConfig } from '../../src/domain/chains/types';
-import { evmAccountFromPrivateKey } from '../../src/crypto/hd';
-import { mnemonicToSeed } from '../../src/crypto/mnemonic';
 import { looksLikeEnsName, resolveEnsName } from '../../src/domain/ens/ens';
 import { detectPoisoning } from '../../src/domain/validation/poisoning';
 import { parseAmount } from '../../src/domain/validation/amount';
 import { formatTokenAmount } from '../../src/domain/validation/format';
 import { WalletError } from '../../src/domain/errors';
-import { readSecret } from './vault';
 import { addressKey, type Whitelist } from './whitelist';
 import { chainLogo, type Acct, type Portfolio } from './portfolio';
 import type { Home } from './home';
 import type { Session } from './session';
-import type { WalletMeta } from './wallets';
+import type { Wallets } from './wallets';
 
 const DRAFT_TTL_MS = 120_000;
 const GWEI = 1_000_000_000n;
@@ -117,6 +113,7 @@ interface Held {
 
 export interface SendDeps {
   session: Session;
+  wallets: Wallets;
   home: Home;
   portfolio: Portfolio;
   whitelist: Whitelist;
@@ -140,12 +137,6 @@ function fromGwei(s: string): bigint {
   } catch {
     throw new WalletError('INVALID_AMOUNT', 'Frais manuels invalides');
   }
-}
-
-/** Adresse que donnerait ce signataire : il doit signer pour le compte affiché, pas un autre. */
-function signerAddress(s: ChainSigner): string {
-  if (s.curve === 'secp256k1') return evmAccountFromPrivateKey(`0x${bytesToHex(s.privateKey)}`).address;
-  return base58.encode(s.publicKey);
 }
 
 export function makeSend(deps: SendDeps) {
@@ -331,29 +322,6 @@ export function makeSend(deps: SendDeps) {
     };
   }
 
-  /** Signataire du compte affiché, tiré du coffre. L'appelant l'efface (`withSigner`). */
-  async function signerFor(walletId: string, index: number, family: 'evm' | 'solana', wallet: WalletMeta | undefined): Promise<ChainSigner> {
-    return deps.session.withVault(async (vault, key) => {
-      const { kind, secret } = readSecret(vault, key, walletId);
-      if (kind === 'privateKey') {
-        if (wallet?.family !== family) throw new WalletError('NOT_SUPPORTED', `WRONG_FAMILY:${family}`);
-        if (family === 'evm') return { result: signerFromEvmPrivateKey(secret) };
-        const raw = hexToBytes(secret);
-        try {
-          return { result: signerFromRawKey('solana', raw) };
-        } finally {
-          raw.fill(0);
-        }
-      }
-      const seed = await mnemonicToSeed(secret);
-      try {
-        return { result: signerFromSeed(family, seed, index) };
-      } finally {
-        seed.fill(0);
-      }
-    });
-  }
-
   async function confirm(id: string, acceptRisk = false): Promise<{ txid: string; explorer?: string }> {
     const held = drafts.get(id);
     drafts.delete(id); // un brouillon ne sert qu'une fois, même en cas d'échec
@@ -366,11 +334,8 @@ export function makeSend(deps: SendDeps) {
     await deps.whitelist.assertAllowed(held.draft.to);
 
     const chain = held.adapter.config;
-    const signer = await signerFor(held.walletId, held.index, familyOf(chain), cur.wallet);
-    if (addressKey(signerAddress(signer)) !== addressKey(held.draft.from)) {
-      wipeSigner(signer);
-      throw new WalletError('WRONG_ACCOUNT', 'La clé ne correspond pas au compte affiché');
-    }
+    // Clé vérifiée contre l'adresse du brouillon : jamais un autre compte que celui affiché.
+    const signer = await signerFor(deps.session, deps.wallets, held.walletId, held.index, familyOf(chain), held.draft.from);
     const signed = await withSigner(signer, (s) => held.adapter.signSend(held.draft, s));
     const outcome = await held.adapter.broadcastSend(signed);
     sent.set(outcome.txid, { chainId: chain.id, opaque: outcome.opaque, expiresAt: outcome.expiresAt });

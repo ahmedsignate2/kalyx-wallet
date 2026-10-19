@@ -5,7 +5,7 @@ import { handleInternal } from '../lib/router';
 import { makeWallets } from '../lib/wallets';
 import { makePortfolio } from '../lib/portfolio';
 import { makeHome } from '../lib/home';
-import { activityT, IS_FR, LOCALE } from '../ui/i18n';
+import { activityT, explainT, explainTFor, IS_FR, LOCALE } from '../ui/i18n';
 import { makeChainTime } from '../lib/chainTime';
 import { makeWhitelist } from '../lib/whitelist';
 import { makeSend } from '../lib/send';
@@ -35,7 +35,7 @@ export default defineBackground(() => {
   const portfolio = makePortfolio({ disk, t: activityT, locale: LOCALE });
   const home = makeHome(disk, session, wallets, portfolio, IS_FR ? 'eur' : 'usd');
   const whitelist = makeWhitelist(disk, session, wallets, makeChainTime());
-  const send = makeSend({ session, home, portfolio, whitelist });
+  const send = makeSend({ session, wallets, home, portfolio, whitelist });
 
   // ── Pont vers les dApps ──
   const sites = makeSites(disk);
@@ -45,7 +45,7 @@ export default defineBackground(() => {
     close: async (windowId) => void (await browser.windows.remove(windowId).catch(() => {})),
   });
   const host = makeDappHost(() => dapp, (origin) => approvals.originGone(origin));
-  const dapp = makeDapp({ session, wallets, sites, approvals, emit: host.emit });
+  const dapp = makeDapp({ session, wallets, sites, approvals, emit: host.emit, t: explainT, tFor: explainTFor, dappAllowed: () => whitelist.dappAllowed() });
   browser.runtime.onConnect.addListener((port) => host.accept(port));
   browser.windows.onRemoved.addListener((windowId) => approvals.windowClosed(windowId));
   // Verrouillage / déverrouillage (la clé de session apparaît ou disparaît) : les sites connectés suivent.

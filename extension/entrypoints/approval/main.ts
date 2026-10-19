@@ -3,19 +3,29 @@
  * un site ne peut ni la recouvrir, ni l'imiter, ni cliquer à la place de
  * l'utilisateur. Fermer la fenêtre vaut refus.
  *
- * Lot 5 : la CONNEXION d'un site (quel compte il peut voir). Les signatures
- * arrivent au lot 6, dans cette même fenêtre.
+ * Connexion d'un site (quel compte il peut voir), et SIGNATURES : ce qui va
+ * se passer en une phrase, ce que tu perds / reçois, le niveau de risque et
+ * ses raisons (explication de l'app), le message ou les détails techniques.
+ * En danger, signer demande de MAINTENIR le bouton 2 s.
  */
 import { h, nodes, send } from '../../ui/dom';
-import { t } from '../../ui/i18n';
+import { errorText, t } from '../../ui/i18n';
 import { lockedScreen } from '../../ui/screens';
 import { groupAddress } from '../../../src/domain/validation/poisoning';
 
 interface Req {
   id: string;
   origin: string;
-  kind: 'connect';
+  kind: 'connect' | 'sign';
   family: 'evm' | 'solana';
+}
+interface Review {
+  explanation: { title: string; headline: string; detail?: string; lose: string[]; receive: string[]; risk: 'none' | 'warning' | 'danger'; reasons: string[]; holdToSign: boolean };
+  method: string;
+  chainName?: string;
+  details: { label: string; value: string }[];
+  messageText?: string;
+  reduce?: { symbol: string; decimals: number; suggested?: string };
 }
 interface WalletMeta {
   id: string;
@@ -36,7 +46,99 @@ async function load() {
   const r = await send<{ request: Req; unlocked: boolean; wallets: WalletMeta[]; selected: { walletId: string; index: number } | null }>({ type: 'approval:get', id }).catch(() => null);
   if (!r?.ok) return gone();
   if (!r.unlocked) return lockedScreen(app, () => void load());
+  if (r.request.kind === 'sign') return signScreen(r.request);
   connectScreen(r.request, r.wallets, r.selected);
+}
+
+const HOLD_MS = 2000;
+
+async function signScreen(req: Req) {
+  const url = new URL(req.origin);
+  app.replaceChildren(h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')), h('p', { class: 'muted', role: 'status' }, t('apAnalyzing')));
+  const r = await send<{ review: Review; askPassword: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
+  if (!r?.ok) return r?.error === 'REQUEST_EXPIRED' ? gone() : void app.append(h('p', { class: 'error' }, errorText(r?.error)));
+  const { review: rv, askPassword } = r;
+  const ex = rv.explanation;
+  const err = h('p', { class: 'error', role: 'alert' });
+  const pw = h('input', { type: 'password', placeholder: t('apPassword'), autocomplete: 'current-password' });
+  const reduceBox = h('input', { type: 'checkbox', style: 'width:auto' });
+  const reduceAmount = h('input', { type: 'text', inputMode: 'decimal', value: rv.reduce?.suggested ?? '', placeholder: '0.0', 'aria-label': t('apReduce') });
+  const sending = rv.method === 'eth_sendTransaction' || rv.method === 'solana:signAndSendTransaction';
+  const label = ex.holdToSign ? t('apHold') : sending ? t('apConfirm') : t('apSign');
+  const ok = h('button', { class: `btn ${ex.risk === 'danger' ? 'danger' : ''}`, type: 'button', disabled: true }, label);
+  setTimeout(() => (ok.disabled = false), ARM_MS);
+
+  const refuse = async () => {
+    await send({ type: 'approval:respond', id, approve: false }).catch(() => {});
+    window.close();
+  };
+  const approve = async () => {
+    if (ok.disabled) return;
+    if (askPassword && !pw.value) return void (err.textContent = errorText('PASSWORD_REQUIRED'));
+    ok.disabled = true;
+    err.textContent = '';
+    const x = await send<{ params?: Record<string, string> }>({
+      type: 'approval:respond',
+      id,
+      approve: true,
+      password: askPassword ? pw.value : undefined,
+      reduceTo: rv.reduce && reduceBox.checked && reduceAmount.value.trim() ? reduceAmount.value.trim() : undefined,
+    }).catch(() => null);
+    pw.value = '';
+    if (x?.ok) return window.close();
+    if (x?.error === 'REQUEST_EXPIRED') return gone();
+    // L'action a échoué : on reste, on dit pourquoi ; réessayer ou refuser.
+    err.textContent = x?.error === 'ACTION_FAILED' ? t('apFailed', { m: x.params?.message ?? '' }) : errorText(x?.error, x?.params);
+    ok.disabled = false;
+  };
+
+  // Danger : maintenir 2 s (un clic, même automatisé ou hérité, ne suffit pas).
+  if (ex.holdToSign) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stop = () => {
+      clearTimeout(timer);
+      ok.classList.remove('holding');
+    };
+    ok.addEventListener('pointerdown', () => {
+      if (ok.disabled) return;
+      ok.classList.add('holding');
+      timer = setTimeout(() => (stop(), void approve()), HOLD_MS);
+    });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) ok.addEventListener(ev, stop);
+  } else ok.addEventListener('click', () => void approve());
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && void refuse());
+
+  const list = (title: string, items: string[], cls: string) => items.length > 0 && h('div', { class: `card stack ${cls}`, style: 'gap:4px' }, h('p', { class: 'small muted' }, title), ...items.map((x) => h('strong', {}, x)));
+  const refuseBtn = h('button', { class: 'btn secondary', type: 'button', on: { click: () => void refuse() } }, t('apRefuse'));
+  app.replaceChildren(
+    ...nodes(
+      h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx'), h('span', { class: 'small muted', style: 'margin-left:auto' }, url.host)),
+      h('p', { class: 'small muted' }, ex.title + (rv.chainName ? ` · ${t('apNetwork', { n: rv.chainName })}` : '')),
+      h('h1', { 'data-testid': 'headline' }, ex.headline),
+      ex.detail && h('p', { class: 'muted' }, ex.detail),
+      ex.risk !== 'none' &&
+        h('div', { class: `banner ${ex.risk === 'danger' ? 'danger' : 'warn'}`, role: 'alert', 'data-testid': 'risk' }, h('div', {}, h('strong', {}, t(`apRisk_${ex.risk}` as 'apRisk_danger')), ...ex.reasons.map((x) => h('p', {}, x)))),
+      list(t('apLose'), ex.lose, 'lose'),
+      list(t('apReceive'), ex.receive, 'receive'),
+      rv.messageText && h('div', { class: 'stack', style: 'gap:6px' }, h('p', { class: 'small muted' }, t('apMessage')), h('pre', { class: 'msg', 'data-testid': 'message' }, rv.messageText)),
+      rv.reduce &&
+        h(
+          'div',
+          { class: 'card stack', style: 'gap:8px' },
+          h('label', { class: 'check' }, reduceBox, h('span', {}, t('apReduce'))),
+          h('div', { class: 'amount' }, reduceAmount, h('span', { class: 'small muted' }, rv.reduce.symbol)),
+          h('p', { class: 'small muted' }, t('apReduceHint', { s: rv.reduce.symbol })),
+        ),
+      rv.details.length > 0 && h('details', {}, h('summary', {}, t('apDetails')), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
+      askPassword && pw,
+      ex.holdToSign && h('p', { class: 'small muted' }, t('apHoldHint')),
+      err,
+      // Danger : Refuser en premier (et focalisé), signer à droite.
+      h('div', { class: 'actions' }, refuseBtn, ok),
+    ),
+  );
+  if (ex.risk === 'danger') refuseBtn.focus();
+  reduceAmount.addEventListener('input', () => (reduceBox.checked = !!reduceAmount.value.trim()));
 }
 
 function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: string; index: number } | null) {

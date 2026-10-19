@@ -436,8 +436,61 @@ async function dapps() {
       : fail(`switch ${JSON.stringify([r, chain])}`);
     r = await page.evaluate(() => window.kx.call('wallet_addEthereumChain', [{ chainId: '0x999999', rpcUrls: ['https://rpc.pirate.example'] }]));
     r.code === 4902 ? console.log('✓ réseau inconnu proposé par la page : refusé (4902)') : fail(`addChain ${JSON.stringify(r)}`);
-    r = await page.evaluate(() => window.kx.call('personal_sign', ['0x68656c6c6f', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94']));
-    r.code === 4200 ? console.log('✓ signature : refusée proprement (4200) jusqu’au lot 6') : fail(`sign ${JSON.stringify(r)}`);
+    // ── Signatures (lot 6) : fenêtre, explication, signature vérifiée ──
+    const { verifyMessage } = await import(pathToFileURL(join(HERE, '../../node_modules/ethers/lib.esm/index.js')).href);
+    const nextWindow = () => ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html'), timeout: 15_000 });
+    const EVM0 = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
+    await page.evaluate((a) => {
+      window.kx.p = window.kx.call('personal_sign', ['0x426f6e6a6f7572204b616c7978', a]);
+    }, EVM0);
+    let sw1 = await nextWindow();
+    await sw1.locator('[data-testid=headline]').waitFor();
+    console.log(`✓ fenêtre de signature : « ${await sw1.locator('[data-testid=headline]').textContent()} »`);
+    (await sw1.locator('[data-testid=message]').textContent()) === 'Bonjour Kalyx' ? console.log('✓ message montré en clair') : fail('message');
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-sign-${scheme}.png`) });
+    await sw1.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true, timeout: 5000 }).catch(() => {});
+    r = await page.evaluate(() => window.kx.p);
+    r.r && verifyMessage('Bonjour Kalyx', r.r) === EVM0 ? console.log('✓ personal_sign : signature valide du compte accordé') : fail(`personal_sign ${JSON.stringify(r)}`);
+
+    // SIWE pour un AUTRE domaine que le site : danger, maintenir 2 s.
+    const siwe = `evil.example wants you to sign in with your Ethereum account:\n${EVM0}\n\nSign in\n\nURI: https://evil.example\nVersion: 1\nChain ID: 1\nNonce: abcdefgh\nIssued At: 2026-01-01T00:00:00Z`;
+    await page.evaluate(([m, a]) => {
+      window.kx.p = window.kx.call('personal_sign', ['0x' + Array.from(new TextEncoder().encode(m)).map((b) => b.toString(16).padStart(2, '0')).join(''), a]);
+    }, [siwe, EVM0]);
+    sw1 = await nextWindow();
+    await sw1.locator('[data-testid=risk]').waitFor();
+    (await sw1.locator('[data-testid=risk]').textContent()).startsWith('Danger') ? console.log('✓ SIWE d’un autre domaine : « Danger »') : fail('risque SIWE');
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-danger-${scheme}.png`) });
+    const hold = sw1.getByRole('button', { name: 'Maintenir pour signer' });
+    await sw1.waitForTimeout(900);
+    await hold.click({ timeout: 3000 });
+    await sw1.waitForTimeout(400);
+    !sw1.isClosed() ? console.log('✓ danger : un simple clic ne signe pas') : fail('clic simple a signé');
+    const box = await hold.boundingBox();
+    await sw1.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await sw1.mouse.down();
+    // La fenêtre se ferme d'elle-même une fois signé.
+    await new Promise((res) => setTimeout(res, 2300));
+    await sw1.mouse.up().catch(() => {});
+    r = await page.evaluate(() => window.kx.p);
+    r.r && verifyMessage(siwe, r.r) === EVM0 ? console.log('✓ danger : signé après 2 s de maintien') : fail(`maintien ${JSON.stringify(r)}`);
+
+    // Transaction : sans réseau, l'échec s'affiche DANS la fenêtre ; refuser → 4001.
+    await page.evaluate((a) => {
+      window.kx.p = window.kx.call('eth_sendTransaction', [{ from: a, to: '0x1111111111111111111111111111111111111111', value: '0x1' }]);
+    }, EVM0);
+    sw1 = await nextWindow();
+    await sw1.getByRole('button', { name: 'Confirmer' }).waitFor({ timeout: 30_000 });
+    await sw1.waitForTimeout(800);
+    await sw1.getByRole('button', { name: 'Confirmer' }).click();
+    await sw1.waitForFunction(() => document.querySelector('.error')?.textContent, null, { timeout: 120_000 });
+    console.log(`✓ transaction sans réseau : erreur dans la fenêtre (« ${(await sw1.locator('.error').textContent()).slice(0, 70)}… »)`);
+    await sw1.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
+    r = await page.evaluate(() => window.kx.p);
+    r.code === 4001 ? console.log('✓ puis refus : la dApp reçoit 4001') : fail(`tx ${JSON.stringify(r)}`);
+
+    r = await page.evaluate((a) => window.kx.call('eth_sign', [a, '0x' + '11'.repeat(32)]), EVM0);
+    r.code === 4200 ? console.log('✓ eth_sign (hachage brut) refusé') : fail(`eth_sign ${JSON.stringify(r)}`);
 
     // Solana : silencieux sans fenêtre, puis connexion.
     r = await page.evaluate(async () => {
@@ -454,6 +507,22 @@ async function dapps() {
     await win2.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
     r = await page.evaluate(() => window.kx.solConnect);
     r[0] === 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk' ? console.log('✓ Solana connecté : adresse du compte') : fail(`sol ${JSON.stringify(r)}`);
+    // Signature d'un message Solana, vérifiée (ed25519).
+    await page.evaluate(() => {
+      const w = window.kx.sol.find((x) => x.name === 'Kalyx');
+      const account = w.accounts[0];
+      window.kx.solSig = w.features['solana:signMessage'].signMessage({ account, message: new TextEncoder().encode('Connexion à Jupiter') }).then((x) => Array.from(x[0].signature));
+    });
+    const sw2 = await nextWindow();
+    await sw2.getByRole('button', { name: 'Signer' }).waitFor();
+    await sw2.waitForTimeout(800);
+    await sw2.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true }).catch(() => {});
+    const solSig = await page.evaluate(() => window.kx.solSig);
+    const { ed25519 } = await import(pathToFileURL(join(HERE, '../../node_modules/@noble/curves/esm/ed25519.js')).href);
+    const { base58 } = await import(pathToFileURL(join(HERE, '../../node_modules/@scure/base/lib/esm/index.js')).href);
+    ed25519.verify(Uint8Array.from(solSig), new TextEncoder().encode('Connexion à Jupiter'), base58.decode('HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk'))
+      ? console.log('✓ Solana signMessage : signature ed25519 valide')
+      : fail('signature Solana');
 
     // Fenêtre fermée = refus.
     const other = await ctx.newPage();
