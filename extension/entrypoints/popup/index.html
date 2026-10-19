@@ -4,24 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kalyx Wallet</title>
+    <link rel="stylesheet" href="../../ui/theme.css" />
     <style>
-      :root { color-scheme: light dark; --bg: #f6efe4; --text: #1c1813; --muted: #6f6656; }
-      @media (prefers-color-scheme: dark) { :root { --bg: #0b0e14; --text: #f3ece0; --muted: #a59d8f; } }
-      html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
-      main { width: 360px; height: 560px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
-      img { width: 72px; height: 72px; }
-      h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; }
-      p { margin: 0; color: var(--muted); }
-      button { margin-top: 8px; padding: 10px 22px; border-radius: 999px; border: 0; background: var(--text); color: var(--bg); font: 600 14px system-ui, sans-serif; cursor: pointer; }
+      #app { width: 360px; min-height: 560px; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+      .head { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+      .head img { width: 26px; height: 26px; }
+      .head .link { margin-left: auto; align-self: center; }
+      .center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; }
+      .center img { width: 72px; height: 72px; }
+      .center form { width: 100%; }
     </style>
   </head>
   <body>
-    <main>
-      <img src="/icon/128.png" alt="" />
-      <h1>Kalyx Wallet</h1>
-      <p id="status">…</p>
-      <button id="lock" type="button" hidden>Verrouiller</button>
-    </main>
+    <div id="app"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

@@ -20,6 +20,8 @@ import { afterFailure, DEFAULT_AUTO_LOCK_MIN, NO_THROTTLE, passwordAccepted, val
 
 export const AUTO_LOCK_ALARM = 'kalyx-autolock';
 
+export type VaultFn<T> = (vault: ExtVault, key: Uint8Array) => Promise<{ vault?: ExtVault; result: T; commit?: () => Promise<void> }>;
+
 export interface Alarms {
   create(name: string, info: { delayInMinutes: number }): void | Promise<void>;
   clear(name: string): unknown;
@@ -164,8 +166,30 @@ export function makeSession(deps: SessionDeps) {
     return hexToBytes(k);
   }
 
+  /**
+   * Lit le coffre et sa clé, applique `fn`, enregistre le coffre qu'elle rend,
+   * PUIS exécute `commit` (les métadonnées) : jamais une métadonnée qui
+   * renverrait à un secret absent du coffre. Même file que les autres
+   * opérations : une écriture de portefeuille ne croise jamais un changement
+   * de mot de passe. La clé est effacée après.
+   */
+  async function withVault<T>(fn: VaultFn<T>): Promise<T> {
+    const vault = await readVault();
+    if (!vault) throw new SessionError('NO_VAULT');
+    const key = await vaultKey();
+    try {
+      const out = await fn(vault, key);
+      if (out.vault) await deps.disk.set(K.vault, out.vault);
+      await out.commit?.();
+      return out.result;
+    } finally {
+      key.fill(0);
+    }
+  }
+
   return {
     status,
+    withVault: <T>(fn: VaultFn<T>) => serial(() => withVault(fn)),
     create: (pw: string) => serial(() => create(pw)),
     unlock: (pw: string) => serial(() => unlock(pw)),
     changePassword: (oldPw: string, newPw: string) => serial(() => changePassword(oldPw, newPw)),

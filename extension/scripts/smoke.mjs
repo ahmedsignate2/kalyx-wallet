@@ -24,11 +24,13 @@ const fail = (m) => {
   process.exitCode = 1;
 };
 
-const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'kalyx-ext-')), {
+const launch = () => chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'kalyx-ext-')), {
   headless: true,
+  locale: 'fr-FR',
   executablePath: process.env.CHROMIUM_PATH,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new'],
+  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', '--lang=fr'],
 });
+const ctx = await launch();
 try {
   const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
   const id = new URL(sw.url()).host;
@@ -75,12 +77,121 @@ try {
   t0 = Date.now();
   (await send({ type: 'vault:unlock', password: PW })).ok ? console.log(`✓ déverrouillé avec le bon mot de passe (${Date.now() - t0} ms)`) : fail('déverrouillage');
 
-  // Le popup affiche l'état réel.
+  // Le popup affiche l'état réel : déverrouillé (aucun portefeuille encore), puis verrouillé.
   await page.reload();
-  await page.waitForFunction(() => document.querySelector('#status')?.textContent !== '…');
-  const shown = await page.locator('#status').textContent();
-  shown === 'Déverrouillé' ? console.log('✓ popup : « Déverrouillé »') : fail(`popup : « ${shown} »`);
+  await page.locator('.btn').waitFor();
+  (await page.locator('.btn').textContent()) === 'Ajouter un portefeuille' ? console.log('✓ popup déverrouillé sans portefeuille : « Ajouter un portefeuille »') : fail('popup déverrouillé');
+  await send({ type: 'vault:lock' });
+  await page.reload();
+  await page.locator('input[type=password]').waitFor();
+  console.log('✓ popup verrouillé : champ mot de passe');
 } finally {
   await ctx.close();
+}
+await onboarding();
+
+/**
+ * Onboarding piloté comme un utilisateur, dans un profil neuf : créer
+ * (mot de passe, phrase, vérification), puis importer la phrase de test
+ * standard et retrouver les adresses du mobile. Captures claires et sombres
+ * dans SHOTS si défini.
+ */
+async function onboarding() {
+  const SHOTS = process.env.SHOTS;
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    // L'installation ouvre l'onboarding d'elle-même.
+    const auto = ctx.pages().find((p) => p.url().endsWith('/onboarding.html')) ?? (await ctx.waitForEvent('page', { timeout: 10_000 }).catch(() => null));
+    auto?.url().endsWith('/onboarding.html') ? console.log('✓ onboarding ouvert à l’installation') : fail('onboarding non ouvert à l’installation');
+    const page = await ctx.newPage();
+    await page.setViewportSize({ width: 900, height: 900 });
+    const shot = async (name) => {
+      if (!SHOTS) return;
+      for (const scheme of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.screenshot({ path: join(SHOTS, `${name}-${scheme}.png`) });
+      }
+      await page.emulateMedia({ colorScheme: 'light' });
+    };
+    const popup = await ctx.newPage();
+    await popup.setViewportSize({ width: 360, height: 560 });
+    await popup.goto(`chrome-extension://${id}/popup.html`);
+    await popup.getByText('Commencer').waitFor();
+    console.log('✓ popup sans coffre : « Commencer »');
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-start-${scheme}.png`) });
+
+    await page.goto(`chrome-extension://${id}/onboarding.html`);
+    await page.getByText('Bienvenue dans Kalyx').waitFor();
+    await shot('1-welcome');
+    await page.getByText('Créer un portefeuille').click();
+    const [pw, pw2] = [page.locator('input[type=password]').nth(0), page.locator('input[type=password]').nth(1)];
+    await pw.fill('azertyuiop');
+    await pw2.fill('azertyuiop');
+    await page.getByText('Continuer').click();
+    await page.waitForFunction(() => document.querySelector('.error')?.textContent);
+    (await page.locator('.error').textContent())?.includes('Trop simple') ? console.log('✓ interface : mot de passe faible refusé') : fail('mot de passe faible accepté par l’interface');
+    await pw.fill('Plage-Orange-47!');
+    await pw2.fill('Plage-Orange-47!');
+    await shot('2-password');
+    await page.getByText('Continuer').click();
+    await page.locator('.grid').waitFor({ timeout: 20_000 });
+    const words = await page.locator('.word').evaluateAll((els) => els.map((e) => e.lastChild.textContent));
+    words.length === 12 ? console.log('✓ phrase de 12 mots, floutée avant affichage') : fail(`phrase : ${words.length} mots`);
+    (await page.getByText('J’ai noté ma phrase').isDisabled()) ? console.log('✓ « J’ai noté » bloqué tant que la phrase est cachée') : fail('« J’ai noté » actif trop tôt');
+    await shot('3-phrase-hidden');
+    await page.getByText('Afficher la phrase').click();
+    await shot('4-phrase');
+    await page.getByText('J’ai noté ma phrase').click();
+    for (let i = 0; i < 3; i++) {
+      const q = await page.locator('h1 + p').textContent();
+      const n = Number(q.match(/\d+/)[0]);
+      if (i === 0) {
+        const wrong = (await page.locator('.choices button').allTextContents()).find((w) => w !== words[n - 1]);
+        await page.locator('.choices button', { hasText: new RegExp(`^${wrong}$`) }).click();
+        (await page.locator('.error').textContent()) ? console.log('✓ mauvais mot refusé') : fail('mauvais mot accepté');
+        await shot('5-verify');
+      }
+      await page.locator('.choices button', { hasText: new RegExp(`^${words[n - 1]}$`) }).click();
+    }
+    await page.getByText('Ton portefeuille est prêt').waitFor();
+    (await page.locator('.banner').count()) === 0 ? console.log('✓ phrase vérifiée : pas de rappel') : fail('rappel affiché après vérification');
+    await shot('6-done');
+    const sess = await page.evaluate(() => chrome.storage.local.get(null));
+    const disk = JSON.stringify(sess);
+    !disk.includes(words.join(' ')) && !disk.includes(`${words[0]} ${words[1]}`)
+      ? console.log('✓ disque : la phrase n’apparaît pas en clair')
+      : fail('phrase en clair sur le disque');
+
+    // Import de la phrase de test standard (vecteur public) : mêmes adresses que le mobile.
+    await page.goto(`chrome-extension://${id}/onboarding.html`);
+    await page.getByText('J’ai déjà un portefeuille').click();
+    await page.getByText('Phrase de récupération').click();
+    await page.locator('textarea').fill('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandn');
+    (await page.locator('.small.error').textContent())?.includes('abandn') ? console.log('✓ mot inconnu signalé pendant la saisie') : fail('mot inconnu non signalé');
+    await page.locator('textarea').fill('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
+    await shot('7-import');
+    await page.getByRole('button', { name: 'Importer' }).click();
+    await page.getByText('Ton portefeuille est prêt').waitFor({ timeout: 120_000 });
+    const text = await page.locator('#app').textContent();
+    text.includes('0x9858Ef…aEda94') && text.includes('HAgk14Jp…3DKpqk')
+      ? console.log('✓ import : EVM 0x9858…  SOL HAgk…, comme le mobile')
+      : fail(`import : adresses ${text}`);
+    await page.goto(`chrome-extension://${id}/onboarding.html`);
+    await page.getByText('J’ai déjà un portefeuille').click();
+    await page.getByText('Phrase de récupération').click();
+    await page.locator('textarea').fill('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
+    await page.getByRole('button', { name: 'Importer' }).click();
+    await page.waitForFunction(() => document.querySelector('.error[role=alert]')?.textContent);
+    (await page.locator('.error[role=alert]').textContent()) === 'Ce portefeuille est déjà dans Kalyx.' ? console.log('✓ doublon refusé') : fail('doublon accepté');
+
+    await popup.reload();
+    await popup.getByText('Ajouter un portefeuille').waitFor();
+    (await popup.locator('.card').count()) === 2 ? console.log('✓ popup : 2 portefeuilles') : fail('popup : portefeuilles');
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await popup.screenshot({ path: join(SHOTS, `popup-wallets-${scheme}.png`) });
+  } finally {
+    await ctx.close();
+  }
 }
 if (!process.exitCode) console.log('OK');

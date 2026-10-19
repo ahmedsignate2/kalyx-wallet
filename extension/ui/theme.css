@@ -1,0 +1,46 @@
+/* Thèmes de l'app : Crème (clair) et Nuit (sombre) — mêmes valeurs que ui/tokens.ts. */
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Semibold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+
+:root {
+  color-scheme: light;
+  --bg: #F4EEE5; --surface1: #FFFBF5; --surface2: #EFE7DB; --border: rgba(70, 48, 24, 0.09);
+  --text: #1D1A16; --text2: #6B6358; --primary: #1E1C2A; --onPrimary: #FFF8EE; --danger: #C9303F;
+  --gold: #9A6C12; --goldBg: #F5E7C8; --ok: #257F5A;
+  --radius: 20px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0B0B10; --surface1: #17171F; --surface2: #1F1F2A; --border: rgba(255, 244, 230, 0.09);
+    --text: #F5F1EA; --text2: #A29D95; --primary: #F6EEE2; --onPrimary: #0B0B10; --danger: #FF4D5E;
+    --gold: #E6C682; --goldBg: rgba(221, 181, 101, 0.16); --ok: #72D9AC;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 'General Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+p { margin: 0; }
+.muted { color: var(--text2); }
+.small { font-size: 13px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface1); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.btn { appearance: none; border: 0; border-radius: 999px; padding: 14px 22px; font: 600 15px 'General Sans', system-ui, sans-serif; cursor: pointer; background: var(--primary); color: var(--onPrimary); width: 100%; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.secondary { background: var(--surface2); color: var(--text); }
+.btn.ghost { background: transparent; color: var(--text2); padding: 10px; }
+.link { background: none; border: 0; color: var(--text2); font: 500 14px 'General Sans', system-ui, sans-serif; cursor: pointer; padding: 0; align-self: flex-start; }
+input, textarea, select { width: 100%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); border-radius: 14px; padding: 13px 14px; font: 15px 'General Sans', system-ui, sans-serif; outline: none; }
+input:focus, textarea:focus, select:focus { border-color: var(--text2); }
+textarea { resize: none; min-height: 110px; }
+.error { color: var(--danger); font-size: 14px; }
+.ok { color: var(--ok); font-size: 14px; }
+.option { display: flex; flex-direction: column; gap: 2px; text-align: left; background: var(--surface1); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; cursor: pointer; color: var(--text); font: inherit; width: 100%; }
+.option strong { font-weight: 600; }
+.meter { height: 6px; border-radius: 3px; background: var(--surface2); overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: 3px; transition: width 0.2s, background 0.2s; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; }
+.banner { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--goldBg); color: var(--gold); border-radius: 14px; padding: 10px 12px; font-size: 13px; font-weight: 500; }
+.banner button { background: none; border: 0; color: inherit; font: 600 13px 'General Sans', system-ui, sans-serif; cursor: pointer; }

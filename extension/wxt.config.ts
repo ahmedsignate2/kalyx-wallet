@@ -8,6 +8,12 @@ import { defineConfig } from 'wxt';
  * vers les dApps : rien n'est demandé avant d'en avoir besoin.
  */
 export default defineConfig({
+  /*
+   * Le cœur (src/domain/chains/configs) lit des clés d'API via process.env,
+   * inexistant dans un service worker. Aucune clé n'est embarquée dans
+   * l'extension : elles passeront par un relais (cahier des charges, §8).
+   */
+  vite: () => ({ define: { 'process.env': '{}' } }),
   manifest: {
     name: 'Kalyx Wallet',
     description: 'Portefeuille non-custodial pour Ethereum, les réseaux EVM et Solana.',
