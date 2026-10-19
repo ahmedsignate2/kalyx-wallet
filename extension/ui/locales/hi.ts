@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'बीटा फ़ीडबैक — Kalyx एक्सटेंशन {v}',
   reportMailBody: 'क्या हुआ? आप क्या उम्मीद कर रहे थे?',
   chooseAccount: 'खाता चुनें', myAddresses: 'मेरे पते', setGeneral: 'सामान्य', setSecurity: 'सुरक्षा', setHelp: 'सहायता', sitesShort: 'साइटें', networksShort: '{n} नेटवर्क जवाब नहीं दे रहे',
+  tdBalance: 'बैलेंस', tdPrice: 'कीमत', tdNetwork: 'नेटवर्क', tdUnverified: 'असत्यापित: इसकी कीमत और मूल्य आपके कुल में नहीं जोड़े जाते। बिना मांगे मिले टोकन से सावधान रहें।',
 };

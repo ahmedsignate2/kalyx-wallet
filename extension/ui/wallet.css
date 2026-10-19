@@ -56,7 +56,6 @@
 
 /* ── La feuille ── */
 .sheet { position: relative; z-index: 2; flex: 1; margin-top: -28px; padding: 18px var(--pad, 16px) var(--pad, 16px); display: flex; flex-direction: column; gap: 14px; background: var(--bg); border-radius: 28px 28px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.12); }
-.sheet::before { content: ''; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--border); }
 
 /* Accès (verrouillé, sans coffre) : le ciel, le logo qui luit, puis la feuille. */
 .access-hero { align-items: center; justify-content: center; text-align: center; min-height: 270px; padding-top: 40px; gap: 14px; }
@@ -75,11 +74,26 @@
 
 /* Onglets : une piste, la pilule glisse sous l'onglet actif. */
 .tabs { position: relative; display: flex; padding: 4px; border-radius: 999px; background: var(--surface-2); }
-.tabs::before { content: ''; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px; background: var(--pill-on); box-shadow: var(--pill-depth); transition: transform 0.28s cubic-bezier(0.3, 0.8, 0.3, 1); }
-.tabs[data-on='activity']::before { transform: translateX(100%); }
+.tabs::before { content: ''; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--n, 2)); border-radius: 999px; background: var(--pill-on); box-shadow: var(--pill-depth); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform var(--d-base) var(--ease-out); }
 .tab { position: relative; flex: 1; height: 36px; border: 0; background: none; color: var(--text-secondary); border-radius: 999px; padding: 0 16px; cursor: pointer; font: 500 13px var(--font); transition: color 0.2s; }
 .tab.on { color: var(--text); font-weight: 600; }
-.pane { animation: fade-up 0.22s ease-out; }
+/* Solde : il apparaît avec un léger ressort la première fois. */
+.total.pop { animation: pop var(--d-slow) var(--ease-spring) both; }
+@keyframes pop { from { opacity: 0; transform: scale(0.9); } }
+.summary .status { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Détail d'un token. */
+.token-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 4px 0 6px; text-align: center; }
+.token-hero .logos, .token-hero .logo { width: 56px; height: 56px; }
+.token-hero .badge { width: 24px; height: 24px; }
+.token-value { font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; }
+.kv-card { display: flex; flex-direction: column; gap: 0; padding: 4px 16px; }
+.kv-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; font-size: 14px; }
+.kv-row + .kv-row { border-top: 1px solid var(--border); }
+.kv-row strong { font-weight: 600; text-align: end; font-variant-numeric: tabular-nums; }
+.net { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.net img { width: 18px; height: 18px; border-radius: 50%; }
+.actions .btn .glyph { flex: none; }
 
 /* Réglages et feuilles : groupes titrés. */
 .screen { display: flex; flex-direction: column; gap: 16px; }
@@ -98,9 +112,16 @@ select.inline { width: auto; min-height: 36px; padding: 6px 34px 6px 12px; borde
 .acct-row.on { background: var(--surface-2); }
 .tick, .row .tick .glyph { flex: none; color: var(--up); display: inline-flex; }
 /* Réglages : les libellés se lisent en entier (retour à la ligne plutôt que « … »). */
-.settings .row .grow strong, .settings .row .grow p { white-space: normal; overflow: visible; }
+.settings .row .grow strong, .settings .row .grow p, [role='switch'] .grow strong, [role='switch'] .grow p { white-space: normal; overflow: visible; }
 .addr-card { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .addr-card .addr { font-size: 13px; line-height: 1.55; word-break: break-all; }
+/* Pastilles cliquables (copier, déconnecter, Max) : rondes, discrètes. */
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; border: 1px solid var(--border); border-top-color: var(--rim); background: var(--surface-1); color: var(--text); border-radius: 999px; padding: 6px 12px; cursor: pointer; font: 600 12.5px var(--font); white-space: nowrap; }
+.chip:hover { background: var(--surface-2); }
+.chip:disabled { opacity: 0.45; cursor: default; }
+.chip b { font-weight: 600; color: var(--text-secondary); }
+.chip[data-copied] { color: var(--up); border-color: var(--up); }
+.chip.on { border-color: var(--text); }
 .chip.copy { gap: 6px; font-weight: 600; }
 
 /* ── Feuilles modales ── */
@@ -137,7 +158,7 @@ details.banner > p { padding: 0 12px 12px 36px; font-size: 12.5px; line-height: 
 @keyframes slide-up { from { transform: translateY(100%); } }
 @keyframes shimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) {
-  .enter, .pane, .veil, .modal, .skel::after { animation: none !important; }
+  .enter, .veil, .modal, .skel::after, .total.pop { animation: none !important; }
   .tabs::before, .switch::after, .act .disc { transition: none; }
 }
 
@@ -186,9 +207,20 @@ details > summary::-webkit-details-marker { display: none; }
 .kv { display: flex; flex-direction: column; gap: 2px; }
 .addr { font-size: 13.5px; letter-spacing: 0.02em; line-height: 1.6; word-spacing: 0.15em; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
-.qr { align-self: center; background: #fff; border-radius: 20px; padding: 8px; line-height: 0; box-shadow: var(--depth); }
+.qr { align-self: center; background: #fff; border-radius: 22px; padding: 12px; line-height: 0; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12); }
 .receive { align-items: stretch; }
 .receive .addr { text-align: center; }
+.receive-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 16px 18px; }
+.receive-card .qr { animation: pop var(--d-slow) var(--ease-spring) both; }
+.receive-card .addr { font-size: 14px; letter-spacing: 0.03em; }
+.btn.done { background: var(--up); color: #fff; }
+.notice { gap: 14px; }
+.notice-ico { width: 64px; height: 64px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+.site-row .site-mark { width: 40px; height: 40px; }
+.site-row .site-mark .avatar { border-radius: 13px; }
+.site-row .site-mark b { font-size: 17px; }
+.site-row .chip { flex: none; }
+.empty-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px 16px; text-align: center; }
 .site { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.3px; word-break: break-all; }
 
 /* Fenêtre d'approbation : le site en tête, relié à Kalyx ; les boutons dans un bandeau fixe. */

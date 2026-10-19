@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'Feedback beta — estensione Kalyx {v}',
   reportMailBody: 'Cosa è successo? Cosa ti aspettavi?',
   chooseAccount: 'Scegli un account', myAddresses: 'I miei indirizzi', setGeneral: 'Generale', setSecurity: 'Sicurezza', setHelp: 'Aiuto', sitesShort: 'Siti', networksShort: '{n} reti non rispondono',
+  tdBalance: 'Saldo', tdPrice: 'Prezzo', tdNetwork: 'Rete', tdUnverified: 'Non verificato: né prezzo né valore contano nel tuo totale. Diffida dei token che non hai richiesto.',
 };

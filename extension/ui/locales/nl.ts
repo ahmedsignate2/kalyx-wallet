@@ -108,4 +108,5 @@ export default {
   reportMailSubject: 'Bèta-feedback — Kalyx-extensie {v}',
   reportMailBody: 'Wat gebeurde er? Wat verwachtte je?',
   chooseAccount: 'Kies een account', myAddresses: 'Mijn adressen', setGeneral: 'Algemeen', setSecurity: 'Beveiliging', setHelp: 'Hulp', sitesShort: 'Sites', networksShort: '{n} netwerken reageren niet',
+  tdBalance: 'Saldo', tdPrice: 'Prijs', tdNetwork: 'Netwerk', tdUnverified: 'Niet geverifieerd: prijs en waarde tellen niet mee in je totaal. Wees op je hoede voor tokens waar je niet om hebt gevraagd.',
 };

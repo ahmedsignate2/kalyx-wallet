@@ -12,6 +12,13 @@
 
 :root {
   --font: 'General Sans', system-ui, sans-serif;
+  /* Mouvement : les valeurs de l'app (ui/motion.ts). */
+  --d-instant: 120ms;
+  --d-fast: 220ms;
+  --d-base: 380ms;
+  --d-slow: 600ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* Profondeur (Card de l'app) : ombre brune douce en Crème, ombre noire profonde en Nuit. */
   --depth: 0 8px 18px rgba(90, 58, 24, 0.09);
   --pill-depth: 0 6px 14px rgba(90, 58, 24, 0.1);
@@ -94,3 +101,24 @@ textarea { resize: none; min-height: 110px; }
 body { position: relative; }
 body > .scene { z-index: 0; }
 body > #app { z-index: 1; }
+
+/* ── Mouvement (valeurs de l'app) ── */
+/* Pression : enfoncement rapide, retour avec un léger ressort. */
+.btn, .option, .act .disc, .chip, .acct, .icon, .tab, button.row, a.row, .acct-card, .pill.addr-pill { transition: transform var(--d-fast) var(--ease-spring), background-color var(--d-fast), box-shadow var(--d-fast), color var(--d-fast); }
+.btn:active:not(:disabled), .option:active, .chip:active, .acct:active, .icon:active, .acct-card:active, .pill.addr-pill:active { transform: scale(0.97); transition-duration: var(--d-instant); }
+button.row:active, a.row:active { transform: scale(0.985); transition-duration: var(--d-instant); }
+.rise { animation: rise var(--d-base) var(--ease-out) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+#app.nav-fwd > * { animation: nav-fwd var(--d-base) var(--ease-out) both; }
+#app.nav-back > * { animation: nav-back var(--d-base) var(--ease-out) both; }
+@keyframes nav-fwd { from { opacity: 0; transform: translateX(22px); } }
+@keyframes nav-back { from { opacity: 0; transform: translateX(-22px); } }
+.pulse { animation: pulse var(--d-slow) var(--ease-out); }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 55%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+/* Chargement : le logo Kalyx tourne lentement, comme dans l'app. */
+.spin-logo { width: 14px; height: 14px; border-radius: 4px; flex: none; animation: spin 1.4s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .rise, #app.nav-fwd > *, #app.nav-back > *, .pulse, .spin-logo { animation: none !important; }
+  .btn, .option, .act .disc, .chip, .acct, .icon, .tab, button.row, a.row, .acct-card { transition: none; }
+}

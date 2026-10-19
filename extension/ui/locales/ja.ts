@@ -122,4 +122,5 @@ export default {
   reportMailSubject: 'ベータ版フィードバック — Kalyx 拡張機能 {v}',
   reportMailBody: '何が起きましたか？ 本来はどうなるはずでしたか？',
   chooseAccount: 'アカウントを選択', myAddresses: 'マイアドレス', setGeneral: '一般', setSecurity: 'セキュリティ', setHelp: 'ヘルプ', sitesShort: 'サイト', networksShort: '{n} 件のネットワークが応答なし',
+  tdBalance: '残高', tdPrice: '価格', tdNetwork: 'ネットワーク', tdUnverified: '未検証：価格と評価額は合計に含まれません。求めていないのに届いたトークンに注意してください。',
 };

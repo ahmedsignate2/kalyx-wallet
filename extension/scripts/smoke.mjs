@@ -147,6 +147,7 @@ async function onboarding() {
       if (!SHOTS) return;
       for (const scheme of ['light', 'dark']) {
         await page.emulateMedia({ colorScheme: scheme });
+        await new Promise((r) => setTimeout(r, 450));
         await page.screenshot({ path: join(SHOTS, `${name}-${scheme}.png`) });
       }
       await page.emulateMedia({ colorScheme: 'light' });
@@ -599,7 +600,7 @@ async function dapps() {
     await ext.getByRole('button', { name: 'Sites connectés' }).click();
     await ext.getByText(`localhost:${port}`).waitFor();
     console.log('✓ « Sites connectés » liste le site');
-    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await ext.emulateMedia({ colorScheme: scheme }), await ext.screenshot({ path: join(process.env.SHOTS, `sites-${scheme}.png`) });
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await ext.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 450)), await ext.screenshot({ path: join(process.env.SHOTS, `sites-${scheme}.png`) });
     await ext.getByRole('button', { name: 'Déconnecter' }).click();
     await ext.getByText('Aucun site connecté.').waitFor();
     await page.waitForFunction(() => window.kx.events.some((e) => e[0] === 'accountsChanged' && e[1].length === 0));
