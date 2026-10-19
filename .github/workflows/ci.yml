@@ -68,6 +68,9 @@ jobs:
             extension/package-lock.json
       - name: Install (racine, puis extension)
         run: npm ci && npm ci --prefix extension
+      - name: Design et textes identiques à l'app (fichiers générés à jour)
+        working-directory: extension
+        run: node scripts/gen-design.mjs && node scripts/gen-app-text.mjs && git diff --exit-code -- ui/tokens.css ui/icons.ts ui/appText.ts
       - name: Typecheck
         run: npm run typecheck --prefix extension
       - name: Tests

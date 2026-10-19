@@ -11,6 +11,8 @@
  * venus d'un indexeur ne peuvent pas injecter de HTML.
  */
 import { h, send } from './dom';
+import { glyph } from './glyph';
+import { landscape } from './landscape';
 import { openOnboarding } from './screens';
 import { sendScreen } from './send';
 import { receiveScreen } from './receive';
@@ -151,17 +153,19 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         wl.accounts.map((a) => h('option', { value: `${wl.id}|${a.index}`, selected: wl.id === w?.id && a.index === data?.selected?.index }, `${wl.label} · ${t('account', { n: a.index + 1 })}`)),
       ),
     );
-    const icon = (label: string, glyph: string, fn: () => void) => h('button', { class: 'icon', type: 'button', title: label, 'aria-label': label, on: { click: fn } }, glyph);
-    return h(
-      'header',
-      { class: 'bar' },
-      // Le badge Bêta se pose sur le logo : il ne prend pas la place du compte.
-      h('span', { class: 'brand' }, h('img', { src: '/icon/128.png', alt: '' }), h('span', { class: 'beta', title: VERSION }, t('beta'))),
+    const icon = (label: string, name: string, fn: () => void) => h('button', { class: 'icon', type: 'button', title: label, 'aria-label': label, on: { click: fn } }, glyph(name, 22));
+    return [
+      // En-tête de l'app : la marque à gauche, les gestes à droite, posés nus sur le ciel.
+      h(
+        'header',
+        { class: 'bar' },
+        h('span', { class: 'brand' }, h('img', { src: '/icon/128.png', alt: '' }), 'Kalyx', h('span', { class: 'beta', title: VERSION }, t('beta'))),
+        opts.mode === 'popup' && icon(t('openSidePanel'), 'sidebar', openSidePanel),
+        icon(t('settings'), 'gear', settings),
+        icon(t('lock'), 'lock', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
+      ),
       select,
-      opts.mode === 'popup' && icon(t('openSidePanel'), '◫', openSidePanel),
-      icon(t('settings'), '⚙', settings),
-      icon(t('lock'), '🔒', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
-    );
+    ];
   }
 
   function addresses() {
@@ -198,25 +202,31 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const total = p?.total;
     const pnl = p?.pnl24h;
     const firstLoad = !p?.at && refreshing;
+    const up = (pnl ?? 0) >= 0;
+    const status = refreshing ? t('refreshing') : p?.at ? t('updated', { t: ago(p.at) }) : total == null ? t(firstLoad ? 'firstLoad' : 'totalUnknown') : '';
     return h(
       'section',
       { class: 'summary' },
-      h('p', { class: 'small muted' }, total == null ? t(firstLoad ? 'firstLoad' : 'totalUnknown') : t('total')),
+      // Le solde, en grand sur le ciel ; inconnu reste « — », jamais un 0 inventé.
       h('p', { class: 'total', 'data-testid': 'total' }, total == null ? '—' : money(total)),
-      pnl != null && p?.pnl24hPct != null && h('p', { class: `small ${pnl >= 0 ? 'up' : 'down'}` }, `${pnl >= 0 ? '+' : '−'}${money(Math.abs(pnl))} (${pnl >= 0 ? '+' : '−'}${Math.abs(p.pnl24hPct).toFixed(2)} %) · 24 h`),
-      h('p', { class: 'small muted status' }, refreshing ? t('refreshing') : p?.at ? t('updated', { t: ago(p.at) }) : ''),
+      pnl != null && p?.pnl24hPct != null
+        ? h('p', { class: 'pill' }, glyph(up ? 'trendUp' : 'trendDown', 14), `${up ? '+' : '−'}${money(Math.abs(pnl))} (${up ? '+' : '−'}${Math.abs(p.pnl24hPct).toFixed(1)} %) · 24 h`)
+        : null,
+      h('p', { class: 'pill quiet status' }, status),
     );
   }
 
   /** Retour à l'écran principal après Envoyer/Recevoir : relu (un envoi a changé les soldes). */
   const home = () => void load();
 
+  /** Tuiles d'action de l'app, à cheval sur le bord du ciel : Envoyer (geste principal), Recevoir. */
   function actions() {
+    const tile = (cls: string, icon: string, label: string, fn: () => void) => h('button', { class: `tile ${cls}`, type: 'button', 'aria-label': label, on: { click: fn } }, h('span', { class: 'disc' }, glyph(icon, 19)), label);
     return h(
       'div',
-      { class: 'actions' },
-      h('button', { class: 'btn', type: 'button', on: { click: () => ((away = true), sendScreen(app, home)) } }, `↑ ${t('send')}`),
-      h('button', { class: 'btn secondary', type: 'button', on: { click: () => ((away = true), void receiveScreen(app, home, { close: opts.mode === 'popup' })) } }, `↓ ${t('receive')}`),
+      { class: 'tiles' },
+      tile('send primary', 'send', t('send'), () => ((away = true), sendScreen(app, home))),
+      tile('rx', 'receive', t('receive'), () => ((away = true), void receiveScreen(app, home, { close: opts.mode === 'popup' }))),
     );
   }
 
@@ -263,26 +273,28 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       'div',
       { class: `row${x.verified ? '' : ' unverified'}` },
       tokenLogo(x.logo, x.symbol, x.chainLogo),
-      h('div', { class: 'grow' }, h('strong', {}, x.symbol), h('p', { class: 'small muted' }, x.chainName)),
-      h('div', { class: 'right' }, h('strong', {}, x.verified && x.price > 0 ? money(x.fiat) : '—'), h('p', { class: 'small muted' }, `${x.amount} ${x.symbol}`)),
+      // Comme la ligne de token de l'app : nom et solde à gauche, valeur à droite.
+      h('div', { class: 'grow' }, h('strong', {}, `${x.symbol} · ${x.chainName}`), h('p', { class: 'small' }, `${x.amount} ${x.symbol}`)),
+      h('div', { class: 'right' }, h('strong', {}, x.verified && x.price > 0 ? money(x.fiat) : '—')),
     );
   }
 
   function tokens() {
     const p = data?.portfolio;
-    if (!p) return h('p', { class: 'muted empty' }, '');
+    if (!p) return h('p', { class: 'empty' }, '');
     const list: (Node | false | null)[] = [];
-    if (!p.main.length && !p.small.length && p.at && !p.failed.length) list.push(h('p', { class: 'muted empty' }, t('noTokens')));
-    list.push(...p.main.map(tokenRow));
-    if (p.small.length) list.push(h('details', {}, h('summary', {}, t('smallBalances', { n: p.small.length })), ...p.small.map(tokenRow)));
-    if (p.hidden.length) list.push(h('details', { class: 'hidden-tokens' }, h('summary', {}, t('hiddenTokens', { n: p.hidden.length })), ...p.hidden.map(tokenRow)));
+    if (!p.main.length && !p.small.length && p.at && !p.failed.length) list.push(h('p', { class: 'empty' }, t('noTokens')));
+    // Une carte par groupe (Card de l'app) : les lignes portent leurs séparateurs.
+    if (p.main.length) list.push(h('div', { class: 'list card' }, ...p.main.map(tokenRow)));
+    if (p.small.length) list.push(h('details', {}, h('summary', {}, t('smallBalances', { n: p.small.length })), h('div', { class: 'list card' }, ...p.small.map(tokenRow))));
+    if (p.hidden.length) list.push(h('details', { class: 'hidden-tokens' }, h('summary', {}, t('hiddenTokens', { n: p.hidden.length })), h('div', { class: 'list card' }, ...p.hidden.map(tokenRow))));
     if (p.erc20Unavailable) list.push(h('p', { class: 'small muted note' }, t('erc20Soon')));
-    return h('div', { class: 'list' }, ...list);
+    return h('div', { class: 'stack', style: 'gap:12px' }, ...list);
   }
 
   function activityRow(r: ActivityRow) {
     const inner = [
-      h('img', { class: 'logo', src: r.chainLogo ?? '/icon/32.png', alt: '' }),
+      h('span', { class: 'logos' }, h('span', { class: `logo gesture ${r.tone === 'up' ? 'up' : r.tone === 'danger' ? '' : 'out'}` }, glyph(r.tone === 'up' ? 'receive' : r.failed ? 'errorCircle' : 'send', 18)), r.chainLogo ? h('img', { class: 'badge', src: r.chainLogo, alt: '' }) : null),
       h('div', { class: 'grow' }, h('strong', {}, r.label), h('p', { class: 'small muted' }, [r.subtitle, r.chainName].filter(Boolean).join(' · '))),
       h(
         'div',
@@ -297,15 +309,16 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   function activityList() {
-    if (!activity) return h('p', { class: 'muted empty' }, activityLoading ? t('refreshing') : '');
+    if (!activity) return h('p', { class: 'empty', 'data-testid': 'activity' }, activityLoading ? t('refreshing') : '');
     const groups = groupByDay(activity.rows, Date.now(), LOCALE, { today: t('today'), yesterday: t('yesterday') });
     return h(
       'div',
-      { class: 'list' },
+      { class: 'stack', style: 'gap:12px', 'data-testid': 'activity' },
       !!activity.failed.length && h('div', { class: 'banner warn' }, h('span', {}, t('networksDownActivity', { list: names(activity.failed) }))),
       activityLoading && h('p', { class: 'small muted' }, t('refreshing')),
-      !activity.rows.length && !activityLoading && !activity.failed.length && h('p', { class: 'muted empty' }, t('noActivity')),
-      ...groups.flatMap((g) => [h('p', { class: 'day small muted' }, g.label), ...g.items.map(activityRow)]),
+      !activity.rows.length && !activityLoading && !activity.failed.length && h('p', { class: 'empty' }, t('noActivity')),
+      // Un jour = une carte, comme l'activité de l'app.
+      ...groups.flatMap((g) => [h('p', { class: 'day' }, g.label), h('div', { class: 'list card' }, ...g.items.map(activityRow))]),
       activity.hiddenCount > 0 && h('p', { class: 'small muted note' }, t('hiddenActivity', { n: activity.hiddenCount })),
     );
   }
@@ -335,7 +348,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   function render() {
     if (!data) return;
     away = false;
-    app.replaceChildren(header(), addresses(), summary(), actions(), banners(), tabs(), tab === 'tokens' ? tokens() : activityList());
+    const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), ...header(), summary(), addresses());
+    const sheet = h('section', { class: 'sheet' }, actions(), banners(), tabs(), tab === 'tokens' ? tokens() : activityList());
+    app.replaceChildren(h('div', { class: 'home' }, hero, sheet));
   }
 
   /* ── Réglages ── */
@@ -358,7 +373,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       };
     });
     app.replaceChildren(
-      h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, `← ${t('back')}`)),
+      h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
       h(
         'div',
         { class: 'stack' },

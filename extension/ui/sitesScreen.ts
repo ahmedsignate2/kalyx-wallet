@@ -2,6 +2,7 @@
  * SITES CONNECTÉS — qui voit quel compte, sur quel réseau ; déconnexion en
  * un clic. Et l'option « Kalyx par défaut » (window.ethereum).
  */
+import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
 
@@ -37,7 +38,7 @@ export async function sitesScreen(app: HTMLElement, back: () => void) {
   const sites = r?.ok ? r.sites : [];
   app.replaceChildren(
     ...nodes(
-      h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, `← ${t('back')}`)),
+      h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))),
       h('h1', {}, t('sitesTitle')),
       h(
         'div',

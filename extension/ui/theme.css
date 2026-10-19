@@ -1,49 +1,92 @@
-/* Thèmes de l'app : Crème (clair) et Nuit (sombre) — mêmes valeurs que ui/tokens.ts. */
+/*
+ * Le design de l'app, pour l'extension. Couleurs : ui/tokens.css (généré depuis
+ * ui/tokens.ts de l'app). Mesures : celles du kit de l'app (ui/kit) — cartes
+ * rayon 24 avec liseré de lumière en haut, bouton principal 58 px rayon 20,
+ * champs rayon 12, lignes de 64 px, échelle de texte General Sans.
+ */
+@import url('./tokens.css');
 @font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
 @font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Semibold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
 @font-face { font-family: 'General Sans'; src: url('/fonts/GeneralSans-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
 
 :root {
-  color-scheme: light;
-  --bg: #F4EEE5; --surface1: #FFFBF5; --surface2: #EFE7DB; --border: rgba(70, 48, 24, 0.09);
-  --text: #1D1A16; --text2: #6B6358; --primary: #1E1C2A; --onPrimary: #FFF8EE; --danger: #C9303F;
-  --gold: #9A6C12; --goldBg: #F5E7C8; --ok: #257F5A;
-  --radius: 20px;
+  --font: 'General Sans', system-ui, sans-serif;
+  /* Profondeur (Card de l'app) : ombre brune douce en Crème, ombre noire profonde en Nuit. */
+  --depth: 0 8px 18px rgba(90, 58, 24, 0.09);
+  --pill-depth: 0 6px 14px rgba(90, 58, 24, 0.1);
+  --pill-on: var(--surface-1);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg: #0B0B10; --surface1: #17171F; --surface2: #1F1F2A; --border: rgba(255, 244, 230, 0.09);
-    --text: #F5F1EA; --text2: #A29D95; --primary: #F6EEE2; --onPrimary: #0B0B10; --danger: #FF4D5E;
-    --gold: #E6C682; --goldBg: rgba(221, 181, 101, 0.16); --ok: #72D9AC;
-  }
+  :root { --depth: 0 10px 20px rgba(0, 0, 0, 0.45); --pill-depth: 0 3px 8px rgba(0, 0, 0, 0.4); --pill-on: var(--surface-3); }
 }
+
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 'General Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 500 16px/22px var(--font); -webkit-font-smoothing: antialiased; }
+#app { position: relative; }
+#app > * { position: relative; }
+
+/* Échelle de texte de l'app (ui/tokens.ts → type). */
+h1 { font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.6px; margin: 0; }
 p { margin: 0; }
-.muted { color: var(--text2); }
-.small { font-size: 13px; }
-.stack { display: flex; flex-direction: column; gap: 14px; }
-.card { background: var(--surface1); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-.btn { appearance: none; border: 0; border-radius: 999px; padding: 14px 22px; font: 600 15px 'General Sans', system-ui, sans-serif; cursor: pointer; background: var(--primary); color: var(--onPrimary); width: 100%; }
-.btn:disabled { opacity: 0.45; cursor: default; }
-.btn.secondary { background: var(--surface2); color: var(--text); }
-.btn.ghost { background: transparent; color: var(--text2); padding: 10px; }
-.link { background: none; border: 0; color: var(--text2); font: 500 14px 'General Sans', system-ui, sans-serif; cursor: pointer; padding: 0; align-self: flex-start; }
-input, textarea, select { width: 100%; border: 1px solid var(--border); background: var(--surface2); color: var(--text); border-radius: 14px; padding: 13px 14px; font: 15px 'General Sans', system-ui, sans-serif; outline: none; }
-input:focus, textarea:focus, select:focus { border-color: var(--text2); }
-textarea { resize: none; min-height: 110px; }
-.error { color: var(--danger); font-size: 14px; }
-.ok { color: var(--ok); font-size: 14px; }
-.option { display: flex; flex-direction: column; gap: 2px; text-align: start; background: var(--surface1); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; cursor: pointer; color: var(--text); font: inherit; width: 100%; }
-.option strong { font-weight: 600; }
-.meter { height: 6px; border-radius: 3px; background: var(--surface2); overflow: hidden; }
-.meter > i { display: block; height: 100%; border-radius: 3px; transition: width 0.2s, background 0.2s; }
+.muted { color: var(--text-secondary); }
+.small { font-size: 13px; line-height: 18px; }
+.micro { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.2px; color: var(--text-tertiary); }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.error { color: var(--danger); font-size: 14px; line-height: 20px; }
+.ok { color: var(--up); font-size: 14px; }
+.up { color: var(--up); }
+.down { color: var(--down); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; }
 /* Adresses, clés, montants : toujours de gauche à droite, même en arabe. */
 .mono, .addr, input, textarea { unicode-bidi: plaintext; }
 .mono, .addr { direction: ltr; }
-.banner { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--goldBg); color: var(--gold); border-radius: 14px; padding: 10px 12px; font-size: 13px; font-weight: 500; }
-.banner button { background: none; border: 0; color: inherit; font: 600 13px 'General Sans', system-ui, sans-serif; cursor: pointer; }
+.glyph { flex: none; display: block; }
+
+/* Carte : LE conteneur de l'app (surface 1, rayon 24, liseré de lumière en haut). */
+.card { background: var(--surface-1); border: 1px solid var(--border); border-top-color: var(--rim); border-radius: 24px; padding: 16px; box-shadow: var(--depth); }
+
+/* Boutons : principal (la Lumière), secondaire (Orbite), discret. */
+.btn { appearance: none; border: 1px solid transparent; border-radius: 20px; min-height: 58px; padding: 0 22px; font: 600 16px/22px var(--font); cursor: pointer; background: var(--primary); color: var(--on-primary); width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.12s; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.secondary { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+.btn.ghost { background: transparent; color: var(--text-secondary); min-height: 44px; }
+.btn.danger { background: var(--danger); color: #fff; }
+.link { background: none; border: 0; color: var(--text-secondary); font: 500 15px var(--font); cursor: pointer; padding: 0; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
+
+/* Champs (Input du kit : surface 2, rayon 12). */
+input, textarea, select { width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 12px; min-height: 52px; padding: 13px 14px; font: 500 16px var(--font); outline: none; }
+input[type=checkbox], input[type=radio] { width: auto; min-height: 0; accent-color: var(--primary); }
+input:focus, textarea:focus, select:focus { border-color: var(--text-secondary); }
+textarea { resize: none; min-height: 110px; }
+
+/* Choix (cartes interactives). */
+.option { display: flex; flex-direction: column; gap: 2px; text-align: start; background: var(--surface-1); border: 1px solid var(--border); border-top-color: var(--rim); border-radius: 24px; padding: 16px 18px; cursor: pointer; color: var(--text); font: inherit; width: 100%; box-shadow: var(--depth); transition: transform 0.12s; }
+.option:active { transform: scale(0.98); }
+.option strong { font-weight: 600; }
+
+.meter { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: 3px; transition: width 0.2s, background 0.2s; }
+
+/* Bandeaux : sauvegarde à vérifier (trait d'alerte), information, danger. */
+.banner { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--surface-2); color: var(--text); border: 1px solid var(--warning); border-radius: 12px; padding: 12px; font-size: 13px; line-height: 18px; font-weight: 500; }
+.banner button { background: none; border: 0; color: var(--text); font: 600 13px var(--font); cursor: pointer; white-space: nowrap; }
+.banner.warn { border-color: var(--border); color: var(--text-secondary); }
+.banner.danger { background: color-mix(in srgb, var(--danger) 12%, var(--surface-1)); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); align-items: flex-start; }
+.banner.danger p { margin-top: 4px; font-weight: 400; color: var(--text); }
+
+/* Décor des écrans secondaires : les dunes de l'app, derrière l'en-tête. */
+.scene { position: absolute !important; inset: 0 0 auto 0; height: 190px; pointer-events: none; overflow: hidden; z-index: 0; -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent); mask-image: linear-gradient(to bottom, #000 45%, transparent); }
+.scene svg { width: 100%; height: 100%; display: block; }
+.scene .dunes-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  .scene .dunes-light { display: none; }
+  .scene .dunes-dark { display: block; }
+}
+.landscape .breath { transform-box: fill-box; transform-origin: center; animation: breath 6s ease-in-out infinite alternate; }
+@keyframes breath { from { opacity: 0.8; transform: scale(1); } to { opacity: 1; transform: scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .landscape .breath { animation: none; } .btn, .option, .tile { transition: none; } }
+body { position: relative; }
+body > .scene { z-index: 0; }
+body > #app { z-index: 1; }

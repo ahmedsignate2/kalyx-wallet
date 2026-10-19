@@ -8,6 +8,7 @@
  * ses raisons (explication de l'app), le message ou les détails techniques.
  * En danger, signer demande de MAINTENIR le bouton 2 s.
  */
+import { mountScene } from '../../ui/landscape';
 import { h, nodes, send } from '../../ui/dom';
 import { applyLang, errorText, hasErrorText, t } from '../../ui/i18n';
 import { lockedScreen } from '../../ui/screens';
@@ -34,6 +35,7 @@ interface WalletMeta {
 }
 
 applyLang();
+mountScene();
 const app = document.getElementById('app')!;
 const id = location.hash.slice(1);
 /** Le bouton d'accord s'active après un instant : un clic resté en vol ne vaut pas accord. */

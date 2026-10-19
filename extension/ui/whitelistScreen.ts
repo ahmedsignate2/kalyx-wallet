@@ -3,6 +3,7 @@
  * de chaîne si la protection est active), retirer (immédiat), désactiver
  * (effectif après 24 h, annulable).
  */
+import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
 import { groupAddress } from '../../src/domain/validation/poisoning';
@@ -26,7 +27,7 @@ export function whitelistScreen(app: HTMLElement, back: () => void) {
     const hoursToDisable = w.disableAt ? Math.max(1, Math.ceil((w.disableAt - Date.now()) / 3_600_000)) : 0;
     app.replaceChildren(
       ...nodes(
-        h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, `← ${t('back')}`)),
+        h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: back } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('wlTitle')),
         h('p', { class: `small ${w.enforced ? 'up' : 'muted'}`, 'data-testid': 'wl-state' }, w.enforced ? t('wlOn') : t('wlOff')),
         h('p', { class: 'small muted' }, t('wlIntro')),
