@@ -221,7 +221,8 @@ export const BLAST: ChainConfig = {
   evmChainId: 81457,
   nativeSymbol: 'ETH',
   nativeDecimals: 18,
-  rpcUrls: withAlchemy('blast-mainnet', ['https://blast-rpc.publicnode.com', 'https://blast.drpc.org', 'https://rpc.blast.io']),
+  // Alchemy cesse de servir Blast le 26/10/2026 (fin du réseau annoncée) : nœuds publics seulement.
+  rpcUrls: ['https://blast-rpc.publicnode.com', 'https://blast.drpc.org', 'https://rpc.blast.io'],
   explorerUrl: 'https://blastscan.io',
   coingeckoId: 'ethereum',
   coingeckoPlatform: 'blast',
