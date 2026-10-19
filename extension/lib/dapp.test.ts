@@ -186,6 +186,30 @@ describe('fenêtres et inondation', () => {
   });
 });
 
+describe('après un refus', () => {
+  test('le même site ne rouvre pas de fenêtre tout de suite : 10 s, puis le double', async () => {
+    let t = 0;
+    const ap = makeApprovals({ open: async (id) => (queueMicrotask(() => void ap.respond(id, { approve: false })), 1), close: async () => {}, now: () => t });
+    expect(await code(ap.request(A, 'connect', 'evm', async () => 'x'))).toBe(4001);
+    // Pendant le délai : refus immédiat, sans fenêtre.
+    t = 5_000;
+    expect(await code(ap.request(A, 'connect', 'evm', async () => 'x'))).toBe(4001);
+    expect(ap.size()).toBe(0);
+    // Un autre site n'est pas concerné.
+    t = 5_000;
+    const other = ap.request(B, 'connect', 'evm', async () => 'x');
+    expect(await code(other)).toBe(4001);
+    // Après 10 s : nouvelle fenêtre (refusée) → délai de 20 s.
+    t = 10_001;
+    expect(await code(ap.request(A, 'connect', 'evm', async () => 'x'))).toBe(4001);
+    t = 25_000;
+    let opened2 = false;
+    const p = ap.request(A, 'connect', 'evm', async () => ((opened2 = true), 'x'));
+    expect(await code(p)).toBe(4001);
+    expect(opened2).toBe(false);
+  });
+});
+
 describe('origine', () => {
   test('https, ou http en local seulement ; jamais une page d’extension ou un fichier', () => {
     expect(webOrigin('https://app.uniswap.org/#/swap')).toBe('https://app.uniswap.org');
