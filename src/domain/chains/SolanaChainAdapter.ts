@@ -42,7 +42,7 @@ import {
   sendComputeUnits,
 } from './solPriority';
 import { technicalLogger } from '../../../lib/technicalLogger';
-import { RELAY_URL, relayOrDirect } from '../net/relay';
+import { RELAY_QUOTE_TIMEOUT_MS, RELAY_URL, relayOrDirect } from '../net/relay';
 
 /**
  * Réessais pour une LECTURE d'historique.
@@ -559,7 +559,7 @@ export class SolanaChainAdapter implements ChainAdapter {
     };
     const res = HELIUS_KEY
       ? await fetch(`https://api.helius.xyz/v0/transactions/simulate?api-key=${HELIUS_KEY}`, init)
-      : await relayOrDirect('heliusapi', '/helius/v0/transactions/simulate', null, init);
+      : await relayOrDirect('heliusapi', '/helius/v0/transactions/simulate', null, init, RELAY_QUOTE_TIMEOUT_MS);
 
     if (!res || !res.ok) throw new WalletError('RPC_UNAVAILABLE', 'Erreur lors de la simulation Helius');
     return await res.json();

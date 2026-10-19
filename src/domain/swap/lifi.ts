@@ -9,7 +9,7 @@
  */
 import { withTimeout } from '../chains/net';
 import { SwapError } from './swapError';
-import { relayOrDirect } from '../net/relay';
+import { RELAY_QUOTE_TIMEOUT_MS, relayOrDirect } from '../net/relay';
 
 const API = 'https://li.quest/v1';
 const KEY = (typeof process !== 'undefined' && process.env.EXPO_PUBLIC_LIFI_KEY) || '';
@@ -261,7 +261,7 @@ function isFeeConfigError(e: SwapError): boolean {
 async function quoteFetch(qs: URLSearchParams, headers: Record<string, string>): Promise<Response> {
   const direct = () => fetch(`${API}/quote?${qs.toString()}`, { headers });
   if (KEY) return direct();
-  return (await relayOrDirect('lifi', `/lifi/v1/quote?${qs.toString()}`, direct))!;
+  return (await relayOrDirect('lifi', `/lifi/v1/quote?${qs.toString()}`, direct, undefined, RELAY_QUOTE_TIMEOUT_MS))!;
 }
 
 async function fetchQuote(params: QuoteParams, withFee: boolean): Promise<SwapQuote | null> {

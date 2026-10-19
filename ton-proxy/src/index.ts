@@ -377,7 +377,8 @@ async function api(request: Request, r: ApiRoute, env: Env, ctx: ExecutionContex
   }
   const text = await res.text();
   const softError = res.ok && r.provider === 'etherscan' ? etherscanError(text) : '';
-  const pause = quotaPause(res.status, res.ok ? softError : text);
+  // Clé refusée (révoquée, mal copiée) : service indisponible 5 min, les clients passent en direct.
+  const pause = res.status === 401 || res.status === 403 ? 300 : quotaPause(res.status, res.ok ? softError : text);
   if (pause) {
     rememberQuota(r.provider, pause, ctx);
     return quotaReply(corsHeaders, pause);
