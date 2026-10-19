@@ -68,8 +68,8 @@ async function signScreen(req: Req) {
   const reduceAmount = h('input', { type: 'text', inputMode: 'decimal', value: rv.reduce?.suggested ?? '', placeholder: '0.0', 'aria-label': t('apReduce') });
   const sending = rv.method === 'eth_sendTransaction' || rv.method === 'solana:signAndSendTransaction';
   const label = ex.holdToSign ? t('apHold') : sending ? t('apConfirm') : t('apSign');
-  const ok = h('button', { class: `btn ${ex.risk === 'danger' ? 'danger' : ''}`, type: 'button', disabled: true }, label);
-  setTimeout(() => (ok.disabled = false), ARM_MS);
+  const ok = h('button', { class: `btn arming ${ex.risk === 'danger' ? 'danger' : ''}`, type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, label);
+  setTimeout(() => ((ok.disabled = false), ok.classList.remove('arming')), ARM_MS);
 
   const refuse = async () => {
     await send({ type: 'approval:respond', id, approve: false }).catch(() => {});
@@ -159,8 +159,8 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
   sel.addEventListener('change', showAddr);
   showAddr();
   const err = h('p', { class: 'error', role: 'alert' });
-  const ok = h('button', { class: 'btn', type: 'button', disabled: true }, t('apConnect'));
-  setTimeout(() => (ok.disabled = !options.length), ARM_MS);
+  const ok = h('button', { class: 'btn arming', type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, t('apConnect'));
+  setTimeout(() => ((ok.disabled = !options.length), ok.classList.remove('arming')), ARM_MS);
   const refuse = async () => {
     await send({ type: 'approval:respond', id, approve: false }).catch(() => {});
     window.close();

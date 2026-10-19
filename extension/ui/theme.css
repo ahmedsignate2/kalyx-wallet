@@ -59,6 +59,10 @@ p { margin: 0; }
 input, textarea, select { width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 12px; min-height: 52px; padding: 13px 14px; font: 500 16px var(--font); outline: none; }
 input[type=checkbox], input[type=radio] { width: auto; min-height: 0; accent-color: var(--primary); }
 input:focus, textarea:focus, select:focus { border-color: var(--text-secondary); }
+select:not(.account) { appearance: none; -webkit-appearance: none; padding-inline-end: 40px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 20px center, right 15px center; background-size: 5px 5px; background-repeat: no-repeat; }
+/* Clavier : un anneau visible sur tout ce qui se manipule. */
+:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
 textarea { resize: none; min-height: 110px; }
 
 /* Choix (cartes interactives). */
@@ -77,7 +81,7 @@ textarea { resize: none; min-height: 110px; }
 .banner.danger p { margin-top: 4px; font-weight: 400; color: var(--text); }
 
 /* Décor des écrans secondaires : les dunes de l'app, derrière l'en-tête. */
-.scene { position: absolute !important; inset: 0 0 auto 0; height: 190px; pointer-events: none; overflow: hidden; z-index: 0; -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent); mask-image: linear-gradient(to bottom, #000 45%, transparent); }
+.scene { position: absolute !important; inset: 0 0 auto 0; height: 120px; pointer-events: none; overflow: hidden; z-index: 0; -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent); mask-image: linear-gradient(to bottom, #000 45%, transparent); }
 .scene svg { width: 100%; height: 100%; display: block; }
 .scene .dunes-dark { display: none; }
 @media (prefers-color-scheme: dark) {
