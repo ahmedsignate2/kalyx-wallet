@@ -117,6 +117,8 @@ export const MAX_BATCH = 25;
 /** Durée de cache (s) d'une méthode, quand sa réponse est la même pour tous et ne périme pas vite. */
 const CACHE_SECONDS: Record<string, number> = {
   alchemy_getTokenMetadata: 86_400,
+  // Historique : 20 s suffisent à absorber les réouvertures et les écrans qui le relisent.
+  alchemy_getAssetTransfers: 20,
   eth_chainId: 86_400,
   getAsset: 3_600,
 };

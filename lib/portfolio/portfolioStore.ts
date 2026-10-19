@@ -14,6 +14,7 @@ import { aura } from '../aura';
 import { didReceive } from './receive';
 import { usePortfolioDiag, type PortfolioDiag } from './diagnostics';
 import { ALCHEMY_KEY } from '../../src/domain/chains/configs';
+import { RELAY_URL, relayPaused } from '../../src/domain/net/relay';
 import { carryOver, deserialize, loadHoldings, serialize, summarize, type Failed, type PortfolioAccount, type Snapshot } from './holdings';
 import { loadJettons } from './jettons';
 import { addressForChain } from '../accountAddress';
@@ -145,7 +146,7 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
       const snap: Snapshot = { holdings, ...summarize(holdings), at: Date.now() };
       AsyncStorage.setItem(key, serialize(snap)).catch(() => {}); // le cliché reste juste pour SON compte
       if (!latest()) return; // un autre compte a été demandé depuis : ce résultat n'est plus affiché
-      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length, alchemyKey: ALCHEMY_KEY.length });
+      usePortfolioDiag.getState().set({ ...diag, ms: Date.now() - diag.at, holdings: holdings.length, alchemyKey: ALCHEMY_KEY.length, relay: { on: !!RELAY_URL, paused: relayPaused('alchemy') } });
       /*
        * RIEN LU ET DES RÉSEAUX MUETS : le total n'est pas « 0 », il est inconnu.
        * L'accueil affichait 0,00 alors qu'aucun réseau n'avait répondu.
