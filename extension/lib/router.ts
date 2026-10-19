@@ -6,13 +6,17 @@
  */
 import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
+import { WalletError, type Wallets } from './wallets';
+import { discoverAccounts, type Rpc } from './discovery';
 
 const MAX_PASSWORD = 1024;
 const pw = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= MAX_PASSWORD;
+const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+const optLabel = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : undefined);
 
 export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: string; waitMs?: number };
 
-export async function handleInternal(session: Session, msg: unknown): Promise<Reply> {
+export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
   try {
     switch (m.type) {
@@ -41,11 +45,36 @@ export async function handleInternal(session: Session, msg: unknown): Promise<Re
       case 'vault:touch':
         await session.touch();
         return { ok: true };
+      case 'wallet:list':
+        return { ok: true, wallets: await wallets.list() };
+      case 'wallet:create':
+        return { ok: true, ...(await wallets.create(optLabel(m.label))) };
+      case 'wallet:mark-backed-up':
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        await wallets.markBackedUp(m.id);
+        return { ok: true };
+      case 'wallet:import-phrase':
+        if (!str(m.phrase, 1000)) return { ok: false, error: 'BAD_REQUEST' };
+        return { ok: true, wallet: await wallets.importPhrase(m.phrase, optLabel(m.label)) };
+      case 'wallet:import-key':
+        if (!str(m.key, 400) || (m.family !== 'evm' && m.family !== 'solana')) return { ok: false, error: 'BAD_REQUEST' };
+        return { ok: true, wallet: await wallets.importKey(m.key, m.family, optLabel(m.label)) };
+      case 'wallet:import-backup':
+        if (!str(m.file, 2_000_000) || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
+        return { ok: true, ...(await wallets.importBackup(m.file, m.password)) };
+      case 'wallet:discover': {
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        const table = await wallets.addressTable(m.id);
+        const r = await discoverAccounts(async (i) => table.find((a) => a.index === i) ?? {}, rpc);
+        const wallet = r.found.length ? await wallets.addAccounts(m.id, r.found) : (await wallets.list()).find((w) => w.id === m.id);
+        return { ok: true, found: r.found, uncertain: r.uncertain, wallet };
+      }
       default:
         return { ok: false, error: 'UNKNOWN_MESSAGE' };
     }
   } catch (e) {
     if (e instanceof SessionError) return { ok: false, error: e.message, ...(e.waitMs ? { waitMs: e.waitMs } : {}) };
+    if (e instanceof WalletError) return { ok: false, error: e.message };
     // Rien d'interne ne sort (pile, chemins) : un code générique.
     return { ok: false, error: 'INTERNAL' };
   }

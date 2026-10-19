@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kalyx Wallet</title>
+    <link rel="icon" href="/icon/32.png" />
+    <link rel="stylesheet" href="../../ui/theme.css" />
+    <style>
+      body { min-height: 100vh; display: flex; justify-content: center; }
+      #app { width: 100%; max-width: 460px; padding: 56px 20px 40px; }
+      .head { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; font-weight: 600; }
+      .head img { width: 28px; height: 28px; }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; user-select: none; -webkit-user-select: none; }
+      .grid.hidden { filter: blur(9px); }
+      .word { background: var(--surface2); border-radius: 12px; padding: 9px 10px; font-weight: 500; }
+      .word span { color: var(--text2); margin-right: 6px; font-size: 12px; }
+      .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      ul.warn { margin: 0; padding-left: 18px; color: var(--text2); font-size: 14px; }
+      .row { display: flex; gap: 10px; }
+      .seg { display: flex; gap: 8px; }
+      .seg label { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--surface2); border-radius: 14px; padding: 12px; cursor: pointer; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
