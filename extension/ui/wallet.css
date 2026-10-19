@@ -49,6 +49,17 @@
   .tile.primary .disc { background: #1A1420; color: var(--t-ink); }
 }
 
+/*
+ * Popup (360 × 600) : même design, en plus serré, pour que les tokens soient
+ * visibles sans défiler. Le panneau latéral garde les mesures de l'app.
+ */
+.compact .hero { gap: 10px; padding-bottom: 58px; }
+.compact .account { font-size: 20px; line-height: 26px; letter-spacing: -0.4px; }
+.compact .total { font-size: 38px; line-height: 44px; }
+.compact .sheet { gap: 14px; }
+.compact .tile { height: 60px; flex-direction: row; gap: 10px; border-radius: 20px; font-size: 14px; }
+.compact .tile .disc { width: 32px; height: 32px; }
+
 /* Onglets (TextTabs de l'app) : une piste, la pilule active posée dessus. */
 .tabs { display: flex; padding: 4px; border-radius: 999px; background: var(--surface-2); }
 .tab { flex: 1; height: 38px; border: 1px solid transparent; background: none; color: var(--text-secondary); border-radius: 999px; padding: 0 16px; cursor: pointer; font: 500 13px var(--font); }
@@ -87,6 +98,7 @@ details > summary::-webkit-details-marker { display: none; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .amount { display: flex; gap: 8px; align-items: center; }
 .amount input { flex: 1; }
+.amount .chip { flex: none; min-height: 52px; padding: 0 18px; border-radius: 12px; font-size: 14px; font-weight: 600; }
 .fees { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
 .fee { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: start; border: 1px solid var(--border); background: var(--surface-1); color: var(--text); border-radius: 12px; padding: 8px 10px; cursor: pointer; font: 500 13px var(--font); min-width: 0; }
 .fee span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -102,6 +114,10 @@ details > summary::-webkit-details-marker { display: none; }
 .site { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.3px; word-break: break-all; }
 
 /* Fenêtre de signature */
+/* Délai anti-clic-surprise : le bouton se remplit au lieu d'avoir l'air cassé. */
+.btn.arming:disabled { opacity: 1; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.22) 50%, transparent 50%); background-size: 200% 100%; background-position: 100% 0; filter: saturate(0.6); animation: arm var(--arm, 700ms) linear forwards; }
+@keyframes arm { to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .btn.arming:disabled { animation: none; } }
 .btn.holding { transition: box-shadow 2s linear; box-shadow: inset 600px 0 0 rgba(0, 0, 0, 0.25); }
 .msg { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--surface-2); border-radius: 12px; padding: 12px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .card.lose strong { color: var(--danger); }

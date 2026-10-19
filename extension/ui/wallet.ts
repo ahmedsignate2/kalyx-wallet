@@ -133,6 +133,17 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return { w, a };
   }
 
+  /** Un <select> prend la largeur de son option la plus longue : on le ramène au compte affiché. */
+  function fitAccount() {
+    const sel = app.querySelector<HTMLSelectElement>('select.account');
+    const text = sel?.selectedOptions[0]?.textContent;
+    if (!sel || !text) return;
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return;
+    ctx.font = getComputedStyle(sel).font;
+    sel.style.width = `${Math.ceil(ctx.measureText(text).width) + 26}px`;
+  }
+
   function header() {
     const { w } = current();
     const select = h(
@@ -350,7 +361,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     away = false;
     const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), ...header(), summary(), addresses());
     const sheet = h('section', { class: 'sheet' }, actions(), banners(), tabs(), tab === 'tokens' ? tokens() : activityList());
-    app.replaceChildren(h('div', { class: 'home' }, hero, sheet));
+    app.replaceChildren(h('div', { class: opts.mode === 'popup' ? 'home compact' : 'home' }, hero, sheet));
+    fitAccount();
+    void document.fonts?.ready.then(fitAccount); // la police chargée change la largeur
   }
 
   /* ── Réglages ── */
