@@ -23,6 +23,8 @@ export interface PortfolioDiag {
   holdings: number;
   /** Clé Alchemy présente dans CETTE version de l'app (longueur seulement). */
   alchemyKey?: number;
+  /** Relais Kalyx configuré (clé côté serveur), et en pause au moment du diagnostic. */
+  relay?: { on: boolean; paused: boolean };
 }
 
 interface DiagState {
@@ -37,7 +39,11 @@ export function diagText(d: PortfolioDiag): string {
   const lines = [
     `Kalyx — diagnostic des soldes, ${new Date(d.at).toISOString()} (${d.ms} ms)`,
     d.error ? `ERREUR : ${d.error}` : 'chargement : ok',
-    `clé Alchemy : ${d.alchemyKey ? `présente (${d.alchemyKey} caractères)` : 'ABSENTE — aucun jeton ERC-20 ne peut être lu'}`,
+    d.alchemyKey
+      ? `clé Alchemy : présente (${d.alchemyKey} caractères)`
+      : d.relay?.on
+        ? `Alchemy : via le relais Kalyx (clé côté serveur)${d.relay.paused ? ' — EN PAUSE (quota ou panne), repli sur les nœuds publics' : ''}`
+        : 'clé Alchemy : ABSENTE et pas de relais — seuls les tokens principaux sont lus (nœuds publics)',
     `actifs : ${d.holdings}`,
     `prix DefiLlama : ${d.prices.got}/${d.prices.asked}, taux : ${d.prices.fx}`,
     `natifs en échec : ${d.nativesFailed.join(', ') || 'aucun'}`,

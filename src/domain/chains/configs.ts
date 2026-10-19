@@ -410,7 +410,8 @@ export const AURORA: ChainConfig = {
 export const FANTOM: ChainConfig = {
   id: 'fantom', name: 'Fantom', family: 'evm', evmChainId: 250, nativeSymbol: 'FTM', nativeDecimals: 18,
   // rpc.ftm.tools (403 clé désactivée) + publicnode (mort) remplacés — sondés 2026-07-09.
-  rpcUrls: ['https://fantom.drpc.org', 'https://rpc.fantom.network', 'https://1rpc.io/ftm'], explorerUrl: 'https://ftmscan.com', coingeckoId: 'fantom',
+  // ftmscan (et son API) a fermé avec la migration vers Sonic : pas d'appel voué à l'échec.
+  rpcUrls: ['https://fantom.drpc.org', 'https://rpc.fantom.network', 'https://1rpc.io/ftm'], explorerUrl: 'https://ftmscan.com', explorerApi: false, coingeckoId: 'fantom',
   coingeckoPlatform: 'fantom',
 };
 export const FRAXTAL: ChainConfig = {

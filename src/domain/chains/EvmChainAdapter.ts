@@ -189,19 +189,15 @@ export class EvmChainAdapter implements ChainAdapter {
     if (alchemyUrl && !(viaRelay && relayPaused(viaRelay))) {
       try {
         return await withRetry(async () => {
-          const ask = async (side: 'from' | 'to', id: number) => {
-            const res = await withTimeout(
-              fetch(alchemyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: alchemyTransfersBody(owner, side, this.config.id, id) }),
-              RPC_TIMEOUT_MS,
-              () => new Error('timeout'),
-            );
-            noteRelayResponse(alchemyUrl, res);
-            const json = await res.json();
-            if (!json?.result) throw new Error(`Alchemy: ${json?.error?.message ?? res.status}`);
-            return json;
-          };
-          const [received, sent] = await Promise.all([ask('to', 1), ask('from', 2)]);
-          return parseAlchemyHistory([received, sent], owner);
+          // Reçus et envoyés en UNE requête (lot JSON-RPC) : moitié moins d'appels au relais et à Alchemy.
+          const body = `[${alchemyTransfersBody(owner, 'to', this.config.id, 1)},${alchemyTransfersBody(owner, 'from', this.config.id, 2)}]`;
+          const res = await withTimeout(fetch(alchemyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }), RPC_TIMEOUT_MS, () => new Error('timeout'));
+          noteRelayResponse(alchemyUrl, res);
+          const json = await res.json();
+          const replies = Array.isArray(json) ? json : [json];
+          const bad = replies.find((r: { result?: unknown }) => !r?.result);
+          if (replies.length !== 2 || bad) throw new Error(`Alchemy: ${bad?.error?.message ?? (Array.isArray(json) ? 'lot incomplet' : json?.error?.message ?? res.status)}`);
+          return parseAlchemyHistory(replies, owner);
         }, 2, 1000);
       } catch (e) {
         console.warn('Alchemy fallback:', e);
@@ -274,7 +270,7 @@ export class EvmChainAdapter implements ChainAdapter {
     const apisToTry = [];
     if (this.config.explorerApi) {
       apisToTry.push(this.config.explorerApi);
-    } else if (this.config.explorerUrl) {
+    } else if (this.config.explorerUrl && this.config.explorerApi !== false) {
       apisToTry.push(`${this.config.explorerUrl}/api`);
       const host = this.config.explorerUrl.replace(/^https?:\/\//, '');
       apisToTry.push(`https://api.${host}/api`);
