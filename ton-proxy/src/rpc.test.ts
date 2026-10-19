@@ -96,3 +96,36 @@ test('contrôle du réseau : eth_chainId doit correspondre', async () => {
   assert.equal(chainIdMatches('inconnu', { result: '0x1' }), false);
   assert.equal(ALCHEMY_SLUGS['blast-mainnet'], undefined);
 });
+
+test('NFT : méthodes et paramètres en liste blanche, requête reconstruite et triée', async () => {
+  const { resolveNft, nftUpstream } = await import('./rpc.ts');
+  const ok = resolveNft('GET', '/nft/base-mainnet/getNFTsForOwner', new URLSearchParams(`withMetadata=true&owner=${ADDR}&pageSize=100`));
+  assert.ok(ok.ok && ok.query === `owner=${ADDR}&pageSize=100&withMetadata=true` && ok.cacheSeconds === 60);
+  assert.ok(ok.ok && nftUpstream(ok.slug, ok.method, ok.query, 'K').startsWith('https://base-mainnet.g.alchemy.com/nft/v3/K/getNFTsForOwner?'));
+  assert.equal(resolveNft('GET', '/nft/base-mainnet/getNFTsForOwner', new URLSearchParams('pageSize=100')).ok, false); // owner manquant
+  assert.equal(resolveNft('GET', '/nft/base-mainnet/getNFTsForOwner', new URLSearchParams(`owner=${ADDR}&spamConfidenceLevel=LOW`)).ok, false);
+  assert.equal(resolveNft('GET', '/nft/base-mainnet/invalidateContract', new URLSearchParams()).ok, false);
+  assert.equal(resolveNft('POST', '/nft/base-mainnet/getFloorPrice', new URLSearchParams(`contractAddress=${ADDR}`)).ok, false);
+  const floor = resolveNft('GET', '/nft/eth-mainnet/getFloorPrice', new URLSearchParams(`contractAddress=${ADDR}`));
+  assert.ok(floor.ok && floor.cacheSeconds === 600);
+});
+
+test('prix : 25 tokens au plus, réseaux connus, doublons retirés ; prix illisible absent', async () => {
+  const { parsePriceRequest, parsePrices } = await import('./rpc.ts');
+  const ok = parsePriceRequest(JSON.stringify({ tokens: [{ chain: 'base-mainnet', address: ADDR }, { chain: 'base-mainnet', address: ADDR.toLowerCase() }] }));
+  assert.ok(ok.ok && ok.tokens.length === 1 && ok.tokens[0].network === 'base-mainnet');
+  assert.equal(parsePriceRequest(JSON.stringify({ tokens: Array.from({ length: 26 }, () => ({ chain: 'eth-mainnet', address: ADDR })) })).ok, false);
+  assert.equal(parsePriceRequest(JSON.stringify({ tokens: [{ chain: 'nope', address: ADDR }] })).ok, false);
+  const p = parsePrices({ data: [
+    { network: 'base-mainnet', address: ADDR, prices: [{ currency: 'usd', value: '0.9998' }] },
+    { network: 'eth-mainnet', address: ADDR, prices: [], error: 'not found' },
+    { network: 'eth-mainnet', address: '0xabc', prices: [{ currency: 'usd', value: 'NaN' }] },
+  ] });
+  assert.deepEqual(p, { [`base-mainnet:${ADDR.toLowerCase()}`]: 0.9998 });
+});
+
+test('Solana : Alchemy en secours seulement avec une clé', async () => {
+  const { solanaFallbackUrl } = await import('./rpc.ts');
+  assert.equal(solanaFallbackUrl(undefined), null);
+  assert.equal(solanaFallbackUrl('K'), 'https://solana-mainnet.g.alchemy.com/v2/K');
+});

@@ -9,6 +9,7 @@
  * possède. On distingue maintenant ce qui a répondu, ce qui est en panne, et ce
  * qui n'est pas configuré.
  */
+import { isAlchemyRpc } from '../../src/domain/net/relay';
 import { getAdapter, listChains, getNfts, getSolanaNfts, findAdapterV2, TonAdapterV2, type NftItem } from '../../src';
 import { NftUnavailableError } from '../../src/domain/nft/solanaNft';
 import { isSpamNft } from '../../src/domain/nft/nftSpam';
@@ -42,7 +43,7 @@ export async function loadNftReport(acct: AccountAddresses & { evmAddress: strin
   const chains = listChains({ includeTestnets: false });
   const jobs: Promise<Part>[] = [];
   if (acct.evmAddress) {
-    for (const c of chains.filter((x) => x.family === 'evm' && x.rpcUrls.some((u) => u.includes('.alchemy.com')))) {
+    for (const c of chains.filter((x) => x.family === 'evm' && x.rpcUrls.some(isAlchemyRpc))) {
       // Plancher OpenSea : exprimé dans la monnaie native du réseau. Seuls les
       // réseaux en ETH sont sûrs ; ailleurs on ne l'affiche pas plutôt que de deviner.
       const eth = c.nativeSymbol === 'ETH';

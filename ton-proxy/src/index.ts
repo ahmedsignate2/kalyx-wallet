@@ -11,7 +11,7 @@
  * Aucune donnée n'est journalisée : ni adresse, ni message, ni IP.
  */
 import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
-import { balancesBatch, CHAIN_ID_PROBE, chainIdMatches, extensionAllowed, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
+import { balancesBatch, CHAIN_ID_PROBE, chainIdMatches, extensionAllowed, nftUpstream, parsePriceRequest, parsePrices, pricesUpstream, resolveNft, solanaFallbackUrl, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
 import { API_HOST, buyParams, canonicalIp, isTxId, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, trimRegion, trimTx, type MoonpayEnvName } from './moonpay';
 
 export interface Env {
@@ -67,6 +67,8 @@ export default {
     if (url.pathname.startsWith('/moonpay/')) return moonpay(request, url, env, ctx, corsHeaders);
     if (url.pathname.startsWith('/rpc/')) return rpc(request, url, env, ctx, corsHeaders);
     if (url.pathname === '/v1/erc20') return erc20(request, env, ctx, corsHeaders);
+    if (url.pathname.startsWith('/nft/')) return nft(request, url, env, ctx, corsHeaders);
+    if (url.pathname === '/v1/prices') return prices(request, env, ctx, corsHeaders);
     if (!env.TONAPI_KEY) return json(503, { error: 'proxy not configured' }, corsHeaders);
 
     const r = resolve(request.method, url.pathname, url.searchParams);
@@ -286,8 +288,10 @@ async function limited(request: Request, env: Env, write: boolean, prefix: strin
 async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
   const r = resolveRpc(request.method, url.pathname);
   if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
-  const target = upstreamUrl(r.provider, r.slug, { alchemy: env.ALCHEMY_KEY, helius: env.HELIUS_KEY });
-  if (!target) return json(503, { error: 'relay not configured' }, corsHeaders);
+  const primary = upstreamUrl(r.provider, r.slug, { alchemy: env.ALCHEMY_KEY, helius: env.HELIUS_KEY });
+  // Solana : Alchemy en SECOURS de Helius (saturé ou non configuré).
+  const backup = r.provider === 'helius' ? solanaFallbackUrl(env.ALCHEMY_KEY) : null;
+  if (!primary && !backup) return json(503, { error: 'relay not configured' }, corsHeaders);
   const len = Number(request.headers.get('content-length') ?? '0');
   if (len > 32 * 1024) return json(413, { error: 'body too large' }, corsHeaders);
   const s = sanitizeRpc(r.provider, await request.text());
@@ -299,26 +303,97 @@ async function rpc(request: Request, url: URL, env: Env, ctx: ExecutionContext, 
     const hit = await caches.default.match(key);
     if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
   }
-  if (!s.write && (await quotaHit(r.provider))) return quotaReply(corsHeaders);
   // 421 et non 503 : un réseau mal apparié ne doit pas mettre en pause tous les autres côté client.
   if (r.provider === 'alchemy' && !(await chainVerified(r.slug, env.ALCHEMY_KEY!, ctx))) return json(421, { error: 'chain not verified' }, corsHeaders);
+
+  /** Un fournisseur ; `null` = quota (mémorisé), on passe au suivant. */
+  const attempt = async (target: string, provider: Provider): Promise<Response | null> => {
+    if (!s.write && (await quotaHit(provider))) return null;
+    let res: Response;
+    try {
+      res = await fetch(target, { method: 'POST', headers: { 'content-type': 'application/json' }, body: s.body });
+    } catch {
+      return json(502, { error: 'upstream unreachable' }, corsHeaders);
+    }
+    const text = await res.text();
+    const pause = quotaPause(res.status, res.ok ? '' : text);
+    if (pause) {
+      rememberQuota(provider, pause, ctx);
+      return null;
+    }
+    if (key && res.ok && !/"error"/.test(text)) {
+      ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${s.cacheSeconds}` } })));
+    }
+    // Statut et corps seulement : aucun en-tête amont.
+    return new Response(text, { status: res.status, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  };
+  const first = primary ? await attempt(primary, r.provider) : null;
+  if (first && first.status < 500) return first;
+  // Helius saturé ou en panne : la même requête part chez Alchemy Solana.
+  const second = backup ? await attempt(backup, 'alchemy') : null;
+  return second ?? first ?? quotaReply(corsHeaders);
+}
+
+/** NFT (Alchemy NFT v3) : méthodes en liste blanche, réponses en cache. */
+async function nft(request: Request, url: URL, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
+  const r = resolveNft(request.method, url.pathname, url.searchParams);
+  if (!r.ok) return json(r.status, { error: r.error }, corsHeaders);
+  if (!env.ALCHEMY_KEY) return json(503, { error: 'relay not configured' }, corsHeaders);
+  if (await limited(request, env, false, 'nft')) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
+  const key = internal(`nft/${r.slug}/${r.method}?${r.query}`);
+  const hit = await caches.default.match(key);
+  if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  if (await quotaHit('alchemy')) return quotaReply(corsHeaders);
+  if (!(await chainVerified(r.slug, env.ALCHEMY_KEY, ctx))) return json(421, { error: 'chain not verified' }, corsHeaders);
   let res: Response;
   try {
-    res = await fetch(target, { method: 'POST', headers: { 'content-type': 'application/json' }, body: s.body });
+    res = await fetch(nftUpstream(r.slug, r.method, r.query, env.ALCHEMY_KEY), { headers: { accept: 'application/json' } });
   } catch {
     return json(502, { error: 'upstream unreachable' }, corsHeaders);
   }
   const text = await res.text();
   const pause = quotaPause(res.status, res.ok ? '' : text);
   if (pause) {
-    rememberQuota(r.provider, pause, ctx);
+    rememberQuota('alchemy', pause, ctx);
     return quotaReply(corsHeaders, pause);
   }
-  if (key && res.ok && !/"error"/.test(text)) {
-    ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${s.cacheSeconds}` } })));
-  }
-  // Statut et corps seulement : aucun en-tête amont.
+  if (res.ok) ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': `max-age=${r.cacheSeconds}` } })));
   return new Response(text, { status: res.status, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+}
+
+/** Prix (Alchemy Prices) : 25 tokens par requête, gardés 1 minute pour tout le monde. */
+async function prices(request: Request, env: Env, ctx: ExecutionContext, corsHeaders: Record<string, string>): Promise<Response> {
+  if (request.method !== 'POST') return json(405, { error: 'method not allowed' }, corsHeaders);
+  if (!env.ALCHEMY_KEY) return json(503, { error: 'relay not configured' }, corsHeaders);
+  const q = parsePriceRequest(await request.text());
+  if (!q.ok) return json(400, { error: q.error }, corsHeaders);
+  if (await limited(request, env, false, 'prices')) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
+  const key = internal(`prices/${await sha256(JSON.stringify(q.tokens))}`);
+  const hit = await caches.default.match(key);
+  if (hit) return new Response(hit.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
+  if (await quotaHit('alchemy')) return quotaReply(corsHeaders);
+  let res: Response;
+  try {
+    res = await fetch(pricesUpstream(env.ALCHEMY_KEY), { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ addresses: q.tokens }) });
+  } catch {
+    return json(502, { error: 'upstream unreachable' }, corsHeaders);
+  }
+  const text = await res.text();
+  const pause = quotaPause(res.status, res.ok ? '' : text);
+  if (pause) {
+    rememberQuota('alchemy', pause, ctx);
+    return quotaReply(corsHeaders, pause);
+  }
+  if (!res.ok) return json(502, { error: 'upstream' }, corsHeaders);
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return json(502, { error: 'upstream' }, corsHeaders);
+  }
+  const body = JSON.stringify({ prices: parsePrices(parsed) });
+  ctx.waitUntil(caches.default.put(key, new Response(body, { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=60' } })));
+  return new Response(body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', ...corsHeaders } });
 }
 
 /**

@@ -14,6 +14,7 @@ import { getPrices, getMarkets, getTokenPrices } from '../../src/domain/prices/c
 import { getErc20TokensStrict, type Erc20Token } from '../../src/domain/tokens/alchemyTokens';
 import { getKnownErc20Tokens } from '../../src/domain/tokens/knownBalances';
 import { getErc20ViaRelay } from '../../src/domain/tokens/relayTokens';
+import { getRelayTokenPricesUsd } from '../../src/domain/prices/alchemyPrices';
 import { isAlchemyRpc, isRelayUrl } from '../../src/domain/net/relay';
 import { getLlamaTokenPricesUsd, getUsdFxRate, llamaKey } from '../../src/domain/prices/defillama';
 import { formatAmount } from '../../src/domain/validation/amount';
@@ -293,8 +294,15 @@ export async function loadHoldings(acct: PortfolioAccount, fiat: string, include
       fiat.toLowerCase() === 'usd' || prices[USD_PEG]?.price ? Promise.resolve(0) : getUsdFxRate(fiat).catch(() => 0),
     ]);
     const fx = fiat.toLowerCase() === 'usd' ? 1 : safeNum(prices[USD_PEG]?.price) || fxBackup;
-    if (diag) diag.prices = { asked: refs.length, got: Object.keys(usd).length, fx };
     const llamaUp = Object.keys(usd).length > 0;
+    /*
+     * DEUXIÈME SOURCE : les tokens ERC-20 que DefiLlama n'a pas chiffrés sont
+     * demandés aux prix Alchemy, par le relais (rien sans relais, rien s'il est
+     * en pause). Seulement les manquants : le quota ne sert qu'aux trous.
+     */
+    const unpriced = erc20Lists.flatMap(({ chain, list }) => list.filter((t) => !usd[llamaKey(chain.id, t.contract)]).map((t) => ({ chain, address: t.contract })));
+    if (unpriced.length) Object.assign(usd, await getRelayTokenPricesUsd(unpriced).catch(() => ({})));
+    if (diag) diag.prices = { asked: refs.length, got: Object.keys(usd).length, fx };
     /*
      * Repli CoinGecko UNE fois par réseau. Il était appelé une fois par JETON,
      * chaque fois avec la liste complète : sur un gros compte (des centaines de
