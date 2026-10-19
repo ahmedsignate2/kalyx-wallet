@@ -93,7 +93,7 @@ POST /v1/prices { tokens: [{ chain, address }] } → prix Alchemy, 25 tokens, ga
 - Les appels qui ne demandent pas de clé (soldes natifs, prix DefiLlama, liste de
   tokens LI.FI…) ne passent PAS par le relais : ils partent directement de l'appareil, sans compter dans le quota.
 
-## Relais des API REST à clé (CoinGecko, LI.FI, Relay.link, Etherscan, Covalent, Helius)
+## Relais des API REST à clé (CoinGecko, LI.FI, Relay.link, Etherscan, Helius)
 
 Chemins et paramètres en liste blanche (`src/apis.ts`) : ce n'est pas un proxy ouvert,
 un paramètre inconnu (dont `apikey`, `x_cg_pro_api_key`…) est refusé en 400.
@@ -103,7 +103,6 @@ GET  /cg/api/v3/<simple/price|simple/token_price/…|coins/<id>|coins/<id>/marke
 GET  /lifi/v1/<quote|tokens|status>                      (devis jamais en cache)
 POST /relaylink/quote                                     (corps JSON ≤ 16 Ko)
 GET  /etherscan/v2/api?module=account&action=<txlist|tokentx|txlistinternal|tokennfttx>&…
-GET  /covalent/v1/<chainId>/address/<adresse>/transactions_v3/page/<n>/
 GET  /helius/v0/addresses/<adresse>/<transactions|names>
 POST /helius/v0/transactions/simulate                     (corps JSON ≤ 64 Ko)
 ```
@@ -121,7 +120,6 @@ npx wrangler secret put ETHERSCAN_KEY    # clé Etherscan (V2, tous réseaux)
 npx wrangler secret put LIFI_KEY         # clé LI.FI
 npx wrangler secret put COINGECKO_KEY    # clé CoinGecko « Demo » (facultative)
 npx wrangler secret put RELAY_LINK_KEY   # clé Relay.link (sans elle : pas de devis Relay)
-npx wrangler secret put COVALENT_KEY     # clé Covalent / GoldRush (facultative)
 npx wrangler deploy
 ```
 `ALLOWED_EXTENSIONS` (wrangler.toml) : `*` pendant la bêta, puis l'identifiant du store.

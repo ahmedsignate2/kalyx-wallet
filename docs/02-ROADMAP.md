@@ -50,7 +50,7 @@ Le reste de ce document est le plan d'origine, conservé tel quel.
 - Ajout des réseaux **BNB Chain** et **Polygon** (mêmes adresses EVM, RPC différents).
 - Sélecteur de réseau, gestion de plusieurs RPC.
 - Support **tokens ERC-20** (USDT, USDC, etc.) : lecture des soldes, envoi.
-- **Historique** des transactions (via explorateur/indexeur : Etherscan-like API ou Covalent/Alchemy).
+- **Historique** des transactions (via explorateur/indexeur : Etherscan-like API ou Alchemy).
 - Prix fiat temps réel + variation 24h (CoinGecko).
 - Vue portefeuille agrégée (valeur totale en €/$).
 - ⭐ **Détection d'arnaque avant signature** (v1) : simulation de tx + alerte sur les approbations illimitées + listes de contrats malveillants. Voir [07-DIFFERENCIATION.md](07-DIFFERENCIATION.md). C'est le différenciateur n°1 — à prioriser dès qu'on signe des tx réelles.

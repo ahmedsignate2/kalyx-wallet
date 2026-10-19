@@ -1,6 +1,6 @@
 /**
  * LE RELAIS KALYX (Worker Cloudflare) vu des clients : les fournisseurs à clé
- * (Alchemy, Helius, CoinGecko, LI.FI, Relay.link, Etherscan, Covalent)
+ * (Alchemy, Helius, CoinGecko, LI.FI, Relay.link, Etherscan)
  * passent par lui, la clé reste côté serveur.
  *
  * Activé par `EXPO_PUBLIC_KALYX_RELAY_URL` (l'extension le fixe à la
@@ -15,7 +15,7 @@
  */
 export const RELAY_URL: string = (process.env.EXPO_PUBLIC_KALYX_RELAY_URL ?? '').replace(/\/+$/, '');
 
-export type RelayService = 'alchemy' | 'helius' | 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'covalent' | 'heliusapi';
+export type RelayService = 'alchemy' | 'helius' | 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'heliusapi';
 
 const pausedUntil = new Map<RelayService, number>();
 const DEFAULT_PAUSE_S = 300;

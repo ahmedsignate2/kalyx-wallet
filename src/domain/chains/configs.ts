@@ -21,7 +21,6 @@ import { RELAY_URL } from '../net/relay';
 export const ETHERSCAN_V2_API = 'https://api.etherscan.io/v2/api';
 // Expo inline `process.env.EXPO_PUBLIC_*` au build. Vide côté tests (Node) -> [].
 export const EXPLORER_API_KEY: string = process.env.EXPO_PUBLIC_ETHERSCAN_KEY ?? '';
-export const COVALENT_API_KEY: string = process.env.EXPO_PUBLIC_COVALENT_API_KEY ?? '';
 
 /**
  * Alchemy : RPC dédié (fiable) pour les chaînes EVM. Si la clé est présente,
