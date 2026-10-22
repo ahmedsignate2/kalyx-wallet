@@ -9,9 +9,9 @@ import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
 import { qrSvg } from './qr';
-import { groupAddress } from '../../src/domain/validation/poisoning';
 import { pulse } from './motion';
 import { segmented } from './segmented';
+import { addressView } from './address';
 
 interface Info {
   walletId: string;
@@ -105,7 +105,7 @@ function show(app: HTMLElement, info: Info, back: () => void) {
           { class: 'card receive-card' },
           h('div', { class: 'qr' }, qrSvg(current.address, 196)),
           h('p', { class: 'micro' }, current.label),
-          h('p', { class: 'mono addr', 'data-testid': 'receive-address' }, groupAddress(current.address)),
+          h('p', { class: 'addr', 'data-testid': 'receive-address' }, addressView(current.address, 'lg')),
         ),
         copy,
         h('div', { class: 'perm' }, glyph('alert', 18), h('p', { class: 'small' }, current.note)),

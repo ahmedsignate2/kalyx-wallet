@@ -20,8 +20,16 @@ function createAdapter(config: ChainConfig): ChainAdapter | null {
   return null;
 }
 
+/**
+ * Réseaux masqués dans l'extension : aucun serveur qui réponde, et aucun
+ * repli possible par le relais (Degen : son seul RPC public est en panne,
+ * Alchemy ne le sert pas). Les interroger ne donnait qu'un « réseau muet ».
+ */
+const HIDDEN = new Set(['degen']);
+const CHAINS = ALL_CHAINS.filter((c) => !HIDDEN.has(c.id));
+
 const adapters = new Map<string, ChainAdapter>();
-for (const c of ALL_CHAINS) {
+for (const c of CHAINS) {
   const a = createAdapter(c);
   if (a) adapters.set(c.id, a);
 }
@@ -49,7 +57,7 @@ export function getAdapter(chainId: string): ChainAdapter {
 
 export function listChains(opts?: { includeTestnets?: boolean }): ChainConfig[] {
   const includeTestnets = opts?.includeTestnets ?? true;
-  return [...ALL_CHAINS, ...customChains].filter((c) => includeTestnets || !c.testnet);
+  return [...CHAINS, ...customChains].filter((c) => includeTestnets || !c.testnet);
 }
 
 export function hasChain(chainId: string): boolean {

@@ -250,7 +250,7 @@ async function companionScreen() {
     return;
   }
   const box = h('div', { class: 'qr skel', style: 'width:224px;height:224px' });
-  const wait = h('p', { class: 'pill quiet status' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('compWaiting'));
+  const wait = h('p', { class: 'pill quiet status comp-wait', role: 'status' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('compWaiting'));
   const retry = h('button', { class: 'btn secondary', type: 'button', hidden: true, on: { click: () => void companionScreen() } }, t('retry'));
   screen(backLink(importMenu), h('h1', {}, t('compTitle')), h('p', { class: 'muted' }, t('compSteps')), box, wait, err, retry);
   const fail = (r: { error?: string }) => {
@@ -403,7 +403,8 @@ async function finish(notes: string[] = []) {
         { class: 'card stack', style: 'gap:6px' },
         h('strong', {}, w.label),
         !w.backedUp && h('div', { class: 'banner' }, h('span', {}, t('backupBanner'))),
-        ...w.accounts.map((a) => h('p', { class: 'mono muted' }, [a.evm && `EVM ${short(a.evm)}`, a.solana && `SOL ${short(a.solana)}`].filter(Boolean).join('  ·  '))),
+        // Une ligne par adresse, sans espaces de remplissage : « EVM 0x9858…da94 ».
+        ...w.accounts.map((a) => h('div', { class: 'acct-addrs' }, ...[a.evm && ['EVM', a.evm], a.solana && ['SOL', a.solana]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
       ),
     ),
     h('p', { class: 'small muted' }, t('donePin')),

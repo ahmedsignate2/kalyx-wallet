@@ -10,8 +10,8 @@
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { activityT, errorText, LOCALE, t } from './i18n';
-import { groupAddress } from '../../src/domain/validation/poisoning';
 import type { AssetView, DraftView, QuoteView } from '../lib/send';
+import { addressView } from './address';
 
 type Speed = 'slow' | 'normal' | 'fast';
 type Reply = { ok: boolean; error?: string; params?: Record<string, string> };
@@ -220,14 +220,14 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
       h(
         'div',
         { class: 'banner danger', role: 'alert' },
-        h('div', {}, h('strong', {}, t('poisonTitle')), h('p', {}, t('poisonBody', { addr: groupAddress(d.poisoning.similarTo) }))),
+        h('div', {}, h('strong', {}, t('poisonTitle')), h('p', {}, t('poisonBody', { addr: d.poisoning.similarTo }))),
       ),
     h(
       'div',
       { class: 'card stack', style: 'gap:10px' },
-      line(t('to'), d.ens ? h('strong', {}, d.ens) : '', h('p', { class: 'mono addr' }, groupAddress(d.to))),
+      line(t('to'), d.ens ? h('strong', {}, d.ens) : '', h('p', { class: 'addr' }, addressView(d.to))),
       line(t('network'), d.chainName),
-      line(t('from'), h('p', { class: 'mono' }, groupAddress(d.from))),
+      line(t('from'), h('p', { class: 'addr' }, addressView(d.from, 'sm'))),
       line(t('fee'), `${d.feeFmt} ${d.nativeSymbol}`),
       sameAsset && line(t('totalCost'), `${formatSum(d.amount, d.fee, a.decimals)} ${d.symbol}`),
     ),

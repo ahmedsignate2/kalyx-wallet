@@ -122,3 +122,6 @@ button.row:active, a.row:active { transform: scale(0.985); transition-duration: 
   .rise, #app.nav-fwd > *, #app.nav-back > *, .pulse, .spin-logo { animation: none !important; }
   .btn, .option, .act .disc, .chip, .acct, .icon, .tab, button.row, a.row, .acct-card { transition: none; }
 }
+
+/* `hidden` gagne toujours : sans cette règle, un `display` de classe (.btn, .pill…) l'écrasait. */
+[hidden] { display: none !important; }

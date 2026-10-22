@@ -12,10 +12,10 @@ import { mountScene } from '../../ui/landscape';
 import { h, nodes, send } from '../../ui/dom';
 import { applyLang, errorText, hasErrorText, t } from '../../ui/i18n';
 import { lockedScreen } from '../../ui/screens';
-import { groupAddress } from '../../../src/domain/validation/poisoning';
 import { glyph } from '../../ui/glyph';
 import { avatar } from '../../ui/avatar';
 import { openSheet } from '../../ui/sheet';
+import { addressView } from '../../ui/address';
 
 interface Req {
   id: string;
@@ -184,7 +184,7 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
   const paint = () =>
     acctCard.replaceChildren(
       ...(chosen
-        ? [avatar(chosen.address, 40), h('span', { class: 'grow' }, h('strong', {}, chosen.label), h('p', { class: 'mono small muted' }, groupAddress(chosen.address))), options.length > 1 ? glyph('caretDown', 16) : '']
+        ? [avatar(chosen.address, 40), h('span', { class: 'grow' }, h('strong', {}, chosen.label), h('p', { class: 'small' }, addressView(chosen.address, 'sm'))), options.length > 1 ? glyph('caretDown', 16) : '']
         : [h('span', { class: 'muted' }, '—')]),
     );
   const pick = () => {

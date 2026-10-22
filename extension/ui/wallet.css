@@ -264,3 +264,22 @@ details > summary::-webkit-details-marker { display: none; }
 .msg { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--surface-2); border-radius: 12px; padding: 12px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .card.lose strong { color: var(--danger); }
 .card.receive strong { color: var(--up); }
+
+/* Adresse entière : groupes séparés par une marge (aucun espace copié), début et fin en gras. */
+.addr-v { display: inline-flex; flex-wrap: wrap; column-gap: 0.42em; row-gap: 1px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.6; letter-spacing: 0.01em; color: var(--text-secondary); word-spacing: normal; user-select: all; }
+.addr-v > span { white-space: nowrap; }
+.addr-v .hl { color: var(--text); font-weight: 700; }
+.addr-v.lg { font-size: 14.5px; }
+.addr-v.sm { font-size: 12px; }
+
+/* Mode compagnon : l'attente centrée sous le QR. */
+.comp-wait { align-self: center; }
+
+/* Fin d'installation : les adresses du compte, en pastilles. */
+.acct-addrs { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-addr { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); font-size: 12.5px; color: var(--text-secondary); }
+.chip-addr b { font-size: 10.5px; letter-spacing: 0.06em; color: var(--text); }
+.chip-addr .mono { word-break: normal; }
+/* Recevoir : l'adresse centrée sous le QR. */
+.receive-card .addr { text-align: center; align-self: stretch; }
+.receive-card .addr-v { justify-content: center; }

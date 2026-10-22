@@ -167,7 +167,10 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           'span',
           { class: 'acct-text' },
           h('span', { class: 'acct-name' }, h('span', { class: 'ellipsis' }, a ? t('account', { n: a.index + 1 }) : ''), glyph('caretDown', 14)),
-          h('span', { class: 'acct-sub' }, h('span', { class: 'ellipsis' }, w?.label ?? ''), w?.kind === 'companion' ? h('span', { class: 'beta phone', 'data-testid': 'phone-badge' }, t('phoneBadge')) : h('span', { class: 'beta', title: VERSION }, t('beta'))),
+          // Compte du téléphone : le badge suffit (le nom du portefeuille le répétait, tronqué).
+          w?.kind === 'companion'
+            ? h('span', { class: 'acct-sub' }, h('span', { class: 'beta phone', 'data-testid': 'phone-badge' }, t('phoneBadge')))
+            : h('span', { class: 'acct-sub' }, h('span', { class: 'ellipsis' }, w?.label ?? ''), h('span', { class: 'beta', title: VERSION }, t('beta'))),
         ),
       ),
       h('span', { class: 'spacer' }),

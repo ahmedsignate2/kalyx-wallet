@@ -337,7 +337,9 @@ async function onboarding() {
     await popup.emulateMedia({ colorScheme: 'light' });
     await popup.getByRole('button', { name: 'Continuer quand même' }).click();
     await popup.locator('.qr svg').waitFor();
-    const shownAddr = (await popup.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '');
+    const rawAddr = await popup.locator('[data-testid=receive-address]').textContent();
+    /\s/.test(rawAddr) ? fail(`adresse avec des espaces : « ${rawAddr} »`) : console.log('✓ Recevoir : adresse sans espace (copiable telle quelle)');
+    const shownAddr = rawAddr.replace(/\s/g, '');
     const freshMeta = (await bg({ type: 'wallet:list' })).wallets.find((w) => w.id === fresh.id);
     shownAddr === freshMeta.accounts[0].evm ? console.log('✓ Recevoir : QR + adresse EVM du compte affiché') : fail(`adresse reçue ${shownAddr}`);
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `receive-${scheme}.png`) });
