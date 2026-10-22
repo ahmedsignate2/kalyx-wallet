@@ -289,8 +289,14 @@ export function joinTokens(balances: { contract: string; raw: string }[], metaRe
 }
 
 /** Origine d'une extension autorisée (`chrome-extension://<id>`) ; `*` pendant la bêta (identifiants non fixés). */
+/**
+ * Origine d'une extension autorisée. Les navigateurs Chromium ne la nomment pas
+ * tous pareil : `chrome-extension://` (Chrome, Brave, Edge, Kiwi), mais aussi
+ * `mises-extension://` (Mises)… — même identifiant de 32 lettres a-p. Safari
+ * (Orion sur iOS) : `safari-web-extension://` suivi d'un UUID.
+ */
 export function extensionAllowed(origin: string, allowed: string | undefined): boolean {
-  const m = origin.match(/^chrome-extension:\/\/([a-p]{32})$/);
+  const m = origin.match(/^[a-z][a-z0-9]{0,20}-extension:\/\/([a-p]{32})$/) ?? origin.match(/^safari-web-extension:\/\/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})$/);
   if (!m) return false;
   const ids = (allowed ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   return ids.includes('*') || ids.includes(m[1]);
