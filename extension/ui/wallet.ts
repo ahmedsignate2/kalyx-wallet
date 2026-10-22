@@ -298,7 +298,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
 
   /** Acheter : la crypto et le réseau, puis la page Stripe dans un onglet (livraison sur ce compte). */
   async function buySheet() {
-    const r = await send<{ options: { id: string; symbol: string; chain: string }[] }>({ type: 'buy:options' });
+    const r = await send<{ options: { id: string; symbol: string; chain: string; logo?: string; chainLogo?: string }[] }>({ type: 'buy:options' });
     const err = h('p', { class: 'error', role: 'alert' });
     const rows = (r.ok ? r.options : []).map((o) =>
       h(
@@ -315,14 +315,16 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
               err.textContent = '';
               const x = await send<{ url: string }>({ type: 'buy:stripe', option: o.id });
               b.disabled = false;
-              if (!x.ok) return void (err.textContent = errorText(x.error));
+              // La raison exacte (Stripe ou relais) en plus : utile tant que l'achat est en test.
+              const reason = (x as { params?: { reason?: string } }).params?.reason;
+              if (!x.ok) return void (err.textContent = errorText(x.error) + (reason ? ` (${reason})` : ''));
               await browser.tabs.create({ url: x.url });
               sheet.close();
               if (opts.mode === 'popup') window.close();
             },
           },
         },
-        h('span', { class: 'logo letter' }, o.symbol.slice(0, 1)),
+        tokenLogo(o.logo, o.symbol, o.chainLogo),
         h('span', { class: 'grow' }, h('strong', {}, o.symbol), h('p', { class: 'small muted' }, o.chain)),
         glyph('chevron', 16),
       ),

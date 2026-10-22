@@ -8,6 +8,8 @@
  */
 import { RELAY_URL } from '../../src/domain/net/relay';
 import type { Home } from './home';
+import { embeddedChainLogo, embeddedTokenLogo } from '../../src/domain/chains/icons';
+import { chainLogo } from './portfolio';
 
 /** Ce qu'on propose : des couples crypto/réseau que Stripe livre. */
 export const BUY_OPTIONS = [
@@ -20,6 +22,12 @@ export const BUY_OPTIONS = [
 ] as const;
 
 export type BuyOption = (typeof BUY_OPTIONS)[number];
+
+/** Logo embarqué de la crypto (SVG de l'app, en data URL : aucune image distante). */
+function tokenLogo(symbol: string): string | undefined {
+  const svg = embeddedChainLogo(embeddedTokenLogo(symbol));
+  return svg ? `data:image/svg+xml,${encodeURIComponent(svg)}` : undefined;
+}
 
 export class BuyError extends Error {}
 
@@ -40,10 +48,10 @@ export function makeBuy(home: Pick<Home, 'current'>, opts: { relay?: string; fet
   const doFetch = opts.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
 
   /** Les options possibles pour le compte actif (une adresse de la bonne famille). */
-  async function options(): Promise<{ id: string; symbol: string; chain: string }[]> {
+  async function options(): Promise<{ id: string; symbol: string; chain: string; logo?: string; chainLogo?: string }[]> {
     const cur = await home.current();
     if (!cur) return [];
-    return BUY_OPTIONS.filter((o) => !!cur.acct[o.family]).map(({ id, symbol, chain }) => ({ id, symbol, chain }));
+    return BUY_OPTIONS.filter((o) => !!cur.acct[o.family]).map(({ id, symbol, chain, network }) => ({ id, symbol, chain, logo: tokenLogo(symbol), chainLogo: chainLogo(network) }));
   }
 
   async function stripeUrl(optionId: unknown): Promise<{ url: string; mode: 'test' | 'live' }> {

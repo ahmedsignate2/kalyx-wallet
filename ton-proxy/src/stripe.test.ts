@@ -32,6 +32,14 @@ test('formulaire : adresse, réseau et crypto verrouillés, montant arrondi, IP 
   assert.ok(sol.ok && !sol.value.some(([k]) => k === 'customer_ip_address' || k === 'source_amount'));
 });
 
+test('mode test : toujours en USD (les données de test de Stripe sont américaines)', () => {
+  const f = sessionForm({ network: 'solana', currency: 'sol', address: SOL, sourceCurrency: 'eur', sourceAmount: 10 }, null, 'test');
+  assert.ok(f.ok);
+  assert.deepEqual(f.value.filter(([k]) => k.startsWith('source_')), [['source_currency', 'usd'], ['source_amount', '10.00']]);
+  const g = sessionForm({ network: 'solana', currency: 'sol', address: SOL }, null, 'test');
+  assert.ok(g.ok && g.value.some(([k, v]) => k === 'source_currency' && v === 'usd'));
+});
+
 test('formulaire : tout ce qui n’est pas attendu est refusé', () => {
   const bad = (x: unknown) => assert.equal(sessionForm(x, null).ok, false, JSON.stringify(x));
   bad(null);
