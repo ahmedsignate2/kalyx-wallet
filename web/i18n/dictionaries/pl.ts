@@ -217,7 +217,7 @@ const pl: Dict = {
     p1a: 'Przed każdym podpisem opłaty sieciowe są pokazane',
     p1em: 'w Twojej walucie',
     p1b: ', z możliwymi progami. Jeśli brakuje Ci gazu, Kalyx mówi ile — też w Twojej walucie, nie w gwei.',
-    p2: 'Zakup kartą odbywa się przez MoonPay, licencjonowanego partnera: osobny moduł, który sam weryfikuje tożsamość i nigdy nie widzi Twoich kluczy. Kalyx nie dolicza prowizji, a krypto trafia prosto na Twój adres. Bez sprzedaży za fiat w aplikacji.',
+    p2: 'Zakup kartą odbywa się przez MoonPay lub Stripe, licencjonowanych partnerów: ich osobna strona sama weryfikuje tożsamość i nigdy nie widzi Twoich kluczy. Kalyx nie dolicza prowizji, a krypto trafia prosto na Twój adres. Bez sprzedaży za fiat w aplikacji.',
   },
   vision: {
     kicker: 'Czego chcemy',

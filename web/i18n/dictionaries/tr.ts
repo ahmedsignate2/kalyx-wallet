@@ -217,7 +217,7 @@ const tr: Dict = {
     p1a: 'Her imzadan önce ağ ücretleri',
     p1em: 'kendi para biriminizde',
     p1b: ' gösterilir, olası kademelerle birlikte. Gas eksikse Kalyx ne kadar olduğunu söyler — yine para biriminizde, gwei ile değil.',
-    p2: 'Kartla alım, lisanslı bir ortak olan MoonPay üzerinden yapılır: kimlik doğrulamayı kendisi yapan ve anahtarlarınızı asla görmeyen ayrı bir modül. Kalyx komisyon eklemez, kripto doğrudan adresinize gelir. Uygulamada itibari paraya satış yok.',
+    p2: 'Kartla alım, lisanslı ortaklar olan MoonPay veya Stripe üzerinden yapılır: kimlik doğrulamayı kendisi yapan ve anahtarlarınızı asla görmeyen ayrı bir sayfa. Kalyx komisyon eklemez, kripto doğrudan adresinize gelir. Uygulamada itibari paraya satış yok.',
   },
   vision: {
     kicker: 'Ne istiyoruz',

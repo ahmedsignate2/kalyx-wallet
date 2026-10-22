@@ -217,7 +217,7 @@ const nl: Dict = {
     p1a: 'Vóór elke handtekening worden de netwerkkosten getoond',
     p1em: 'in je valuta',
     p1b: ', met de mogelijke niveaus. Kom je gas tekort, dan zegt Kalyx hoeveel — ook in je valuta, niet in gwei.',
-    p2: 'Kaartaankopen lopen via MoonPay, een vergunde partner: een aparte module die zelf de identiteitscontrole doet en uw sleutels nooit ziet. Kalyx rekent geen commissie, de crypto komt rechtstreeks op uw adres. Geen fiatverkoop in de app.',
+    p2: 'Kaartaankopen lopen via MoonPay of Stripe, vergunde partners: hun aparte pagina doet zelf de identiteitscontrole en ziet uw sleutels nooit. Kalyx rekent geen commissie, de crypto komt rechtstreeks op uw adres. Geen fiatverkoop in de app.',
   },
   vision: {
     kicker: 'Wat wij willen',
