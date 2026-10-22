@@ -6,8 +6,8 @@ import { h, send } from './dom';
 import { errorText, t } from './i18n';
 import { landscape } from './landscape';
 
-export async function openOnboarding(close: boolean) {
-  await browser.tabs.create({ url: browser.runtime.getURL('/onboarding.html') });
+export async function openOnboarding(close: boolean, hash: '' | '#companion' = '') {
+  await browser.tabs.create({ url: browser.runtime.getURL(`/onboarding.html${hash}`) });
   if (close) window.close();
 }
 

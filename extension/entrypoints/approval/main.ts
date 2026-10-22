@@ -34,8 +34,17 @@ interface Review {
 interface WalletMeta {
   id: string;
   label: string;
+  kind?: 'seed' | 'privateKey' | 'companion';
+  lost?: boolean;
   accounts: { index: number; evm?: string; solana?: string }[];
 }
+interface SiteReport {
+  verdict: 'safe' | 'phishing' | 'unknown';
+  lookalike: string | null;
+  known: boolean;
+}
+/** Icône du site (lue par Chrome dans l'onglet) ; à défaut, le monogramme. */
+let siteIcon: string | undefined;
 
 applyLang();
 mountScene();
@@ -49,8 +58,9 @@ function gone() {
 }
 
 async function load() {
-  const r = await send<{ request: Req; unlocked: boolean; wallets: WalletMeta[]; selected: { walletId: string; index: number } | null }>({ type: 'approval:get', id }).catch(() => null);
+  const r = await send<{ request: Req; icon?: string; unlocked: boolean; wallets: WalletMeta[]; selected: { walletId: string; index: number } | null }>({ type: 'approval:get', id }).catch(() => null);
   if (!r?.ok) return gone();
+  siteIcon = r.icon;
   if (!r.unlocked) return lockedScreen(app, () => void load());
   if (r.request.kind === 'sign') return signScreen(r.request);
   connectScreen(r.request, r.wallets, r.selected);
@@ -66,7 +76,13 @@ function siteHero(origin: string, testid = true) {
   const url = new URL(origin);
   const secure = url.protocol === 'https:';
   const name = url.hostname.replace(/^www\./, '');
-  const mark = h('span', { class: 'site-mark', 'aria-hidden': 'true' }, avatar(name, 52), h('b', {}, name.slice(0, 1).toUpperCase()));
+  const monogram = () => h('span', { class: 'site-mark', 'aria-hidden': 'true' }, avatar(name, 52), h('b', {}, name.slice(0, 1).toUpperCase()));
+  let mark: HTMLElement = monogram();
+  if (siteIcon) {
+    const img = h('img', { class: 'site-icon', src: siteIcon, alt: '', referrerPolicy: 'no-referrer' });
+    img.addEventListener('error', () => img.replaceWith(monogram()));
+    mark = h('span', { class: 'site-mark has-icon', 'aria-hidden': 'true' }, img);
+  }
   return h(
     'section',
     { class: 'site-hero' },
@@ -87,6 +103,11 @@ async function signScreen(req: Req) {
   const reduceBox = h('input', { type: 'checkbox', style: 'width:auto' });
   const reduceAmount = h('input', { type: 'text', inputMode: 'decimal', value: rv.reduce?.suggested ?? '', placeholder: '0.0', 'aria-label': t('apReduce') });
   const sending = rv.method === 'eth_sendTransaction' || rv.method === 'solana:signAndSendTransaction';
+  // Domaine sosie d'un site connu : l'alerte suit jusque dans la signature.
+  const lookalikeBox = h('div', {});
+  void send<SiteReport>({ type: 'approval:site', id }).then((x) => {
+    if (x?.ok && x.lookalike) lookalikeBox.replaceChildren(h('div', { class: 'banner danger', role: 'alert' }, glyph('warning', 18), h('span', {}, t('apSiteLookalike', { brand: x.lookalike }))));
+  });
   const label = ex.holdToSign ? t('apHold') : onPhone ? t('sendToPhone') : sending ? t('apConfirm') : t('apSign');
   // Mode compagnon : la signature se fait sur le téléphone ; pendant l'attente, on le dit.
   const phoneWait = h('p', { class: 'pill quiet status', hidden: true, role: 'status', 'data-testid': 'on-phone' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('onPhoneHint'));
@@ -142,6 +163,7 @@ async function signScreen(req: Req) {
   app.replaceChildren(
     ...nodes(
       siteHero(req.origin, false),
+      lookalikeBox,
       h('div', { class: 'kicker' }, h('span', { class: `risk-pill ${ex.risk}` }, glyph(ex.risk === 'none' ? 'check' : 'warning', 12), ex.risk === 'none' ? ex.title : t(`apRisk_${ex.risk}` as 'apRisk_danger')), rv.chainName && h('span', { class: 'small muted' }, rv.chainName)),
       h('h1', { 'data-testid': 'headline' }, ex.headline),
       ex.detail && h('p', { class: 'muted' }, ex.detail),
@@ -173,50 +195,85 @@ async function signScreen(req: Req) {
 
 function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: string; index: number } | null) {
   const url = new URL(req.origin);
+  // Tous les comptes de tous les portefeuilles (téléphone compris), groupés par portefeuille.
   const options = wallets.flatMap((w) =>
     w.accounts
       .filter((a) => (req.family === 'evm' ? a.evm : a.solana))
-      .map((a) => ({ value: `${w.id}|${a.index}`, label: `${w.label} · ${t('account', { n: a.index + 1 })}`, address: (req.family === 'evm' ? a.evm : a.solana)! })),
+      .map((a) => ({ value: `${w.id}|${a.index}`, wallet: w, label: t('account', { n: a.index + 1 }), address: (req.family === 'evm' ? a.evm : a.solana)!, phone: w.kind === 'companion', lost: !!w.lost })),
   );
-  // Le compte proposé : celui de l'accueil, sinon le premier ; une feuille pour en choisir un autre.
-  let chosen = options.find((o) => o.value === `${selected?.walletId}|${selected?.index}`) ?? options[0];
+  type Opt = (typeof options)[number];
+  // Le compte proposé : celui de l'accueil, sinon le premier utilisable ; une feuille pour en choisir un autre.
+  let chosen: Opt | undefined = options.find((o) => o.value === `${selected?.walletId}|${selected?.index}` && !o.lost) ?? options.find((o) => !o.lost) ?? options[0];
+  const badge = (o: Opt) => (o.phone ? h('span', { class: `beta phone${o.lost ? ' lost' : ''}` }, t('phoneBadge')) : null);
   const acctCard = h('button', { class: 'card acct-card', type: 'button', 'aria-haspopup': 'dialog', 'data-testid': 'connect-account', on: { click: () => pick() } });
   const paint = () =>
     acctCard.replaceChildren(
       ...(chosen
-        ? [avatar(chosen.address, 40), h('span', { class: 'grow' }, h('strong', {}, chosen.label), h('p', { class: 'small' }, addressView(chosen.address, 'sm'))), options.length > 1 ? glyph('caretDown', 16) : '']
-        : [h('span', { class: 'muted' }, '—')]),
+        ? [
+            avatar(chosen.address, 40),
+            h('span', { class: 'grow' }, h('span', { class: 'acct-line' }, h('strong', { class: 'ellipsis' }, `${chosen.wallet.label} · ${chosen.label}`), badge(chosen)), h('p', { class: 'small' }, addressView(chosen.address, 'sm'))),
+            options.length > 1 ? glyph('caretDown', 16) : '',
+          ]
+        : [h('span', { class: 'muted' }, errorText('NO_ACCOUNT'))]),
     );
   const pick = () => {
     if (options.length < 2) return;
-    const sheet = openSheet(
-      t('apAccount'),
-      h(
-        'div',
-        { class: 'list card' },
-        ...options.map((o) =>
+    const groups = wallets
+      .map((w) => ({ w, opts: options.filter((o) => o.wallet === w) }))
+      .filter((g) => g.opts.length)
+      .map(({ w, opts }) =>
+        h(
+          'section',
+          { class: 'group' },
+          h('p', { class: 'group-title' }, w.label),
           h(
-            'button',
-            { class: `row link-row acct-row${o === chosen ? ' on' : ''}`, type: 'button', on: { click: () => ((chosen = o), paint(), sheet.close()) } },
-            avatar(o.address, 36),
-            h('span', { class: 'grow' }, h('strong', {}, o.label), h('p', { class: 'small muted mono' }, `${o.address.slice(0, 6)}…${o.address.slice(-4)}`)),
-            o === chosen ? h('span', { class: 'tick' }, glyph('check', 18)) : null,
+            'div',
+            { class: 'list card' },
+            ...opts.map((o) =>
+              h(
+                'button',
+                { class: `row link-row acct-row${o === chosen ? ' on' : ''}`, type: 'button', disabled: o.lost, title: o.lost ? t('e_COMPANION_LOST') : false, on: { click: () => ((chosen = o), paint(), sheet.close()) } },
+                avatar(o.address, 36),
+                h('span', { class: 'grow' }, h('strong', {}, o.label), h('p', { class: 'small muted mono' }, `${o.address.slice(0, 6)}…${o.address.slice(-4)}`), o.lost ? h('p', { class: 'small error' }, t('e_COMPANION_LOST')) : null),
+                o === chosen ? h('span', { class: 'tick' }, glyph('check', 18)) : null,
+              ),
+            ),
           ),
         ),
-      ),
-    );
+      );
+    const sheet = openSheet(t('apAccount'), ...groups);
   };
   paint();
   const err = h('p', { class: 'error', role: 'alert' });
   const ok = h('button', { class: 'btn arming', type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, t('apConnect'));
-  setTimeout(() => ((ok.disabled = !options.length), ok.classList.remove('arming')), ARM_MS);
+  // Site signalé ou sosie : se connecter exige de cocher « je comprends le risque ».
+  let armed = false;
+  let needAck = false;
+  const ack = h('input', { type: 'checkbox', style: 'width:auto' });
+  const ackRow = h('label', { class: 'check', hidden: true }, ack, h('span', {}, t('apRiskAck')));
+  const ready = () => (ok.disabled = !armed || !chosen || chosen.lost || (needAck && !ack.checked));
+  ack.addEventListener('change', ready);
+  setTimeout(() => ((armed = true), ok.classList.remove('arming'), ready()), ARM_MS);
+  const siteBox = h('div', { class: 'site-check', 'data-testid': 'site-check' }, h('p', { class: 'small muted' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('apSiteChecking')));
+  void send<SiteReport>({ type: 'approval:site', id }).then((x) => {
+    if (!x?.ok) return void siteBox.replaceChildren();
+    const lines: Node[] = [];
+    if (x.verdict === 'phishing') lines.push(h('div', { class: 'banner danger', role: 'alert' }, glyph('warning', 18), h('span', {}, t('apSitePhishing'))));
+    if (x.lookalike) lines.push(h('div', { class: 'banner danger', role: 'alert' }, glyph('warning', 18), h('span', {}, t('apSiteLookalike', { brand: x.lookalike }))));
+    needAck = lines.length > 0;
+    ackRow.hidden = !needAck;
+    const facts = [x.known ? t('apSiteKnown') : t('apSiteNew'), x.verdict === 'safe' ? t('apSiteClean') : x.verdict === 'unknown' ? t('apSiteUnchecked') : null].filter(Boolean).join(' · ');
+    lines.push(h('p', { class: `small ${x.verdict === 'safe' && !needAck ? 'up' : 'muted'}` }, glyph(x.verdict === 'safe' && !needAck ? 'security' : 'about', 14), facts));
+    siteBox.replaceChildren(...lines);
+    ready();
+  });
   const refuse = async () => {
     await send({ type: 'approval:respond', id, approve: false }).catch(() => {});
     window.close();
   };
   ok.addEventListener('click', async () => {
+    if (ok.disabled || !chosen || chosen.lost) return;
     ok.disabled = true;
-    if (!chosen) return;
     const [walletId, index] = chosen.value.split('|');
     const r = await send({ type: 'approval:respond', id, approve: true, walletId, index: Number(index) }).catch(() => null);
     if (r?.ok) return window.close();
@@ -232,9 +289,11 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
       h('p', { class: 'kicker center-text' }, t('apTitle')),
       url.hostname.split('.').some((p) => p.startsWith('xn--')) && h('div', { class: 'banner danger' }, h('span', {}, t('apIdn'))),
       url.protocol === 'http:' && h('div', { class: 'banner warn' }, h('span', {}, t('apLocal'))),
+      siteBox,
       h('p', { class: 'group-title' }, `${t('apAccount')} · ${req.family === 'evm' ? t('apFamilyEvm') : t('apFamilySol')}`),
       acctCard,
       h('div', { class: 'perm' }, glyph('eye', 18), h('p', { class: 'small' }, t('apBody'))),
+      ackRow,
       err,
       h('div', { class: 'dock' }, h('div', { class: 'actions' }, h('button', { class: 'btn secondary', type: 'button', on: { click: () => void refuse() } }, t('apRefuse')), ok)),
     ),

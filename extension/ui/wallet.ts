@@ -222,7 +222,13 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const sheet = openSheet(
       t('chooseAccount'),
       ...groups,
-      h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), void openOnboardingTab()) } }, glyph('add', 18), t('addWallet')),
+      h(
+        'div',
+        { class: 'actions' },
+        h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), void openOnboardingTab()) } }, glyph('add', 18), t('addWallet')),
+        // Mode compagnon : un autre compte du téléphone (choisi sur le téléphone au moment du scan).
+        h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'link-phone', on: { click: () => (sheet.close(), void openOnboarding(opts.mode === 'popup', '#companion')) } }, glyph('scan', 18), t('compLinkMore')),
+      ),
     );
   }
 
@@ -598,7 +604,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        group(t('setGeneral'), item('currency', t('currency'), fiat), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab())),
+        group(t('setGeneral'), item('currency', t('currency'), fiat), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
         group(
           t('setSecurity'),
           askPw,
