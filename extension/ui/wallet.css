@@ -296,3 +296,4 @@ details > summary::-webkit-details-marker { display: none; }
 .acct-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .acct-line .ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-row:disabled { opacity: 0.55; cursor: not-allowed; }
+.acct-card.static { cursor: default; pointer-events: none; }

@@ -10,6 +10,8 @@
  */
 import { landscape } from '../../ui/landscape';
 import { qrSvg } from '../../ui/qr';
+import { avatar } from '../../ui/avatar';
+import { addressView } from '../../ui/address';
 import { glyph } from '../../ui/glyph';
 import { h, send } from '../../ui/dom';
 import { applyLang, errorText, reasonText, t } from '../../ui/i18n';
@@ -265,9 +267,51 @@ async function companionScreen() {
   box.removeAttribute('style');
   box.replaceChildren(qrSvg(st.uri, 200));
   box.setAttribute('aria-label', t('compTitle'));
-  const done = await send<{ wallet: WalletMeta }>({ type: 'companion:wait' });
-  if (!done.ok) return fail(done);
-  finish([t('compDone')]);
+  const got = await send<{ candidate: Candidate }>({ type: 'companion:wait' });
+  if (!got.ok) return fail(got);
+  confirmPhoneScreen(got.candidate);
+}
+
+interface Candidate {
+  topic: string;
+  evm?: string;
+  solana?: string;
+  peer: { name: string; url: string };
+}
+
+/**
+ * C'est bien TON téléphone ? L'appareil et les adresses reçues, à comparer avec
+ * l'app Kalyx — avant tout enregistrement. Quelqu'un qui aurait scanné le QR à
+ * ta place (partage d'écran) n'aurait pas tes adresses.
+ */
+function confirmPhoneScreen(c: Candidate) {
+  const err = errorLine();
+  const row = (tag: string, addr?: string) => !!addr && h('div', { class: 'card acct-card static' }, avatar(addr, 36), h('span', { class: 'grow' }, h('strong', {}, tag), h('p', { class: 'small' }, addressView(addr, 'sm'))));
+  const decide = async (accept: boolean, btn: HTMLButtonElement) => {
+    btn.disabled = true;
+    const r = await send<{ wallet: WalletMeta | null }>({ type: 'companion:confirm', topic: c.topic, accept });
+    if (!r.ok) {
+      btn.disabled = false;
+      err.textContent = errorText(r.error);
+      return;
+    }
+    if (accept) finish([t('compDone')]);
+    else companionScreen();
+  };
+  const yes = h('button', { class: 'btn', type: 'button', 'data-testid': 'comp-yes' }, t('compConfirmYes'));
+  const no = h('button', { class: 'btn secondary', type: 'button' }, t('compConfirmNo'));
+  yes.addEventListener('click', () => void decide(true, yes));
+  no.addEventListener('click', () => void decide(false, no));
+  screen(
+    h('h1', {}, t('compConfirmTitle')),
+    h('p', { class: 'muted' }, t('compConfirmBody')),
+    !!c.peer.name && h('p', { class: 'small muted' }, `${t('compDevice')} : `, h('strong', {}, c.peer.name)),
+    row('EVM', c.evm),
+    row('Solana', c.solana),
+    err,
+    yes,
+    no,
+  );
 }
 
 function importPhraseScreen() {

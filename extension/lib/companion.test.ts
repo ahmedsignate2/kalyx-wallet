@@ -174,13 +174,50 @@ describe('mode compagnon : lien avec le téléphone', () => {
   const link = async (answer: (method: string, params: unknown) => Promise<unknown>) => {
     const fake = fakeClient(answer);
     const companion = makeCompanion(wallets, { client: async () => fake.client });
+    const before = (await wallets.list()).length;
     const { uri } = await companion.start('Téléphone');
     expect(uri).toMatch(/^wc:/);
     const waiting = companion.wait();
     fake.accept('topic-1', ns([`eip155:1:${PHONE.address}`, `eip155:8453:${PHONE.address}`], [`${SOLANA_CAIP}:${SOL_PK}`]));
-    const meta = await waiting;
+    const cand = await waiting;
+    // Rien n'est enregistré avant la confirmation (appareil et adresses vus par l'utilisateur).
+    expect(await wallets.list()).toHaveLength(before);
+    expect(cand).toMatchObject({ topic: 'topic-1', evm: PHONE.address, solana: SOL_PK });
+    const meta = (await companion.confirm('topic-1', true))!;
     return { fake, companion, meta };
   };
+
+  test('QR scanné par un AUTRE appareil : refusé dans l’extension, liaison coupée, rien d’enregistré', async () => {
+    const fake = fakeClient(async () => null);
+    const companion = makeCompanion(wallets, { client: async () => fake.client });
+    await companion.start('Téléphone');
+    const waiting = companion.wait();
+    fake.accept('intrus', ns([`eip155:1:${OTHER.address}`]));
+    const cand = await waiting;
+    expect(cand.evm).toBe(OTHER.address);
+    expect(await companion.confirm('intrus', false)).toBeNull();
+    expect(fake.client.session.getAll()).toEqual([]);
+    expect(await wallets.list()).toHaveLength(0);
+    // Une confirmation rejouée ne vaut plus rien.
+    await expect(companion.confirm('intrus', true)).rejects.toThrow('COMPANION_PAIRING_TIMEOUT');
+  });
+
+  test('confirmation jamais donnée : liaison coupée au bout du délai', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = fakeClient(async () => null);
+      const companion = makeCompanion(wallets, { client: async () => fake.client });
+      await companion.start('Téléphone');
+      const waiting = companion.wait();
+      fake.accept('oubli', ns([`eip155:1:${PHONE.address}`]));
+      await waiting;
+      await vi.advanceTimersByTimeAsync(3 * 60_000 + 1);
+      expect(fake.client.session.getAll()).toEqual([]);
+      await expect(companion.confirm('oubli', true)).rejects.toThrow('COMPANION_PAIRING_TIMEOUT');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   test('relier : un portefeuille « téléphone » sans aucun secret, avec les adresses partagées', async () => {
     const { meta } = await link(async () => null);
@@ -283,7 +320,8 @@ describe('mode compagnon : lien avec le téléphone', () => {
     await companion.start('Téléphone');
     const waiting = companion.wait();
     fake.accept('t', ns([`eip155:1:${PHONE.address}`]));
-    await expect(waiting).rejects.toThrow();
+    await waiting;
+    await expect(companion.confirm('t', true)).rejects.toThrow();
     expect((await wallets.list()).map((w: WalletMeta) => w.kind)).toEqual(['privateKey']);
   });
 });
