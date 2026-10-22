@@ -13,6 +13,7 @@ import type { ChainAdapter, ChainConfig } from '../../src/domain/chains/types';
 import { EvmChainAdapter } from '../../src/domain/chains/EvmChainAdapter';
 import { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
 import { ALL_CHAINS } from '../../src/domain/chains/configs';
+import { isRelayUrl } from '../../src/domain/net/relay';
 
 function createAdapter(config: ChainConfig): ChainAdapter | null {
   if (config.family === 'evm') return new EvmChainAdapter(config);
@@ -26,7 +27,17 @@ function createAdapter(config: ChainConfig): ChainAdapter | null {
  * Alchemy ne le sert pas). Les interroger ne donnait qu'un « réseau muet ».
  */
 const HIDDEN = new Set(['degen']);
-const CHAINS = ALL_CHAINS.filter((c) => !HIDDEN.has(c.id));
+/**
+ * Solana : le relais Kalyx (Helius, clé côté serveur, cache partagé) passe EN
+ * PREMIER dans l'extension, les nœuds publics en secours. Les nœuds publics
+ * refusent ou limitent souvent les navigateurs : essayés d'abord (12 s chacun),
+ * ils faisaient abandonner le chargement avant d'atteindre le relais —
+ * « Solana sans réponse », historique illisible. Le service worker oublie en
+ * plus, à chaque mise en veille, quels serveurs étaient en panne.
+ */
+const relayFirst = (c: ChainConfig): ChainConfig =>
+  c.family === 'solana' && c.rpcUrls.some(isRelayUrl) ? { ...c, rpcUrls: [...c.rpcUrls.filter(isRelayUrl), ...c.rpcUrls.filter((u) => !isRelayUrl(u))] } : c;
+const CHAINS = ALL_CHAINS.filter((c) => !HIDDEN.has(c.id)).map(relayFirst);
 
 const adapters = new Map<string, ChainAdapter>();
 for (const c of CHAINS) {
