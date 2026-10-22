@@ -9,19 +9,20 @@
  * Mêmes dérivations que le mobile (src/crypto) : même phrase, mêmes adresses.
  *
  * Erreurs (codes) : INVALID_PHRASE, UNSUPPORTED_PHRASE, INVALID_KEY,
- * WRONG_FAMILY, DUPLICATE, UNKNOWN_WALLET, BACKUP_<code>, TOO_MANY_WALLETS.
+ * WRONG_FAMILY, DUPLICATE, UNKNOWN_WALLET, UNKNOWN_ACCOUNT, BAD_LABEL,
+ * TOO_MANY_ACCOUNTS, NOTHING_TO_BACKUP, BACKUP_<code>, TOO_MANY_WALLETS.
  */
 import { base58 } from '@scure/base';
-import { bytesToHex } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { ed25519 } from '@noble/curves/ed25519';
 import { generateMnemonic, mnemonicToSeed, validateMnemonic } from '../../src/crypto/mnemonic';
 import { deriveEvmAccount, evmAccountFromPrivateKey } from '../../src/crypto/hd';
-import { deriveSolanaAccount } from '../../src/crypto/solana';
+import { deriveSolanaAccount, deriveSolanaSigner } from '../../src/crypto/solana';
 import { parseImportedKey } from '../../src/domain/keys/importKey';
 import { classifyRecoveryPhrase } from '../../src/domain/keys/recoveryPhrase';
-import { restoreBackup, normalizeBackupSecret } from '../../src/domain/backup/cloudBackup';
+import { createWalletsBackup, restoreBackup, normalizeBackupSecret, type BackupWallet } from '../../src/domain/backup/cloudBackup';
 import { getRandomBytes } from '../../src/crypto/random';
-import { addSecret, readSecret } from './vault';
+import { addSecret, readSecret, removeSecret } from './vault';
 import type { Store } from './storage';
 import type { Session } from './session';
 
@@ -53,6 +54,16 @@ export interface WalletMeta {
 
 const META_KEY = 'wallets';
 const MAX_WALLETS = 50;
+const MAX_ACCOUNTS = 100;
+const MAX_LABEL = 40;
+
+/** Nom saisi : espaces resserrés, caractères de contrôle retirés, 40 caractères au plus. */
+export function cleanLabel(input: unknown): string {
+  if (typeof input !== 'string') throw new WalletError('BAD_LABEL');
+  const v = input.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_LABEL);
+  if (!v) throw new WalletError('BAD_LABEL');
+  return v;
+}
 
 export class WalletError extends Error {}
 
@@ -265,7 +276,117 @@ export function makeWallets(disk: Store, session: Session) {
     });
   }
 
-  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase, addCompanion, markCompanionLost, removeCompanion };
+  /** Renommer un portefeuille (le nom ne sert qu'à l'affichage). */
+  async function renameWallet(walletId: string, label: unknown): Promise<WalletMeta> {
+    const name = cleanLabel(label);
+    return session.withVault(async () => {
+      const all = await list();
+      const w = all.find((x) => x.id === walletId);
+      if (!w) throw new WalletError('UNKNOWN_WALLET');
+      w.label = name;
+      return { result: w, commit: () => save(all) };
+    });
+  }
+
+  async function renameAccount(walletId: string, index: number, label: unknown): Promise<WalletMeta> {
+    const name = cleanLabel(label);
+    return session.withVault(async () => {
+      const all = await list();
+      const w = all.find((x) => x.id === walletId);
+      const a = w?.accounts.find((x) => x.index === index);
+      if (!w || !a) throw new WalletError('UNKNOWN_ACCOUNT');
+      a.label = name;
+      return { result: w, commit: () => save(all) };
+    });
+  }
+
+  /** Compte suivant d'une phrase (premier numéro libre) ; rend son numéro. */
+  async function addNextAccount(walletId: string): Promise<{ wallet: WalletMeta; index: number }> {
+    const w = (await list()).find((x) => x.id === walletId);
+    if (!w || w.kind !== 'seed') throw new WalletError('UNKNOWN_WALLET');
+    let index = 0;
+    while (w.accounts.some((a) => a.index === index)) index++;
+    if (index >= MAX_ACCOUNTS) throw new WalletError('TOO_MANY_ACCOUNTS');
+    return { wallet: await addAccounts(walletId, [index]), index };
+  }
+
+  /**
+   * Supprimer un portefeuille de l'extension : son secret quitte le coffre,
+   * ses métadonnées le disque. Irréversible ici — seule la phrase (ou la clé)
+   * notée ailleurs permet de le retrouver. L'appelant a redemandé le mot de passe.
+   */
+  async function removeWallet(walletId: string): Promise<void> {
+    await session.withVault(async (vault) => {
+      const all = await list();
+      const w = all.find((x) => x.id === walletId);
+      if (!w || w.kind === 'companion') throw new WalletError('UNKNOWN_WALLET');
+      return { vault: removeSecret(vault, walletId), result: undefined, commit: () => save(all.filter((x) => x.id !== walletId)) };
+    });
+  }
+
+  /**
+   * Clé privée d'UN compte, au format que les autres portefeuilles importent :
+   * EVM en hexadécimal 0x, Solana en base58 de 64 octets (graine + clé publique).
+   * L'appelant a redemandé le mot de passe.
+   */
+  async function revealKey(walletId: string, index: number, family: Family): Promise<string> {
+    return session.withVault(async (vault, key) => {
+      const w = (await list()).find((x) => x.id === walletId);
+      const a = w?.accounts.find((x) => x.index === index);
+      if (!w || !a || w.kind === 'companion' || !a[family]) throw new WalletError('UNKNOWN_ACCOUNT');
+      const { secret } = readSecret(vault, key, walletId);
+      if (w.kind === 'privateKey') {
+        if (w.family !== family) throw new WalletError('WRONG_FAMILY');
+        if (family === 'evm') return { result: secret };
+        const seed = hexToBytes(secret);
+        try {
+          return { result: base58.encode(new Uint8Array([...seed, ...ed25519.getPublicKey(seed)])) };
+        } finally {
+          seed.fill(0);
+        }
+      }
+      const seed = await mnemonicToSeed(secret);
+      try {
+        if (family === 'evm') return { result: deriveEvmAccount(seed, index).privateKey };
+        const s = deriveSolanaSigner(seed, index);
+        const full = new Uint8Array([...s.secretKey, ...s.publicKey]);
+        try {
+          return { result: base58.encode(full) };
+        } finally {
+          s.secretKey.fill(0);
+          full.fill(0);
+        }
+      } finally {
+        seed.fill(0);
+      }
+    });
+  }
+
+  /**
+   * Sauvegarde chiffrée (format v3 de l'app, que l'app et l'extension savent
+   * relire) de tous les portefeuilles à secret. Les portefeuilles compagnons
+   * n'y sont pas : leurs clés sont sur le téléphone. L'appelant a redemandé
+   * le mot de passe du coffre et vérifié la solidité de celui de la sauvegarde.
+   */
+  async function exportBackup(backupPassword: string): Promise<{ file: string; count: number }> {
+    const items = await session.withVault(async (vault, key) => {
+      const out: BackupWallet[] = [];
+      for (const w of await list()) {
+        if (w.kind === 'companion') continue;
+        const { secret } = readSecret(vault, key, w.id);
+        out.push(
+          w.kind === 'seed'
+            ? { label: w.label, type: 'seed', secret, accounts: w.accounts.map((a) => ({ index: a.index, label: a.label })) }
+            : { label: w.label, type: 'privateKey', keyFamily: w.family, secret },
+        );
+      }
+      return { result: out };
+    });
+    if (!items.length) throw new WalletError('NOTHING_TO_BACKUP');
+    return { file: await createWalletsBackup(items, backupPassword), count: items.length };
+  }
+
+  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase, addCompanion, markCompanionLost, removeCompanion, renameWallet, renameAccount, addNextAccount, removeWallet, revealKey, exportBackup };
 }
 
 export type Wallets = ReturnType<typeof makeWallets>;

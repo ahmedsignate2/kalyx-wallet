@@ -12,6 +12,7 @@ import type { Allowances } from './allowances';
 import type { TxWatch } from './txWatch';
 import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
+import { passwordAccepted } from './policy';
 import { WalletError, type Wallets } from './wallets';
 import { discoverAccounts, type Rpc } from './discovery';
 import type { Home } from './home';
@@ -50,6 +51,7 @@ const gwei = (v: unknown): v is string => typeof v === 'string' && /^\d{1,6}([.,
 const MAX_PASSWORD = 1024;
 const pw = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= MAX_PASSWORD;
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+const idx = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) < 100;
 const optLabel = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : undefined);
 
 export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: string; waitMs?: number; params?: Record<string, string> };
@@ -136,6 +138,42 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         // Liste blanche en vigueur : la phrase ne sort pas (sinon il suffirait de l'importer ailleurs) — comme dans l'app.
         if (whitelist && !(await whitelist.dappAllowed())) return { ok: false, error: 'WHITELIST_LOCKED' };
         return { ok: true, phrase: await wallets.revealPhrase(m.id) };
+      /* ── Gérer les portefeuilles ── */
+      case 'wallet:rename':
+        if (!str(m.id, 64) || typeof m.label !== 'string' || m.label.length > 200) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        return { ok: true, wallet: await wallets.renameWallet(m.id, m.label) };
+      case 'account:rename':
+        if (!str(m.id, 64) || !idx(m.index) || typeof m.label !== 'string' || m.label.length > 200) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        return { ok: true, wallet: await wallets.renameAccount(m.id, m.index, m.label) };
+      case 'wallet:add-account': {
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        const r = await wallets.addNextAccount(m.id);
+        // Le nouveau compte devient le compte affiché, comme dans l'app.
+        if (home) await home.select(m.id, r.index);
+        return { ok: true, ...r };
+      }
+      case 'wallet:remove':
+        // Irréversible ici : mot de passe redemandé.
+        if (!str(m.id, 64) || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.checkPassword(m.password);
+        await wallets.removeWallet(m.id);
+        if (sites) await sites.forgetWallet(m.id);
+        return { ok: true };
+      case 'wallet:reveal-key':
+        if (!str(m.id, 64) || !idx(m.index) || (m.family !== 'evm' && m.family !== 'solana') || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.checkPassword(m.password);
+        // Même règle que la phrase : sous liste blanche, aucune clé ne sort.
+        if (whitelist && !(await whitelist.dappAllowed())) return { ok: false, error: 'WHITELIST_LOCKED' };
+        return { ok: true, key: await wallets.revealKey(m.id, m.index, m.family) };
+      case 'wallet:export-backup':
+        if (!pw(m.password) || !pw(m.backupPassword)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.checkPassword(m.password);
+        if (whitelist && !(await whitelist.dappAllowed())) return { ok: false, error: 'WHITELIST_LOCKED' };
+        // La sauvegarde quitte l'appareil : son mot de passe doit tenir seul face à une attaque hors ligne.
+        if (m.backupPassword === m.password || !passwordAccepted(m.backupPassword)) return { ok: false, error: 'WEAK_BACKUP_PASSWORD' };
+        return { ok: true, ...(await wallets.exportBackup(m.backupPassword)) };
       case 'receive:info': {
         if (!home || !disk) break;
         await unlocked();

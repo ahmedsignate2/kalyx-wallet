@@ -303,3 +303,7 @@ details > summary::-webkit-details-marker { display: none; }
 .chip.quiet { display: inline-flex; align-items: center; gap: 4px; color: var(--up); background: color-mix(in srgb, var(--up) 12%, transparent); }
 .warn-text { color: var(--warning); }
 .risky-line { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+
+/* Gérer un portefeuille : clé affichée (sélectionnable d'un bloc) et ligne de suppression. */
+.secret-key { padding: 12px; border-radius: 12px; background: var(--surface-2); word-break: break-all; user-select: all; font-size: 13px; line-height: 1.5; }
+.danger-row strong, .danger-row .set-ico { color: var(--danger); }

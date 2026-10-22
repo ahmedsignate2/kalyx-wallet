@@ -133,3 +133,73 @@ describe('recherche des comptes', () => {
     expect(await accountActivity(down, EVM0, SOL0)).toBe('unknown');
   });
 });
+
+describe('gérer les portefeuilles', () => {
+  test('renommer : nom nettoyé (contrôles, espaces), vide refusé, 40 caractères au plus', async () => {
+    const w = await wallets.importPhrase(ABOUT);
+    expect((await wallets.renameWallet(w.id, '  Épargne‮   long  ')).label).toBe('Épargne long');
+    await expect(wallets.renameWallet(w.id, '   ')).rejects.toThrow('BAD_LABEL');
+    expect((await wallets.renameAccount(w.id, 0, 'x'.repeat(80))).accounts[0].label).toHaveLength(40);
+    await expect(wallets.renameAccount(w.id, 7, 'A')).rejects.toThrow('UNKNOWN_ACCOUNT');
+  });
+
+  test('ajouter un compte : premier numéro libre, mêmes adresses que le mobile', async () => {
+    const w = await wallets.importPhrase(ABOUT);
+    await wallets.addAccounts(w.id, [2]);
+    const r = await wallets.addNextAccount(w.id);
+    expect(r.index).toBe(1);
+    expect(r.wallet.accounts.map((a) => a.index)).toEqual([0, 1, 2]);
+    expect(r.wallet.accounts[1].evm).toBe(deriveEvmAccount(mnemonicToSeedSync(ABOUT), 1).address);
+    const k = await wallets.importKey(deriveEvmAccount(mnemonicToSeedSync(ABOUT), 9).privateKey, 'evm');
+    await expect(wallets.addNextAccount(k.id)).rejects.toThrow('UNKNOWN_WALLET');
+  });
+
+  test('clé privée : EVM en 0x, Solana en base58 64 octets (graine + publique) qui redonne l’adresse', async () => {
+    const w = await wallets.importPhrase(ABOUT);
+    expect(await wallets.revealKey(w.id, 0, 'evm')).toBe(PK);
+    const sol = base58.decode(await wallets.revealKey(w.id, 0, 'solana'));
+    expect(sol).toHaveLength(64);
+    expect(base58.encode(ed25519.getPublicKey(sol.slice(0, 32)))).toBe(SOL0);
+    expect(base58.encode(sol.slice(32))).toBe(SOL0);
+    await expect(wallets.revealKey(w.id, 3, 'evm')).rejects.toThrow('UNKNOWN_ACCOUNT');
+  });
+
+  test('clé importée Solana : réexportée au même format', async () => {
+    const seed = new Uint8Array(32).fill(7);
+    const full = base58.encode(new Uint8Array([...seed, ...ed25519.getPublicKey(seed)]));
+    const k = await wallets.importKey(full, 'solana');
+    expect(await wallets.revealKey(k.id, 0, 'solana')).toBe(full);
+    await expect(wallets.revealKey(k.id, 0, 'evm')).rejects.toThrow('UNKNOWN_ACCOUNT');
+  });
+
+  test('supprimer : secret retiré du coffre, réimport possible ensuite', async () => {
+    const w = await wallets.importPhrase(ABOUT);
+    await wallets.removeWallet(w.id);
+    expect(await wallets.list()).toEqual([]);
+    const vault = (await session.readVault())!;
+    const vk = await session.vaultKey();
+    expect(() => readSecret(vault, vk, w.id)).toThrow();
+    await expect(wallets.importPhrase(ABOUT)).resolves.toBeTruthy();
+    await expect(wallets.removeWallet('w-inconnu')).rejects.toThrow('UNKNOWN_WALLET');
+  });
+
+  test('sauvegarde exportée : relue par l’import (comptes et noms repris), compagnon exclu', async () => {
+    const w = await wallets.importPhrase(ABOUT, 'Principal');
+    await wallets.addAccounts(w.id, [1]);
+    await wallets.renameAccount(w.id, 1, 'Épargne');
+    await wallets.addCompanion({ topic: 't', evm: '0x' + '1'.repeat(40), evmChains: [1], label: 'Téléphone' });
+    const { file, count } = await wallets.exportBackup('Sauvegarde-Solide-93!');
+    expect(count).toBe(1);
+    expect(file).not.toContain('abandon');
+    await wallets.removeWallet(w.id);
+    const r = await wallets.importBackup(file, 'Sauvegarde-Solide-93!');
+    expect(r.skipped).toEqual([]);
+    expect(r.added[0].label).toBe('Principal');
+    const back = (await wallets.list()).find((x) => x.label === 'Principal')!;
+    expect(back.accounts.map((a) => a.index)).toEqual([0, 1]);
+  });
+
+  test('rien à sauvegarder : erreur claire', async () => {
+    await expect(wallets.exportBackup('Sauvegarde-Solide-93!')).rejects.toThrow('NOTHING_TO_BACKUP');
+  });
+});

@@ -22,6 +22,7 @@ import { receiveScreen } from './receive';
 import { whitelistScreen } from './whitelistScreen';
 import { sitesScreen } from './sitesScreen';
 import { allowancesScreen } from './allowancesScreen';
+import { changePasswordSheet, exportBackupSheet, manageWalletScreen } from './manageScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
@@ -37,6 +38,7 @@ interface WalletMeta {
   id: string;
   label: string;
   kind?: 'seed' | 'privateKey' | 'companion';
+  family?: 'evm' | 'solana';
   /** Mode compagnon : la session avec le téléphone est coupée. */
   lost?: boolean;
   backedUp: boolean;
@@ -605,10 +607,12 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        group(t('setGeneral'), item('currency', t('currency'), fiat), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
         group(
           t('setSecurity'),
           askPw,
+          item('lock', t('pwChange'), null, () => changePasswordSheet(), 'change-password'),
+          item('import', t('bkExport'), null, () => exportBackupSheet(), 'export-backup'),
           item('dapps', t('sitesTitle'), null, () => (void sitesScreen(app, () => settings('back')), navIn(app, 'fwd'))),
           item('check', t('wlTitle'), null, () => (whitelistScreen(app, () => settings('back')), navIn(app, 'fwd'))),
           // Autorisations de tokens : pour un compte qui a une adresse EVM.
@@ -626,6 +630,27 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   const openOnboardingTab = () => openOnboarding(opts.mode === 'popup');
+
+  /** Gérer le portefeuille affiché : renommer, comptes, clé privée, suppression. */
+  function manage() {
+    const { w } = current();
+    if (!w) return;
+    navIn(app, 'fwd');
+    manageWalletScreen(app, () => settings('back'), w, {
+      // Relit les données sans redessiner l'accueil (on reste sur cet écran).
+      changed: async () => {
+        const r = await send<HomeData>({ type: 'home:get' }).catch(() => null);
+        if (r?.ok && r.status.unlocked) data = r;
+        return data?.wallets?.find((x) => x.id === w.id);
+      },
+      openPhrase: () => void openPhrase(),
+      removed: () => {
+        activity = null;
+        shownTotal = null;
+        void load();
+      },
+    });
+  }
 
   /** Voir (et revérifier) la phrase : dans l'onglet d'installation, après le mot de passe. */
   async function openPhrase() {
