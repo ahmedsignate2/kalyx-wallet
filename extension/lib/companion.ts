@@ -31,7 +31,7 @@ const RELAY_TIMEOUT_MS = 20_000;
 
 /** Le strict nécessaire du client WalletConnect (remplaçable dans les tests). */
 export interface WcClient {
-  connect(p: ReturnType<typeof proposal>): Promise<{ uri?: string; approval: () => Promise<{ topic: string; namespaces: Record<string, { accounts?: string[] }> }> }>;
+  connect(p: ReturnType<typeof proposal>): Promise<{ uri?: string; approval: () => Promise<{ topic: string; namespaces: Record<string, { accounts?: string[] }>; peer?: { metadata?: { name?: string; url?: string } } }> }>;
   request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; expiryTimestamp?: number } }): Promise<T>;
   disconnect(a: { topic: string; reason: { code: number; message: string } }): Promise<void>;
   on(event: 'session_delete' | 'session_expire', fn: (e: { topic: string }) => void): void;
@@ -53,9 +53,27 @@ const withTimeout = <T>(p: Promise<T>, ms: number, code: string) =>
     );
   });
 
+/**
+ * Téléphone qui vient d'accepter le QR, PAS ENCORE enregistré : l'utilisateur
+ * confirme d'abord que c'est le sien (appareil et adresses affichés). Sans
+ * cette étape, quiconque scanne le QR (partage d'écran, regard par-dessus
+ * l'épaule) ferait passer SES adresses pour celles de l'utilisateur — qui
+ * recevrait alors ses fonds chez lui.
+ */
+export interface CompanionCandidate {
+  topic: string;
+  evm?: string;
+  solana?: string;
+  evmChains: number[];
+  peer: { name: string; url: string };
+}
+/** Délai pour confirmer ; au-delà, la liaison est coupée. */
+const CONFIRM_TIMEOUT_MS = 3 * 60_000;
+
 export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<WcClient>; keepAlive?: () => void } = {}) {
   let clientP: Promise<WcClient> | null = null;
-  let pairing: Promise<WalletMeta> | null = null;
+  let pairing: Promise<CompanionCandidate> | null = null;
+  let pending: { c: CompanionCandidate; label: string; timer: ReturnType<typeof setTimeout> } | null = null;
 
   const client = () => {
     clientP ??= (opts.client ?? defaultClient)().then((c) => {
@@ -75,20 +93,53 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     const evmIds = listChains().filter((ch) => ch.family === 'evm' && !ch.testnet && ch.evmChainId).map((ch) => ch.evmChainId!);
     const { uri, approval } = await withTimeout(c.connect(proposal(evmIds)), RELAY_TIMEOUT_MS, 'COMPANION_OFFLINE');
     if (!uri) throw new RpcError(-32603, 'COMPANION_NO_URI');
+    if (pending) void drop(pending.c.topic);
     pairing = withTimeout(approval(), PAIRING_TIMEOUT_MS, 'COMPANION_PAIRING_TIMEOUT').then(async (s) => {
-      const acc = sessionAccounts(s.namespaces);
+      let acc: ReturnType<typeof sessionAccounts>;
+      try {
+        acc = sessionAccounts(s.namespaces);
+      } catch (e) {
+        await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Comptes illisibles' } }).catch(() => {});
+        throw e;
+      }
       if (!acc.evm && !acc.solana) {
         await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Aucun compte partagé' } }).catch(() => {});
         throw new RpcError(4100, 'COMPANION_NO_ACCOUNT');
       }
-      return wallets.addCompanion({ topic: s.topic, evm: acc.evm, solana: acc.solana, evmChains: acc.evmChains, label });
+      const meta = s.peer?.metadata ?? {};
+      const peer = { name: String(meta.name ?? '').slice(0, 60), url: String(meta.url ?? '').slice(0, 120) };
+      const cand: CompanionCandidate = { topic: s.topic, evm: acc.evm, solana: acc.solana, evmChains: acc.evmChains, peer };
+      pending = { c: cand, label, timer: setTimeout(() => void drop(cand.topic), CONFIRM_TIMEOUT_MS) };
+      return cand;
     });
     pairing.catch(() => {});
     return { uri };
   }
 
-  /** Attend l'accord du téléphone (ou son refus, ou l'expiration du QR). */
-  async function wait(): Promise<WalletMeta> {
+  async function drop(topic: string) {
+    if (pending?.c.topic === topic) {
+      clearTimeout(pending.timer);
+      pending = null;
+    }
+    const c = await client().catch(() => null);
+    await c?.disconnect({ topic, reason: { code: 6000, message: 'Liaison refusée dans l’extension' } }).catch(() => {});
+  }
+
+  /** L'utilisateur a vu l'appareil et les adresses : enregistrer (c'est le sien), ou couper. */
+  async function confirm(topic: string, accept: boolean): Promise<WalletMeta | null> {
+    if (!pending || pending.c.topic !== topic) throw new RpcError(4100, 'COMPANION_PAIRING_TIMEOUT');
+    const { c, label, timer } = pending;
+    clearTimeout(timer);
+    pending = null;
+    if (!accept) {
+      await drop(topic);
+      return null;
+    }
+    return wallets.addCompanion({ topic: c.topic, evm: c.evm, solana: c.solana, evmChains: c.evmChains, label });
+  }
+
+  /** Attend l'accord du téléphone (ou son refus, ou l'expiration du QR). Rien n'est enregistré avant `confirm`. */
+  async function wait(): Promise<CompanionCandidate> {
     if (!pairing) throw new RpcError(-32603, 'COMPANION_NOT_STARTED');
     const keep = setInterval(() => opts.keepAlive?.(), 20_000);
     try {
@@ -129,7 +180,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     await c?.disconnect({ topic: meta.topic, reason: { code: 6000, message: 'Déliée depuis l’extension' } }).catch(() => {});
   }
 
-  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, request, unlink };
+  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink };
 }
 
 export type Companion = ReturnType<typeof makeCompanion>;

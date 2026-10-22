@@ -289,8 +289,14 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'companion:wait': {
         if (!companion) break;
         await unlocked();
-        const w = await companion.wait();
-        if (home) await home.select(w.id, 0).catch(() => {});
+        // Rien n'est enregistré ici : l'appareil et les adresses s'affichent, l'utilisateur confirme.
+        return { ok: true, candidate: await companion.wait() };
+      }
+      case 'companion:confirm': {
+        if (!companion || !str(m.topic, 128) || typeof m.accept !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        const w = await companion.confirm(m.topic, m.accept);
+        if (w && home) await home.select(w.id, 0).catch(() => {});
         return { ok: true, wallet: w };
       }
       case 'settings:get-ask-password':
