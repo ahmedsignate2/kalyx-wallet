@@ -6,8 +6,8 @@
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
-import { groupAddress } from '../../src/domain/validation/poisoning';
 import type { WhitelistView } from '../lib/whitelist';
+import { addressView } from './address';
 
 type R = { ok: boolean; error?: string; params?: Record<string, string>; whitelist?: WhitelistView };
 
@@ -43,7 +43,7 @@ export function whitelistScreen(app: HTMLElement, back: () => void) {
                 h(
                   'div',
                   { class: 'row' },
-                  h('div', { class: 'grow' }, h('strong', {}, e.label || '—'), h('p', { class: 'mono small muted' }, groupAddress(e.address)), h('p', { class: `small ${e.active ? 'up' : 'muted'}` }, e.active ? t('wlActive') : t('wlIn', { h: e.hoursLeft }))),
+                  h('div', { class: 'grow' }, h('strong', {}, e.label || '—'), h('p', { class: 'small' }, addressView(e.address, 'sm')), h('p', { class: `small ${e.active ? 'up' : 'muted'}` }, e.active ? t('wlActive') : t('wlIn', { h: e.hoursLeft }))),
                   h('button', { class: 'chip', type: 'button', on: { click: () => void act({ type: 'whitelist:remove', address: e.address }) } }, t('wlRemove')),
                 ),
               )
