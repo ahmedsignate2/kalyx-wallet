@@ -66,4 +66,21 @@ describe('routeur interne', () => {
     }
     expect(await disk.get('view.prefs')).toBeUndefined();
   });
+
+  test('échange : verrouillé refusé ; « redemander le mot de passe » vaut aussi pour un échange', async () => {
+    const s = fresh();
+    await h(s, { type: 'vault:create', password: 'Plage-Orange-47!' });
+    const disk = makeStore(area());
+    let signed = 0;
+    const swap = { confirm: async () => ((signed += 1), { txid: '0x1' }), sources: async () => [], targets: async () => [], quote: async () => ({}), stage: () => null } as never;
+    await disk.set('askPasswordToSign', true);
+    const call = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { swap, disk });
+    expect(await call({ type: 'swap:confirm', id: 'x' })).toEqual({ ok: false, error: 'PASSWORD_REQUIRED' });
+    expect(await call({ type: 'swap:confirm', id: 'x', password: 'faux-mot-de-passe' })).toMatchObject({ ok: false, error: 'WRONG_PASSWORD' });
+    expect(signed).toBe(0);
+    expect(await call({ type: 'swap:confirm', id: 'x', password: 'Plage-Orange-47!' })).toEqual({ ok: true, txid: '0x1' });
+    await h(s, { type: 'vault:lock' });
+    expect(await call({ type: 'swap:quote', from: 'x' })).toEqual({ ok: false, error: 'LOCKED' });
+    expect(await call({ type: 'swap:confirm', id: 'x', password: 'Plage-Orange-47!' })).toEqual({ ok: false, error: 'LOCKED' });
+  });
 });

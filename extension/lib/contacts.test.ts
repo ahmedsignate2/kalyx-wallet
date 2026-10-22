@@ -111,7 +111,7 @@ describe('carnet d’adresses', () => {
     await c.add('Léa', A);
     const k = Object.keys(disk.data).find((x) => x.endsWith('contacts'))!;
     const sealed = disk.data[k] as Record<string, string>;
-    disk.data[k] = { ...sealed, ct: sealed.ct.replace(/^./, (ch) => (ch === 'A' ? 'B' : 'A')) };
+    disk.data[k] = { ...sealed, ct: sealed.ct.replace(/^./, (ch) => (ch === '0' ? '1' : '0')) };
     expect(await code(c.list())).toBe('CONTACTS_UNREADABLE');
     expect(await code(c.add('Bob', B))).toBe('CONTACTS_UNREADABLE');
   });

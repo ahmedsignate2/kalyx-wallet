@@ -25,6 +25,7 @@ import type { Dapp } from './dapp';
 import type { Assets } from './assets';
 import type { Nfts } from './nfts';
 import { ContactError, type Contacts } from './contacts';
+import { SwapError, SwapFail, type Swap } from './swap';
 import { listChains } from '../../src/domain/chains/registry';
 import { WalletError as CoreError } from '../../src/domain/errors';
 
@@ -51,6 +52,8 @@ export interface Services {
   nfts?: Nfts;
   /** Carnet d'adresses (scellé avec la clé du coffre). */
   contacts?: Contacts;
+  /** Échange (swap et pont), moteur de l'app. */
+  swap?: Swap;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -66,7 +69,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -177,6 +180,32 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!cur) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
         return { ok: true, nfts: m.fresh === true ? await nfts.refresh(cur.acct) : await nfts.cached(cur.acct) };
       }
+      /* ── Échange ── */
+      case 'swap:sources':
+        if (!swap) break;
+        await unlocked();
+        return { ok: true, sources: await swap.sources() };
+      case 'swap:targets':
+        if (!swap) break;
+        await unlocked();
+        return { ok: true, tokens: await swap.targets(m.chainId) };
+      case 'swap:quote':
+        if (!swap) break;
+        await unlocked();
+        return { ok: true, quote: await swap.quote({ from: m.from, toChainId: m.toChainId, toToken: m.toToken, amount: m.amount, slippage: m.slippage }) };
+      case 'swap:confirm': {
+        if (!swap) break;
+        await unlocked();
+        // « Redemander le mot de passe pour signer » vaut aussi pour un échange.
+        if (disk && (await disk.get<boolean>('askPasswordToSign')) === true) {
+          if (!pw(m.password)) return { ok: false, error: 'PASSWORD_REQUIRED' };
+          await session.checkPassword(m.password);
+        }
+        return { ok: true, ...(await swap.confirm(m.id, m.ack === true)) };
+      }
+      case 'swap:stage':
+        if (!swap) break;
+        return { ok: true, stage: swap.stage(m.id) };
       /* ── Carnet d'adresses ── */
       case 'contacts:list':
         if (!contacts) break;
@@ -478,6 +507,9 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
     return { ok: false, error: 'UNKNOWN_MESSAGE' };
   } catch (e) {
     if (e instanceof SessionError) return { ok: false, error: e.message, ...(e.waitMs ? { waitMs: e.waitMs } : {}) };
+    if (e instanceof SwapFail) return { ok: false, error: e.message, ...(e.params ? { params: e.params } : {}) };
+    // Moteur d'échange : son code et ses valeurs d'affichage (bornées), jamais son message libre.
+    if (e instanceof SwapError) return { ok: false, error: `SWAP_${e.code}`, ...(e.meta ? { params: Object.fromEntries(Object.entries(e.meta).map(([k, v]) => [k, String(v).slice(0, 60)])) } : {}) };
     if (e instanceof ContactError) return { ok: false, error: e.message, ...(e.params ? { params: e.params } : {}) };
     if (e instanceof WalletError) return { ok: false, error: e.message };
     // Mode compagnon : son code précis (refusé sur le téléphone, délai, lien coupé…).

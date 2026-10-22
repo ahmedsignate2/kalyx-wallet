@@ -8,6 +8,7 @@ import { makeHome } from '../lib/home';
 import { makeAssets } from '../lib/assets';
 import { makeNfts } from '../lib/nfts';
 import { makeContacts } from '../lib/contacts';
+import { makeSwap } from '../lib/swap';
 import { activityT, defaultFiat, explainT, explainTFor, LOCALE, t } from '../ui/i18n';
 import { makeTxWatch } from '../lib/txWatch';
 import { makeAllowances } from '../lib/allowances';
@@ -83,6 +84,7 @@ export default defineBackground(() => {
     });
     void browser.notifications.clear(nid).catch(() => {});
   });
+  const swap = makeSwap({ home, portfolio, execute: { session, wallets, companion }, onSent: (w) => void txWatch.add(w) });
   const send = makeSend({ session, wallets, home, portfolio, whitelist, companion, onSent: (w) => void txWatch.add(w) });
 
   // ── Pont vers les dApps ──
@@ -127,7 +129,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
     return true; // réponse asynchrone
   });
 });
