@@ -46,7 +46,13 @@ export function keyMode(key: string | undefined): 'test' | 'live' | null {
 }
 
 /** Valide la demande et en tire le formulaire de création de session, dans l'ordre. */
-export function sessionForm(input: unknown, clientIp: string | null): Checked<[string, string][]> {
+/**
+ * `mode` : en TEST, Stripe ne fonctionne qu'en dollars (ses données de test
+ * — OTP 000000, SSN 000000000, carte 4242… — sont américaines) : l'euro y
+ * finit en « erreur inconnue ». On force donc l'USD en test ; en réel, la
+ * devise demandée est gardée.
+ */
+export function sessionForm(input: unknown, clientIp: string | null, mode: 'test' | 'live' = 'live'): Checked<[string, string][]> {
   if (!input || typeof input !== 'object') return { ok: false, error: 'bad body' };
   const i = input as Record<string, unknown>;
   const str = (k: string) => (typeof i[k] === 'string' ? (i[k] as string).trim() : undefined);
@@ -67,8 +73,9 @@ export function sessionForm(input: unknown, clientIp: string | null): Checked<[s
     ['destination_currency', currency],
   ];
 
-  const fiat = str('sourceCurrency')?.toLowerCase();
-  if (fiat !== undefined && !FIAT.has(fiat)) return { ok: false, error: 'bad sourceCurrency' };
+  const asked = str('sourceCurrency')?.toLowerCase();
+  if (asked !== undefined && !FIAT.has(asked)) return { ok: false, error: 'bad sourceCurrency' };
+  const fiat = mode === 'test' ? 'usd' : asked;
   if (fiat) out.push(['source_currency', fiat]);
   const raw = i.sourceAmount;
   if (raw !== undefined && raw !== null && raw !== '') {

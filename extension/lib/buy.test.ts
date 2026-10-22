@@ -11,6 +11,11 @@ describe('acheter (page Stripe)', () => {
     expect((await makeBuy(home({ evm: EVM })).options()).map((o) => o.id)).toEqual(['usdc-base', 'eth-ethereum', 'eth-base', 'usdc-ethereum']);
     expect((await makeBuy(home({ solana: SOL })).options()).map((o) => o.id)).toEqual(['sol-solana', 'usdc-solana']);
     expect(await makeBuy(home(null)).options()).toEqual([]);
+    // Logos embarqués (aucune image distante) : la crypto, et le réseau en pastille.
+    for (const o of await makeBuy(home({ evm: EVM, solana: SOL })).options()) {
+      expect(o.logo).toMatch(/^data:image\/svg\+xml,/);
+      expect(o.chainLogo).toBeTruthy();
+    }
   });
 
   test('session demandée au relais pour l’adresse ACTIVE, lien Stripe rendu', async () => {

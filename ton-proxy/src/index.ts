@@ -274,7 +274,7 @@ async function stripe(request: Request, url: URL, env: Env, corsHeaders: Record<
     if (request.method === 'POST') {
       const len = Number(request.headers.get('content-length') ?? '0');
       if (len > 2048) return reply(413, { error: 'body too large' });
-      const f = sessionForm(await request.json().catch(() => null), ip);
+      const f = sessionForm(await request.json().catch(() => null), ip, mode);
       if (!f.ok) return reply(400, { error: f.error });
       const r = await call('/crypto/onramp_sessions', { method: 'POST', body: formBody(f.value) });
       if (r.status !== 200) return reply(r.status === 400 || r.status === 402 ? 400 : 502, { error: stripeError(r.body) });
