@@ -44,6 +44,7 @@ ton navigateur :
 | GoPlus Security | L'adresse d'un contrat ou d'un destinataire, le domaine d'un site | Signaler un contrat ou un site dangereux avant une signature |
 | Hébergeurs des logos de jetons (par ex. CoinGecko, wsrv.nl) | La demande de l’image, sans ton adresse | Afficher les logos des jetons |
 | Relais Kalyx (Cloudflare), vers Alchemy, Etherscan et Helius | Ton adresse EVM **publique** et la liste des réseaux ; une transaction à simuler avant signature | Lister tes tokens ERC-20 et tes NFT, compléter les prix, l’historique, la simulation — sans qu’aucune clé d’API soit dans l’extension. Aucun journal n’est gardé. |
+| Relais Kalyx puis Stripe, **seulement si tu touches Acheter** | Ton adresse **publique** du réseau choisi, la crypto et le réseau, l’IP de ton appareil (pays couvert ou non) | Ouvrir la page de paiement sécurisée de Stripe (crypto.link.com). Le paiement et la vérification d’identité se font chez Stripe, pas dans Kalyx |
 | Relais WalletConnect (Reown), **mode compagnon seulement** | Tes adresses **publiques** partagées par le téléphone, les demandes de signature à valider sur le téléphone et leurs réponses, **chiffrées de bout en bout** entre l'extension et l'app | Relier l'extension à l'app Kalyx de ton téléphone : les clés restent sur le téléphone, le relais ne peut pas lire les messages |
 
 Ces services voient ton adresse IP, comme tout site que tu visites. Les

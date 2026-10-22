@@ -42,6 +42,7 @@ send your transactions, the extension contacts directly, from your browser:
 | GoPlus Security | A contract or recipient address, a site's domain | Flag a dangerous contract or site before you sign |
 | Hosts of token logos (e.g. CoinGecko, wsrv.nl) | The image request, without your address | Show token logos |
 | Kalyx relay (Cloudflare), to Alchemy, Etherscan and Helius | Your **public** EVM address and the list of networks; a transaction to simulate before signing | List your ERC-20 tokens and NFTs, fill in prices, history, simulation — with no API key inside the extension. No logs are kept. |
+| Kalyx relay then Stripe, **only if you tap Buy** | Your **public** address on the chosen network, the crypto and network, your device’s IP (supported country or not) | Open Stripe’s secure payment page (crypto.link.com). Payment and identity checks happen at Stripe, not in Kalyx |
 | WalletConnect relay (Reown), **companion mode only** | The **public** addresses shared by your phone, the signing requests to approve on your phone and their answers, **end-to-end encrypted** between the extension and the app | Link the extension to the Kalyx app on your phone: the keys stay on the phone, the relay can’t read the messages |
 
 These services see your IP address, like any website you visit. Blockchain

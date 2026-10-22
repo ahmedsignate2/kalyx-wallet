@@ -7,6 +7,7 @@ Première bêta, non répertoriée : pour les testeurs invités seulement.
 - Soldes et activité de tous les réseaux, envoi et réception, liste blanche, alerte d'adresse sosie.
 - Connexion aux dApps (EIP-1193, EIP-6963, Wallet Standard) : chaque demande dans une fenêtre de Kalyx, avec l'explication de ce que tu signes.
 - Mode compagnon : relie l'extension à l'app Kalyx de ton téléphone ; les clés restent sur le téléphone et chaque signature s'y valide.
+- Acheter : USDC, ETH ou SOL livrés sur ton compte, paiement sur la page sécurisée de Stripe (mode test pendant la bêta).
 - 15 langues.
 
 Limites connues de la bêta :

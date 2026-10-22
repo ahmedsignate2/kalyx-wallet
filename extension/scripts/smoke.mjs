@@ -242,6 +242,13 @@ async function onboarding() {
     options >= 2 ? console.log(`✓ popup : sélecteur de comptes (${options})`) : fail(`popup : ${options} compte(s)`);
     await popup.keyboard.press('Escape');
     await popup.waitForFunction(() => !document.querySelector('.veil'));
+    // Acheter : les couples crypto/réseau du compte actif (EVM + Solana), la page Stripe ouverte ensuite dans un onglet.
+    await popup.getByRole('button', { name: 'Acheter' }).click();
+    await popup.locator('[data-testid=buy-usdc-base]').waitFor();
+    const buyOpts = await popup.locator('.modal [data-testid^=buy-]').count();
+    buyOpts === 6 ? console.log('✓ acheter : 6 choix (EVM + Solana) pour ce compte') : fail(`acheter : ${buyOpts} choix`);
+    await popup.keyboard.press('Escape');
+    await popup.waitForFunction(() => !document.querySelector('.veil'));
     // Première lecture réseau terminée (ou réseaux muets) : plus de « Actualisation… ».
     await popup.waitForFunction(() => !document.querySelector('.status')?.textContent?.includes('…'), null, { timeout: 120_000 });
     const total = (await popup.locator('[data-testid=total]').textContent()).trim();

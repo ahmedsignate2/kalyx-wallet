@@ -24,6 +24,7 @@ import Svg, { Circle } from 'react-native-svg';
 import * as Clipboard from 'expo-clipboard';
 import { Text, Button, IconButton, Card, Sheet, TokenIcon, Skeleton, Pressable as KPressable, Input } from '../ui/kit';
 import { getBuyEmail, setBuyEmail } from '../lib/payerProfile';
+import { createStripeSession, isStripeSessionId, stripeNetworkOf, stripeOrMoonpayTx, stripeSession, StripeRampError } from '../lib/stripeOnramp';
 import { isValidEmail } from '../src/domain/pay/payPrefill';
 import { haptic } from '../lib/haptics';
 import { Image } from 'react-native';
@@ -117,6 +118,15 @@ function MoonPayLogo({ size = 36 }: { size?: number }) {
 }
 
 /** Vrais logos des moyens de paiement (tracés officiels, couleur selon le thème). */
+/** Logo Stripe : le « S » blanc sur le violet de la marque (dessiné ici, aucune image distante). */
+function StripeLogo({ size = 36 }: { size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size * 0.28, backgroundColor: '#635BFF', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: '#FFFFFF', fontFamily: fontFamily.bold, fontSize: size * 0.55, lineHeight: size * 0.7 }}>S</Text>
+    </View>
+  );
+}
+
 function PayLogo({ method, height = 24 }: { method: BuyPaymentMethod; height?: number }) {
   const { colors, mode } = useTheme();
   const glyph = (d: string, fillColor: string, w = height) => (
@@ -356,6 +366,15 @@ function BuyScreenInner() {
   const [txId, setTxId] = useState<string | null>(null);
   const [tx, setTx] = useState<RampTx | null>(null);
   const [providerInfo, setProviderInfo] = useState(false);
+  /** Fournisseur choisi au récapitulatif ; Stripe : session en cours et son mode (test ou réel). */
+  const [provider, setProvider] = useState<'moonpay' | 'stripe'>('moonpay');
+  const [stripe, setStripe] = useState<{ id: string; mode: 'test' | 'live' } | null>(null);
+  const [checkingStripe, setCheckingStripe] = useState(false);
+  const txOf = (id: string) => stripeOrMoonpayTx(id, rampTransaction);
+  // Crypto ou réseau que Stripe ne livre pas : retour à MoonPay.
+  useEffect(() => {
+    if (provider === 'stripe' && asset && !stripeNetworkOf(asset.chainId)) setProvider('moonpay');
+  }, [provider, asset]);
   const [historyOpen, setHistoryOpen] = useState(false);
   /*
    * MES ACHATS À JOUR. Une commande quittée en cours restait « en cours » dans
@@ -366,7 +385,7 @@ function BuyScreenInner() {
     if (!historyOpen) return;
     const pending = useBuyHistory.getState().items.filter((h) => buyProgress({ status: h.status }).outcome === 'pending').slice(0, 5);
     for (const h of pending) {
-      void rampTransaction(h.id)
+      void txOf(h.id)
         .then((next) => useBuyHistory.getState().upsert({ id: next.id, status: next.status, cryptoAmount: next.quoteCurrencyAmount, txHash: next.cryptoTransactionId }))
         .catch(() => {});
     }
@@ -502,7 +521,47 @@ function BuyScreenInner() {
   }, []);
   const emailOk = !email.trim() || isValidEmail(email);
 
+  const openStripe = async () => {
+    if (!asset || !address || !validAmount) return;
+    setOpening(true);
+    try {
+      const s = await createStripeSession({ chainId: asset.chainId, symbol: asset.symbol, address, fiat: fiatCode, amount });
+      if (!s.url) throw new StripeRampError('no url', 502);
+      technicalLogger.log('DAPP', 'Achat : page Stripe ouverte', { mode: s.mode, currency: asset.symbol, chain: asset.chainId });
+      setStripe({ id: s.id, mode: s.mode });
+      setWidgetUrl(s.url);
+      setStep('widget');
+    } catch (e) {
+      toast.error(t('buyUnavailable'), e instanceof StripeRampError ? e.message : undefined);
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  /*
+   * Page Stripe fermée : elle ne renvoie pas vers l'app. On relit la session :
+   * payée (en cours de livraison ou livrée) → suivi ; refusée → échec ;
+   * sinon (rien payé) → retour au récapitulatif, sans bruit.
+   */
+  const closeStripe = async () => {
+    const cur = stripe;
+    setWidgetUrl(null);
+    if (!cur) return setStep('review');
+    setCheckingStripe(true);
+    try {
+      const s = await stripeSession(cur.id);
+      if (s.status === 'fulfillment_processing' || s.status === 'fulfillment_complete') onPurchaseReturned({ transactionId: s.id, status: 'pending' });
+      else if (s.status === 'rejected') onPurchaseReturned({ transactionId: s.id, status: 'failed' });
+      else setStep('review');
+    } catch {
+      setStep('review');
+    } finally {
+      setCheckingStripe(false);
+    }
+  };
+
   const openWidget = async () => {
+    if (provider === 'stripe') return openStripe();
     if (!asset || !address || !validAmount || !emailOk) return;
     setOpening(true);
     try {
@@ -534,7 +593,7 @@ function BuyScreenInner() {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const poll = async () => {
       try {
-        const next = await rampTransaction(txId);
+        const next = await txOf(txId);
         if (!alive) return;
         setTx(next);
         upsertBuy({ id: next.id, status: next.status, cryptoAmount: next.quoteCurrencyAmount, txHash: next.cryptoTransactionId });
@@ -566,7 +625,7 @@ function BuyScreenInner() {
     setTx(null);
     setStep(r.status === 'failed' ? 'failed' : 'processing');
     if (asset) {
-      upsertBuy({ id: r.transactionId, at: Date.now(), fiatAmount: amount, fiat: fiatCode, code: asset.code, symbol: asset.symbol, name: asset.name, chainId: asset.chainId, contract: asset.contract, status: r.status, cryptoAmount: quote?.quoteCurrencyAmount ?? null, txHash: null });
+      upsertBuy({ id: r.transactionId, at: Date.now(), fiatAmount: amount, fiat: fiatCode, code: asset.code, symbol: asset.symbol, name: asset.name, chainId: asset.chainId, contract: asset.contract, status: r.status, cryptoAmount: provider === 'stripe' ? null : quote?.quoteCurrencyAmount ?? null, txHash: null });
     }
     notifyAndLog('tx', t('buyPendingTitle'), asset ? `${amountLabel} → ${asset.symbol} (${chainNameOf(asset.chainId) ?? asset.chainId})` : undefined);
   };
@@ -576,6 +635,7 @@ function BuyScreenInner() {
     if (step === 'review') setStep('amount');
     else if (step === 'details') setStep('success');
     else if (step === 'widget') {
+      if (provider === 'stripe') return void closeStripe();
       setWidgetUrl(null);
       setStep('review');
     } else close();
@@ -587,8 +647,8 @@ function BuyScreenInner() {
       <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: false }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SCREEN_MARGIN, height: 48 }}>
-          <Text variant="bodyStrong">MoonPay{env === 'sandbox' ? ` · ${t('buyTestMode')}` : ''}</Text>
-          <IconButton icon="close" label={t('close')} tone="glass" onPress={back} />
+          <Text variant="bodyStrong">{provider === 'stripe' ? `Stripe${stripe?.mode === 'test' ? ` · ${t('buyTestMode')}` : ''}` : `MoonPay${env === 'sandbox' ? ` · ${t('buyTestMode')}` : ''}`}</Text>
+          {checkingStripe ? <ActivityIndicator size="small" color={colors.textTertiary} /> : <IconButton icon="close" label={t('close')} tone="glass" onPress={back} />}
         </View>
         <WebView
           source={{ uri: widgetUrl }}
@@ -729,8 +789,12 @@ function BuyScreenInner() {
     }
 
     if (step === 'review') {
-      const fees = quote ? quote.feeAmount + quote.networkFeeAmount + quote.extraFeeAmount : null;
-      const rate = quote && quote.quoteCurrencyAmount > 0 ? quote.baseCurrencyAmount / quote.quoteCurrencyAmount : null;
+      const viaStripe = provider === 'stripe';
+      // Devis MoonPay : il ne vaut pas pour Stripe, qui affiche ses propres frais sur sa page.
+      const fees = quote && !viaStripe ? quote.feeAmount + quote.networkFeeAmount + quote.extraFeeAmount : null;
+      const rate = quote && !viaStripe && quote.quoteCurrencyAmount > 0 ? quote.baseCurrencyAmount / quote.quoteCurrencyAmount : null;
+      const stripeOk = !!stripeNetworkOf(asset.chainId);
+      const stripeNote = t('buyStripeFees');
       return (
         <>
           <Card padded={false}>
@@ -738,31 +802,38 @@ function BuyScreenInner() {
               <AssetIcon asset={asset} size={48} />
               <View>
                 <Text style={{ fontFamily: fontFamily.bold, fontSize: 26, lineHeight: 34, color: colors.text }} tabular>{amountLabel}</Text>
-                <Text variant="caption" tone="secondary" tabular>{quote ? `≈ ${cryptoLabel(quote.quoteCurrencyAmount)}` : '…'}</Text>
+                <Text variant="caption" tone="secondary" tabular>{viaStripe ? stripeNote : quote ? `≈ ${cryptoLabel(quote.quoteCurrencyAmount)}` : '…'}</Text>
               </View>
             </View>
             <View style={{ borderTopWidth: 1, borderTopColor: colors.border }} />
             <Row label={t('payToken')} value={asset.symbol} />
             <Row label={t('network')} value={chainNameOf(asset.chainId) ?? asset.chainId} left={<TokenIcon symbol="" logo={chainIconUrl(asset.chainId)} size={16} />} />
-            <Row label={t('buyRate')} value={rate ? `1 ${asset.symbol} ≈ ${money(rate)}` : '—'} />
-            <Row label={t('buyProviderFees')} value={fees != null ? money(fees) : '—'} />
+            {viaStripe ? null : <Row label={t('buyRate')} value={rate ? `1 ${asset.symbol} ≈ ${money(rate)}` : '—'} />}
+            {viaStripe ? null : <Row label={t('buyProviderFees')} value={fees != null ? money(fees) : '—'} />}
             <Row label={t('buyKalyxFees')} value={money(0)} tone={colors.up} />
-            <Row label={t('buyCryptoReceived')} value={quote ? `≈ ${cryptoLabel(quote.quoteCurrencyAmount)}` : '—'} />
+            {viaStripe ? null : <Row label={t('buyCryptoReceived')} value={quote ? `≈ ${cryptoLabel(quote.quoteCurrencyAmount)}` : '—'} />}
             <Row label={t('buyReceiveOn')} value={shortAddress(address)} last />
           </Card>
-          <KPressable onPress={() => setProviderInfo(true)} accessibilityRole="button" accessibilityLabel="MoonPay">
-          <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[3] }}>
-              <MoonPayLogo size={36} />
-              <View style={{ flex: 1 }}>
-                <Text variant="micro" tone="secondary">{t('buyProvider')}</Text>
-                <Text variant="bodyStrong">MoonPay</Text>
-              </View>
-              <Icon name="chevron" size={16} color={colors.textTertiary} />
-            </View>
-          </Card>
-          </KPressable>
+          {/* Fournisseur : MoonPay (devis ci-dessus) ou Stripe (frais affichés sur sa page) */}
           <View style={{ gap: space[1] }}>
+            <Text variant="micro" tone="secondary">{t('buyProvider')}</Text>
+            <ChoiceRow
+              on={!viaStripe}
+              onPress={() => setProvider('moonpay')}
+              left={<MoonPayLogo size={36} />}
+              title="MoonPay"
+              sub={quote ? fill(t('buyFeeShort'), { amount: money(quote.feeAmount + quote.networkFeeAmount + quote.extraFeeAmount) }) : undefined}
+              aside={<KPressable onPress={() => setProviderInfo(true)} accessibilityRole="button" accessibilityLabel="MoonPay" hitSlop={8}><Icon name="about" size={16} color={colors.textTertiary} /></KPressable>}
+            />
+            <ChoiceRow
+              on={viaStripe}
+              onPress={() => (stripeOk ? setProvider('stripe') : toast.info(t('buyStripeUnsupported')))}
+              left={<StripeLogo size={36} />}
+              title="Stripe"
+              sub={stripeOk ? t('buyStripeSub') : t('buyStripeUnsupported')}
+            />
+          </View>
+          {viaStripe ? null : <View style={{ gap: space[1] }}>
             <Input
               label={t('buyEmailLabel')}
               value={email}
@@ -781,13 +852,13 @@ function BuyScreenInner() {
               ) : undefined}
             />
             <Text variant="micro" tone="tertiary">{t('buyEmailHint')}</Text>
-          </View>
+          </View>}
           {quoteError ? <Text variant="caption" style={{ color: colors.danger, textAlign: 'center' }}>{quoteError}</Text> : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             {quoting ? <ActivityIndicator size="small" color={colors.textTertiary} /> : <Icon name="refresh" size={12} color={colors.textTertiary} />}
             <Text variant="micro" tone="tertiary" tabular>{fill(t('buyQuoteRefresh'), { s: ttl })}</Text>
           </View>
-          <Button label={fill(t('buyCta'), { amount: amountLabel })} loading={opening} disabled={!quote || opening || !emailOk} onPress={() => void openWidget()} />
+          <Button label={fill(t('buyCta'), { amount: amountLabel })} loading={opening} disabled={viaStripe ? opening || !stripeOk : !quote || opening || !emailOk} onPress={() => void openWidget()} />
           <Text variant="micro" tone="tertiary" style={{ textAlign: 'center' }}>{env === 'sandbox' ? t('buyTestNote') : t('buyKycNote')}</Text>
         </>
       );
@@ -805,7 +876,7 @@ function BuyScreenInner() {
           <View style={{ height: space[3] }} />
           <Stepper labels={[t('buyStepPaid'), t('buyStepBuying'), t('buyStepSending'), t('buyStepFinal')]} states={p.steps} />
           <View style={{ height: space[3] }} />
-          {txId ? <Button label={t('buyTrack')} variant="ghost" size="md" dense icon="arrowUpRight" onPress={() => void Linking.openURL(buyTrackerUrl(env, txId))} /> : null}
+          {txId && !isStripeSessionId(txId) ? <Button label={t('buyTrack')} variant="ghost" size="md" dense icon="arrowUpRight" onPress={() => void Linking.openURL(buyTrackerUrl(env, txId))} /> : null}
           <Button label={t('backToHome')} variant="secondary" onPress={() => router.dismissTo('/home')} />
         </Centered>
       );
@@ -861,11 +932,11 @@ function BuyScreenInner() {
               <Row label={t('buyTxId')} value={shortAddress(hash ?? txId ?? '—')} left={<Icon name="copy" size={14} color={colors.textSecondary} />} />
             </KPressable>
             <Row label={t('network')} value={chainNameOf(asset.chainId) ?? asset.chainId} left={<TokenIcon symbol="" logo={chainIconUrl(asset.chainId)} size={16} />} />
-            <Row label={t('buyProvider')} value="MoonPay" />
+            <Row label={t('buyProvider')} value={isStripeSessionId(txId) ? 'Stripe' : 'MoonPay'} />
             <Row label={t('buyDate')} value={tx?.createdAt ? new Date(tx.createdAt).toLocaleString() : '—'} last />
           </Card>
           {explorer ? <Button label={t('viewOnExplorer')} variant="secondary" icon="arrowUpRight" onPress={() => void Linking.openURL(explorer)} /> : null}
-          {txId ? <Button label={t('buyTrack')} variant="ghost" icon="arrowUpRight" onPress={() => void Linking.openURL(buyTrackerUrl(env, txId))} /> : null}
+          {txId && !isStripeSessionId(txId) ? <Button label={t('buyTrack')} variant="ghost" icon="arrowUpRight" onPress={() => void Linking.openURL(buyTrackerUrl(env, txId))} /> : null}
         </>
       );
     }
@@ -986,7 +1057,7 @@ function BuyScreenInner() {
                 const out = buyProgress({ status: h.status }).outcome;
                 if (out === 'pending') setStep('processing');
                 else {
-                  void rampTransaction(h.id).then(setTx, () => {});
+                  void txOf(h.id).then(setTx, () => {});
                   setStep(out === 'failed' ? 'failed' : 'details');
                 }
               }}

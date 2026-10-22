@@ -291,7 +291,47 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { class: 'acts' },
       act('send primary', 'send', t('send'), go(() => sendScreen(app, home))),
       act('rx', 'receive', t('receive'), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))),
+      act('buy', 'buy', t('buy'), buySheet),
       act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
+    );
+  }
+
+  /** Acheter : la crypto et le réseau, puis la page Stripe dans un onglet (livraison sur ce compte). */
+  async function buySheet() {
+    const r = await send<{ options: { id: string; symbol: string; chain: string }[] }>({ type: 'buy:options' });
+    const err = h('p', { class: 'error', role: 'alert' });
+    const rows = (r.ok ? r.options : []).map((o) =>
+      h(
+        'button',
+        {
+          class: 'row link-row',
+          type: 'button',
+          'data-testid': `buy-${o.id}`,
+          on: {
+            click: async (e) => {
+              const b = e.currentTarget as HTMLButtonElement;
+              if (b.disabled) return;
+              b.disabled = true;
+              err.textContent = '';
+              const x = await send<{ url: string }>({ type: 'buy:stripe', option: o.id });
+              b.disabled = false;
+              if (!x.ok) return void (err.textContent = errorText(x.error));
+              await browser.tabs.create({ url: x.url });
+              sheet.close();
+              if (opts.mode === 'popup') window.close();
+            },
+          },
+        },
+        h('span', { class: 'logo letter' }, o.symbol.slice(0, 1)),
+        h('span', { class: 'grow' }, h('strong', {}, o.symbol), h('p', { class: 'small muted' }, o.chain)),
+        glyph('chevron', 16),
+      ),
+    );
+    const sheet = openSheet(
+      t('buyTitle'),
+      rows.length ? h('div', { class: 'list card' }, ...rows) : h('p', { class: 'muted' }, errorText('NO_ACCOUNT')),
+      err,
+      h('p', { class: 'small muted' }, t('buyNote')),
     );
   }
 
