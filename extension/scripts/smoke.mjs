@@ -10,6 +10,7 @@
  * CHROMIUM_PATH) : ce ne sont pas des dépendances de l'extension.
  */
 import { mkdtempSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -307,6 +308,67 @@ async function onboarding() {
     mailUrl.startsWith('mailto:support@kalyxwallet.com?subject=') && decoded.includes('0.9.0 beta') && !/0x[0-9a-fA-F]{40}/.test(decoded)
       ? console.log('✓ signaler un problème : e-mail au support, version, aucune adresse')
       : fail(`signaler : « ${mailUrl.slice(0, 120)} »`);
+
+    // ── Gérer le portefeuille (vague 1) : renommer, ajouter un compte, clé privée, sauvegarde, mot de passe ──
+    {
+      const VPW = 'Plage-Orange-47!';
+      await popup.locator('[data-testid=manage-wallet]').click();
+      await popup.locator('[data-testid=rename-wallet]').click();
+      await popup.locator('[data-testid=rename-input]').fill('  Principal\u202e  smoke ');
+      await popup.locator('[data-testid=rename-save]').click();
+      await popup.waitForFunction(() => document.querySelector('[data-testid=rename-wallet] strong')?.textContent === 'Principal smoke', null, { timeout: 5_000 }).then(() => console.log('✓ renommer : nom nettoyé (contrôles et espaces retirés)'), () => fail('renommer'));
+      const before = await popup.locator('[data-testid^=acct-]').count();
+      if (await popup.locator('[data-testid=add-account]').count()) {
+        await popup.locator('[data-testid=add-account]').click();
+        await popup.waitForFunction((n) => document.querySelectorAll('[data-testid^=acct-]').length === n + 1, before, { timeout: 10_000 }).then(() => console.log('✓ ajouter un compte'), () => fail('ajouter un compte'));
+      }
+      if (SHOTS) await popup.waitForTimeout(500), await popup.screenshot({ path: join(SHOTS, 'manage-wallet.png') });
+      await popup.locator('[data-testid=acct-0]').click();
+      if (await popup.locator('[data-testid=show-key]').count()) {
+        await popup.locator('[data-testid=show-key]').click();
+        await popup.locator('.modal input[type=password]').fill('faux-mot-de-passe');
+        await popup.locator('[data-testid=key-reveal]').click();
+        await popup.waitForFunction(() => document.querySelector('.modal .error')?.textContent, null, { timeout: 10_000 });
+        (await popup.locator('[data-testid=key-value]').count()) === 0 ? console.log('✓ clé privée : mauvais mot de passe refusé') : fail('clé sans mot de passe');
+        await popup.waitForTimeout(1_200);
+        await popup.locator('.modal input[type=password]').fill(VPW);
+        await popup.locator('[data-testid=key-reveal]').click();
+        const key = await popup.locator('[data-testid=key-value]').textContent({ timeout: 15_000 }).catch(() => '');
+        /^(0x[0-9a-f]{64}|[1-9A-HJ-NP-Za-km-z]{80,90})$/.test(key) ?(SHOTS && (await popup.screenshot({ path: join(SHOTS, 'private-key.png') })), console.log('✓ clé privée affichée après le mot de passe')) : fail(`clé privée : « ${key.slice(0, 8)}… »`);
+      }
+      await popup.keyboard.press('Escape');
+      await popup.waitForTimeout(300);
+      await popup.locator('.screen .bar .link').click();
+      await popup.locator('[data-testid=export-backup]').click();
+      const sheetPw = popup.locator('.modal input[type=password]');
+      await sheetPw.nth(0).fill(VPW);
+      await sheetPw.nth(1).fill(VPW);
+      await sheetPw.nth(2).fill(VPW);
+      await popup.locator('[data-testid=backup-export]').click();
+      await popup.waitForFunction(() => document.querySelector('.modal .error')?.textContent, null, { timeout: 15_000 }).then(() => console.log('✓ sauvegarde : mot de passe identique à celui de l’extension refusé'), () => fail('sauvegarde même mot de passe'));
+      const dl = popup.waitForEvent('download', { timeout: 30_000 }).catch(() => null);
+      await sheetPw.nth(0).fill(VPW);
+      await sheetPw.nth(1).fill('Sauvegarde-Solide-93!');
+      await sheetPw.nth(2).fill('Sauvegarde-Solide-93!');
+      await popup.locator('[data-testid=backup-export]').click();
+      const file = await dl;
+      file && /^kalyx-backup-\d{4}-\d{2}-\d{2}\.json$/.test(file.suggestedFilename()) ? console.log(`✓ sauvegarde chiffrée téléchargée (${file.suggestedFilename()})`) : fail('sauvegarde non téléchargée');
+      if (file) {
+        const text = await readFile(await file.path(), 'utf8');
+        JSON.parse(text).version === 3 && !/abandon|0x[0-9a-f]{64}/.test(text) ? console.log('✓ fichier chiffré (format v3), aucun secret en clair') : fail('contenu de la sauvegarde');
+      }
+      await popup.keyboard.press('Escape');
+      await popup.waitForTimeout(300);
+      await popup.locator('[data-testid=change-password]').click();
+      await sheetPw.nth(0).fill(VPW);
+      await sheetPw.nth(1).fill('Nouveau-Mot-De-Passe-58!');
+      await sheetPw.nth(2).fill('Nouveau-Mot-De-Passe-58!');
+      await popup.locator('[data-testid=pw-change]').click();
+      await popup.waitForFunction(() => !document.querySelector('[data-testid=pw-change]'), null, { timeout: 60_000 }).then(() => console.log('✓ mot de passe changé'), () => fail('changer le mot de passe'));
+      (await popup.evaluate((m) => chrome.runtime.sendMessage(m), { type: 'vault:change-password', oldPassword: 'Nouveau-Mot-De-Passe-58!', newPassword: VPW })).ok ? console.log('✓ ancien mot de passe remis') : fail('remettre le mot de passe');
+      await popup.keyboard.press('Escape');
+      await popup.waitForTimeout(300);
+    }
     await popup.locator('header .link').click();
     await popup.getByRole('button', { name: 'Réglages' }).click();
     await popup.locator('select[aria-label="Devise"]').selectOption('usd');

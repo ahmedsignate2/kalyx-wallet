@@ -288,3 +288,32 @@ describe('phrase à vérifier plus tard', () => {
     expect(good.ok && (good.phrase as string).split(' ')).toHaveLength(12);
   });
 });
+
+describe('gérer les portefeuilles (routes)', () => {
+  test('clé privée et sauvegarde : mot de passe redemandé, verrouillées par la liste blanche', async () => {
+    const { id } = await wallets.create();
+    expect(await handleInternal(session, wallets, { type: 'wallet:reveal-key', id, index: 0, family: 'evm', password: 'faux-mot-de-passe' })).toMatchObject({ ok: false, error: 'WRONG_PASSWORD' });
+    const ok = await handleInternal(session, wallets, { type: 'wallet:reveal-key', id, index: 0, family: 'evm', password: PW }, undefined, { whitelist });
+    expect(ok.ok && ok.key).toMatch(/^0x[0-9a-f]{64}$/);
+    await whitelist.enable();
+    expect(await handleInternal(session, wallets, { type: 'wallet:reveal-key', id, index: 0, family: 'evm', password: PW }, undefined, { whitelist })).toMatchObject({ ok: false, error: 'WHITELIST_LOCKED' });
+    expect(await handleInternal(session, wallets, { type: 'wallet:export-backup', password: PW, backupPassword: 'Sauvegarde-Solide-93!' }, undefined, { whitelist })).toMatchObject({ ok: false, error: 'WHITELIST_LOCKED' });
+  });
+
+  test('sauvegarde : mot de passe faible ou identique à celui du coffre refusé', async () => {
+    await wallets.create();
+    expect(await handleInternal(session, wallets, { type: 'wallet:export-backup', password: PW, backupPassword: '1234' })).toMatchObject({ ok: false, error: 'WEAK_BACKUP_PASSWORD' });
+    expect(await handleInternal(session, wallets, { type: 'wallet:export-backup', password: PW, backupPassword: PW })).toMatchObject({ ok: false, error: 'WEAK_BACKUP_PASSWORD' });
+    const r = await handleInternal(session, wallets, { type: 'wallet:export-backup', password: PW, backupPassword: 'Sauvegarde-Solide-93!' });
+    expect(r.ok && r.count).toBe((await wallets.list()).filter((w) => w.kind !== 'companion').length);
+  });
+
+  test('supprimer : mot de passe exigé ; ajouter un compte le sélectionne', async () => {
+    const { id } = await wallets.create();
+    expect(await handleInternal(session, wallets, { type: 'wallet:remove', id, password: 'faux-mot-de-passe' })).toMatchObject({ ok: false, error: 'WRONG_PASSWORD' });
+    expect(await handleInternal(session, wallets, { type: 'wallet:add-account', id }, undefined, { home })).toMatchObject({ ok: true, index: 1 });
+    expect((await home.current())?.index).toBe(1);
+    expect(await handleInternal(session, wallets, { type: 'wallet:remove', id, password: PW })).toMatchObject({ ok: true });
+    expect((await wallets.list()).some((w) => w.id === id)).toBe(false);
+  });
+});
