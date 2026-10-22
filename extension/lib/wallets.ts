@@ -212,6 +212,16 @@ export function makeWallets(disk: Store, session: Session) {
     });
   }
 
+  /** Délier un téléphone : son portefeuille (aucun secret ici) disparaît de l'extension. */
+  async function removeCompanion(id: string): Promise<boolean> {
+    return session.withVault(async () => {
+      const all = await list();
+      const w = all.find((x) => x.id === id && x.kind === 'companion');
+      if (!w) return { result: false };
+      return { result: true, commit: () => save(all.filter((x) => x.id !== id)) };
+    });
+  }
+
   /** Session coupée (depuis le téléphone, ou expirée) : le portefeuille reste, marqué « à relier ». */
   async function markCompanionLost(topic: string): Promise<void> {
     const all = await list();
@@ -255,7 +265,7 @@ export function makeWallets(disk: Store, session: Session) {
     });
   }
 
-  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase, addCompanion, markCompanionLost };
+  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase, addCompanion, markCompanionLost, removeCompanion };
 }
 
 export type Wallets = ReturnType<typeof makeWallets>;

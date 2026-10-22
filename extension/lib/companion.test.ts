@@ -226,6 +226,16 @@ describe('mode compagnon : lien avec le téléphone', () => {
     expect(await wallets.list()).toHaveLength(1);
   });
 
+  test('délier : le portefeuille du téléphone disparaît (et rien d’autre)', async () => {
+    const { meta } = await link(async () => null);
+    await wallets.importKey(`0x${'22'.repeat(32)}`, 'evm');
+    expect(await wallets.removeCompanion(meta.id)).toBe(true);
+    expect((await wallets.list()).map((w: WalletMeta) => w.kind)).toEqual(['privateKey']);
+    // Un portefeuille à clé locale ne se « délie » pas.
+    const other = (await wallets.list())[0];
+    expect(await wallets.removeCompanion(other.id)).toBe(false);
+  });
+
   test('relier à nouveau le même compte : le portefeuille est remplacé, pas doublé', async () => {
     const first = await link(async () => null);
     const again = await link(async () => null);

@@ -36,7 +36,7 @@ export default defineConfig({
     // Bêta non répertoriée (lot 8) : affichée dans Chrome et dans les réglages.
     version_name: `${PKG.version} beta`,
     minimum_chrome_version: '116',
-    permissions: ['storage', 'alarms', 'idle', 'sidePanel', 'scripting'],
+    permissions: ['storage', 'alarms', 'idle', 'sidePanel', 'scripting', 'notifications'],
     // Le script de page (monde MAIN) est enregistré par le service worker : il lui faut l'accès aux sites.
     host_permissions: ['http://*/*', 'https://*/*'],
     icons: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png', 128: 'icon/128.png' },

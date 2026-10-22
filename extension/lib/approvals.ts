@@ -45,6 +45,8 @@ export interface ApprovalDeps {
   open: (id: string) => Promise<number | undefined>;
   close: (windowId: number) => Promise<void>;
   now?: () => number;
+  /** Nombre de demandes en attente (badge de l'icône). */
+  onChange?: (pending: number) => void;
 }
 
 const MAX_PER_ORIGIN = 3;
@@ -78,8 +80,10 @@ export function makeApprovals(deps: ApprovalDeps) {
     if (refusals.size > 500) refusals.delete(refusals.keys().next().value!);
   }
 
+  const changed = () => deps.onChange?.(pending.size);
   function close(id: string, e: Entry) {
     pending.delete(id);
+    changed();
     if (e.windowId !== undefined) void deps.close(e.windowId).catch(() => {});
   }
 
@@ -101,10 +105,12 @@ export function makeApprovals(deps: ApprovalDeps) {
     const promise = new Promise<unknown>((res, rej) => ((resolve = res), (reject = rej)));
     const entry: Entry = { req: { id, origin, kind, family, createdAt: now(), payload }, promise, resolve, reject, run, busy: false };
     pending.set(id, entry);
+    changed();
     try {
       entry.windowId = await deps.open(id);
     } catch {
       pending.delete(id);
+      changed();
       throw new RpcError(-32603, 'Fenêtre de Kalyx impossible à ouvrir');
     }
     return promise as Promise<T>;

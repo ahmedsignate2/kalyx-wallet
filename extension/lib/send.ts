@@ -115,6 +115,8 @@ interface Held {
   index: number;
   risky: boolean;
   until: number;
+  /** « 0.1 ETH » : ce qui part, pour la notification d'issue. */
+  what: string;
 }
 
 export interface SendDeps {
@@ -129,6 +131,8 @@ export interface SendDeps {
   resolveEns?: (name: string) => Promise<string | null>;
   /** Mode compagnon : le téléphone signe et diffuse à la place du coffre. */
   companion?: Companion;
+  /** Transaction diffusée : suivie jusqu'à son issue (notification), même popup fermé. */
+  onSent?: (w: { txid: string; chainId: string; chainName: string; what: string; explorer?: string; opaque?: unknown; expiresAt?: number }) => void;
 }
 
 const familyOf = (c: ChainConfig): 'evm' | 'solana' => {
@@ -307,7 +311,7 @@ export function makeSend(deps: SendDeps) {
 
     const id = bytesToHex(crypto.getRandomValues(new Uint8Array(12)));
     const until = now() + DRAFT_TTL_MS;
-    drafts.set(id, { draft, adapter: a, walletId: cur.wallet.id, index: cur.index, risky: !!match, until });
+    drafts.set(id, { draft, adapter: a, walletId: cur.wallet.id, index: cur.index, risky: !!match, until, what: `${formatTokenAmount(draft.amount, asset.decimals)} ${asset.symbol}` });
     for (const [k, v] of drafts) if (v.until < now()) drafts.delete(k);
 
     return {
@@ -365,7 +369,9 @@ export function makeSend(deps: SendDeps) {
       }
       sent.set(txid, { chainId: chain.id, opaque, expiresAt: held.draft.expiresAt });
       deps.portfolio.markStale(cur.acct);
-      return { txid, explorer: chain.explorerUrl && /^[A-Za-z0-9]+$/.test(txid) ? `${chain.explorerUrl}/tx/${txid}` : undefined };
+      const explorer = chain.explorerUrl && /^[A-Za-z0-9]+$/.test(txid) ? `${chain.explorerUrl}/tx/${txid}` : undefined;
+      deps.onSent?.({ txid, chainId: chain.id, chainName: chain.name, what: held.what, explorer, opaque, expiresAt: held.draft.expiresAt });
+      return { txid, explorer };
     }
     // Clé vérifiée contre l'adresse du brouillon : jamais un autre compte que celui affiché.
     const signer = await signerFor(deps.session, deps.wallets, held.walletId, held.index, familyOf(chain), held.draft.from);
@@ -373,7 +379,18 @@ export function makeSend(deps: SendDeps) {
     const outcome = await held.adapter.broadcastSend(signed);
     sent.set(outcome.txid, { chainId: chain.id, opaque: outcome.opaque, expiresAt: outcome.expiresAt });
     deps.portfolio.markStale(cur.acct);
-    return { txid: outcome.txid, explorer: chain.explorerUrl && /^[A-Za-z0-9]+$/.test(outcome.txid) ? `${chain.explorerUrl}/tx/${outcome.txid}` : undefined };
+    const explorer = chain.explorerUrl && /^[A-Za-z0-9]+$/.test(outcome.txid) ? `${chain.explorerUrl}/tx/${outcome.txid}` : undefined;
+    deps.onSent?.({ txid: outcome.txid, chainId: chain.id, chainName: chain.name, what: held.what, explorer, opaque: outcome.opaque, expiresAt: outcome.expiresAt });
+    return { txid: outcome.txid, explorer };
+  }
+
+  /** Issue d'une transaction suivie (sans la mémoire de cette session : le service worker a pu dormir). */
+  async function check(w: { txid: string; chainId: string; opaque?: unknown; expiresAt?: number }): Promise<'pending' | 'confirmed' | 'failed'> {
+    const st = await adapter(getAdapter(w.chainId).config).waitForTx(w.txid, { opaque: w.opaque, expiresAt: w.expiresAt });
+    if (st.status === 'pending') return 'pending';
+    const cur = await deps.home.current();
+    if (cur) deps.portfolio.markStale(cur.acct);
+    return st.status === 'confirmed' ? 'confirmed' : 'failed';
   }
 
   /** Issue d'une transaction diffusée par cette session (attend jusqu'à ~2 min). */
@@ -390,7 +407,7 @@ export function makeSend(deps: SendDeps) {
     return st;
   }
 
-  return { assets, quote, prepare, confirm, status };
+  return { assets, quote, prepare, confirm, status, check };
 }
 
 export type Send = ReturnType<typeof makeSend>;

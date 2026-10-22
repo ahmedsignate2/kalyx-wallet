@@ -31,6 +31,7 @@ export function whitelistScreen(app: HTMLElement, back: () => void) {
         h('h1', {}, t('wlTitle')),
         h('p', { class: `small ${w.enforced ? 'up' : 'muted'}`, 'data-testid': 'wl-state' }, w.enforced ? t('wlOn') : t('wlOff')),
         h('p', { class: 'small muted' }, t('wlIntro')),
+        h('p', { class: 'small muted' }, t('wlScope')),
         !w.enabled && h('button', { class: 'btn', type: 'button', on: { click: () => void act({ type: 'whitelist:enable' }) } }, t('wlEnable')),
         w.enabled && !w.disableAt && h('button', { class: 'btn secondary', type: 'button', on: { click: () => void act({ type: 'whitelist:request-disable' }) } }, t('wlRequestDisable')),
         w.enabled && !!w.disableAt && h('div', { class: 'banner warn' }, h('span', {}, t('wlDisableAt', { h: hoursToDisable })), h('button', { type: 'button', on: { click: () => void act({ type: 'whitelist:enable' }) } }, t('wlCancelDisable'))),

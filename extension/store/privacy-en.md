@@ -39,7 +39,7 @@ send your transactions, the extension contacts directly, from your browser:
 | Public nodes of each network (RPC) | Your **public** addresses, your **signed** transactions | Read balances, estimate fees, broadcast a transaction |
 | Block explorers (e.g. Blockscout) | Your public addresses | Read your history |
 | DefiLlama / CoinGecko | Token identifiers (not your addresses) | Show value in your currency |
-| GoPlus Security | A contract or recipient address, a site's domain | Flag a dangerous contract or site before you sign |
+| GoPlus Security | A contract or recipient address, a site's domain; your **public** EVM address if you open “Token approvals” | Flag a dangerous contract or site before you sign; list the contracts allowed to spend your tokens |
 | Hosts of token logos (e.g. CoinGecko, wsrv.nl) | The image request, without your address | Show token logos |
 | Kalyx relay (Cloudflare), to Alchemy, Etherscan and Helius | Your **public** EVM address and the list of networks; a transaction to simulate before signing | List your ERC-20 tokens and NFTs, fill in prices, history, simulation — with no API key inside the extension. No logs are kept. |
 | Kalyx relay then Stripe, **only if you tap Buy** | Your **public** address on the chosen network, the crypto and network, your device’s IP (supported country or not) | Open Stripe’s secure payment page (crypto.link.com). Payment and identity checks happen at Stripe, not in Kalyx |
@@ -61,6 +61,7 @@ disconnect a site at any time (Settings → Connected sites).
 - `alarms`, `idle`: lock Kalyx after the chosen delay and as soon as the
   screen locks.
 - `sidePanel`: open Kalyx in the side panel.
+- `notifications`: tell you when a transaction you sent is confirmed or failed (one notification per transaction).
 - `scripting` and site access: let websites propose a connection or a
   signature, which you accept or refuse in Kalyx.
 
