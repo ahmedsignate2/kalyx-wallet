@@ -217,7 +217,7 @@ const pt: Dict = {
     p1a: 'Antes de cada assinatura, as taxas de rede são mostradas',
     p1em: 'na sua moeda',
     p1b: ', com os patamares possíveis. Se lhe faltar gas, o Kalyx diz-lhe quanto — também na sua moeda, não em gwei.',
-    p2: 'A compra por cartão passa pela MoonPay, um parceiro autorizado: um módulo separado que faz ele próprio a verificação de identidade e nunca vê as suas chaves. A Kalyx não acrescenta qualquer comissão e as cripto chegam diretamente ao seu endereço. Sem vendas em fiat na app.',
+    p2: 'A compra por cartão passa pela MoonPay ou pela Stripe, parceiros autorizados: a sua página separada faz ela própria a verificação de identidade e nunca vê as suas chaves. A Kalyx não acrescenta qualquer comissão e as cripto chegam diretamente ao seu endereço. Sem vendas em fiat na app.',
   },
   vision: {
     kicker: 'O que queremos',

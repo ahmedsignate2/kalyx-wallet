@@ -217,7 +217,7 @@ const de: Dict = {
     p1a: 'Vor jeder Signatur werden die Netzwerkgebühren',
     p1em: 'in deiner Währung',
     p1b: ' angezeigt, mit den möglichen Stufen. Fehlt dir Gas, sagt dir Kalyx wie viel — ebenfalls in deiner Währung, nicht in Gwei.',
-    p2: 'Kartenkäufe laufen über MoonPay, einen lizenzierten Partner: ein getrenntes Modul, das die Identitätsprüfung selbst übernimmt und Ihre Schlüssel nie sieht. Kalyx schlägt keine Provision auf, die Krypto landet direkt auf Ihrer Adresse. Kein Fiat-Verkauf in der App.',
+    p2: 'Kartenkäufe laufen über MoonPay oder Stripe, lizenzierte Partner: Ihre getrennte Seite übernimmt die Identitätsprüfung selbst und sieht Ihre Schlüssel nie. Kalyx schlägt keine Provision auf, die Krypto landet direkt auf Ihrer Adresse. Kein Fiat-Verkauf in der App.',
   },
   vision: {
     kicker: 'Was wir wollen',

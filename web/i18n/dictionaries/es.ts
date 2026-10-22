@@ -217,7 +217,7 @@ const es: Dict = {
     p1a: 'Antes de cada firma, las comisiones de red se muestran',
     p1em: 'en tu moneda',
     p1b: ', con los niveles posibles. Si te falta gas, Kalyx te dice cuánto, también en tu moneda, no en gwei.',
-    p2: 'La compra con tarjeta pasa por MoonPay, un socio autorizado: un módulo separado que hace él mismo la verificación de identidad y nunca ve tus claves. Kalyx no añade ninguna comisión y las cripto llegan directamente a tu dirección. Sin ventas en fiat dentro de la app.',
+    p2: 'La compra con tarjeta pasa por MoonPay o Stripe, socios autorizados: su página separada hace ella misma la verificación de identidad y nunca ve tus claves. Kalyx no añade ninguna comisión y las cripto llegan directamente a tu dirección. Sin ventas en fiat dentro de la app.',
   },
   vision: {
     kicker: 'Lo que queremos',

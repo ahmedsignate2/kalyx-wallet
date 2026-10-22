@@ -217,7 +217,7 @@ const en: Dict = {
     p1a: 'Before every signature, network fees are shown',
     p1em: 'in your currency',
     p1b: ', with the possible tiers. If you are short on gas, Kalyx tells you how much — in your currency too, not in gwei.',
-    p2: 'Card purchases go through MoonPay, a licensed partner: a separate module that handles identity checks itself and never sees your keys. Kalyx adds no commission, and the crypto lands straight on your address. No fiat selling in the app.',
+    p2: 'Card purchases go through MoonPay or Stripe, licensed partners: their separate page handles identity checks itself and never sees your keys. Kalyx adds no commission, and the crypto lands straight on your address. No fiat selling in the app.',
   },
   vision: {
     kicker: 'What we want',

@@ -220,7 +220,7 @@ const fr = {
     p1a: 'Avant chaque signature, les frais réseau sont affichés',
     p1em: 'en euros',
     p1b: ', avec les paliers possibles. S’il vous manque du gas, Kalyx vous dit combien — en euros aussi, pas en gwei.',
-    p2: 'Achat par carte avec MoonPay, un partenaire agréé : un module séparé qui fait lui-même la vérification d’identité et ne voit jamais vos clés. Kalyx n’ajoute aucune commission, les crypto arrivent directement sur votre adresse. Pas de vente en fiat dans l’app.',
+    p2: 'Achat par carte avec MoonPay ou Stripe, des partenaires agréés : leur page séparée fait elle-même la vérification d’identité et ne voit jamais vos clés. Kalyx n’ajoute aucune commission, les crypto arrivent directement sur votre adresse. Pas de vente en fiat dans l’app.',
   },
   vision: {
     kicker: 'Ce que nous voulons',
