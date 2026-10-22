@@ -23,10 +23,12 @@ import { whitelistScreen } from './whitelistScreen';
 import { sitesScreen } from './sitesScreen';
 import { allowancesScreen } from './allowancesScreen';
 import { changePasswordSheet, exportBackupSheet, manageWalletScreen } from './manageScreen';
+import { addTokenSheet, networksScreen } from './assetsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
+import type { NftsView, NftView } from '../lib/nfts';
 
 const VERSION = (() => {
   const m = browser.runtime.getManifest();
@@ -68,7 +70,9 @@ const names = (list: string[]) => (list.length <= 4 ? list.join(', ') : t('andMo
 
 export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   let data: HomeData | null = null;
-  let tab: 'tokens' | 'activity' = 'tokens';
+  let tab: 'tokens' | 'nfts' | 'activity' = 'tokens';
+  let nfts: (NftsView & { stale?: boolean }) | null = null;
+  let nftsLoading = false;
   let refreshing = false;
   let activity: (ActivityView & { stale?: boolean }) | null = null;
   let activityLoading = false;
@@ -110,6 +114,23 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     }
     if (r.portfolio?.stale !== false) void refresh();
     if (tab === 'activity') void loadActivity(true);
+    if (tab === 'nfts') void loadNfts(false);
+  }
+
+  async function loadNfts(fresh: boolean) {
+    if (nftsLoading) return;
+    if (!nfts) {
+      const c = await send<{ nfts: NftsView & { stale: boolean } }>({ type: 'nfts:get', fresh: false }).catch(() => null);
+      if (c?.ok) nfts = c.nfts;
+      redraw();
+      if (c?.ok && !c.nfts.stale && !fresh) return;
+    } else if (!fresh && !nfts.stale) return;
+    nftsLoading = true;
+    redraw();
+    const r = await send<{ nfts: NftsView }>({ type: 'nfts:get', fresh: true }).catch(() => null);
+    nftsLoading = false;
+    if (r?.ok) nfts = r.nfts;
+    redraw();
   }
 
   /** Redessine l'écran principal seulement s'il est affiché. */
@@ -208,6 +229,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
                     if (on) return;
                     await send({ type: 'home:select', walletId: wl.id, index: ac.index });
                     activity = null;
+                    nfts = null;
                     animateList = true;
                     shownTotal = null;
                     await load();
@@ -426,7 +448,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { class: `row link-row token${x.verified ? '' : ' unverified'}`, type: 'button', title: x.name || x.symbol, on: { click: () => tokenSheet(x) } },
       tokenLogo(x.logo, x.symbol, x.chainLogo),
       // Le token et sa quantité à gauche ; la valeur et sa variation sur 24 h à droite.
-      h('div', { class: 'grow' }, h('strong', {}, x.symbol), h('p', { class: 'small muted' }, `${x.amount} ${x.symbol}`)),
+      h('div', { class: 'grow' }, h('strong', {}, x.symbol, x.custom ? h('span', { class: 'tag' }, t('tkAdded')) : null), h('p', { class: 'small muted' }, `${x.amount} ${x.symbol}`)),
       h(
         'div',
         { class: 'right' },
@@ -439,6 +461,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   /** Détail d'un token : valeur, prix, variation, quantité, réseau ; et les gestes. */
   function tokenSheet(x: HoldingView) {
     const priced = x.verified && x.price > 0;
+    const muted = !!data?.portfolio?.muted?.some((m) => m.id === x.id);
+    const err = h('p', { class: 'error', role: 'alert' });
     const kv = (k: string, v: Node | string) => h('div', { class: 'kv-row' }, h('span', { class: 'muted' }, k), typeof v === 'string' ? h('strong', {}, v) : v);
     const sheet = openSheet(
       x.name || x.symbol,
@@ -456,14 +480,35 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         priced ? kv(t('tdPrice'), money(x.price)) : null,
         kv(t('tdNetwork'), h('span', { class: 'net' }, x.chainLogo ? h('img', { src: x.chainLogo, alt: '' }) : null, x.chainName)),
       ),
-      !x.verified && h('div', { class: 'banner warn' }, glyph('warning', 16), h('span', { class: 'grow' }, t('tdUnverified'))),
+      !x.verified && h('div', { class: 'banner warn' }, glyph('warning', 16), h('span', { class: 'grow' }, t(x.custom ? 'tkAddedWarn' : 'tdUnverified'))),
       h(
         'div',
         { class: 'actions' },
         h('button', { class: 'btn', type: 'button', on: { click: () => (sheet.close(), go(() => sendScreen(app, home))()) } }, glyph('send', 18), t('send')),
         h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))()) } }, glyph('receive', 18), t('receive')),
       ),
+      h(
+        'div',
+        { class: 'list card' },
+        // Masquer : seulement l'affichage (hors du total) ; le token reste envoyable.
+        h('button', { class: 'row link-row', type: 'button', 'data-testid': muted ? 'show-token' : 'hide-token', on: { click: () => void setHidden(!muted) } }, h('span', { class: 'set-ico' }, glyph(muted ? 'eye' : 'eyeOff', 18)), h('span', { class: 'grow' }, h('strong', {}, t(muted ? 'tkShow' : 'tkHide')), h('p', { class: 'small muted' }, t(muted ? 'tkShowNote' : 'tkHideNote')))),
+        x.custom && h('button', { class: 'row link-row', type: 'button', 'data-testid': 'remove-token', on: { click: () => void removeCustom() } }, h('span', { class: 'set-ico' }, glyph('close', 18)), h('span', { class: 'grow' }, h('strong', {}, t('tkRemove')))),
+      ),
+      err,
     );
+    async function setHidden(hidden: boolean) {
+      const r = await send({ type: 'assets:set-token', id: x.id, hidden });
+      if (!r.ok) return void (err.textContent = errorText(r.error));
+      sheet.close();
+      await load();
+    }
+    async function removeCustom() {
+      const contract = x.id.slice(x.id.indexOf(':') + 1);
+      const r = await send({ type: 'tokens:remove', chainId: x.chainId, contract });
+      if (!r.ok) return void (err.textContent = errorText(r.error));
+      sheet.close();
+      await load();
+    }
   }
 
   /** Lignes fantômes pendant le premier chargement : la place est réservée, rien ne saute. */
@@ -473,13 +518,95 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const p = data?.portfolio;
     if (!p || (!p.at && refreshing && !p.main.length)) return skeleton(4);
     const list: (Node | false | null)[] = [];
-    if (!p.main.length && !p.small.length && p.at && !p.failed.length) list.push(h('p', { class: 'empty' }, t('noTokens')));
+    const custom = p.custom ?? [];
+    const muted = p.muted ?? [];
+    if (!p.main.length && !p.small.length && !custom.length && p.at && !p.failed.length) list.push(h('p', { class: 'empty' }, t('noTokens')));
     // Une carte par groupe (Card de l'app) : les lignes portent leurs séparateurs.
     if (p.main.length) list.push(h('div', { class: 'list card' }, ...p.main.map(tokenRow)));
+    if (custom.length) list.push(h('p', { class: 'day' }, t('tkAddedGroup')), h('div', { class: 'list card', 'data-testid': 'custom-tokens' }, ...custom.map(tokenRow)));
     if (p.small.length) list.push(h('details', {}, h('summary', {}, t('smallBalances', { n: p.small.length })), h('div', { class: 'list card' }, ...p.small.map(tokenRow))));
     if (p.hidden.length) list.push(h('details', { class: 'hidden-tokens' }, h('summary', {}, t('hiddenTokens', { n: p.hidden.length })), h('div', { class: 'list card' }, ...p.hidden.map(tokenRow))));
+    if (muted.length) list.push(h('details', { class: 'hidden-tokens', 'data-testid': 'muted-tokens' }, h('summary', {}, t('tkMuted', { n: muted.length })), h('div', { class: 'list card' }, ...muted.map(tokenRow))));
     if (p.erc20Partial) list.push(h('p', { class: 'small muted note' }, t('erc20Partial')));
+    list.push(
+      h(
+        'div',
+        { class: 'actions inline-actions' },
+        h('button', { class: 'chip', type: 'button', 'data-testid': 'add-token', on: { click: () => void openAddToken() } }, glyph('add', 16), t('atTitle')),
+        h('button', { class: 'chip', type: 'button', 'data-testid': 'manage-networks', on: { click: go(() => networksScreen(app, home)) } }, glyph('dapps', 16), t('netTitle')),
+      ),
+    );
     return h('div', { class: 'stack', style: 'gap:12px' }, ...list);
+  }
+
+  /** Ajouter un token : les réseaux EVM affichés, puis relecture des soldes. */
+  async function openAddToken() {
+    const r = await send<{ networks: { id: string; name: string; family: string; hidden: boolean }[] }>({ type: 'assets:networks' });
+    if (!r.ok) return;
+    addTokenSheet(
+      r.networks.filter((n) => n.family === 'evm' && !n.hidden),
+      () => void refresh(),
+    );
+  }
+
+  /* ── NFT (lecture seule) ── */
+  function nftImage(n: NftView, cls: string) {
+    const fallback = () => h('span', { class: `${cls} nft-blank` }, (n.collection || n.name).slice(0, 1).toUpperCase());
+    if (!n.images.length) return fallback();
+    let i = 0;
+    const img = h('img', { class: cls, src: n.images[0], alt: '', loading: 'lazy', referrerPolicy: 'no-referrer' });
+    // Lien mort ou format illisible : l'image suivante, puis une case vide.
+    img.addEventListener('error', () => {
+      i += 1;
+      if (i < n.images.length) img.src = n.images[i];
+      else img.replaceWith(fallback());
+    });
+    return img;
+  }
+
+  function nftSheet(n: NftView) {
+    const kv = (k: string, v: Node | string) => h('div', { class: 'kv-row' }, h('span', { class: 'muted' }, k), typeof v === 'string' ? h('strong', { class: 'ellipsis' }, v) : v);
+    const id = n.tokenId.length > 18 ? `${n.tokenId.slice(0, 8)}…${n.tokenId.slice(-6)}` : n.tokenId;
+    openSheet(
+      n.name,
+      h('div', { class: 'nft-hero' }, nftImage(n, 'nft-big')),
+      h(
+        'div',
+        { class: 'card kv-card' },
+        n.collection ? kv(t('nftCollection'), n.collection) : null,
+        kv(t('tdNetwork'), h('span', { class: 'net' }, n.chainLogo ? h('img', { src: n.chainLogo, alt: '' }) : null, n.chainName)),
+        kv(t('nftId'), id),
+        n.floor ? kv(t('nftFloor'), `${n.floor.price.toLocaleString(LOCALE, { maximumFractionDigits: 4 })} ${n.floor.currency} · ${n.floor.source}`) : null,
+      ),
+      h('p', { class: 'small muted' }, t('nftReadOnly')),
+      n.explorer ? h('a', { class: 'btn secondary', href: n.explorer, target: '_blank', rel: 'noopener noreferrer' }, glyph('arrowUpRight', 18), t('viewExplorer')) : null,
+    );
+  }
+
+  function nftList() {
+    if (!nfts) return h('div', { 'data-testid': 'nfts' }, nftsLoading ? h('span', { class: 'sr' }, t('refreshing')) : null, skeleton(2));
+    return h(
+      'div',
+      { class: 'stack', style: 'gap:12px', 'data-testid': 'nfts' },
+      !!nfts.failed.length && h('div', { class: 'banner warn' }, glyph('alert', 16), h('span', { class: 'grow' }, t('nftDown', { list: names(nfts.failed) }))),
+      nftsLoading && h('p', { class: 'small muted' }, t('refreshing')),
+      !nfts.items.length && !nftsLoading && !nfts.failed.length && h('p', { class: 'empty' }, t('nftEmpty')),
+      nfts.items.length > 0 &&
+        h(
+          'div',
+          { class: 'nft-grid' },
+          ...nfts.items.map((n) =>
+            h(
+              'button',
+              { class: 'nft-card card', type: 'button', title: n.name, on: { click: () => nftSheet(n) } },
+              h('span', { class: 'nft-frame' }, nftImage(n, 'nft-img'), n.chainLogo ? h('img', { class: 'badge', src: n.chainLogo, alt: '' }) : null),
+              h('strong', { class: 'ellipsis' }, n.name),
+              h('span', { class: 'small muted ellipsis' }, n.collection || n.chainName),
+            ),
+          ),
+        ),
+      h('p', { class: 'small muted note' }, t('nftNote')),
+    );
   }
 
   function activityRow(r: ActivityRow) {
@@ -514,7 +641,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   /** Onglets : la pilule glisse de l'ancien onglet vers le nouveau. */
-  let shownTab: 'tokens' | 'activity' = tab;
+  let shownTab: 'tokens' | 'nfts' | 'activity' = tab;
   function tabs() {
     const b = (id: typeof tab, label: string) =>
       h(
@@ -531,13 +658,14 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
               animateList = true;
               render();
               if (id === 'activity') void loadActivity(false);
+              if (id === 'nfts') void loadNfts(false);
             },
           },
         },
         label,
       );
-    const idx = (x: typeof tab) => (x === 'tokens' ? 0 : 1);
-    const el = h('div', { class: 'tabs', role: 'tablist', style: `--n:2;--i:${idx(shownTab)}` }, b('tokens', t('tabTokens')), b('activity', t('tabActivity')));
+    const idx = (x: typeof tab) => (x === 'tokens' ? 0 : x === 'nfts' ? 1 : 2);
+    const el = h('div', { class: 'tabs', role: 'tablist', style: `--n:3;--i:${idx(shownTab)}` }, b('tokens', t('tabTokens')), b('nfts', t('tabNfts')), b('activity', t('tabActivity')));
     if (shownTab !== tab) requestAnimationFrame(() => el.style.setProperty('--i', String(idx(tab))));
     shownTab = tab;
     return el;
@@ -549,14 +677,14 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const back = away && entered;
     away = false;
     const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), header(), summary(), actions());
-    const pane = h('div', { class: 'pane' }, tab === 'tokens' ? tokens() : activityList());
+    const pane = h('div', { class: 'pane' }, tab === 'tokens' ? tokens() : tab === 'nfts' ? nftList() : activityList());
     const sheet = h('section', { class: 'sheet' }, banners(), tabs(), pane);
     const root = h('div', { class: `home${opts.mode === 'popup' ? ' compact' : ''}${entered ? '' : ' enter'}` }, hero, sheet);
     entered = true;
     app.replaceChildren(root);
     if (back) navIn(app, 'back');
     // Cascade : seulement quand de vraies lignes arrivent (pas les squelettes, pas une actualisation).
-    const rows = pane.querySelectorAll('.list:not([aria-hidden]) > .row, .day');
+    const rows = pane.querySelectorAll('.list:not([aria-hidden]) > .row, .day, .nft-card');
     if (animateList && rows.length) {
       cascade(rows);
       animateList = false;
@@ -607,7 +735,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
         group(
           t('setSecurity'),
           askPw,
@@ -646,6 +774,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       openPhrase: () => void openPhrase(),
       removed: () => {
         activity = null;
+        nfts = null;
         shownTotal = null;
         void load();
       },
@@ -673,6 +802,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       if (!r.ok) return void ((go.disabled = false), (err.textContent = errorText(r.error)));
       sheet.close();
       activity = null;
+      nfts = null;
       shownTotal = null;
       await load();
       render();

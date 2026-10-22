@@ -24,6 +24,7 @@ import { humanizeTx, type ActivityTranslate, type HumanTx } from '../../src/doma
 import { knownCounterparties, paidCounterparties, spamReason } from '../../src/domain/tx/spam';
 import type { ChainConfig, TxSummary } from '../../src/domain/chains/types';
 import type { Store } from './storage';
+import type { Assets, CustomToken, ViewPrefs } from './assets';
 
 export interface Acct {
   evm?: string;
@@ -48,6 +49,8 @@ export interface HoldingView {
   change24h: number | null;
   logo?: string;
   verified: boolean;
+  /** Ajouté par l'utilisateur (contrat lu sur le réseau) : non vérifié par Kalyx, sans prix. */
+  custom?: boolean;
 }
 
 export interface PortfolioView {
@@ -61,6 +64,10 @@ export interface PortfolioView {
   main: HoldingView[];
   small: HoldingView[];
   hidden: HoldingView[];
+  /** Tokens ajoutés par l'utilisateur (hors listes de Kalyx). */
+  custom: HoldingView[];
+  /** Tokens masqués par l'utilisateur : hors du total, réaffichables. */
+  muted: HoldingView[];
   /** Réseaux qui n'ont pas répondu à la dernière lecture (noms lisibles). */
   failed: string[];
   /** Les listes de tokens ERC-20 ne sont pas encore servies (pas de clé d'indexeur dans l'extension). */
@@ -101,6 +108,8 @@ export interface PortfolioDeps {
   /** Injectables pour les tests (sinon : le calcul de l'app, sur le réseau). */
   load?: typeof loadHoldings;
   history?: (chainId: string, address: string) => Promise<TxSummary[]>;
+  /** Préférences d'affichage et tokens ajoutés (absents : tout est affiché). */
+  assets?: Pick<Assets, 'prefs' | 'customs' | 'balances'>;
 }
 
 const chainOf = (id: string): ChainConfig | undefined => {
@@ -133,7 +142,7 @@ const key = (kind: string, a: Acct, fiat = '') => `${kind}.${(a.evm ?? '').toLow
 const replacer = (_: string, v: unknown) => (typeof v === 'bigint' ? { __b: v.toString() } : v);
 const reviver = (_: string, v: unknown) => (v && typeof v === 'object' && '__b' in v && typeof (v as { __b: unknown }).__b === 'string' ? BigInt((v as { __b: string }).__b) : v);
 
-function view(h: Holding): HoldingView {
+function view(h: Holding, custom = false): HoldingView {
   return {
     id: h.id,
     chainId: h.chainId,
@@ -147,6 +156,30 @@ function view(h: Holding): HoldingView {
     change24h: h.change24h,
     logo: safeLogo(h.logo),
     verified: h.verified,
+    ...(custom ? { custom: true } : {}),
+  };
+}
+
+/** Identifiant d'affichage d'un actif (les préférences sont en minuscules). */
+const idKey = (id: string) => id.toLowerCase();
+
+/** Un token ajouté, lu sur son contrat : un actif sans prix, non vérifié. */
+function customHolding(c: CustomToken & { raw: bigint }): Holding {
+  const amount = Number(c.raw) / 10 ** c.decimals;
+  return {
+    id: `${c.chainId}:${c.contract}`,
+    chainId: c.chainId,
+    kind: 'erc20',
+    contract: c.contract,
+    symbol: c.symbol,
+    name: c.name,
+    decimals: c.decimals,
+    raw: c.raw,
+    amount: Number.isFinite(amount) ? amount : 0,
+    price: 0,
+    fiat: 0,
+    change24h: null,
+    verified: false,
   };
 }
 
@@ -154,6 +187,8 @@ interface StoredSnapshot {
   json: string;
   failed: string[];
 }
+
+const NO_PREFS: ViewPrefs = { hiddenChains: [], hiddenTokens: [] };
 
 export function makePortfolio(deps: PortfolioDeps) {
   const now = deps.now ?? Date.now;
@@ -178,28 +213,66 @@ export function makePortfolio(deps: PortfolioDeps) {
     return { snap: s ? deserialize(s.json) : null, failed: s?.failed ?? [] };
   }
 
-  function toView(snap: Snapshot | null, failed: string[], fiat: string): PortfolioView {
-    const holdings = snap?.holdings ?? [];
-    const { main, small, hidden } = splitHoldings(holdings);
-    const unknown = !snap || (holdings.length === 0 && failed.length > 0);
+  /** Tokens ajoutés et leurs derniers soldes lus (disque), pour ce compte. */
+  async function readCustom(a: Acct): Promise<{ list: CustomToken[]; held: Holding[] }> {
+    if (!deps.assets) return { list: [], held: [] };
+    const list = await deps.assets.customs();
+    const s = await deps.disk.get<{ json: string }>(key('custom', a));
+    let held: Holding[] = [];
+    try {
+      held = s ? (JSON.parse(s.json, reviver) as Holding[]) : [];
+    } catch {
+      held = [];
+    }
+    // Un token retiré depuis disparaît tout de suite.
+    const ids = new Set(list.map((c) => idKey(`${c.chainId}:${c.contract}`)));
+    return { list, held: held.filter((h) => ids.has(idKey(h.id))) };
+  }
+
+  /**
+   * L'écran : réseaux masqués retirés, tokens masqués à part (hors du total),
+   * tokens ajoutés dans leur propre groupe. Sans préférence, le total est
+   * exactement celui du cliché.
+   */
+  function toView(snap: Snapshot | null, failed: string[], fiat: string, prefs: ViewPrefs = NO_PREFS, custom: { list: CustomToken[]; held: Holding[] } = { list: [], held: [] }): PortfolioView {
+    const hiddenChains = new Set(prefs.hiddenChains);
+    const hiddenTokens = new Set(prefs.hiddenTokens.map(idKey));
+    const customIds = new Set(custom.list.map((c) => idKey(`${c.chainId}:${c.contract}`)));
+    const shown = (snap?.holdings ?? []).filter((h) => !hiddenChains.has(h.chainId));
+    const seen = new Set(shown.map((h) => idKey(h.id)));
+    // Un token ajouté que l'indexeur a déjà (non vérifié) n'apparaît qu'une fois, dans les ajoutés.
+    const extra = custom.held.filter((h) => !hiddenChains.has(h.chainId) && !seen.has(idKey(h.id)));
+    const isCustom = (h: Holding) => !h.verified && customIds.has(idKey(h.id));
+    const muted = [...shown, ...extra].filter((h) => hiddenTokens.has(idKey(h.id)));
+    const rest = shown.filter((h) => !hiddenTokens.has(idKey(h.id)) && !isCustom(h));
+    const customs = [...shown.filter(isCustom), ...extra].filter((h) => !hiddenTokens.has(idKey(h.id)));
+    const { main, small, hidden } = splitHoldings(rest);
+    const sum = summarize(rest);
+    const visibleFailed = failed.filter((id) => !hiddenChains.has(id));
+    const unknown = !snap || (rest.length === 0 && customs.length === 0 && visibleFailed.length > 0);
     return {
       at: snap?.at ?? 0,
       fiat,
-      total: snap && !unknown ? snap.total : null,
-      pnl24h: snap?.pnl24h ?? null,
-      pnl24hPct: snap?.pnl24hPct ?? null,
-      main: main.map(view),
-      small: small.map(view),
-      hidden: hidden.map(view),
-      failed: byPriority(failed).map(chainName),
+      total: snap && !unknown ? sum.total : null,
+      pnl24h: snap ? sum.pnl24h : null,
+      pnl24hPct: snap ? sum.pnl24hPct : null,
+      main: main.map((h) => view(h)),
+      small: small.map((h) => view(h)),
+      hidden: hidden.map((h) => view(h)),
+      custom: customs.map((h) => view(h, true)),
+      muted: muted.map((h) => view(h, isCustom(h) || extra.includes(h))),
+      failed: byPriority(visibleFailed).map(chainName),
       erc20Partial: !hasIndexer || relayPaused('alchemy'),
     };
   }
 
+  const prefsOf = async () => (deps.assets ? await deps.assets.prefs() : NO_PREFS);
+
   /** Dernier cliché (disque), sans réseau : c'est ce que le popup montre d'abord. */
   async function cached(a: Acct, fiat: string): Promise<PortfolioView & { stale: boolean }> {
     const { snap, failed } = await readSnapshot(a, fiat);
-    return { ...toView(snap, failed, fiat), stale: !snap || now() - snap.at > STALE_MS || dirty.has(key('portfolio', a)) };
+    const [prefs, custom] = await Promise.all([prefsOf(), readCustom(a)]);
+    return { ...toView(snap, failed, fiat, prefs, custom), stale: !snap || now() - snap.at > STALE_MS || dirty.has(key('portfolio', a)) };
   }
 
   /** Relit le réseau (une seule lecture à la fois par compte et devise). */
@@ -207,15 +280,24 @@ export function makePortfolio(deps: PortfolioDeps) {
     return once(key('portfolio', a, fiat), async () => {
       const { snap: before } = await readSnapshot(a, fiat);
       const failed = new Set<string>();
-      const fresh = await load({ evmAddress: a.evm ?? '', solAddress: a.solana }, fiat, false, failed);
+      const before2 = await readCustom(a);
+      const [fresh, customRead] = await Promise.all([
+        load({ evmAddress: a.evm ?? '', solAddress: a.solana }, fiat, false, failed),
+        deps.assets ? deps.assets.balances(a.evm, before2.list) : Promise.resolve({ items: [], failed: [] as string[] }),
+      ]);
+      // Tokens ajoutés : un réseau muet garde ses derniers soldes lus.
+      const readNow = customRead.items.map(customHolding);
+      const readIds = new Set(readNow.map((h) => idKey(h.id)));
+      const customHeld = [...readNow, ...before2.held.filter((h) => customRead.failed.includes(h.chainId) && !readIds.has(idKey(h.id)))];
+      await deps.disk.set(key('custom', a), { json: JSON.stringify(customHeld, replacer) });
       // Seuls les réseaux servis par l'extension comptent (un compte sans adresse TON n'en lit aucun).
       const ours = fresh.filter((h) => FAMILIES.has(chainOf(h.chainId)?.family ?? ''));
       const holdings = carryOver(before?.holdings ?? [], ours, failed);
       const snap: Snapshot = { holdings, ...summarize(holdings), at: now() };
-      const failedChains = [...new Set([...failed].map((f) => f.split(':')[0]))].filter((id) => FAMILIES.has(chainOf(id)?.family ?? ''));
+      const failedChains = [...new Set([...[...failed].map((f) => f.split(':')[0]), ...customRead.failed])].filter((id) => FAMILIES.has(chainOf(id)?.family ?? ''));
       await deps.disk.set(key('portfolio', a, fiat), { json: serialize(snap), failed: failedChains } satisfies StoredSnapshot);
       dirty.delete(key('portfolio', a));
-      return toView(snap, failedChains, fiat);
+      return toView(snap, failedChains, fiat, await prefsOf(), { list: before2.list, held: customHeld });
     });
   }
 
@@ -264,7 +346,10 @@ export function makePortfolio(deps: PortfolioDeps) {
     };
     let hiddenCount = 0;
     const rows: ActivityRow[] = [];
+    // Réseaux masqués : leur activité aussi.
+    const hiddenChains = new Set((await prefsOf()).hiddenChains);
     for (const tx of txs) {
+      if (hiddenChains.has(tx.chain)) continue;
       const hu = humanizeTx(tx, ctx);
       if (hu.spam || hu.spamReason) {
         hiddenCount += 1;
@@ -288,7 +373,7 @@ export function makePortfolio(deps: PortfolioDeps) {
         explorer: c?.explorerUrl && /^[A-Za-z0-9]+$/.test(tx.hash) ? `${c.explorerUrl}/tx/${tx.hash}` : undefined,
       });
     }
-    return { at, rows, hiddenCount, failed: byPriority(failed).map(chainName) };
+    return { at, rows, hiddenCount, failed: byPriority(failed.filter((id) => !hiddenChains.has(id))).map(chainName) };
   }
 
   async function cachedActivity(a: Acct, fiat: string): Promise<ActivityView & { stale: boolean }> {

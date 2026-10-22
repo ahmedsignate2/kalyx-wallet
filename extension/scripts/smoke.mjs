@@ -282,6 +282,57 @@ async function onboarding() {
     console.log(`✓ onglet Activité : ${(await popup.locator('[data-testid=activity] .row').count())} ligne(s)${act.includes('Sans réponse') ? ' · réseaux muets nommés' : ''}`);
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `popup-activity-${scheme}.png`) });
 
+    // ── Vague 2 : NFT (lecture seule), réseaux affichés, token ajouté par contrat, token masqué ──
+    await popup.getByRole('tab', { name: 'NFT' }).click();
+    await popup.waitForFunction(() => { const el = document.querySelector('[data-testid=nfts]'); return el && !el.querySelector('.list[aria-hidden]') && !el.textContent.includes('Actualisation'); }, null, { timeout: 120_000 });
+    const nftText = await popup.locator('[data-testid=nfts]').textContent();
+    console.log(`✓ onglet NFT : ${await popup.locator('[data-testid=nfts] .nft-card').count()} NFT${nftText.includes('Sans réponse') ? ' · réseaux muets nommés' : nftText.includes('Aucun NFT') ? ' · « Aucun NFT » dit' : ''}`);
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `popup-nfts-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+    await popup.getByRole('tab', { name: 'Tokens' }).click();
+    await popup.locator('[data-testid=manage-networks]').click();
+    await popup.locator('[data-testid=net-polygon]').waitFor();
+    if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `networks-${scheme}.png`) });
+    await popup.emulateMedia({ colorScheme: 'light' });
+    await popup.locator('[data-testid=net-polygon]').click();
+    await popup.waitForFunction(() => document.querySelector('[data-testid=net-polygon]')?.getAttribute('aria-checked') === 'false');
+    (await popup.evaluate((m) => chrome.runtime.sendMessage(m), { type: 'assets:networks' })).networks.find((n) => n.id === 'polygon')?.hidden ? console.log('✓ réseau masqué (Polygon)') : fail('masquer un réseau');
+    await popup.locator('[data-testid=net-polygon]').click();
+    await popup.waitForFunction(() => document.querySelector('[data-testid=net-polygon]')?.getAttribute('aria-checked') === 'true');
+    console.log('✓ réseau réaffiché');
+    await popup.locator('header .link').click();
+    await popup.locator('[data-testid=add-token]').waitFor();
+    // Un vrai contrat (UNI, Ethereum), lu sur le réseau : rien de fictif.
+    const UNI = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984';
+    await popup.locator('[data-testid=add-token]').click();
+    await popup.locator('[data-testid=token-chain]').selectOption('ethereum');
+    await popup.locator('[data-testid=token-contract]').fill('0x1234');
+    await popup.locator('[data-testid=token-check]').click();
+    await popup.waitForFunction(() => document.querySelector('.modal .error')?.textContent?.includes('invalide'), null, { timeout: 10_000 }).then(() => console.log('✓ contrat invalide refusé'), () => fail('contrat invalide accepté'));
+    await popup.locator('[data-testid=token-contract]').fill(UNI);
+    await popup.locator('[data-testid=token-check]').click();
+    const found = await popup.locator('[data-testid=token-found]').waitFor({ timeout: 60_000 }).then(() => true, () => false);
+    if (!found) console.log(`⚠ ajout de token non vérifié (réseau : « ${await popup.locator('.modal .error').textContent()} »)`);
+    else {
+      (await popup.locator('[data-testid=token-found]').textContent()).includes('UNI') ? console.log('✓ token lu sur son contrat (UNI)') : fail('symbole du contrat');
+      if (SHOTS) await popup.screenshot({ path: join(SHOTS, 'add-token.png') });
+      await popup.locator('[data-testid=token-check]').click();
+      await popup.waitForFunction(() => document.querySelector('[data-testid=custom-tokens]')?.textContent?.includes('UNI'), null, { timeout: 120_000 }).then(() => console.log('✓ token ajouté, dans « Ajoutés par toi »'), () => fail('token ajouté absent'));
+      if (SHOTS) await popup.screenshot({ path: join(SHOTS, 'custom-token.png') });
+      await popup.locator('[data-testid=custom-tokens] .row').first().click();
+      await popup.locator('[data-testid=hide-token]').click();
+      await popup.waitForFunction(() => document.querySelector('[data-testid=muted-tokens]')?.textContent?.includes('UNI') && !document.querySelector('[data-testid=custom-tokens]'), null, { timeout: 30_000 }).then(() => console.log('✓ token masqué (à part, hors du total)'), () => fail('masquer un token'));
+      await popup.locator('[data-testid=muted-tokens] summary').click();
+      await popup.locator('[data-testid=muted-tokens] .row').first().click();
+      await popup.locator('[data-testid=show-token]').click();
+      await popup.locator('[data-testid=custom-tokens]').waitFor({ timeout: 30_000 });
+      await popup.locator('[data-testid=custom-tokens] .row').first().click();
+      await popup.locator('[data-testid=remove-token]').click();
+      await popup.waitForFunction(() => !document.querySelector('[data-testid=custom-tokens]'), null, { timeout: 30_000 }).then(() => console.log('✓ token réaffiché puis retiré'), () => fail('retirer le token'));
+    }
+    await popup.keyboard.press('Escape');
+    await popup.waitForTimeout(300);
+
     // Changer de compte : l'écran suit.
     const first = await popup.locator('[data-testid=account]').textContent();
     await popup.locator('[data-testid=account]').click();

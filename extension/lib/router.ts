@@ -22,6 +22,8 @@ import type { Store } from './storage';
 import type { Sites } from './sites';
 import type { Approvals } from './approvals';
 import type { Dapp } from './dapp';
+import type { Assets } from './assets';
+import type { Nfts } from './nfts';
 import { listChains } from '../../src/domain/chains/registry';
 import { WalletError as CoreError } from '../../src/domain/errors';
 
@@ -43,6 +45,9 @@ export interface Services {
   siteIcon?: (origin: string) => Promise<string | undefined>;
   allowances?: Allowances;
   txWatch?: TxWatch;
+  /** Réseaux et tokens affichés, tokens ajoutés. */
+  assets?: Assets;
+  nfts?: Nfts;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -58,7 +63,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -131,6 +136,44 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'activity:get':
         if (!home) break;
         return { ok: true, activity: await home.activity(m.fresh === true) };
+      /* ── Réseaux et tokens affichés ── */
+      case 'assets:networks':
+        if (!assets) break;
+        await unlocked();
+        return { ok: true, networks: await assets.networks() };
+      case 'assets:set-network':
+        if (!assets) break;
+        await unlocked();
+        await assets.setChainHidden(m.id, m.hidden);
+        return { ok: true };
+      case 'assets:set-token':
+        if (!assets) break;
+        await unlocked();
+        await assets.setTokenHidden(m.id, m.hidden);
+        return { ok: true };
+      case 'tokens:check': {
+        if (!assets || !home) break;
+        await unlocked();
+        const cur = await home.current();
+        return { ok: true, token: await assets.check(m.chainId, m.contract, cur?.acct.evm) };
+      }
+      case 'tokens:add': {
+        if (!assets) break;
+        await unlocked();
+        return { ok: true, token: await assets.add(m.chainId, m.contract) };
+      }
+      case 'tokens:remove':
+        if (!assets) break;
+        await unlocked();
+        await assets.remove(m.chainId, m.contract);
+        return { ok: true };
+      case 'nfts:get': {
+        if (!nfts || !home) break;
+        await unlocked();
+        const cur = await home.current();
+        if (!cur) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
+        return { ok: true, nfts: m.fresh === true ? await nfts.refresh(cur.acct) : await nfts.cached(cur.acct) };
+      }
       case 'wallet:reveal-phrase':
         // Mot de passe REDEMANDÉ, même déverrouillé : afficher la phrase donne tout.
         if (!str(m.id, 64) || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
