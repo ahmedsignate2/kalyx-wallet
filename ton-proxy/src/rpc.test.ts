@@ -85,6 +85,13 @@ test('extensions : identifiant listé ou « * » (bêta)', () => {
   assert.equal(extensionAllowed(`chrome-extension://${id}`, id), true);
   assert.equal(extensionAllowed(`chrome-extension://${id}`, ''), false);
   assert.equal(extensionAllowed('https://evil.example', '*'), false);
+  // Navigateurs Chromium qui nomment autrement le schéma (Mises), et Safari (Orion iOS).
+  assert.equal(extensionAllowed(`mises-extension://${id}`, '*'), true);
+  assert.equal(extensionAllowed(`mises-extension://${id}`, id), true);
+  assert.equal(extensionAllowed('safari-web-extension://0A1B2C3D-4E5F-6789-ABCD-EF0123456789', '*'), true);
+  assert.equal(extensionAllowed(`https-extension.evil://${id}`, '*'), false);
+  assert.equal(extensionAllowed(`mises-extension://${id}/x`, '*'), false);
+  assert.equal(extensionAllowed(`moz-extension://${id}`, ''), false);
 });
 
 test('contrôle du réseau : eth_chainId doit correspondre', async () => {
