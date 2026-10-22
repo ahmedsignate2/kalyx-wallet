@@ -18,6 +18,7 @@ import { cascade, countUp, navIn, pulse } from './motion';
 import { landscape } from './landscape';
 import { openOnboarding } from './screens';
 import { sendScreen } from './send';
+import { swapScreen } from './swapScreen';
 import { receiveScreen } from './receive';
 import { whitelistScreen } from './whitelistScreen';
 import { sitesScreen } from './sitesScreen';
@@ -326,6 +327,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { class: 'acts' },
       act('send primary', 'send', t('send'), go(() => sendScreen(app, home))),
       act('rx', 'receive', t('receive'), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))),
+      act('swap', 'exchange', t('swShort'), go(() => swapScreen(app, home, { onPhone: current().w?.kind === 'companion' }))),
       act('buy', 'buy', t('buy'), buySheet),
       act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
     );

@@ -289,6 +289,21 @@ async function onboarding() {
     console.log(`✓ onglet NFT : ${await popup.locator('[data-testid=nfts] .nft-card').count()} NFT${nftText.includes('Sans réponse') ? ' · réseaux muets nommés' : nftText.includes('Aucun NFT') ? ' · « Aucun NFT » dit' : ''}`);
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `popup-nfts-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
+    // ── Vague 4 : Échanger (sans réseau ici : aucun actif détenu, c'est dit) ──
+    {
+      const acts = await popup.evaluate(() => { const r = document.querySelector('.acts')?.getBoundingClientRect(); return r ? { w: r.width, right: r.right, vw: innerWidth } : null; });
+      acts && acts.right <= acts.vw ? console.log(`✓ accueil : 5 gestes dans le popup (${Math.round(acts.w)} px)`) : fail(`gestes hors du popup : ${JSON.stringify(acts)}`);
+      await popup.getByRole('button', { name: 'Swap', exact: true }).click();
+      await popup.waitForFunction(() => document.querySelector('[data-testid=sw-empty]') || document.querySelectorAll('[data-testid=sw-from] option').length > 0, null, { timeout: 30_000 });
+      const swErr = (await popup.locator('[data-testid=sw-empty]').textContent().catch(() => '')) ?? '';
+      const nSrc = await popup.locator('[data-testid=sw-from] option').count();
+      nSrc > 0 || swErr.includes('Aucun actif') ? console.log(`✓ Échanger : ${nSrc ? `${nSrc} actif(s) de départ` : '« Aucun actif à échanger » dit, rien d’inventé'}`) : fail(`Échanger : « ${swErr} »`);
+      if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `swap-${scheme}.png`) });
+      await popup.emulateMedia({ colorScheme: 'light' });
+      // Devis inventé par la page : refusé par le service worker (aucun devis gardé sous cet identifiant).
+      (await popup.evaluate((m) => chrome.runtime.sendMessage(m), { type: 'swap:confirm', id: 'deadbeef' })).error === 'SWAP_QUOTE_GONE' ? console.log('✓ Échanger : un devis inconnu ne se signe pas') : fail('devis inconnu accepté');
+      await popup.locator('header .link').click();
+    }
     await popup.getByRole('tab', { name: 'Tokens' }).click();
     await popup.locator('[data-testid=manage-networks]').click();
     await popup.locator('[data-testid=net-polygon]').waitFor();

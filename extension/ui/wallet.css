@@ -333,3 +333,8 @@ details > summary::-webkit-details-marker { display: none; }
 .kv-row .addr { margin: 0; text-align: end; }
 .changed-note { display: flex; align-items: center; gap: 4px; margin-top: 2px; color: var(--warning); font-size: 12px; font-weight: 600; }
 .changed-note .glyph { flex: none; }
+
+/* Échanger : cinq gestes tiennent dans le popup (360 px). */
+.act.swap .disc { color: var(--ink-swap); }
+.acts:has(> :nth-child(5)) { gap: 10px; }
+.acts:has(> :nth-child(5)) .act { min-width: 58px; }
