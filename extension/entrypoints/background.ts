@@ -10,6 +10,7 @@ import { makeChainTime } from '../lib/chainTime';
 import { makeWhitelist } from '../lib/whitelist';
 import { makeSend } from '../lib/send';
 import { makeCompanion } from '../lib/companion';
+import { makeBuy } from '../lib/buy';
 import { makeSites } from '../lib/sites';
 import { makeApprovals } from '../lib/approvals';
 import { makeDapp } from '../lib/dapp';
@@ -38,6 +39,7 @@ export default defineBackground(() => {
   const whitelist = makeWhitelist(disk, session, wallets, makeChainTime());
   // Mode compagnon : un appel léger toutes les 20 s garde le worker éveillé pendant une validation sur le téléphone.
   const companion = makeCompanion(wallets, { keepAlive: () => void browser.runtime.getPlatformInfo().catch(() => {}) });
+  const buy = makeBuy(home);
   const send = makeSend({ session, wallets, home, portfolio, whitelist, companion });
 
   // ── Pont vers les dApps ──
@@ -76,7 +78,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
     return true; // réponse asynchrone
   });
 });

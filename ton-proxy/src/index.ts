@@ -13,6 +13,7 @@
 import { BROADCAST_FALLBACK, MAX_BODY_BYTES, resolve, sanitizeBody, UPSTREAM } from './routes';
 import { balancesBatch, CHAIN_ID_PROBE, chainIdMatches, extensionAllowed, nftUpstream, parsePriceRequest, parsePrices, pricesUpstream, resolveNft, solanaFallbackUrl, joinTokens, metadataBatch, nonZeroContracts, parseErc20Request, quotaPause, resolveRpc, sanitizeRpc, upstreamUrl, type Provider, type RelayToken } from './rpc';
 import { etherscanError, resolveApi, sanitizeJsonBody, type ApiKeys, type ApiRoute } from './apis';
+import { formBody, isSessionId, keyMode, sessionForm, stripeError, STRIPE_API, trimSession } from './stripe';
 import { API_HOST, buyParams, canonicalIp, isTxId, quoteQuery, signedBuyUrl, trimCurrencies, trimQuote, trimRegion, trimTx, type MoonpayEnvName } from './moonpay';
 
 export interface Env {
@@ -33,6 +34,8 @@ export interface Env {
   MOONPAY_IP_MATCH?: string;
   /** Page HTTPS de fin d'achat, interceptée par l'app. */
   MOONPAY_REDIRECT_URL?: string;
+  /** Stripe (achat, page hébergée) : clé SECRÈTE — `wrangler secret put STRIPE_SECRET_KEY` (sk_test_… = test, sk_live_… = réel). */
+  STRIPE_SECRET_KEY?: string;
   /** Alchemy (réseaux EVM) — SECRET : `wrangler secret put ALCHEMY_KEY`. */
   ALCHEMY_KEY?: string;
   /** Helius (Solana) — SECRET : `wrangler secret put HELIUS_KEY`. */
@@ -71,6 +74,7 @@ export default {
     }
     if (url.pathname === '/health') return json(200, { ok: true }, corsHeaders);
     if (url.pathname.startsWith('/moonpay/')) return moonpay(request, url, env, ctx, corsHeaders);
+    if (url.pathname === '/stripe/session') return stripe(request, url, env, corsHeaders);
     if (url.pathname.startsWith('/rpc/')) return rpc(request, url, env, ctx, corsHeaders);
     if (url.pathname === '/v1/erc20') return erc20(request, env, ctx, corsHeaders);
     if (url.pathname.startsWith('/nft/')) return nft(request, url, env, ctx, corsHeaders);
@@ -242,6 +246,56 @@ async function moonpay(request: Request, url: URL, env: Env, ctx: ExecutionConte
     return json(502, { error: 'moonpay unreachable' }, corsHeaders);
   }
   return json(404, { error: 'not found' }, corsHeaders);
+}
+
+/* ── Achat de crypto (Stripe, page hébergée) : voir src/stripe.ts ───────── */
+async function stripe(request: Request, url: URL, env: Env, corsHeaders: Record<string, string>): Promise<Response> {
+  const key = env.STRIPE_SECRET_KEY?.trim();
+  const mode = keyMode(key);
+  if (!key || !mode) return json(503, { error: 'stripe not configured' }, corsHeaders);
+
+  const ip = request.headers.get('true-client-ip') ?? request.headers.get('cf-connecting-ip');
+  const limiter = request.method === 'POST' ? env.LIMITER_WRITE : env.LIMITER;
+  if (limiter) {
+    const { success } = await limiter.limit({ key: `st:${ip ?? 'unknown'}` });
+    if (!success) return json(429, { error: 'rate limited' }, { ...corsHeaders, 'retry-after': '10' });
+  }
+  const call = async (path: string, init?: RequestInit) => {
+    const res = await fetch(`${STRIPE_API}${path}`, {
+      ...init,
+      headers: { authorization: `Bearer ${key}`, accept: 'application/json', ...(init?.body ? { 'content-type': 'application/x-www-form-urlencoded' } : {}) },
+    });
+    return { status: res.status, body: (await res.json().catch(() => null)) as unknown };
+  };
+  // Session liée à une adresse et à une IP : jamais en cache.
+  const reply = (status: number, body: unknown) => json(status, body, { ...corsHeaders, 'cache-control': 'no-store' });
+
+  try {
+    if (request.method === 'POST') {
+      const len = Number(request.headers.get('content-length') ?? '0');
+      if (len > 2048) return reply(413, { error: 'body too large' });
+      const f = sessionForm(await request.json().catch(() => null), ip);
+      if (!f.ok) return reply(400, { error: f.error });
+      const r = await call('/crypto/onramp_sessions', { method: 'POST', body: formBody(f.value) });
+      if (r.status !== 200) return reply(r.status === 400 || r.status === 402 ? 400 : 502, { error: stripeError(r.body) });
+      const s = trimSession(r.body);
+      if (!s?.url) return reply(502, { error: 'stripe: no hosted url' });
+      return reply(200, { ...s, mode });
+    }
+    if (request.method === 'GET') {
+      const id = url.searchParams.get('id');
+      if (!isSessionId(id)) return reply(400, { error: 'bad id' });
+      const r = await call(`/crypto/onramp_sessions/${encodeURIComponent(id!)}`);
+      if (r.status !== 200) return reply(r.status === 404 ? 404 : 502, { error: stripeError(r.body) });
+      const s = trimSession(r.body);
+      if (!s) return reply(502, { error: 'stripe: bad session' });
+      // Pas de lien vers la page de paiement dans le suivi : il n'en a pas besoin.
+      return reply(200, { ...s, url: null, mode });
+    }
+  } catch {
+    return reply(502, { error: 'stripe unreachable' });
+  }
+  return reply(405, { error: 'method not allowed' });
 }
 
 /* ── Relais RPC (Alchemy, Helius) : voir src/rpc.ts ─────────────────────── */

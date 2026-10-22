@@ -32,3 +32,4 @@ namespace_id = "7302"
 # SECRETS, jamais ici :
 #   npx wrangler secret put TONAPI_KEY
 #   npx wrangler secret put MOONPAY_SECRET_KEY   (sk_test_… en mode test)
+#   npx wrangler secret put STRIPE_SECRET_KEY    (sk_test_… en mode test, sk_live_… en réel)

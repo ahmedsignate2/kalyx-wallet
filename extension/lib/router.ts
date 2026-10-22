@@ -6,6 +6,7 @@
  */
 import { RpcError } from './rpcError';
 import type { Companion } from './companion';
+import { BuyError, type Buy } from './buy';
 import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
 import { WalletError, type Wallets } from './wallets';
@@ -33,6 +34,7 @@ export interface Services {
   setDefault?: (on: boolean) => Promise<void>;
   /** Mode compagnon : lien WalletConnect avec le téléphone. */
   companion?: Companion;
+  buy?: Buy;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -47,7 +49,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -248,6 +250,21 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const g = ar && sites ? (await sites.get(ar.origin))[ar.family] : undefined;
         const onPhone = !!g && (await wallets.list()).some((w) => w.id === g.walletId && w.kind === 'companion');
         return { ok: true, review: await p, askPassword: disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false, onPhone };
+      }
+      /* ── Acheter (page Stripe) ── */
+      case 'buy:options':
+        if (!buy) break;
+        await unlocked();
+        return { ok: true, options: await buy.options() };
+      case 'buy:stripe': {
+        if (!buy) break;
+        await unlocked();
+        try {
+          return { ok: true, ...(await buy.stripeUrl(m.option)) };
+        } catch (e) {
+          if (!(e instanceof BuyError)) throw e;
+          return e.message === 'BAD_REQUEST' || e.message === 'NO_ACCOUNT' ? { ok: false, error: e.message } : { ok: false, error: 'BUY_UNAVAILABLE', params: { reason: e.message } };
+        }
       }
       /* ── Mode compagnon ── */
       case 'companion:available':
