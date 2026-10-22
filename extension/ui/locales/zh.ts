@@ -123,4 +123,5 @@ export default {
   reportMailBody: '发生了什么？你原本期望什么？',
   chooseAccount: '选择账户', myAddresses: '我的地址', setGeneral: '通用', setSecurity: '安全', setHelp: '帮助', sitesShort: '网站', networksShort: '{n} 个网络无响应',
   tdBalance: '余额', tdPrice: '价格', tdNetwork: '网络', tdUnverified: '未验证：价格和价值不计入你的总额。请警惕你未曾索取却收到的代币。',
+  compOption: '连接我的手机', compOptionSub: '伴侣模式：密钥保留在手机上的 Kalyx 应用中，每次签名都在手机上确认。', compTitle: '连接你的手机', compSteps: '在手机上打开 Kalyx，点按“扫描”并对准此二维码。手机会请你确认。', compWaiting: '正在等待你的手机…', compDone: '手机已连接', compUnavailable: '此版本扩展不支持伴侣模式。', phoneBadge: '手机', onPhoneHint: '请在手机上确认：打开 Kalyx，请求正在那里等你。', sendToPhone: '发送到手机', e_COMPANION_REJECTED: '已在手机上拒绝。', e_COMPANION_TIMEOUT: '手机没有回应。打开 Kalyx 后重试。', e_COMPANION_LOST: '与手机的连接已断开：请重新连接。', e_COMPANION_OFFLINE: '无法连接配对服务（WalletConnect）。请检查网络后重试。', e_COMPANION_UNAVAILABLE: '此版本扩展不支持伴侣模式。', e_COMPANION_WRONG_SIGNER: '手机用了另一个账户签名：已拒绝，没有向网站传递任何内容。', e_COMPANION_BAD_RESULT: '手机返回的内容无法读取：没有向网站传递任何内容。', e_COMPANION_CHAIN: '你的手机未共享此网络。', e_COMPANION_NO_EVM: '你的手机未共享任何以太坊账户。', e_COMPANION_NO_ACCOUNT: '你的手机未共享任何账户。', e_COMPANION_PAIRING_TIMEOUT: '二维码已过期。请重新开始。', e_COMPANION_TX_CHANGED: '手机返回了不同的交易：已拒绝。',
 };

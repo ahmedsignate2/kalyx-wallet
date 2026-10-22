@@ -35,6 +35,9 @@ const SUPPORT_EMAIL = 'support@kalyxwallet.com';
 interface WalletMeta {
   id: string;
   label: string;
+  kind?: 'seed' | 'privateKey' | 'companion';
+  /** Mode compagnon : la session avec le téléphone est coupée. */
+  lost?: boolean;
   backedUp: boolean;
   accounts: { index: number; label: string; evm?: string; solana?: string }[];
 }
@@ -164,7 +167,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           'span',
           { class: 'acct-text' },
           h('span', { class: 'acct-name' }, h('span', { class: 'ellipsis' }, a ? t('account', { n: a.index + 1 }) : ''), glyph('caretDown', 14)),
-          h('span', { class: 'acct-sub' }, h('span', { class: 'ellipsis' }, w?.label ?? ''), h('span', { class: 'beta', title: VERSION }, t('beta'))),
+          h('span', { class: 'acct-sub' }, h('span', { class: 'ellipsis' }, w?.label ?? ''), w?.kind === 'companion' ? h('span', { class: 'beta phone', 'data-testid': 'phone-badge' }, t('phoneBadge')) : h('span', { class: 'beta', title: VERSION }, t('beta'))),
         ),
       ),
       h('span', { class: 'spacer' }),
@@ -317,6 +320,28 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
               },
             },
             t('verifyNow'),
+          ),
+        ),
+      // Mode compagnon : le téléphone a coupé le lien (ou il a expiré) ; on le relie depuis l'installation.
+      w?.kind === 'companion' &&
+        w.lost &&
+        h(
+          'div',
+          { class: 'banner warn', role: 'status', 'data-testid': 'companion-lost' },
+          glyph('alert', 16),
+          h('span', { class: 'grow' }, t('e_COMPANION_LOST')),
+          h(
+            'button',
+            {
+              type: 'button',
+              on: {
+                click: async () => {
+                  await browser.tabs.create({ url: browser.runtime.getURL('/onboarding.html#companion') });
+                  if (opts.mode === 'popup') window.close();
+                },
+              },
+            },
+            t('compOption'),
           ),
         ),
       // Réseaux muets : une ligne, le détail en dépliant (le total reste « — » ou partiel, jamais faux).

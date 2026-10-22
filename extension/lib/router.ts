@@ -4,6 +4,8 @@
  * tailles bornées — avant d'atteindre la session. Réponse : `{ ok: true, … }`
  * ou `{ ok: false, error, waitMs? }`, jamais une exception qui traverse.
  */
+import { RpcError } from './rpcError';
+import type { Companion } from './companion';
 import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
 import { WalletError, type Wallets } from './wallets';
@@ -29,6 +31,8 @@ export interface Services {
   dapp?: Dapp;
   /** « Kalyx par défaut » : enregistre le script de page en conséquence. */
   setDefault?: (on: boolean) => Promise<void>;
+  /** Mode compagnon : lien WalletConnect avec le téléphone. */
+  companion?: Companion;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -43,7 +47,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -239,7 +243,25 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         await unlocked();
         const p = dapp.reviewOf(m.id, typeof m.lang === 'string' ? m.lang.slice(0, 20) : undefined);
         if (!p) return { ok: false, error: 'REQUEST_EXPIRED' };
-        return { ok: true, review: await p, askPassword: disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false };
+        // Compte accordé au site sur le téléphone (mode compagnon) : la fenêtre le dit, la validation se fera là-bas.
+        const ar = approvals?.get(m.id);
+        const g = ar && sites ? (await sites.get(ar.origin))[ar.family] : undefined;
+        const onPhone = !!g && (await wallets.list()).some((w) => w.id === g.walletId && w.kind === 'companion');
+        return { ok: true, review: await p, askPassword: disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false, onPhone };
+      }
+      /* ── Mode compagnon ── */
+      case 'companion:available':
+        return { ok: true, available: !!companion?.available() };
+      case 'companion:start':
+        if (!companion) break;
+        await unlocked();
+        return { ok: true, ...(await companion.start(optLabel(m.label) ?? 'Téléphone')) };
+      case 'companion:wait': {
+        if (!companion) break;
+        await unlocked();
+        const w = await companion.wait();
+        if (home) await home.select(w.id, 0).catch(() => {});
+        return { ok: true, wallet: w };
       }
       case 'settings:get-ask-password':
         if (!disk) break;
@@ -288,6 +310,9 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
   } catch (e) {
     if (e instanceof SessionError) return { ok: false, error: e.message, ...(e.waitMs ? { waitMs: e.waitMs } : {}) };
     if (e instanceof WalletError) return { ok: false, error: e.message };
+    // Mode compagnon : son code précis (refusé sur le téléphone, délai, lien coupé…).
+    if (e instanceof RpcError && /^COMPANION_[A-Z_]+$/.test(e.message)) return { ok: false, error: e.message };
+    if (e instanceof CoreError && e.message === 'COMPANION_UNAVAILABLE') return { ok: false, error: e.message };
     /*
      * Erreurs du cœur : leur code, ou le code précis porté par le message
      * (« ENS_NOT_FOUND », « WRONG_FAMILY:evm ») ; leurs valeurs d'affichage.

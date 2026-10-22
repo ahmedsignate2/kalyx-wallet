@@ -36,6 +36,9 @@ jobs:
           [ "${GITHUB_REF_NAME}" = "extension-v$v" ] || { echo "::error::tag ${GITHUB_REF_NAME} ≠ extension-v$v"; exit 1; }
       - name: Build, empreinte et .zip
         working-directory: extension
+        # Mode compagnon : ID de projet WalletConnect (public), variable du dépôt ; vide → mode indisponible.
+        env:
+          WALLETCONNECT_ID: ${{ vars.WALLETCONNECT_ID }}
         run: |
           npm run build
           npm run hash | tee ../BUILD-HASH.txt

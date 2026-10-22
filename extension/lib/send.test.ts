@@ -9,6 +9,7 @@ import { makeSession } from './session';
 import { makeStore, type StorageArea } from './storage';
 import { makeWallets } from './wallets';
 import { handleInternal } from './router';
+import type { Companion } from './companion';
 import { activityT } from '../ui/i18n';
 import { ETHEREUM, SOLANA } from '../../src/domain/chains/configs';
 import { evmAccountFromPrivateKey, deriveEvmAccount } from '../../src/crypto/hd';
@@ -52,7 +53,7 @@ function fakeAdapter(config: ChainConfig, log: { signedBy?: string; broadcasts: 
     quoteFees: async () => ({ slow: quote(20n), normal: quote(30n), fast: quote(40n) }),
     prepareSend: async (from, req) => {
       log.requests.push(req);
-      return { chainId: config.id, from, to: req.to, amount: req.amount, token: req.token ?? null, fee: ETH_FEE, warnings: [], payload: { gasLimit: 21_000n, value: req.amount, maxFeePerGas: 30n * 10n ** 9n, maxPriorityFeePerGas: 10n ** 9n } } as SendDraft;
+      return { chainId: config.id, from, to: req.to, amount: req.amount, token: req.token ?? null, fee: ETH_FEE, warnings: [], payload: { to: req.to, data: '0x', chainId: config.evmChainId, gasLimit: 21_000n, value: req.amount, maxFeePerGas: 30n * 10n ** 9n, maxPriorityFeePerGas: 10n ** 9n } } as SendDraft;
     },
     signSend: async (draft, s: ChainSigner) => {
       log.signedBy = s.curve === 'secp256k1' ? evmAccountFromPrivateKey(`0x${bytesToHex(s.privateKey)}`).address : base58.encode(s.publicKey);
@@ -77,6 +78,7 @@ let whitelist: ReturnType<typeof makeWhitelist>;
 let home: ReturnType<typeof makeHome>;
 let clock: number;
 let history: TxSummary[];
+let portfolio: ReturnType<typeof makePortfolio>;
 
 beforeEach(async () => {
   disk = area();
@@ -86,7 +88,7 @@ beforeEach(async () => {
   log = { broadcasts: 0, requests: [] };
   session = makeSession({ disk: makeStore(disk), session: makeStore(area()), alarms: { create() {}, clear() {} }, kdf: { N: 1 << 10, r: 8, p: 1 } });
   wallets = makeWallets(makeStore(disk), session);
-  const portfolio = makePortfolio({
+  portfolio = makePortfolio({
     disk: makeStore(disk), t: activityT, locale: 'fr-FR', now: () => clock,
     load: async () => [holding('ethereum', 'ETH', 10n ** 18n, 18), holding('solana', 'SOL', 2n * 10n ** 9n, 9)],
     history: async (c) => history.filter((t) => t.chain === c),
@@ -191,6 +193,32 @@ describe('envoyer', () => {
     await session.lock();
     await expect(send.confirm(d.id)).rejects.toThrow();
     expect(log.broadcasts).toBe(0);
+  });
+});
+
+describe('mode compagnon', () => {
+  test('compte du téléphone : le brouillon contrôlé ici part au téléphone, aucune clé locale, aucune diffusion ici', async () => {
+    const phone = evmAccountFromPrivateKey(`0x${'33'.repeat(32)}`).address;
+    const calls: { chainId: string; method: string; params: unknown }[] = [];
+    const companion = {
+      request: async (_m: unknown, chainId: string, method: string, params: unknown) => (calls.push({ chainId, method, params }), `0x${'cd'.repeat(32)}`),
+    } as unknown as Companion;
+    const w = await wallets.addCompanion({ topic: 't1', evm: phone, evmChains: [1, 8453], label: 'Téléphone' });
+    await home.select(w.id, 0);
+    const s2 = makeSend({ session, wallets, home, portfolio, whitelist, now: () => clock, adapterFor: (c) => fakeAdapter(c, log), resolveEns: async () => null, companion });
+    const d = await s2.prepare({ assetKey: 'ethereum:native', to: STRANGER, amount: '0.1' });
+    expect(d.from).toBe(phone);
+    expect(d.onPhone).toBe(true);
+    const r = await s2.confirm(d.id);
+    expect(r.txid).toBe(`0x${'cd'.repeat(32)}`);
+    expect(calls).toEqual([{ chainId: 'eip155:1', method: 'eth_sendTransaction', params: [{ from: phone, to: STRANGER, data: '0x', value: '0x16345785d8a0000', gas: '0x5208' }] }]);
+    expect(log.signedBy).toBeUndefined();
+    expect(log.broadcasts).toBe(0);
+  });
+
+  test('compte local : rien ne part au téléphone', async () => {
+    const d = await prep(STRANGER);
+    expect(d.onPhone).toBeUndefined();
   });
 });
 

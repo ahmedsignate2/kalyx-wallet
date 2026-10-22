@@ -42,7 +42,8 @@ const SAME_REASON: Record<string, string> = { NETWORK_ERROR: 'RPC_UNAVAILABLE', 
  * Jamais renvoyée aux sites : eux reçoivent toRpcError.
  */
 export function reasonOf(e: unknown): string | undefined {
-  if (e instanceof RpcError) return undefined;
+  // Mode compagnon : un code précis (refusé sur le téléphone, lien coupé…), traduit par la fenêtre.
+  if (e instanceof RpcError) return /^COMPANION_[A-Z_]+$/.test(e.message) ? e.message : undefined;
   const c = (e as { code?: unknown })?.code;
   if (typeof c === 'string' && /^[A-Z][A-Z0-9_]{1,40}$/.test(c)) return SAME_REASON[c] ?? c;
   if ((e as Error)?.message && /fetch|network|timeout|délai|injoignable/i.test((e as Error).message)) return 'RPC_UNAVAILABLE';

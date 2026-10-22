@@ -9,6 +9,7 @@
  * vérifier ; elle est oubliée dès la fin du parcours.
  */
 import { landscape } from '../../ui/landscape';
+import { qrSvg } from '../../ui/qr';
 import { glyph } from '../../ui/glyph';
 import { h, send } from '../../ui/dom';
 import { applyLang, errorText, reasonText, t } from '../../ui/i18n';
@@ -19,7 +20,7 @@ import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH } from '../../lib/policy';
 interface WalletMeta {
   id: string;
   label: string;
-  kind: 'seed' | 'privateKey';
+  kind: 'seed' | 'privateKey' | 'companion';
   backedUp: boolean;
   accounts: { index: number; evm?: string; solana?: string }[];
 }
@@ -236,7 +237,37 @@ function importMenu() {
     opt(t('importPhrase'), t('importPhraseSub'), importPhraseScreen),
     opt(t('importBackup'), t('importBackupSub'), importBackupScreen),
     opt(t('importKey'), t('importKeySub'), importKeyScreen),
+    opt(t('compOption'), t('compOptionSub'), companionScreen),
   );
+}
+
+/* ── Mode compagnon : le téléphone garde les clés, l'extension reçoit les adresses ── */
+async function companionScreen() {
+  const err = errorLine();
+  const av = await send<{ available: boolean }>({ type: 'companion:available' });
+  if (!av.ok || !av.available) {
+    screen(backLink(importMenu), h('h1', {}, t('compTitle')), h('p', { class: 'muted' }, t('compUnavailable')));
+    return;
+  }
+  const box = h('div', { class: 'qr skel', style: 'width:224px;height:224px' });
+  const wait = h('p', { class: 'pill quiet status' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('compWaiting'));
+  const retry = h('button', { class: 'btn secondary', type: 'button', hidden: true, on: { click: () => void companionScreen() } }, t('retry'));
+  screen(backLink(importMenu), h('h1', {}, t('compTitle')), h('p', { class: 'muted' }, t('compSteps')), box, wait, err, retry);
+  const fail = (r: { error?: string }) => {
+    box.remove();
+    wait.remove();
+    err.textContent = errorText(r.error);
+    retry.hidden = false;
+  };
+  const st = await send<{ uri: string }>({ type: 'companion:start', label: t('phoneBadge') });
+  if (!st.ok) return fail(st);
+  box.classList.remove('skel');
+  box.removeAttribute('style');
+  box.replaceChildren(qrSvg(st.uri, 200));
+  box.setAttribute('aria-label', t('compTitle'));
+  const done = await send<{ wallet: WalletMeta }>({ type: 'companion:wait' });
+  if (!done.ok) return fail(done);
+  finish([t('compDone')]);
 }
 
 function importPhraseScreen() {
@@ -420,4 +451,7 @@ function verifyLaterScreen(walletId: string) {
 
 const verifyId = /^#verify=([a-z0-9-]{1,64})$/.exec(location.hash)?.[1];
 if (verifyId) verifyLaterScreen(verifyId);
-else welcome();
+else if (location.hash === '#companion') {
+  history.replaceState(null, '', location.pathname);
+  void withAuth(companionScreen);
+} else welcome();

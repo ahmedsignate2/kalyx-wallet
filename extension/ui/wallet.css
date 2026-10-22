@@ -14,6 +14,7 @@
 .spacer { flex: 1; }
 .beta { flex: none; font-size: 9.5px; line-height: 1; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-earn); background: var(--tint-earn); border-radius: 999px; padding: 3px 6px; }
 .on-sky .beta { color: var(--text); background: color-mix(in srgb, var(--surface-1) 55%, transparent); }
+.beta.phone { color: var(--ink-receive); background: var(--tint-receive); }
 
 /* Boutons d'icône : ronds ; sur le ciel, en verre dépoli. */
 .icon { flex: none; width: 36px; height: 36px; border-radius: 999px; border: 0; background: transparent; color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s, transform 0.12s; }

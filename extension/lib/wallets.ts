@@ -37,9 +37,14 @@ export interface AccountMeta {
 export interface WalletMeta {
   id: string;
   label: string;
-  kind: 'seed' | 'privateKey';
+  /** `companion` : clés sur le TÉLÉPHONE (mode compagnon) — rien dans le coffre, signatures transmises à l'app. */
+  kind: 'seed' | 'privateKey' | 'companion';
   /** Famille d'une clé importée (une clé ne sert qu'une famille). */
   family?: Family;
+  /** Mode compagnon : session WalletConnect avec le téléphone, réseaux EVM partagés, lien perdu. */
+  topic?: string;
+  evmChains?: number[];
+  lost?: boolean;
   createdAt: number;
   /** Phrase vérifiée par le défi (ou importée : déjà notée ailleurs). */
   backedUp: boolean;
@@ -92,7 +97,7 @@ export function makeWallets(disk: Store, session: Session) {
   const save = (w: WalletMeta[]) => disk.set(META_KEY, w);
 
   /** Ajoute un portefeuille (secret dans le coffre, métadonnées à côté), en refusant les doublons. */
-  async function add(meta: WalletMeta, secret: string): Promise<void> {
+  async function add(meta: WalletMeta & { kind: 'seed' | 'privateKey' }, secret: string): Promise<void> {
     await session.withVault(async (vault, key) => {
       const all = await list();
       if (all.length >= MAX_WALLETS) throw new WalletError('TOO_MANY_WALLETS');
@@ -115,14 +120,14 @@ export function makeWallets(disk: Store, session: Session) {
     const kind = classifyRecoveryPhrase(phrase);
     if (kind === 'ton') throw new WalletError('UNSUPPORTED_PHRASE'); // TON : v2
     if (kind !== 'bip39' || !validateMnemonic(phrase)) throw new WalletError('INVALID_PHRASE');
-    const meta: WalletMeta = { id: newId(), label, kind: 'seed', createdAt: Date.now(), backedUp: true, accounts: await accountsFromPhrase(phrase, [0]) };
+    const meta: WalletMeta & { kind: 'seed' } = { id: newId(), label, kind: 'seed', createdAt: Date.now(), backedUp: true, accounts: await accountsFromPhrase(phrase, [0]) };
     await add(meta, phrase);
     return meta;
   }
 
   async function importKey(input: string, family: Family, label = 'Clé importée'): Promise<WalletMeta> {
     const { account, secret } = accountFromKey(input, family);
-    const meta: WalletMeta = { id: newId(), label, kind: 'privateKey', family, createdAt: Date.now(), backedUp: true, accounts: [account] };
+    const meta: WalletMeta & { kind: 'privateKey' } = { id: newId(), label, kind: 'privateKey', family, createdAt: Date.now(), backedUp: true, accounts: [account] };
     await add(meta, secret);
     return meta;
   }
@@ -174,6 +179,42 @@ export function makeWallets(disk: Store, session: Session) {
     });
   }
 
+  /**
+   * Portefeuille COMPAGNON : les adresses partagées par le téléphone, aucun
+   * secret. Le même compte relié deux fois remplace le lien (nouvelle session).
+   */
+  async function addCompanion(p: { topic: string; evm?: string; solana?: string; evmChains: number[]; label: string }): Promise<WalletMeta> {
+    return session.withVault(async () => {
+      const all = await list();
+      const fp = (p.evm ?? p.solana ?? '').toLowerCase();
+      const prev = all.find((w) => w.kind === 'companion' && fingerprint(w) === fp);
+      if (!prev && fp && all.some((w) => fingerprint(w) === fp)) throw new WalletError('DUPLICATE');
+      if (!prev && all.length >= MAX_WALLETS) throw new WalletError('TOO_MANY_WALLETS');
+      const meta: WalletMeta = {
+        id: prev?.id ?? newId(),
+        label: prev?.label ?? p.label,
+        kind: 'companion',
+        topic: p.topic,
+        evmChains: p.evmChains,
+        createdAt: prev?.createdAt ?? Date.now(),
+        // Rien à sauvegarder ici : la phrase est sur le téléphone.
+        backedUp: true,
+        accounts: [{ index: 0, label: 'Compte 1', evm: p.evm, solana: p.solana }],
+      };
+      const next = prev ? all.map((w) => (w.id === prev.id ? meta : w)) : [...all, meta];
+      return { result: meta, commit: () => save(next) };
+    });
+  }
+
+  /** Session coupée (depuis le téléphone, ou expirée) : le portefeuille reste, marqué « à relier ». */
+  async function markCompanionLost(topic: string): Promise<void> {
+    const all = await list();
+    const w = all.find((x) => x.kind === 'companion' && x.topic === topic);
+    if (!w || w.lost) return;
+    w.lost = true;
+    await save(all);
+  }
+
   /** Phrase vérifiée. Dans la file du coffre : jamais en même temps qu'un ajout (on perdrait l'un des deux). */
   async function markBackedUp(walletId: string): Promise<void> {
     await session.withVault(async () => {
@@ -208,7 +249,7 @@ export function makeWallets(disk: Store, session: Session) {
     });
   }
 
-  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase };
+  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase, addCompanion, markCompanionLost };
 }
 
 export type Wallets = ReturnType<typeof makeWallets>;

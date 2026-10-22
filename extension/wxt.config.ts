@@ -5,6 +5,13 @@ import { readFileSync } from 'node:fs';
 /** Relais Kalyx (Worker Cloudflare) : les fournisseurs à clé passent par lui, aucune clé dans l'extension. */
 const RELAY_URL = 'https://kalyx-ton-proxy.ahamedsignate2.workers.dev';
 
+/**
+ * Mode compagnon : identifiant de projet WalletConnect (Reown). PUBLIC (ce n'est
+ * pas une clé secrète), fourni au build ; absent, le mode compagnon s'affiche
+ * comme indisponible. Le même que l'app (EXPO_PUBLIC_WALLETCONNECT_ID).
+ */
+const WALLETCONNECT_ID = (process.env.WALLETCONNECT_ID || process.env.EXPO_PUBLIC_WALLETCONNECT_ID || '').trim();
+
 const PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 /**
@@ -20,7 +27,7 @@ export default defineConfig({
    * inexistant dans un service worker. Aucune clé n'est embarquée dans
    * l'extension : elles passeront par un relais (cahier des charges, §8).
    */
-  vite: () => ({ define: { 'process.env': JSON.stringify({ EXPO_PUBLIC_KALYX_RELAY_URL: RELAY_URL }) }, plugins: [extensionRegistry()] }),
+  vite: () => ({ define: { 'process.env': JSON.stringify({ EXPO_PUBLIC_KALYX_RELAY_URL: RELAY_URL, EXPO_PUBLIC_WALLETCONNECT_ID: WALLETCONNECT_ID }) }, plugins: [extensionRegistry()] }),
   manifest: {
     // Nom et description dans la langue du navigateur : public/_locales.
     name: '__MSG_extName__',

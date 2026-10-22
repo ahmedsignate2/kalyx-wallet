@@ -34,6 +34,8 @@ export function signerAddress(s: ChainSigner): string {
  */
 export async function signerFor(session: Session, wallets: Wallets, walletId: string, index: number, family: SignFamily, expected: string): Promise<ChainSigner> {
   const meta = (await wallets.list()).find((w) => w.id === walletId);
+  // Mode compagnon : aucune clé ici — la signature se fait sur le téléphone (lib/companion).
+  if (meta?.kind === 'companion') throw new WalletError('NOT_SUPPORTED', 'COMPANION');
   const signer = await session.withVault(async (vault, key) => {
     const { kind, secret } = readSecret(vault, key, walletId);
     if (kind === 'privateKey') {

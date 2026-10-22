@@ -9,6 +9,7 @@ import { activityT, defaultFiat, explainT, explainTFor, LOCALE } from '../ui/i18
 import { makeChainTime } from '../lib/chainTime';
 import { makeWhitelist } from '../lib/whitelist';
 import { makeSend } from '../lib/send';
+import { makeCompanion } from '../lib/companion';
 import { makeSites } from '../lib/sites';
 import { makeApprovals } from '../lib/approvals';
 import { makeDapp } from '../lib/dapp';
@@ -35,7 +36,9 @@ export default defineBackground(() => {
   const portfolio = makePortfolio({ disk, t: activityT, locale: LOCALE });
   const home = makeHome(disk, session, wallets, portfolio, defaultFiat());
   const whitelist = makeWhitelist(disk, session, wallets, makeChainTime());
-  const send = makeSend({ session, wallets, home, portfolio, whitelist });
+  // Mode compagnon : un appel léger toutes les 20 s garde le worker éveillé pendant une validation sur le téléphone.
+  const companion = makeCompanion(wallets, { keepAlive: () => void browser.runtime.getPlatformInfo().catch(() => {}) });
+  const send = makeSend({ session, wallets, home, portfolio, whitelist, companion });
 
   // ── Pont vers les dApps ──
   const sites = makeSites(disk);
@@ -45,7 +48,7 @@ export default defineBackground(() => {
     close: async (windowId) => void (await browser.windows.remove(windowId).catch(() => {})),
   });
   const host = makeDappHost(() => dapp, (origin) => approvals.originGone(origin));
-  const dapp = makeDapp({ session, wallets, sites, approvals, emit: host.emit, t: explainT, tFor: explainTFor, dappAllowed: () => whitelist.dappAllowed() });
+  const dapp = makeDapp({ session, wallets, sites, approvals, emit: host.emit, t: explainT, tFor: explainTFor, dappAllowed: () => whitelist.dappAllowed(), executeDeps: { companion } });
   browser.runtime.onConnect.addListener((port) => host.accept(port));
   browser.windows.onRemoved.addListener((windowId) => approvals.windowClosed(windowId));
   // Verrouillage / déverrouillage (la clé de session apparaît ou disparaît) : les sites connectés suivent.
@@ -73,7 +76,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
     return true; // réponse asynchrone
   });
 });

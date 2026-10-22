@@ -21,6 +21,10 @@ import { EvmAdapterV2 } from '../../src/domain/chains/v2/EvmAdapterV2';
 import { SolanaAdapterV2 } from '../../src/domain/chains/v2/SolanaAdapterV2';
 import { withSigner } from '../../src/domain/chains/v2/signer';
 import { signerFor } from './signer';
+import { checkSolSignature, checkTxHash, evmChainFor, evmTxParam, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
+import type { Companion } from './companion';
+import type { EvmPayload } from '../../src/domain/chains/v2/EvmAdapterV2';
+import type { SolanaPayload } from '../../src/domain/chains/v2/SolanaAdapterV2';
 import type { ChainAdapterV2, FeeQuotes, SendDraft, SendSpeed, TokenRef, TxState } from '../../src/domain/chains/v2/types';
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import type { ChainConfig } from '../../src/domain/chains/types';
@@ -100,6 +104,8 @@ export interface DraftView {
   poisoning?: { similarTo: string };
   warnings: string[];
   expiresAt: number;
+  /** Mode compagnon : la confirmation se fait sur le téléphone. */
+  onPhone?: boolean;
 }
 
 interface Held {
@@ -121,6 +127,8 @@ export interface SendDeps {
   /** Injectables (tests) : adaptateur v2 d'un réseau, résolution ENS. */
   adapterFor?: (chain: ChainConfig) => ChainAdapterV2;
   resolveEns?: (name: string) => Promise<string | null>;
+  /** Mode compagnon : le téléphone signe et diffuse à la place du coffre. */
+  companion?: Companion;
 }
 
 const familyOf = (c: ChainConfig): 'evm' | 'solana' => {
@@ -319,6 +327,7 @@ export function makeSend(deps: SendDeps) {
       poisoning: match ? { similarTo: match.lookalike } : undefined,
       warnings: draft.warnings.map((w) => w.code),
       expiresAt: Math.min(until, draft.expiresAt ?? Infinity),
+      onPhone: cur.wallet.kind === 'companion' || undefined,
     };
   }
 
@@ -334,6 +343,30 @@ export function makeSend(deps: SendDeps) {
     await deps.whitelist.assertAllowed(held.draft.to);
 
     const chain = held.adapter.config;
+    /*
+     * Compte du TÉLÉPHONE (mode compagnon) : le brouillon préparé et contrôlé
+     * ici (destinataire, liste blanche, anti-empoisonnement) part tel quel au
+     * téléphone, qui le montre et le fait valider, puis le diffuse.
+     */
+    const meta = (await deps.wallets.list()).find((w) => w.id === held.walletId);
+    if (meta?.kind === 'companion') {
+      if (!deps.companion) throw new WalletError('NOT_SUPPORTED', 'COMPANION_UNAVAILABLE');
+      let txid: string;
+      let opaque: number | undefined;
+      if (familyOf(chain) === 'evm') {
+        const p = held.draft.payload as EvmPayload;
+        const id = evmChainFor(meta.evmChains ?? [], p.chainId);
+        const tx = evmTxParam({ from: held.draft.from, to: p.to, data: p.data, value: p.value, gas: p.gasLimit });
+        txid = checkTxHash(await deps.companion.request(meta, `eip155:${id}`, 'eth_sendTransaction', [tx]));
+      } else {
+        const p = held.draft.payload as SolanaPayload;
+        txid = checkSolSignature(await deps.companion.request(meta, SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: unsignedSolanaTx(p.message) }));
+        opaque = p.lastValidBlockHeight;
+      }
+      sent.set(txid, { chainId: chain.id, opaque, expiresAt: held.draft.expiresAt });
+      deps.portfolio.markStale(cur.acct);
+      return { txid, explorer: chain.explorerUrl && /^[A-Za-z0-9]+$/.test(txid) ? `${chain.explorerUrl}/tx/${txid}` : undefined };
+    }
     // Clé vérifiée contre l'adresse du brouillon : jamais un autre compte que celui affiché.
     const signer = await signerFor(deps.session, deps.wallets, held.walletId, held.index, familyOf(chain), held.draft.from);
     const signed = await withSigner(signer, (s) => held.adapter.signSend(held.draft, s));
