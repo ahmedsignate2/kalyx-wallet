@@ -40,6 +40,8 @@ export default defineConfig({
     // Le script de page (monde MAIN) est enregistré par le service worker : il lui faut l'accès aux sites.
     host_permissions: ['http://*/*', 'https://*/*'],
     icons: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png', 128: 'icon/128.png' },
+    // Pages de l'extension : nos scripts seulement, aucun plugin, jamais affichées dans le cadre d'un site.
+    content_security_policy: { extension_pages: "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" },
     action: { default_title: 'Kalyx Wallet', default_icon: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png' } },
   },
 });

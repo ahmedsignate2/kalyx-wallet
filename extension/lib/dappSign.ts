@@ -96,6 +96,16 @@ export function parseEvm(method: string, params: unknown[], from: string, siteCh
     }
     const d = data as SignRequest & { domain?: unknown; types?: unknown; message?: unknown };
     if (!d || typeof d !== 'object' || typeof d.domain !== 'object' || typeof d.types !== 'object' || d.message === undefined) throw new RpcError(-32602, 'Données EIP-712 incomplètes');
+    /*
+     * Message pour un AUTRE réseau que celui du site : refusé (comme MetaMask et
+     * l'app). Un permis signé « sur Base » alors que le site affiche Ethereum
+     * servirait ailleurs que là où l'utilisateur croit l'accorder.
+     */
+    const dc = (d.domain as { chainId?: unknown } | null)?.chainId;
+    if (dc !== undefined && dc !== null && dc !== '') {
+      const n = typeof dc === 'number' ? dc : typeof dc === 'bigint' ? Number(dc) : typeof dc === 'string' ? (/^0x/i.test(dc) ? Number.parseInt(dc, 16) : Number(dc)) : NaN;
+      if (!Number.isSafeInteger(n) || n !== Number.parseInt(siteChainHex, 16)) throw new RpcError(-32602, `Message EIP-712 pour le réseau ${String(dc).slice(0, 20)}, le site est sur ${Number.parseInt(siteChainHex, 16)} : refusé`);
+    }
     return { kind: 'typed', from, chainId: siteChainHex, data: data as never, summary: summarizeTypedData(data) };
   }
   if (method === 'eth_sendTransaction') {

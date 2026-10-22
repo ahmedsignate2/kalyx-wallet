@@ -117,8 +117,10 @@ describe('EVM : messages', () => {
     const sig = (await dapp.handle(SITE, 'evm', 'eth_signTypedData_v4', [EVM0, typed])) as string;
     expect(verifyTypedData(domain, types, message, sig)).toBe(EVM0);
     const other = JSON.stringify({ domain: { ...domain, chainId: 137 }, types, primaryType: 'Permit', message });
-    expect(await code(dapp.handle(SITE, 'evm', 'eth_signTypedData_v4', [EVM0, other]))).toBe(4001);
-    expect(lastError?.code).toBe(4901);
+    // Refusé dès l'arrivée, avant toute fenêtre (comme MetaMask) : rien à approuver.
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_signTypedData_v4', [EVM0, other]))).toBe(-32602);
+    const hexOther = JSON.stringify({ domain: { ...domain, chainId: '0x89' }, types, primaryType: 'Permit', message });
+    expect(await code(dapp.handle(SITE, 'evm', 'eth_signTypedData_v4', [EVM0, hexOther]))).toBe(-32602);
   });
 });
 
