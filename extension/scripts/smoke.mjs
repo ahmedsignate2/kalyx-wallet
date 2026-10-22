@@ -223,6 +223,15 @@ async function onboarding() {
     await page.waitForFunction(() => document.querySelector('.error[role=alert]')?.textContent);
     (await page.locator('.error[role=alert]').textContent()) === 'Ce portefeuille est déjà dans Kalyx.' ? console.log('✓ doublon refusé') : fail('doublon accepté');
 
+    // Mode compagnon : l'option existe ; sans ID WalletConnect au build, elle le dit (jamais de QR factice).
+    await page.goto(`chrome-extension://${id}/onboarding.html`);
+    await page.getByText('J’ai déjà un portefeuille').click();
+    await page.getByText('Relier mon téléphone').click();
+    await page.getByText('Relier ton téléphone').waitFor();
+    await page.waitForFunction(() => /pas disponible/.test(document.body.textContent) || document.querySelector('.qr svg') || document.querySelector('.error[role=alert]')?.textContent);
+    const comp = await page.evaluate(() => (document.querySelector('.qr svg') ? 'qr' : /pas disponible/.test(document.body.textContent) ? 'indisponible' : 'erreur'));
+    process.env.WALLETCONNECT_ID ? (comp !== 'indisponible' ? console.log(`✓ compagnon : ${comp}`) : fail('compagnon indisponible malgré l’ID')) : comp === 'indisponible' ? console.log('✓ compagnon : indisponible sans ID WalletConnect') : fail(`compagnon : ${comp} sans ID`);
+
     // ── Portefeuille (lot 3) ──
     await popup.reload();
     await popup.locator('[data-testid=account]').waitFor();

@@ -6,6 +6,7 @@ Première bêta, non répertoriée : pour les testeurs invités seulement.
 - Créer un portefeuille, ou importer une phrase de 12 à 24 mots, une clé privée ou une sauvegarde de l'app mobile.
 - Soldes et activité de tous les réseaux, envoi et réception, liste blanche, alerte d'adresse sosie.
 - Connexion aux dApps (EIP-1193, EIP-6963, Wallet Standard) : chaque demande dans une fenêtre de Kalyx, avec l'explication de ce que tu signes.
+- Mode compagnon : relie l'extension à l'app Kalyx de ton téléphone ; les clés restent sur le téléphone et chaque signature s'y valide.
 - 15 langues.
 
 Limites connues de la bêta :

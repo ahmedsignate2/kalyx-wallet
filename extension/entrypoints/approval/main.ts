@@ -78,16 +78,18 @@ function siteHero(origin: string, testid = true) {
 
 async function signScreen(req: Req) {
   app.replaceChildren(h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')), h('p', { class: 'muted', role: 'status' }, t('apAnalyzing')));
-  const r = await send<{ review: Review; askPassword: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
+  const r = await send<{ review: Review; askPassword: boolean; onPhone?: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
   if (!r?.ok) return r?.error === 'REQUEST_EXPIRED' ? gone() : void app.append(h('p', { class: 'error' }, errorText(r?.error)));
-  const { review: rv, askPassword } = r;
+  const { review: rv, askPassword, onPhone } = r;
   const ex = rv.explanation;
   const err = h('p', { class: 'error', role: 'alert' });
   const pw = h('input', { type: 'password', placeholder: t('apPassword'), autocomplete: 'current-password' });
   const reduceBox = h('input', { type: 'checkbox', style: 'width:auto' });
   const reduceAmount = h('input', { type: 'text', inputMode: 'decimal', value: rv.reduce?.suggested ?? '', placeholder: '0.0', 'aria-label': t('apReduce') });
   const sending = rv.method === 'eth_sendTransaction' || rv.method === 'solana:signAndSendTransaction';
-  const label = ex.holdToSign ? t('apHold') : sending ? t('apConfirm') : t('apSign');
+  const label = ex.holdToSign ? t('apHold') : onPhone ? t('sendToPhone') : sending ? t('apConfirm') : t('apSign');
+  // Mode compagnon : la signature se fait sur le téléphone ; pendant l'attente, on le dit.
+  const phoneWait = h('p', { class: 'pill quiet status', hidden: true, role: 'status', 'data-testid': 'on-phone' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('onPhoneHint'));
   const ok = h('button', { class: `btn arming ${ex.risk === 'danger' ? 'danger' : ''}`, type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, label);
   setTimeout(() => ((ok.disabled = false), ok.classList.remove('arming')), ARM_MS);
 
@@ -100,6 +102,7 @@ async function signScreen(req: Req) {
     if (askPassword && !pw.value) return void (err.textContent = errorText('PASSWORD_REQUIRED'));
     ok.disabled = true;
     err.textContent = '';
+    phoneWait.hidden = !onPhone;
     const x = await send<{ params?: Record<string, string> }>({
       type: 'approval:respond',
       id,
@@ -108,6 +111,7 @@ async function signScreen(req: Req) {
       reduceTo: rv.reduce && reduceBox.checked && reduceAmount.value.trim() ? reduceAmount.value.trim() : undefined,
     }).catch(() => null);
     pw.value = '';
+    phoneWait.hidden = true;
     if (x?.ok) return window.close();
     if (x?.error === 'REQUEST_EXPIRED') return gone();
     // L'action a échoué : on reste, on dit pourquoi ; réessayer ou refuser.
@@ -157,6 +161,7 @@ async function signScreen(req: Req) {
       rv.details.length > 0 && h('details', {}, h('summary', {}, t('apDetails')), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
       askPassword && pw,
       ex.holdToSign && h('p', { class: 'small muted' }, t('apHoldHint')),
+      phoneWait,
       err,
       // Danger : Refuser en premier (et focalisé), signer à droite.
       h('div', { class: 'dock' }, h('div', { class: 'actions' }, refuseBtn, ok)),

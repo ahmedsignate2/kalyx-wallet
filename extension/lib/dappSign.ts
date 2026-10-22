@@ -37,6 +37,8 @@ import { looksLikeSolanaTransaction } from '../../lib/solanaMessage';
 import { signMessageParam } from '../../lib/dappProvider';
 import { RpcError } from './rpcError';
 import { signerFor } from './signer';
+import { executeOnPhone } from './companionSign';
+import type { Companion } from './companion';
 import type { Session } from './session';
 import type { Wallets } from './wallets';
 
@@ -273,6 +275,8 @@ export interface ExecuteDeps {
   sendEvm?: (chain: ChainConfig, req: RawTxRequest, from: string, pk: string) => Promise<string>;
   sendSolana?: (rawB64: string) => Promise<string>;
   tokenMeta?: (chain: ChainConfig, token: string) => Promise<{ symbol: string; decimals: number } | null>;
+  /** Mode compagnon : le lien avec le téléphone, qui signe à la place du coffre. */
+  companion?: Companion;
 }
 
 /** Signe une transaction Solana sérialisée : notre signature, à NOTRE place parmi les signataires. */
@@ -300,6 +304,14 @@ export function signSolanaTx(bytes: Uint8Array, seed: Uint8Array, publicKey: Uin
 
 export async function execute(req: SignRequest, grant: { walletId: string; index: number }, opts: { reduceTo?: string } = {}, deps: ExecuteDeps): Promise<unknown> {
   const family = req.kind === 'solMessage' || req.kind === 'solTx' ? 'solana' : 'evm';
+  // Compte du téléphone (mode compagnon) : la signature se fait là-bas, vérifiée ici.
+  const meta = (await deps.wallets.list()).find((w) => w.id === grant.walletId);
+  if (meta?.kind === 'companion') {
+    if (!deps.companion) throw new RpcError(4900, 'COMPANION_UNAVAILABLE');
+    const acct = meta.accounts[0];
+    if ((family === 'evm' ? acct?.evm : acct?.solana)?.toLowerCase() !== req.from.toLowerCase()) throw new RpcError(4100, 'Ce compte n’est pas celui du téléphone');
+    return executeOnPhone(req, meta, deps.companion, { reduceTo: opts.reduceTo, tokenMeta: deps.tokenMeta ?? readTokenMeta });
+  }
   const signer = await signerFor(deps.session, deps.wallets, grant.walletId, grant.index, family, req.from);
 
   if (req.kind === 'personal') {

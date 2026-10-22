@@ -1,6 +1,6 @@
 # Privacy policy — Kalyx Wallet extension
 
-*Last updated: October 19, 2026*
+*Last updated: October 22, 2026*
 
 Kalyx Wallet is a **non-custodial** wallet: your keys and recovery phrase
 never leave your computer. Kalyx has no user accounts and no server that keeps
@@ -16,6 +16,10 @@ your data.
   browser closes.
 - **Your settings and local data**: lock delay, currency, whitelist, connected
   sites, cache of balances and activity.
+
+- **Companion mode**: if you link your phone, the extension only keeps that
+  account's public addresses and the linking session; no phrase or key for
+  that account exists on the computer.
 
 Uninstalling the extension erases all of this. Without your recovery phrase,
 nobody, not even Kalyx, can recover your funds.
@@ -38,6 +42,7 @@ send your transactions, the extension contacts directly, from your browser:
 | GoPlus Security | A contract or recipient address, a site's domain | Flag a dangerous contract or site before you sign |
 | Hosts of token logos (e.g. CoinGecko, wsrv.nl) | The image request, without your address | Show token logos |
 | Kalyx relay (Cloudflare), to Alchemy, Etherscan and Helius | Your **public** EVM address and the list of networks; a transaction to simulate before signing | List your ERC-20 tokens and NFTs, fill in prices, history, simulation — with no API key inside the extension. No logs are kept. |
+| WalletConnect relay (Reown), **companion mode only** | The **public** addresses shared by your phone, the signing requests to approve on your phone and their answers, **end-to-end encrypted** between the extension and the app | Link the extension to the Kalyx app on your phone: the keys stay on the phone, the relay can’t read the messages |
 
 These services see your IP address, like any website you visit. Blockchain
 addresses are public by nature. **Your phrase, keys and password are never

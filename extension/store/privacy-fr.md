@@ -1,6 +1,6 @@
 # Politique de confidentialité — extension Kalyx Wallet
 
-*Dernière mise à jour : 19 octobre 2026*
+*Dernière mise à jour : 22 octobre 2026*
 
 Kalyx Wallet est un portefeuille **non-custodial** : tes clés et ta phrase de
 récupération ne quittent jamais ton ordinateur. Kalyx n'a ni compte
@@ -16,6 +16,10 @@ utilisateur, ni serveur qui garde tes données.
   la fermeture du navigateur.
 - **Tes réglages et données locales** : délai de verrouillage, devise, liste
   blanche, sites connectés, cache des soldes et de l'activité.
+
+- **Mode compagnon** : si tu relies ton téléphone, l'extension ne garde que
+  les adresses publiques de ce compte et la session de liaison ; aucune phrase
+  ni clé de ce compte n'existe sur l'ordinateur.
 
 Désinstaller l'extension efface tout cela. Sans ta phrase de récupération,
 personne, pas même Kalyx, ne peut récupérer tes fonds.
@@ -40,6 +44,7 @@ ton navigateur :
 | GoPlus Security | L'adresse d'un contrat ou d'un destinataire, le domaine d'un site | Signaler un contrat ou un site dangereux avant une signature |
 | Hébergeurs des logos de jetons (par ex. CoinGecko, wsrv.nl) | La demande de l’image, sans ton adresse | Afficher les logos des jetons |
 | Relais Kalyx (Cloudflare), vers Alchemy, Etherscan et Helius | Ton adresse EVM **publique** et la liste des réseaux ; une transaction à simuler avant signature | Lister tes tokens ERC-20 et tes NFT, compléter les prix, l’historique, la simulation — sans qu’aucune clé d’API soit dans l’extension. Aucun journal n’est gardé. |
+| Relais WalletConnect (Reown), **mode compagnon seulement** | Tes adresses **publiques** partagées par le téléphone, les demandes de signature à valider sur le téléphone et leurs réponses, **chiffrées de bout en bout** entre l'extension et l'app | Relier l'extension à l'app Kalyx de ton téléphone : les clés restent sur le téléphone, le relais ne peut pas lire les messages |
 
 Ces services voient ton adresse IP, comme tout site que tu visites. Les
 adresses sur une blockchain sont publiques par nature. **Ni ta phrase, ni tes

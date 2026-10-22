@@ -186,6 +186,8 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
   const err = h('p', { class: 'error', role: 'alert' });
   const ack = h('input', { type: 'checkbox', style: 'width:auto' });
   const go = h('button', { class: 'btn', type: 'button', disabled: true }, t('confirmSend'));
+  // Mode compagnon : pendant la confirmation, la demande attend sur le téléphone.
+  const phoneWait = h('p', { class: 'pill quiet status', hidden: true, role: 'status', 'data-testid': 'on-phone' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('onPhoneHint'));
   const ready = () => (go.disabled = !!d.poisoning && !ack.checked);
   setTimeout(ready, CONFIRM_DELAY_MS);
   ack.addEventListener('change', () => setTimeout(ready, 0));
@@ -194,7 +196,9 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
     go.disabled = true;
     go.textContent = t('sending');
     err.textContent = '';
+    phoneWait.hidden = !d.onPhone;
     const r = await send<{ txid: string; explorer?: string }>({ type: 'send:confirm', id: d.id, acceptRisk: !!d.poisoning && ack.checked }).catch(() => null);
+    phoneWait.hidden = true;
     if (!r?.ok) {
       go.textContent = t('confirmSend');
       // Brouillon consommé ou périmé : on repart de la saisie.
@@ -230,6 +234,7 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
     d.newRecipient && !d.poisoning && h('div', { class: 'banner warn' }, h('span', {}, t('newRecipient'))),
     ...d.warnings.map((w) => h('div', { class: 'banner warn' }, h('span', {}, activityT(`w_${w}`)))),
     d.poisoning && h('label', { class: 'check' }, ack, h('span', {}, t('poisonAck'))),
+    phoneWait,
     err,
     go,
   ));
