@@ -80,7 +80,7 @@ export function networksScreen(app: HTMLElement, back: () => void) {
 /** Ajouter un token : réseau, contrat, vérification sur le contrat, puis ajout. */
 export function addTokenSheet(networks: { id: string; name: string }[], added: () => void) {
   const select = h('select', { class: 'inline', 'aria-label': t('network'), 'data-testid': 'token-chain' }, ...networks.map((n) => h('option', { value: n.id }, n.name)));
-  const input = h('input', { type: 'text', placeholder: '0x…', maxLength: 64, spellcheck: false, autocomplete: 'off', 'aria-label': t('atContract'), 'data-testid': 'token-contract' });
+  const input = h('input', { class: 'mono-input', type: 'text', placeholder: '0x…', maxLength: 64, spellcheck: false, autocomplete: 'off', 'aria-label': t('atContract'), 'data-testid': 'token-contract' });
   const err = h('p', { class: 'error', role: 'alert' });
   const preview = h('div', { class: 'stack', style: 'gap:8px' });
   const go = h('button', { class: 'btn', type: 'button', 'data-testid': 'token-check' }, t('atCheck'));

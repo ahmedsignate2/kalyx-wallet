@@ -12,6 +12,7 @@ import { h, nodes, send } from './dom';
 import { activityT, errorText, LOCALE, t } from './i18n';
 import type { AssetView, DraftView, QuoteView } from '../lib/send';
 import { addressView } from './address';
+import { pickContactSheet } from './contactsScreen';
 
 type Speed = 'slow' | 'normal' | 'fast';
 type Reply = { ok: boolean; error?: string; params?: Record<string, string> };
@@ -157,7 +158,13 @@ export function sendScreen(app: HTMLElement, back: () => void) {
     h('label', { class: 'small muted' }, t('asset')),
     assetSel,
     balance,
-    h('label', { class: 'small muted' }, t('recipient')),
+    // Un contact ne fait que remplir le champ : la suite (vérifications, revue) est la même.
+    h(
+      'div',
+      { class: 'label-row' },
+      h('label', { class: 'small muted' }, t('recipient')),
+      h('button', { class: 'chip', type: 'button', 'data-testid': 'send-contacts', on: { click: () => void pickContactSheet(asset()?.family, (addr) => ((to.value = addr), to.dispatchEvent(new Event('change')))) } }, glyph('wallet', 14), t('ctTitle')),
+    ),
     to,
     h('label', { class: 'small muted' }, t('amount')),
     h('div', { class: 'amount' }, amount, maxBtn),

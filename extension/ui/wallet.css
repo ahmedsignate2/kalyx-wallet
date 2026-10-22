@@ -312,7 +312,7 @@ details > summary::-webkit-details-marker { display: none; }
 .tag { display: inline-block; margin-inline-start: 6px; padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--text-secondary); font-size: 10.5px; font-weight: 600; vertical-align: 1px; }
 .inline-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field input { font-family: var(--mono, ui-monospace, monospace); }
+.field input.mono-input { font-family: var(--mono, ui-monospace, monospace); }
 
 /* NFT : grille en lecture seule. */
 .nft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
@@ -324,3 +324,12 @@ details > summary::-webkit-details-marker { display: none; }
 .nft-frame .badge { inset-inline-end: 4px; bottom: 4px; }
 .nft-hero { max-width: 280px; margin: 0 auto; width: 100%; }
 .nft-big { object-fit: contain; }
+
+/* Carnet d'adresses : le choix d'un contact à côté du champ destinataire. */
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.label-row .chip { min-height: 28px; padding: 4px 10px; }
+.tx-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 4px 0 8px; }
+.tx-hero .token-value { margin: 0; }
+.kv-row .addr { margin: 0; text-align: end; }
+.changed-note { display: flex; align-items: center; gap: 4px; margin-top: 2px; color: var(--warning); font-size: 12px; font-weight: 600; }
+.changed-note .glyph { flex: none; }

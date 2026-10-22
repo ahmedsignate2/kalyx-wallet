@@ -7,6 +7,7 @@ import { makePortfolio } from '../lib/portfolio';
 import { makeHome } from '../lib/home';
 import { makeAssets } from '../lib/assets';
 import { makeNfts } from '../lib/nfts';
+import { makeContacts } from '../lib/contacts';
 import { activityT, defaultFiat, explainT, explainTFor, LOCALE, t } from '../ui/i18n';
 import { makeTxWatch } from '../lib/txWatch';
 import { makeAllowances } from '../lib/allowances';
@@ -43,6 +44,7 @@ export default defineBackground(() => {
   const portfolio = makePortfolio({ disk, t: activityT, locale: LOCALE, assets });
   const nfts = makeNfts({ disk, hiddenChains: async () => (await assets.prefs()).hiddenChains });
   const home = makeHome(disk, session, wallets, portfolio, defaultFiat());
+  const contacts = makeContacts(disk, session);
   const whitelist = makeWhitelist(disk, session, wallets, makeChainTime());
   // Mode compagnon : un appel léger toutes les 20 s garde le worker éveillé pendant une validation sur le téléphone.
   const companion = makeCompanion(wallets, { keepAlive: () => void browser.runtime.getPlatformInfo().catch(() => {}) });
@@ -125,7 +127,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
     return true; // réponse asynchrone
   });
 });
