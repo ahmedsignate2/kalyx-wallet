@@ -90,6 +90,10 @@ export interface ActivityRow {
   failed: boolean;
   pending: boolean;
   explorer?: string;
+  /** Pour le détail : sens, expéditeur et destinataire tels que l'indexeur les rend. */
+  direction: TxSummary['direction'];
+  from: string;
+  to: string;
 }
 
 export interface ActivityView {
@@ -371,6 +375,9 @@ export function makePortfolio(deps: PortfolioDeps) {
         failed: hu.failed,
         pending: hu.pending,
         explorer: c?.explorerUrl && /^[A-Za-z0-9]+$/.test(tx.hash) ? `${c.explorerUrl}/tx/${tx.hash}` : undefined,
+        direction: tx.direction,
+        from: tx.from,
+        to: tx.to,
       });
     }
     return { at, rows, hiddenCount, failed: byPriority(failed.filter((id) => !hiddenChains.has(id))).map(chainName) };

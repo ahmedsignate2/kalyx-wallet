@@ -486,6 +486,47 @@ async function onboarding() {
     (await bg({ type: 'wallet:list' })).wallets.find((w) => w.id === fresh.id).backedUp ? console.log('✓ phrase vérifiée plus tard : rappel levé') : fail('backedUp');
     await verifyPage.close();
 
+    // ── Vague 3 : carnet d'adresses (scellé), sosie signalé, changement d'adresse confirmé, choix dans Envoyer ──
+    {
+      // Adresses publiques réelles (phrase de test « test test … junk » de Hardhat), rien d'inventé.
+      const A = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+      const B = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
+      const TWIN = '0xf39f000000000000000000000000000000002266';
+      await popup.reload();
+      await popup.getByRole('button', { name: 'Réglages' }).click();
+      await popup.locator('[data-testid=settings-contacts]').click();
+      await popup.locator('[data-testid=ct-new]').click();
+      await popup.locator('[data-testid=ct-name]').fill('Léa');
+      await popup.locator('[data-testid=ct-address]').fill(A.toLowerCase());
+      await popup.locator('[data-testid=ct-save]').click();
+      await popup.waitForFunction(() => document.querySelector('[data-testid=contacts]')?.textContent?.includes('Léa'), null, { timeout: 10_000 }).then(() => console.log('✓ contact ajouté'), () => fail('ajout de contact'));
+      const disk = JSON.stringify(await popup.evaluate(() => chrome.storage.local.get(null)));
+      !disk.includes('Léa') && !disk.toLowerCase().includes(A.toLowerCase()) ? console.log('✓ carnet scellé sur le disque (ni nom ni adresse en clair)') : fail('carnet en clair sur le disque');
+      await popup.locator('[data-testid=ct-new]').click();
+      await popup.locator('[data-testid=ct-name]').fill('Faux');
+      await popup.locator('[data-testid=ct-address]').fill(TWIN);
+      await popup.locator('[data-testid=ct-save]').click();
+      await popup.locator('[data-testid=ct-ack]').waitFor({ timeout: 10_000 }).then(() => console.log('✓ sosie d’un contact signalé avant enregistrement'), () => fail('sosie non signalé'));
+      if (SHOTS) await popup.screenshot({ path: join(SHOTS, 'contact-lookalike.png') });
+      await popup.keyboard.press('Escape');
+      await popup.waitForTimeout(300);
+      await popup.locator('[data-testid=contacts] [data-testid=contact]').first().click();
+      await popup.locator('[data-testid=ct-address]').fill(B);
+      await popup.locator('[data-testid=ct-save]').click();
+      await popup.waitForFunction(() => document.querySelector('.modal .error')?.textContent, null, { timeout: 5_000 });
+      await popup.locator('[data-testid=ct-ack]').check();
+      await popup.locator('[data-testid=ct-save]').click();
+      await popup.locator('[data-testid=contact-changed]').waitFor({ timeout: 10_000 }).then(() => console.log('✓ changement d’adresse : confirmé, puis signalé sur le contact'), () => fail('changement d’adresse'));
+      if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `contacts-${scheme}.png`) });
+      await popup.emulateMedia({ colorScheme: 'light' });
+      await popup.reload();
+      await popup.getByRole('button', { name: /Envoyer/ }).click();
+      await popup.waitForFunction(() => document.querySelectorAll('form select option').length > 0);
+      await popup.locator('[data-testid=send-contacts]').click();
+      await popup.locator('[data-testid=pick-contact]').first().click();
+      (await popup.locator('form input[type=text]').first().inputValue()) === B ? console.log('✓ Envoyer : contact choisi, adresse remplie (même parcours ensuite)') : fail('choix du contact dans Envoyer');
+    }
+
     // Envoyer : réseau injoignable ici → erreur nommée, rien n'est signé.
     await popup.reload();
     await popup.getByRole('button', { name: /Envoyer/ }).click();

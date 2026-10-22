@@ -24,6 +24,7 @@ import type { Approvals } from './approvals';
 import type { Dapp } from './dapp';
 import type { Assets } from './assets';
 import type { Nfts } from './nfts';
+import { ContactError, type Contacts } from './contacts';
 import { listChains } from '../../src/domain/chains/registry';
 import { WalletError as CoreError } from '../../src/domain/errors';
 
@@ -48,6 +49,8 @@ export interface Services {
   /** Réseaux et tokens affichés, tokens ajoutés. */
   assets?: Assets;
   nfts?: Nfts;
+  /** Carnet d'adresses (scellé avec la clé du coffre). */
+  contacts?: Contacts;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -63,7 +66,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -174,6 +177,20 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!cur) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
         return { ok: true, nfts: m.fresh === true ? await nfts.refresh(cur.acct) : await nfts.cached(cur.acct) };
       }
+      /* ── Carnet d'adresses ── */
+      case 'contacts:list':
+        if (!contacts) break;
+        return { ok: true, contacts: await contacts.list() };
+      case 'contacts:add':
+        if (!contacts) break;
+        return { ok: true, contact: await contacts.add(m.name, m.address, m.confirmLookalike === true) };
+      case 'contacts:update':
+        if (!contacts) break;
+        return { ok: true, contact: await contacts.update(m.id, m.name, m.address, { confirmChange: m.confirmChange === true, confirmLookalike: m.confirmLookalike === true }) };
+      case 'contacts:remove':
+        if (!contacts) break;
+        await contacts.remove(m.id);
+        return { ok: true };
       case 'wallet:reveal-phrase':
         // Mot de passe REDEMANDÉ, même déverrouillé : afficher la phrase donne tout.
         if (!str(m.id, 64) || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
@@ -461,6 +478,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
     return { ok: false, error: 'UNKNOWN_MESSAGE' };
   } catch (e) {
     if (e instanceof SessionError) return { ok: false, error: e.message, ...(e.waitMs ? { waitMs: e.waitMs } : {}) };
+    if (e instanceof ContactError) return { ok: false, error: e.message, ...(e.params ? { params: e.params } : {}) };
     if (e instanceof WalletError) return { ok: false, error: e.message };
     // Mode compagnon : son code précis (refusé sur le téléphone, délai, lien coupé…).
     if (e instanceof RpcError && /^COMPANION_[A-Z_]+$/.test(e.message)) return { ok: false, error: e.message };

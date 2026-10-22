@@ -24,6 +24,7 @@ import { sitesScreen } from './sitesScreen';
 import { allowancesScreen } from './allowancesScreen';
 import { changePasswordSheet, exportBackupSheet, manageWalletScreen } from './manageScreen';
 import { addTokenSheet, networksScreen } from './assetsScreen';
+import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
@@ -620,9 +621,65 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         h('p', { class: 'small muted' }, r.pending ? t('pending') : r.failed ? t('failedTx') : (r.fiat ?? '')),
       ),
     ];
-    return r.explorer
-      ? h('a', { class: 'row link-row', href: r.explorer, target: '_blank', rel: 'noopener noreferrer', title: t('viewExplorer') }, ...inner)
-      : h('div', { class: 'row' }, ...inner);
+    return h('button', { class: 'row link-row', type: 'button', 'data-testid': 'tx-row', on: { click: () => void txSheet(r) } }, ...inner);
+  }
+
+  /** Détail d'une transaction : état, date, réseau, expéditeur, destinataire (avec le contact), hash. */
+  async function txSheet(r: ActivityRow) {
+    const contacts = await loadContacts();
+    const { a } = current();
+    const own = [a?.evm, a?.solana].filter((x): x is string => !!x);
+    const isOwn = (x: string) => own.some((o) => (o.startsWith('0x') ? o.toLowerCase() === x.toLowerCase() : o === x));
+    const other = r.direction === 'in' ? r.from : r.to;
+    const known = contacts.some((c) => (c.address.startsWith('0x') ? c.address.toLowerCase() === other.toLowerCase() : c.address === other));
+    const kv = (k: string, v: Node | string) => h('div', { class: 'kv-row' }, h('span', { class: 'muted' }, k), typeof v === 'string' ? h('strong', {}, v) : v);
+    const status = r.pending ? t('pending') : r.failed ? t('failedTx') : t('txConfirmed');
+    const copyLabel = h('span', {}, t('copy'));
+    const copy = h(
+      'button',
+      {
+        class: 'chip copy',
+        type: 'button',
+        'data-testid': 'tx-copy-hash',
+        on: {
+          click: async () => {
+            await navigator.clipboard.writeText(r.hash);
+            copy.dataset.copied = '1';
+            copyLabel.textContent = t('copied');
+            setTimeout(() => (delete copy.dataset.copied, (copyLabel.textContent = t('copy'))), 1400);
+          },
+        },
+      },
+      glyph('copy', 14),
+      copyLabel,
+    );
+    const when = r.timestamp ? new Intl.DateTimeFormat(LOCALE, { dateStyle: 'medium', timeStyle: 'short' }).format(r.timestamp * 1000) : '—';
+    const sheet = openSheet(
+      r.label,
+      h(
+        'section',
+        { class: 'tx-hero', 'data-testid': 'tx-detail' },
+        r.amount ? h('p', { class: `token-value ${r.tone === 'up' ? 'up' : ''}` }, r.amount) : null,
+        r.fiat ? h('p', { class: 'small muted' }, r.fiat) : null,
+        h('p', { class: `pill ${r.failed ? 'loss' : r.pending ? 'quiet' : 'gain'}` }, glyph(r.failed ? 'errorCircle' : r.pending ? 'clock' : 'check', 14), status),
+      ),
+      h(
+        'div',
+        { class: 'card kv-card' },
+        kv(t('txDate'), when),
+        kv(t('tdNetwork'), h('span', { class: 'net' }, r.chainLogo ? h('img', { src: r.chainLogo, alt: '' }) : null, r.chainName)),
+        r.from ? kv(t('from'), addressWithContact(r.from, contacts)) : null,
+        r.to ? kv(t('to'), addressWithContact(r.to, contacts)) : null,
+        kv(t('txHash'), h('span', { class: 'acct-line' }, h('span', { class: 'mono small' }, r.hash.length > 16 ? `${r.hash.slice(0, 8)}…${r.hash.slice(-6)}` : r.hash), copy)),
+      ),
+      r.subtitle ? h('p', { class: 'small muted' }, r.subtitle) : null,
+      h(
+        'div',
+        { class: 'actions' },
+        r.explorer ? h('a', { class: 'btn secondary', href: r.explorer, target: '_blank', rel: 'noopener noreferrer' }, glyph('arrowUpRight', 18), t('viewExplorer')) : null,
+        other && !known && !isOwn(other) ? h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'tx-save-contact', on: { click: () => (sheet.close(), contactSheet(null, () => {}, other)) } }, glyph('add', 18), t('ctAdd')) : null,
+      ),
+    );
   }
 
   function activityList() {
@@ -735,7 +792,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
         group(
           t('setSecurity'),
           askPw,
