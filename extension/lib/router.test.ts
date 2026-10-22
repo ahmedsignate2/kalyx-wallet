@@ -3,6 +3,8 @@ import { handleInternal } from './router';
 import { makeSession } from './session';
 import { makeStore, type StorageArea } from './storage';
 import { makeWallets } from './wallets';
+import { makeAssets } from './assets';
+import { makeNfts } from './nfts';
 
 function area(): StorageArea {
   const data: Record<string, unknown> = {};
@@ -43,5 +45,25 @@ describe('routeur interne', () => {
   test('une erreur inattendue ne laisse rien fuir (ni pile, ni message interne)', async () => {
     const broken = { ...fresh(), status: async () => { throw new Error('/home/secret/path stack'); } };
     expect(await handleInternal(broken as never, broken.wallets, { type: 'vault:status' })).toEqual({ ok: false, error: 'INTERNAL' });
+  });
+
+  test('réseaux, tokens et NFT : verrouillé, rien ne se lit ni ne change', async () => {
+    const s = fresh();
+    await h(s, { type: 'vault:create', password: 'Plage-Orange-47!' });
+    await h(s, { type: 'vault:lock' });
+    const disk = makeStore(area());
+    const svc = { assets: makeAssets({ disk }), nfts: makeNfts({ disk }), home: { current: async () => null } as never };
+    for (const m of [
+      { type: 'assets:networks' },
+      { type: 'assets:set-network', id: 'polygon', hidden: true },
+      { type: 'assets:set-token', id: 'base:native', hidden: true },
+      { type: 'tokens:check', chainId: 'base', contract: '0x1111111111111111111111111111111111111111' },
+      { type: 'tokens:add', chainId: 'base', contract: '0x1111111111111111111111111111111111111111' },
+      { type: 'tokens:remove', chainId: 'base', contract: '0x1111111111111111111111111111111111111111' },
+      { type: 'nfts:get', fresh: true },
+    ]) {
+      expect(await handleInternal(s, s.wallets, m, undefined, svc)).toEqual({ ok: false, error: 'LOCKED' });
+    }
+    expect(await disk.get('view.prefs')).toBeUndefined();
   });
 });

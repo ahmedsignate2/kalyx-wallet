@@ -307,3 +307,20 @@ details > summary::-webkit-details-marker { display: none; }
 /* Gérer un portefeuille : clé affichée (sélectionnable d'un bloc) et ligne de suppression. */
 .secret-key { padding: 12px; border-radius: 12px; background: var(--surface-2); word-break: break-all; user-select: all; font-size: 13px; line-height: 1.5; }
 .danger-row strong, .danger-row .set-ico { color: var(--danger); }
+
+/* Tokens ajoutés et masqués, réseaux affichés. */
+.tag { display: inline-block; margin-inline-start: 6px; padding: 1px 6px; border-radius: 6px; background: var(--surface-2); color: var(--text-secondary); font-size: 10.5px; font-weight: 600; vertical-align: 1px; }
+.inline-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field input { font-family: var(--mono, ui-monospace, monospace); }
+
+/* NFT : grille en lecture seule. */
+.nft-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; }
+.nft-card { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 18px; text-align: start; cursor: pointer; color: var(--text); font: inherit; min-width: 0; }
+.nft-card strong, .nft-card .small { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nft-frame { position: relative; display: block; aspect-ratio: 1; border-radius: 12px; overflow: visible; }
+.nft-img, .nft-big { display: block; width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--surface-2); }
+.nft-blank { display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 28px; font-weight: 700; }
+.nft-frame .badge { inset-inline-end: 4px; bottom: 4px; }
+.nft-hero { max-width: 280px; margin: 0 auto; width: 100%; }
+.nft-big { object-fit: contain; }
