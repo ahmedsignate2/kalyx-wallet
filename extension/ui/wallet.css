@@ -297,3 +297,9 @@ details > summary::-webkit-details-marker { display: none; }
 .acct-line .ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-row:disabled { opacity: 0.55; cursor: not-allowed; }
 .acct-card.static { cursor: default; pointer-events: none; }
+
+/* Autorisations de tokens. */
+.chip.danger { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border: 0; }
+.chip.quiet { display: inline-flex; align-items: center; gap: 4px; color: var(--up); background: color-mix(in srgb, var(--up) 12%, transparent); }
+.warn-text { color: var(--warning); }
+.risky-line { display: flex; align-items: center; gap: 4px; font-weight: 600; }

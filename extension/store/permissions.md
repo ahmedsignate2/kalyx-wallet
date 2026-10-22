@@ -11,6 +11,7 @@ Kalyx Wallet is a non-custodial cryptocurrency wallet: it stores the user's keys
 | `alarms` | Locks the wallet automatically after the delay chosen by the user, even if the service worker was suspended. |
 | `idle` | Locks the wallet as soon as the computer screen locks. |
 | `sidePanel` | Lets the user open the wallet in Chrome's side panel. |
+| `notifications` | One notification when a transaction sent from the wallet is confirmed or fails. No marketing, no other notification. |
 | `scripting` | Registers the in-page provider script (EIP-1193 / EIP-6963 for EVM, Wallet Standard for Solana) so websites can ask the wallet to connect or sign. The script exposes no key and only relays requests. |
 | Host permissions `http://*/*`, `https://*/*` | Required for the provider script to be available on any website the user visits, as with every browser wallet; the user decides which sites may connect. The extension also uses these to reach blockchain nodes and the data services listed in the privacy policy. |
 

@@ -41,7 +41,7 @@ ton navigateur :
 | Nœuds publics de chaque réseau (RPC) | Tes adresses **publiques**, tes transactions **signées** | Lire les soldes, estimer les frais, diffuser une transaction |
 | Explorateurs de blocs (par ex. Blockscout) | Tes adresses publiques | Lire ton historique |
 | DefiLlama / CoinGecko | Les identifiants des jetons (pas tes adresses) | Afficher la valeur dans ta devise |
-| GoPlus Security | L'adresse d'un contrat ou d'un destinataire, le domaine d'un site | Signaler un contrat ou un site dangereux avant une signature |
+| GoPlus Security | L'adresse d'un contrat ou d'un destinataire, le domaine d'un site ; ton adresse EVM **publique** si tu ouvres « Autorisations de tokens » | Signaler un contrat ou un site dangereux avant une signature ; lister les contrats autorisés à dépenser tes tokens |
 | Hébergeurs des logos de jetons (par ex. CoinGecko, wsrv.nl) | La demande de l’image, sans ton adresse | Afficher les logos des jetons |
 | Relais Kalyx (Cloudflare), vers Alchemy, Etherscan et Helius | Ton adresse EVM **publique** et la liste des réseaux ; une transaction à simuler avant signature | Lister tes tokens ERC-20 et tes NFT, compléter les prix, l’historique, la simulation — sans qu’aucune clé d’API soit dans l’extension. Aucun journal n’est gardé. |
 | Relais Kalyx puis Stripe, **seulement si tu touches Acheter** | Ton adresse **publique** du réseau choisi, la crypto et le réseau, l’IP de ton appareil (pays couvert ou non) | Ouvrir la page de paiement sécurisée de Stripe (crypto.link.com). Le paiement et la vérification d’identité se font chez Stripe, pas dans Kalyx |
@@ -64,6 +64,7 @@ fois. Tu peux déconnecter un site à tout moment (Réglages → Sites connecté
 - `alarms`, `idle` : verrouiller Kalyx après le délai choisi et dès que l'écran
   se verrouille.
 - `sidePanel` : ouvrir Kalyx dans le panneau latéral.
+- `notifications` : te prévenir quand une transaction envoyée est confirmée ou a échoué (une seule notification par transaction).
 - `scripting` et accès aux sites : permettre aux sites de proposer une
   connexion ou une signature, que tu acceptes ou refuses dans Kalyx.
 

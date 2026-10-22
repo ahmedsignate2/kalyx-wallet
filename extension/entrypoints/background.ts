@@ -5,7 +5,9 @@ import { handleInternal } from '../lib/router';
 import { makeWallets } from '../lib/wallets';
 import { makePortfolio } from '../lib/portfolio';
 import { makeHome } from '../lib/home';
-import { activityT, defaultFiat, explainT, explainTFor, LOCALE } from '../ui/i18n';
+import { activityT, defaultFiat, explainT, explainTFor, LOCALE, t } from '../ui/i18n';
+import { makeTxWatch } from '../lib/txWatch';
+import { makeAllowances } from '../lib/allowances';
 import { makeChainTime } from '../lib/chainTime';
 import { makeWhitelist } from '../lib/whitelist';
 import { makeSend } from '../lib/send';
@@ -41,6 +43,7 @@ export default defineBackground(() => {
   // Mode compagnon : un appel léger toutes les 20 s garde le worker éveillé pendant une validation sur le téléphone.
   const companion = makeCompanion(wallets, { keepAlive: () => void browser.runtime.getPlatformInfo().catch(() => {}) });
   const buy = makeBuy(home);
+  const allowances = makeAllowances({ home, execute: { session, wallets, companion } });
   /** Icône d'un site : celle que Chrome a lue dans un onglet ouvert sur cette origine. */
   const siteIcon = async (origin: string) => {
     const tabs = await browser.tabs.query({});
@@ -53,11 +56,37 @@ export default defineBackground(() => {
     });
     return safeIcon(tab?.favIconUrl);
   };
-  const send = makeSend({ session, wallets, home, portfolio, whitelist, companion });
+  /*
+   * Transactions suivies jusqu'à leur issue : UNE notification (confirmée ou
+   * échouée), un clic ouvre l'explorateur. Alarme seulement tant qu'il y a
+   * quelque chose à suivre.
+   */
+  const TX_ALARM = 'kalyx-txwatch';
+  const txWatch = makeTxWatch({
+    store: makeStore(browser.storage.session),
+    check: (w) => send.check(w),
+    notify: (outcome, w) =>
+      void browser.notifications
+        .create(w.txid, { type: 'basic', iconUrl: browser.runtime.getURL('/icon/128.png'), title: t(outcome === 'confirmed' ? 'notifConfirmed' : 'notifFailed'), message: `${w.what} · ${w.chainName}` })
+        .catch(() => {}),
+    schedule: (on) => void (on ? browser.alarms.create(TX_ALARM, { periodInMinutes: 0.5 }) : browser.alarms.clear(TX_ALARM)).catch(() => {}),
+  });
+  browser.notifications.onClicked.addListener((nid) => {
+    void txWatch.explorerOf(nid).then((url) => {
+      if (url && /^https:\/\//.test(url)) void browser.tabs.create({ url });
+    });
+    void browser.notifications.clear(nid).catch(() => {});
+  });
+  const send = makeSend({ session, wallets, home, portfolio, whitelist, companion, onSent: (w) => void txWatch.add(w) });
 
   // ── Pont vers les dApps ──
   const sites = makeSites(disk);
   const approvals = makeApprovals({
+    // Demandes de sites en attente : leur nombre sur l'icône (sans notification de plus).
+    onChange: (n) => {
+      void browser.action.setBadgeText({ text: n ? String(n) : '' }).catch(() => {});
+      void browser.action.setBadgeBackgroundColor({ color: '#E8743B' }).catch(() => {});
+    },
     open: async (id) =>
       (await browser.windows.create({ url: browser.runtime.getURL(`/approval.html#${id}`), type: 'popup', width: 380, height: 640, focused: true }))?.id,
     close: async (windowId) => void (await browser.windows.remove(windowId).catch(() => {})),
@@ -84,6 +113,7 @@ export default defineBackground(() => {
 
   browser.alarms.onAlarm.addListener((a) => {
     if (a.name === AUTO_LOCK_ALARM) void session.lock();
+    if (a.name === TX_ALARM) void txWatch.tick();
   });
   browser.idle.onStateChanged.addListener((state) => {
     if (state === 'locked') void session.lock();
@@ -91,7 +121,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
     return true; // réponse asynchrone
   });
 });

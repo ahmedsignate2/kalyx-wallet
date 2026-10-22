@@ -21,6 +21,7 @@ import { sendScreen } from './send';
 import { receiveScreen } from './receive';
 import { whitelistScreen } from './whitelistScreen';
 import { sitesScreen } from './sitesScreen';
+import { allowancesScreen } from './allowancesScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
@@ -597,7 +598,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         h('span', { class: 'grow' }, h('strong', {}, label)),
         end ?? glyph('chevron', 16),
       );
-    const group = (title: string, ...rows: Node[]) => h('section', { class: 'group' }, h('p', { class: 'group-title' }, title), h('div', { class: 'list card' }, ...rows));
+    const group = (title: string, ...rows: (Node | false)[]) => h('section', { class: 'group' }, h('p', { class: 'group-title' }, title), h('div', { class: 'list card' }, ...rows.filter((r): r is Node => !!r)));
     app.replaceChildren(
       h(
         'div',
@@ -610,6 +611,12 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           askPw,
           item('dapps', t('sitesTitle'), null, () => (void sitesScreen(app, () => settings('back')), navIn(app, 'fwd'))),
           item('check', t('wlTitle'), null, () => (whitelistScreen(app, () => settings('back')), navIn(app, 'fwd'))),
+          // Autorisations de tokens : pour un compte qui a une adresse EVM.
+          !!current().a?.evm && item('sign', t('apprTitle'), null, () => (allowancesScreen(app, () => settings('back')), navIn(app, 'fwd')), 'allowances'),
+          // Phrase de récupération (portefeuille à phrase) : mot de passe redemandé, liste blanche respectée.
+          current().w?.kind === 'seed' && item('phrase', t('showPhrase'), null, () => void openPhrase(), 'show-phrase'),
+          // Téléphone relié (mode compagnon) : couper le lien.
+          current().w?.kind === 'companion' && item('close', t('compUnlink'), null, () => unlinkPhone(), 'unlink-phone'),
         ),
         group(t('setHelp'), item('support', t('reportIssue'), null, () => void reportIssue(), 'report')),
         h('p', { class: 'small muted note' }, t('reportNote')),
@@ -619,6 +626,33 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   const openOnboardingTab = () => openOnboarding(opts.mode === 'popup');
+
+  /** Voir (et revérifier) la phrase : dans l'onglet d'installation, après le mot de passe. */
+  async function openPhrase() {
+    const { w } = current();
+    if (!w) return;
+    await browser.tabs.create({ url: browser.runtime.getURL(`/onboarding.html#verify=${encodeURIComponent(w.id)}`) });
+    if (opts.mode === 'popup') window.close();
+  }
+
+  /** Délier le téléphone : confirmation, puis le portefeuille du téléphone disparaît de l'extension. */
+  function unlinkPhone() {
+    const { w } = current();
+    if (!w || w.kind !== 'companion') return;
+    const err = h('p', { class: 'error', role: 'alert' });
+    const go = h('button', { class: 'btn danger', type: 'button', 'data-testid': 'unlink-confirm' }, t('compUnlink'));
+    const sheet = openSheet(t('compUnlink'), h('p', {}, t('compUnlinkConfirm')), err, go);
+    go.addEventListener('click', async () => {
+      go.disabled = true;
+      const r = await send({ type: 'companion:unlink', id: w.id });
+      if (!r.ok) return void ((go.disabled = false), (err.textContent = errorText(r.error)));
+      sheet.close();
+      activity = null;
+      shownTotal = null;
+      await load();
+      render();
+    });
+  }
 
   /** Retour de bêta par e-mail : version et navigateur seulement, rien du portefeuille. */
   async function reportIssue() {

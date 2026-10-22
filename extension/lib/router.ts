@@ -8,6 +8,8 @@ import { RpcError } from './rpcError';
 import type { Companion } from './companion';
 import { BuyError, type Buy } from './buy';
 import { siteReport } from './siteInfo';
+import type { Allowances } from './allowances';
+import type { TxWatch } from './txWatch';
 import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
 import { WalletError, type Wallets } from './wallets';
@@ -38,6 +40,8 @@ export interface Services {
   buy?: Buy;
   /** Icône du site, lue par Chrome dans l'onglet ouvert (jamais fournie par la page). */
   siteIcon?: (origin: string) => Promise<string | undefined>;
+  allowances?: Allowances;
+  txWatch?: TxWatch;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -52,7 +56,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -129,6 +133,8 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         // Mot de passe REDEMANDÉ, même déverrouillé : afficher la phrase donne tout.
         if (!str(m.id, 64) || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
         await session.checkPassword(m.password);
+        // Liste blanche en vigueur : la phrase ne sort pas (sinon il suffirait de l'importer ailleurs) — comme dans l'app.
+        if (whitelist && !(await whitelist.dappAllowed())) return { ok: false, error: 'WHITELIST_LOCKED' };
         return { ok: true, phrase: await wallets.revealPhrase(m.id) };
       case 'receive:info': {
         if (!home || !disk) break;
@@ -263,6 +269,35 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const g = ar && sites ? (await sites.get(ar.origin))[ar.family] : undefined;
         const onPhone = !!g && (await wallets.list()).some((w) => w.id === g.walletId && w.kind === 'companion');
         return { ok: true, review: await p, askPassword: disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false, onPhone };
+      }
+      /* ── Autorisations de tokens ── */
+      case 'allowances:list':
+        if (!allowances) break;
+        await unlocked();
+        return { ok: true, ...(await allowances.list(m.chain)) };
+      case 'allowances:revoke': {
+        if (!allowances) break;
+        await unlocked();
+        const txid = await allowances.revoke(m.chain, m.token, m.spender);
+        const chain = listChains().find((c) => c.id === m.chain);
+        if (txWatch && chain) await txWatch.add({ txid, chainId: chain.id, chainName: chain.name, what: typeof m.label === 'string' ? m.label.slice(0, 60) : 'approve(0)', explorer: chain.explorerUrl ? `${chain.explorerUrl}/tx/${txid}` : undefined });
+        return { ok: true, txid, explorer: chain?.explorerUrl ? `${chain.explorerUrl}/tx/${txid}` : undefined };
+      }
+      /* ── Mode compagnon : délier un téléphone ── */
+      case 'companion:unlink': {
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        const w = (await wallets.list()).find((x) => x.id === m.id && x.kind === 'companion');
+        if (!w) return { ok: false, error: 'BAD_REQUEST' };
+        await companion?.unlink(w).catch(() => {});
+        await wallets.removeCompanion(w.id);
+        // Les sites qui voyaient ce compte le perdent aussi.
+        if (sites) await sites.forgetWallet(w.id);
+        if (home) {
+          const rest = await wallets.list();
+          if (rest[0]) await home.select(rest[0].id, rest[0].accounts[0]?.index ?? 0).catch(() => {});
+        }
+        return { ok: true };
       }
       /* ── Acheter (page Stripe) ── */
       case 'buy:options':
