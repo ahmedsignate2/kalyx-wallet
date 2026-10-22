@@ -283,3 +283,16 @@ details > summary::-webkit-details-marker { display: none; }
 /* Recevoir : l'adresse centrée sous le QR. */
 .receive-card .addr { text-align: center; align-self: stretch; }
 .receive-card .addr-v { justify-content: center; }
+
+.group-title .beta { margin-left: 8px; vertical-align: 1px; }
+.beta.phone.lost { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+
+/* Fenêtre de connexion : icône réelle du site, contrôle du site, compte. */
+.site-mark.has-icon { border-radius: 16px; box-shadow: 0 0 0 1px var(--border, rgba(0,0,0,.08)); background: var(--surface-1); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
+.site-mark .site-icon { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; }
+.site-check { display: flex; flex-direction: column; gap: 8px; }
+.site-check > p { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+.site-check .up { color: var(--up); }
+.acct-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.acct-line .ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-row:disabled { opacity: 0.55; cursor: not-allowed; }

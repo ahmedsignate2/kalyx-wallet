@@ -183,6 +183,11 @@ export function makeWallets(disk: Store, session: Session) {
    * Portefeuille COMPAGNON : les adresses partagées par le téléphone, aucun
    * secret. Le même compte relié deux fois remplace le lien (nouvelle session).
    */
+  function uniqueLabel(base: string, taken: string[]): string {
+    if (!taken.includes(base)) return base;
+    for (let n = 2; ; n++) if (!taken.includes(`${base} ${n}`)) return `${base} ${n}`;
+  }
+
   async function addCompanion(p: { topic: string; evm?: string; solana?: string; evmChains: number[]; label: string }): Promise<WalletMeta> {
     return session.withVault(async () => {
       const all = await list();
@@ -192,7 +197,8 @@ export function makeWallets(disk: Store, session: Session) {
       if (!prev && all.length >= MAX_WALLETS) throw new WalletError('TOO_MANY_WALLETS');
       const meta: WalletMeta = {
         id: prev?.id ?? newId(),
-        label: prev?.label ?? p.label,
+        // Plusieurs comptes du téléphone peuvent être reliés : « Téléphone », « Téléphone 2 »…
+        label: prev?.label ?? uniqueLabel(p.label, all.map((w) => w.label)),
         kind: 'companion',
         topic: p.topic,
         evmChains: p.evmChains,

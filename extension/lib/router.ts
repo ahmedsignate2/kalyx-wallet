@@ -7,6 +7,7 @@
 import { RpcError } from './rpcError';
 import type { Companion } from './companion';
 import { BuyError, type Buy } from './buy';
+import { siteReport } from './siteInfo';
 import { SessionError, type Session } from './session';
 import { coreSelfTest } from './coreSelfTest';
 import { WalletError, type Wallets } from './wallets';
@@ -35,6 +36,8 @@ export interface Services {
   /** Mode compagnon : lien WalletConnect avec le téléphone. */
   companion?: Companion;
   buy?: Buy;
+  /** Icône du site, lue par Chrome dans l'onglet ouvert (jamais fournie par la page). */
+  siteIcon?: (origin: string) => Promise<string | undefined>;
 }
 
 const SPEEDS = new Set(['slow', 'normal', 'fast']);
@@ -49,7 +52,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -208,7 +211,17 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
         const st = await session.status();
         const cur = st.unlocked && home ? await home.current() : null;
-        return { ok: true, request: req, unlocked: st.unlocked, wallets: st.unlocked ? await wallets.list() : [], selected: cur ? { walletId: cur.wallet.id, index: cur.index } : null };
+        const icon = siteIcon ? await siteIcon(req.origin).catch(() => undefined) : undefined;
+        return { ok: true, request: req, icon, unlocked: st.unlocked, wallets: st.unlocked ? await wallets.list() : [], selected: cur ? { walletId: cur.wallet.id, index: cur.index } : null };
+      }
+      case 'approval:site': {
+        // Ce qu'on sait du site AVANT de s'y connecter : hameçonnage signalé, sosie d'un domaine connu, déjà connecté.
+        if (!approvals) break;
+        if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
+        const req = approvals.get(m.id);
+        if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
+        const s = sites ? await sites.get(req.origin) : null;
+        return { ok: true, ...(await siteReport(req.origin, !!(s?.evm || s?.solana))) };
       }
       case 'approval:respond': {
         if (!approvals) break;
