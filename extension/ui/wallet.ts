@@ -28,7 +28,7 @@ import { addTokenSheet, networksScreen } from './assetsScreen';
 import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
-import { allowedSitesSheet, duressSheet, loadAccess, siteBanner, switchRow } from './securityScreen';
+import { allowedSitesSheet, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -782,6 +782,19 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         settings('none');
       };
     });
+    // « Téléphone seul » : aucune clé ici ; le couper redemande le mot de passe.
+    const phoneOnly = h('div');
+    void send<{ on: boolean }>({ type: 'settings:get-phone-only' }).then((r) => {
+      if (!r.ok) return;
+      const err = h('p', { class: 'error', role: 'alert', style: 'padding:0 12px' });
+      const row = switchRow('scan', t('poTitle'), t('poBody'), 'phone-only', r.on, async (next) => {
+        if (!next) return phoneOnlyOffSheet(() => settings('none')), { ok: false };
+        const x = await send({ type: 'settings:set-phone-only', on: true });
+        if (!x.ok) err.textContent = errorText(x.error);
+        return x;
+      }, () => void 0);
+      phoneOnly.replaceWith(row, err);
+    });
     // Présence sur les sites : interrupteur, puis la liste des sites autorisés (mode restreint).
     const siteMode = h('div');
     const siteList = h('div');
@@ -811,6 +824,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           t('setSecurity'),
           askPw,
           switchRow('lock', t('paranoTitle'), t('paranoBody'), 'paranoid', !!data?.status.paranoid, async (on) => { const r = await send({ type: 'vault:set-paranoid', on }); if (r.ok && data) data.status.paranoid = on; return r; }, () => settings('none')),
+          phoneOnly,
           siteMode,
           siteList,
           item('lock', t('pwChange'), null, () => changePasswordSheet(), 'change-password'),

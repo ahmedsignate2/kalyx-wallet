@@ -128,7 +128,25 @@ export default defineBackground(() => {
     register: async (matches) => registerInpage((await disk.get<boolean>('defaultProvider')) === true, matches),
   });
   const host = makeDappHost(() => dapp, (origin) => approvals.originGone(origin));
-  const dapp = makeDapp({ session, wallets, sites, approvals, emit: host.emit, t: explainT, tFor: explainTFor, dappAllowed: () => whitelist.dappAllowed(), executeDeps: { companion } });
+  const dapp = makeDapp({
+    session,
+    wallets,
+    sites,
+    approvals,
+    emit: host.emit,
+    t: explainT,
+    tFor: explainTFor,
+    dappAllowed: () => whitelist.dappAllowed(),
+    executeDeps: { companion },
+    reviewDeps: {
+      // Score de risque : site connecté depuis plus de 24 h ? signes d'une page altérée ?
+      site: async (origin) => {
+        const s = await sites.get(origin);
+        const since = Math.min(...[s.evm?.at, s.solana?.at].filter((x): x is number => typeof x === 'number'));
+        return { known: Number.isFinite(since) && Date.now() - since > 86_400_000, tampered: host.tamperOf(origin) };
+      },
+    },
+  });
   browser.runtime.onConnect.addListener((port) => host.accept(port));
   browser.windows.onRemoved.addListener((windowId) => approvals.windowClosed(windowId));
   // Verrouillage / déverrouillage (la clé de session apparaît ou disparaît) : les sites connectés suivent.

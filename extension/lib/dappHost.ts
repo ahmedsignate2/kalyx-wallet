@@ -63,6 +63,11 @@ export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string)
     }
   }
 
+  /** Signes d'une page altérée remontés par le script de page, par origine (tant qu'un onglet du site est ouvert). */
+  const tampered = new Map<string, Set<string>>();
+  const TAMPER_CODES = new Set(['rdnsSpoof', 'ethereumReplaced', 'postMessageHooked']);
+  const tamperOf = (origin: string) => [...(tampered.get(origin) ?? [])];
+
   function accept(port: Port) {
     if (port.name !== 'kalyx-dapp') return;
     const sender = port.sender;
@@ -83,6 +88,13 @@ export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string)
         return;
       }
       if (typeof m?.id !== 'number' || (m.family !== 'evm' && m.family !== 'solana') || typeof m.method !== 'string') return;
+      if (m.method === 'kalyx_tamper') {
+        // Codes connus seulement ; un signalement ne fait qu'AUGMENTER le risque affiché (une page ne peut rien effacer).
+        const seen = tampered.get(origin) ?? tampered.set(origin, new Set()).get(origin)!;
+        for (const c of Array.isArray(m.params) ? m.params : []) if (typeof c === 'string' && TAMPER_CODES.has(c)) seen.add(c);
+        port.postMessage({ id: m.id, result: null });
+        return;
+      }
       const now = Date.now();
       while (stamps.length && now - stamps[0] > RATE.windowMs) stamps.shift();
       if (stamps.length >= RATE.max) {
@@ -102,10 +114,11 @@ export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string)
       set.delete(port);
       if (!set.size) {
         ports.delete(origin);
+        tampered.delete(origin);
         onOriginGone(origin);
       }
     });
   }
 
-  return { accept, emit, origins: () => [...ports.keys()] };
+  return { accept, emit, origins: () => [...ports.keys()], tamperOf };
 }

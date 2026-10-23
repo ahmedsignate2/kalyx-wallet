@@ -4,3 +4,19 @@
 .center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; }
 .center img { width: 72px; height: 72px; }
 .center form { width: 100%; }
+
+/* Score de risque (calculé localement) : nombre, jauge, raisons pondérées. */
+.score { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+.score-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.score-num { font-variant-numeric: tabular-nums; font-weight: 700; }
+.score .meter { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.score .meter i { display: block; height: 100%; border-radius: inherit; background: var(--up); transition: width 0.4s ease-out; }
+.score.medium .meter i { background: var(--warning); }
+.score.medium .score-num { color: var(--warning); }
+.score.high .meter i { background: var(--danger); }
+.score.high .score-num { color: var(--danger); }
+.score.low .score-num { color: var(--up); }
+.factors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.factors li { display: flex; gap: 8px; align-items: baseline; }
+.factors .pts { flex: none; min-width: 34px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-secondary); }
+@media (prefers-reduced-motion: reduce) { .score .meter i { transition: none; } }

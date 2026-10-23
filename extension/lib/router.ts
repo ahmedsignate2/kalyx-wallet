@@ -82,6 +82,9 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
+  /** « Téléphone seul » : aucune clé dans l'extension ; seuls les comptes du téléphone (mode compagnon). */
+  const phoneOnly = async () => !!disk && (await disk.get<boolean>('phoneOnly')) === true;
+  const noLocalKeys = { ok: false as const, error: 'PHONE_ONLY' };
   try {
     switch (m.type) {
       case 'kalyx:core-self-test':
@@ -142,18 +145,22 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'wallet:list':
         return { ok: true, wallets: await wallets.list() };
       case 'wallet:create':
+        if (await phoneOnly()) return noLocalKeys;
         return { ok: true, ...(await wallets.create(optLabel(m.label))) };
       case 'wallet:mark-backed-up':
         if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
         await wallets.markBackedUp(m.id);
         return { ok: true };
       case 'wallet:import-phrase':
+        if (await phoneOnly()) return noLocalKeys;
         if (!str(m.phrase, 1000)) return { ok: false, error: 'BAD_REQUEST' };
         return { ok: true, wallet: await wallets.importPhrase(m.phrase, optLabel(m.label)) };
       case 'wallet:import-key':
+        if (await phoneOnly()) return noLocalKeys;
         if (!str(m.key, 400) || (m.family !== 'evm' && m.family !== 'solana')) return { ok: false, error: 'BAD_REQUEST' };
         return { ok: true, wallet: await wallets.importKey(m.key, m.family, optLabel(m.label)) };
       case 'wallet:import-backup':
+        if (await phoneOnly()) return noLocalKeys;
         if (!str(m.file, 2_000_000) || !pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
         return { ok: true, ...(await wallets.importBackup(m.file, m.password)) };
       case 'wallet:discover': {
@@ -533,6 +540,22 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         await unlocked();
         if (!str(m.origin, 300)) return { ok: false, error: 'BAD_REQUEST' };
         await dapp.disconnect(m.origin);
+        return { ok: true };
+      case 'settings:get-phone-only':
+        if (!disk) break;
+        return { ok: true, on: await phoneOnly() };
+      case 'settings:set-phone-only':
+        if (!disk || typeof m.on !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        if (m.on) {
+          // Seulement s'il ne reste ici aucune clé : on ne cache pas des clés, on n'en a plus.
+          if ((await wallets.list()).some((w) => w.kind !== 'companion')) return { ok: false, error: 'HAS_LOCAL_KEYS' };
+        } else {
+          // Le couper rouvre la porte aux clés locales : mot de passe redemandé.
+          if (!pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
+          await session.checkPassword(m.password);
+        }
+        await disk.set('phoneOnly', m.on);
         return { ok: true };
       case 'settings:get-lang':
         if (!disk) break;

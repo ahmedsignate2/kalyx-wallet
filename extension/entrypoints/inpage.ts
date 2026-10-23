@@ -39,14 +39,30 @@ export default defineUnlistedScript(() => {
   }
 
   const ORIGIN = location.origin;
+  /*
+   * postMessage d'origine, pris au chargement (avant tout script de la page) :
+   * un script qui le remplace ensuite ne voit pas passer nos demandes, et le
+   * remplacement est lui-même un signe de page altérée.
+   */
+  const rawPost = window.postMessage;
+  const post = rawPost.bind(window);
+  /** Signes d'une page altérée, transmis à la première demande (jamais au chargement : aucune visite signalée). */
+  const tampered = new Set<string>();
+  let reported = 0;
   const pending = new Map<number, { method: string; resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
   let nextId = 1;
 
   function call(family: 'evm' | 'solana', method: string, params: unknown[] = []): Promise<unknown> {
     return new Promise((resolve, reject) => {
+      if (window.postMessage !== rawPost) tampered.add('postMessageHooked');
+      if (asDefault && (window as { ethereum?: unknown }).ethereum !== provider) tampered.add('ethereumReplaced');
+      if (tampered.size > reported) {
+        reported = tampered.size;
+        post({ k: 'kalyx:req', id: nextId++, family: 'evm', method: 'kalyx_tamper', params: [...tampered] }, ORIGIN);
+      }
       const id = nextId++;
       pending.set(id, { method, resolve, reject });
-      window.postMessage({ k: 'kalyx:req', id, family, method, params }, ORIGIN);
+      post({ k: 'kalyx:req', id, family, method, params }, ORIGIN);
     });
   }
 
@@ -233,6 +249,11 @@ export default defineUnlistedScript(() => {
   const info = Object.freeze({ uuid: crypto.randomUUID(), name: 'Kalyx', icon: KALYX_ICON_DATA_URI, rdns: 'com.kalyxwallet' });
   const announce = () => window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: Object.freeze({ info, provider }) }));
   window.addEventListener('eip6963:requestProvider', announce);
+  // Un AUTRE fournisseur qui s'annonce comme Kalyx : une extension ou la page se fait passer pour nous.
+  window.addEventListener('eip6963:announceProvider', (e: Event) => {
+    const d = (e as CustomEvent).detail as { info?: { rdns?: unknown }; provider?: unknown } | undefined;
+    if (d?.info?.rdns === 'com.kalyxwallet' && d.provider !== provider) tampered.add('rdnsSpoof');
+  });
   announce();
 
   // Wallet Standard : s'enregistre auprès de l'application, qu'elle soit déjà prête ou non.
