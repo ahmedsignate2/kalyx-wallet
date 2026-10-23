@@ -4,6 +4,7 @@
  * tailles bornées — avant d'atteindre la session. Réponse : `{ ok: true, … }`
  * ou `{ ok: false, error, waitMs? }`, jamais une exception qui traverse.
  */
+import { hexToBytes } from '@noble/hashes/utils';
 import { RpcError } from './rpcError';
 import type { Companion } from './companion';
 import { BuyError, type Buy } from './buy';
@@ -66,6 +67,8 @@ const SPEEDS = new Set(['slow', 'normal', 'fast']);
 const gwei = (v: unknown): v is string => typeof v === 'string' && /^\d{1,6}([.,]\d{1,9})?$/.test(v.trim());
 
 const MAX_PASSWORD = 1024;
+/** Sortie PRF d'une passkey : 32 octets en hexadécimal. */
+const prfHex = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
 const pw = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= MAX_PASSWORD;
 const str = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 const idx = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0 && (v as number) < 100;
@@ -90,8 +93,29 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         await session.create(m.password);
         return { ok: true };
       case 'vault:unlock':
+        if (!pw(m.password) || (m.prf !== undefined && !prfHex(m.prf))) return { ok: false, error: 'BAD_REQUEST' };
+        await session.unlock(m.password, m.prf ? hexToBytes(m.prf) : undefined);
+        return { ok: true };
+      case 'vault:check-password':
         if (!pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
-        await session.unlock(m.password);
+        await unlocked();
+        await session.checkPassword(m.password);
+        return { ok: true };
+      case 'vault:set-duress':
+        if (!pw(m.password) || !pw(m.code)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.setDuress(m.password, m.code);
+        return { ok: true };
+      case 'vault:remove-duress':
+        if (!pw(m.password)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.removeDuress(m.password);
+        return { ok: true };
+      case 'vault:passkey-add':
+        if (!pw(m.password) || !prfHex(m.prf) || typeof m.cred !== 'string' || typeof m.salt !== 'string') return { ok: false, error: 'BAD_REQUEST' };
+        await session.addPasskey(m.password, { cred: m.cred, salt: m.salt, prf: hexToBytes(m.prf) });
+        return { ok: true };
+      case 'vault:passkey-remove':
+        if (!pw(m.password) || !prfHex(m.prf)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.removePasskey(m.password, hexToBytes(m.prf));
         return { ok: true };
       case 'vault:lock':
         await session.lock();

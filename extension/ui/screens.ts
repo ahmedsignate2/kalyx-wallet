@@ -5,8 +5,10 @@
 import { h, send } from './dom';
 import { errorText, t } from './i18n';
 import { landscape } from './landscape';
+import { glyph } from './glyph';
+import { inPopup, unlockWith, type PasskeyStatus } from './passkey';
 
-export async function openOnboarding(close: boolean, hash: '' | '#companion' | '#reset' = '') {
+export async function openOnboarding(close: boolean, hash: '' | '#companion' | '#reset' | '#unlock' | '#passkey' = '') {
   await browser.tabs.create({ url: browser.runtime.getURL(`/onboarding.html${hash}`) });
   if (close) window.close();
 }
@@ -32,6 +34,8 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = t
   const err = h('p', { class: 'error', role: 'alert' });
   const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'current-password' });
   const go = h('button', { class: 'btn', type: 'submit' }, t('unlock'));
+  const note = h('p', { class: 'small muted', 'data-testid': 'passkey-note' });
+  let st: PasskeyStatus = { passkey: null };
   const form = h(
     'form',
     {
@@ -41,7 +45,7 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = t
           e.preventDefault();
           if (!pw.value) return;
           go.disabled = true;
-          const r = await send({ type: 'vault:unlock', password: pw.value });
+          const r = await unlockWith(pw.value, st);
           pw.value = '';
           go.disabled = false;
           if (r.ok) return onUnlocked();
@@ -50,6 +54,7 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = t
       },
     },
     pw,
+    note,
     err,
     go,
   );
@@ -57,4 +62,14 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = t
   const forgot = h('button', { class: 'link forgot', type: 'button', 'data-testid': 'forgot-password', on: { click: () => void openOnboarding(close, '#reset') } }, t('forgotPw'));
   center(app, h('p', { class: 'muted' }, t('popupUnlockSub')), form, forgot);
   pw.focus();
+  // Coffre à passkey : dans le popup, le déverrouillage passe par un onglet (la fenêtre passkey fermerait le popup).
+  void send<PasskeyStatus>({ type: 'vault:status' }).then((r) => {
+    if (!r.ok || !r.passkey) return;
+    st = { passkey: r.passkey };
+    if (!inPopup()) return void (note.textContent = t('pkActiveNote'));
+    form.replaceChildren(
+      h('p', { class: 'small muted' }, t('pkPopupNote')),
+      h('button', { class: 'btn', type: 'button', 'data-testid': 'passkey-unlock-tab', on: { click: () => void openOnboarding(close, '#unlock') } }, glyph('lock', 18), t('pkUnlock')),
+    );
+  });
 }

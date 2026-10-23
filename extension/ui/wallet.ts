@@ -28,7 +28,7 @@ import { addTokenSheet, networksScreen } from './assetsScreen';
 import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
-import { allowedSitesSheet, loadAccess, siteBanner, switchRow } from './securityScreen';
+import { allowedSitesSheet, duressSheet, loadAccess, siteBanner, switchRow } from './securityScreen';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -51,7 +51,7 @@ interface WalletMeta {
 }
 
 interface HomeData {
-  status: { hasVault: boolean; unlocked: boolean; autoLockMin: number; paranoid: boolean; waitMs: number };
+  status: { hasVault: boolean; unlocked: boolean; autoLockMin: number; paranoid: boolean; passkeyHere: boolean; duress: boolean; waitMs: number };
   wallets?: WalletMeta[];
   selected?: { walletId: string; index: number } | null;
   fiat?: string;
@@ -814,6 +814,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           siteMode,
           siteList,
           item('lock', t('pwChange'), null, () => changePasswordSheet(), 'change-password'),
+          // Passkey : cérémonie WebAuthn dans un onglet (le popup se fermerait).
+          item('sign', t('pkTitle'), h('span', { class: 'small muted', 'data-testid': 'pk-state-row' }, t(data?.status.passkeyHere ? 'pkOn' : 'pkOff')), () => void openOnboarding(opts.mode === 'popup', '#passkey'), 'passkey-open'),
+          item('security', t('drTitle'), h('span', { class: 'small muted' }, t(data?.status.duress ? 'drOn' : 'drOff')), () => duressSheet(!!data?.status.duress, () => void refreshStatus().then(() => settings('none'))), 'duress-open'),
           item('import', t('bkExport'), null, () => exportBackupSheet(), 'export-backup'),
           item('dapps', t('sitesTitle'), null, () => (void sitesScreen(app, () => settings('back')), navIn(app, 'fwd'))),
           item('check', t('wlTitle'), null, () => (whitelistScreen(app, () => settings('back')), navIn(app, 'fwd'))),
@@ -837,6 +840,12 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   const openOnboardingTab = () => openOnboarding(opts.mode === 'popup');
+
+  /** Relit l'état de la session (réglages de sécurité) sans redessiner l'accueil. */
+  async function refreshStatus() {
+    const r = await send<HomeData>({ type: 'home:get' }).catch(() => null);
+    if (r?.ok && r.status.unlocked && data) data.status = r.status;
+  }
 
   /** Gérer le portefeuille affiché : renommer, comptes, clé privée, suppression. */
   function manage() {
