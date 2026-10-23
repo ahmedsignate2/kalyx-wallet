@@ -26,15 +26,34 @@ const fail = (m) => {
   process.exitCode = 1;
 };
 
-const launch = (lang = 'fr') => chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'kalyx-ext-')), {
-  headless: true,
-  locale: lang === 'fr' ? 'fr-FR' : lang,
-  executablePath: process.env.CHROMIUM_PATH,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', `--lang=${lang}`],
+/** Violations de la CSP ou de Trusted Types relevées dans les pages de l'extension et le service worker. */
+const cspViolations = [];
+const watchCsp = (where, msg) => {
+  const text = msg.text();
+  if (/Content Security Policy|TrustedType|Trusted Type/i.test(text)) cspViolations.push(`${where}: ${text.slice(0, 200)}`);
+};
+const launch = async (lang = 'fr') => {
+  const ctx = await chromium.launchPersistentContext(mkdtempSync(join(tmpdir(), 'kalyx-ext-')), {
+    headless: true,
+    locale: lang === 'fr' ? 'fr-FR' : lang,
+    executablePath: process.env.CHROMIUM_PATH,
+    args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', `--lang=${lang}`],
+  });
+  ctx.on('page', (p) => p.on('console', (m) => p.url().startsWith('chrome-extension://') && watchCsp(p.url().split('/').pop(), m)));
+  ctx.on('serviceworker', (w) => w.on?.('console', (m) => watchCsp('service worker', m)));
+  for (const w of ctx.serviceWorkers()) w.on?.('console', (m) => watchCsp('service worker', m));
+  return ctx;
+};
+process.on('beforeExit', () => {
+  if (cspViolations.length) {
+    console.error('✗ violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
+    process.exitCode = 1;
+  }
 });
-// ONLY=onboarding|dapps|attacks|langs|help : une seule partie (plus rapide à relancer).
-if (['onboarding', 'dapps', 'attacks', 'langs', 'help'].includes(process.env.ONLY)) {
-  await { onboarding, dapps, attacks, langs, help }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs|help|hardening : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs, help, hardening }[process.env.ONLY]();
+  if (cspViolations.length) fail('violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
 }
@@ -74,9 +93,13 @@ try {
   const sess = await page.evaluate(() => chrome.storage.session.get(null));
   const key = sess['kalyx.vaultKey'];
   const dump = JSON.stringify(local);
-  Object.keys(local).join() === 'kalyx.vault' && key && !dump.includes(key) && !dump.includes(PW)
+  Object.keys(local).join() === 'kalyx.vault' && key && !dump.includes(key.ct) && !dump.includes(PW)
     ? console.log('✓ disque : coffre chiffré seulement (ni clé de session, ni mot de passe)')
     : fail(`disque : ${Object.keys(local)}`);
+  // Zone session : un bloc scellé par une clé WebCrypto non exportable, jamais la clé du coffre en clair.
+  /^[0-9a-f]{24}$/.test(key?.n) && /^[0-9a-f]{96}$/.test(key?.ct) && !/"[0-9a-f]{64}"/.test(JSON.stringify(sess))
+    ? console.log('✓ session : clé du coffre scellée (aucune clé en clair, même en mémoire de session)')
+    : fail(`session : ${JSON.stringify(sess).slice(0, 120)}`);
 
   (await send({ type: 'vault:lock' })).ok && !(await page.evaluate(() => chrome.storage.session.get(null)))['kalyx.vaultKey']
     ? console.log('✓ verrouillé : clé de session effacée')
@@ -101,6 +124,82 @@ await dapps();
 await attacks();
 await langs();
 await help();
+await hardening();
+
+/**
+ * Durcissement : « sites autorisés seulement » (Kalyx invisible ailleurs,
+ * activé site par site depuis le popup), mode parano enregistré.
+ */
+async function hardening() {
+  const PAGE = `<!doctype html><meta charset="utf-8"><title>site</title><body><script>
+    window.kx = { providers: [] };
+    window.addEventListener('eip6963:announceProvider', (e) => window.kx.providers.push(e.detail.info.rdns));
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+  </script>`;
+  const server = createServer((req, res) => (res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }), res.end(PAGE)));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const SITE = `http://localhost:${server.address().port}`;
+  const PW = 'Plage-Orange-47!';
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const ext = await ctx.newPage();
+    await ext.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => ext.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+    const kalyxOn = async (page) => (await page.waitForTimeout(400), page.evaluate(() => window.kx.providers.includes('com.kalyxwallet')));
+
+    const site = await ctx.newPage();
+    await site.goto(SITE);
+    (await kalyxOn(site)) ? console.log('✓ par défaut : Kalyx présent sur les sites') : fail('Kalyx absent par défaut');
+
+    // Mode restreint : la page ne voit plus Kalyx du tout.
+    (await bg({ type: 'sites:set-mode', mode: 'allowed' })).ok || fail('mode restreint refusé');
+    await site.reload();
+    !(await kalyxOn(site)) ? console.log('✓ sites autorisés seulement : Kalyx invisible sur un site non autorisé') : fail('Kalyx visible sur un site non autorisé');
+
+    // Popup ouvert sur ce site : bandeau « Activer sur ce site », la page se recharge avec Kalyx.
+    await site.bringToFront();
+    await ext.reload();
+    // Sans écran, « l'onglet actif » du popup n'est pas celui du site : on le désigne.
+    await ext.evaluate((url) => {
+      const query = chrome.tabs.query.bind(chrome.tabs);
+      chrome.tabs.query = async (q) => (q.active ? (await query({})).filter((t) => t.url?.startsWith(url)) : query(q));
+    }, SITE);
+    await ext.locator('[data-testid=account]').waitFor();
+    await ext.getByRole('button', { name: 'Réglages' }).click();
+    await ext.locator('header.bar .link').click();
+    await ext.locator('[data-testid=site-on]').waitFor({ timeout: 8_000 });
+    if (process.env.SHOTS) await ext.screenshot({ path: join(process.env.SHOTS, 'site-off.png') });
+    const reloaded = site.waitForEvent('load');
+    await ext.locator('[data-testid=site-on]').click();
+    await reloaded;
+    (await kalyxOn(site)) ? console.log('✓ « Activer sur ce site » : la page se recharge avec Kalyx') : fail('site autorisé sans Kalyx');
+    const acc = await bg({ type: 'sites:access', origin: SITE });
+    acc.allowed.join() === SITE && acc.active ? console.log('✓ site ajouté aux sites autorisés') : fail(`accès ${JSON.stringify(acc)}`);
+    (await bg({ type: 'sites:allow', origin: 'chrome://settings' })).error === 'BAD_ORIGIN' ? console.log('✓ page interne refusée comme site autorisé') : fail('chrome:// accepté');
+
+    // Réglages : interrupteurs parano et sites, liste des sites autorisés.
+    await ext.getByRole('button', { name: 'Réglages' }).click();
+    await ext.locator('[data-testid=allowed-open]').waitFor();
+    (await ext.locator('[data-testid=site-mode]').getAttribute('aria-checked')) === 'true' ? console.log('✓ réglage « sites autorisés seulement » affiché actif') : fail('interrupteur sites');
+    await ext.locator('[data-testid=paranoid]').click();
+    await ext.waitForFunction(() => document.querySelector('[data-testid=paranoid]')?.getAttribute('aria-checked') === 'true');
+    const st = await bg({ type: 'vault:status' });
+    st.paranoid && st.unlocked ? console.log('✓ mode parano activé (session gardée ouverte)') : fail(`parano ${JSON.stringify(st)}`);
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await ext.emulateMedia({ colorScheme: scheme }), await ext.waitForTimeout(350), await ext.screenshot({ path: join(process.env.SHOTS, `settings-security-${scheme}.png`), fullPage: true });
+
+    // Retour au mode partout.
+    (await bg({ type: 'sites:set-mode', mode: 'all' })).ok;
+    await site.goto(SITE.replace('localhost', '127.0.0.1'));
+    (await kalyxOn(site)) ? console.log('✓ retour à « partout » : Kalyx de nouveau présent') : fail('mode partout non rétabli');
+  } finally {
+    await ctx.close();
+    server.close();
+  }
+}
 
 /**
  * Aide et conformité (vague 5) : FAQ, À propos et documents légaux dans la
@@ -1066,4 +1165,5 @@ async function attacks() {
     server.close();
   }
 }
+if (!process.exitCode && !cspViolations.length) console.log('✓ aucune violation CSP / Trusted Types');
 if (!process.exitCode) console.log('OK');

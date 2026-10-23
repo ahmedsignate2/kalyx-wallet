@@ -2,10 +2,11 @@
  * SESSION de l'extension : verrouillée ou déverrouillée.
  *
  * Déverrouillée = la clé du coffre est dans la zone `session` (en mémoire,
- * vidée à la fermeture du navigateur, illisible par les pages web). Jamais sur
- * le disque, jamais la phrase elle-même. Chrome arrête le service worker après
- * ~30 s d'inactivité : une clé gardée dans une simple variable serait perdue,
- * la zone session, elle, survit à ces redémarrages tant que le navigateur vit.
+ * vidée à la fermeture du navigateur, illisible par les pages web), SCELLÉE
+ * par une clé WebCrypto non exportable (lib/keyBox) : en clair seulement le
+ * temps d'une opération. Jamais sur le disque, jamais la phrase elle-même.
+ * Chrome arrête le service worker après ~30 s d'inactivité : la zone session
+ * survit à ces arrêts tant que le navigateur vit (sauf en mode parano).
  *
  * Se verrouille : sur demande, après le délai d'inactivité (alarme), quand
  * l'écran de l'ordinateur se verrouille, à la fermeture du navigateur.
@@ -13,8 +14,8 @@
  * Erreurs : codes — NO_VAULT, VAULT_EXISTS, WEAK_PASSWORD, WRONG_PASSWORD,
  * THROTTLED (avec l'attente), LOCKED, CORRUPTED, BAD_SETTING.
  */
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import type { Store } from './storage';
+import { isSealedKey, makeKeyBox, memoryWrapStore, type KeyBox, type SealedKey } from './keyBox';
 import { changeVaultPassword, createVault, parseVault, unlockVault, type ExtVault } from './vault';
 import { afterFailure, DEFAULT_AUTO_LOCK_MIN, NO_THROTTLE, passwordAccepted, validAutoLock, waitMs, type Throttle } from './policy';
 
@@ -34,12 +35,16 @@ export interface SessionDeps {
   now?: () => number;
   /** Réglages scrypt (les tests les allègent ; en production, ceux du coffre). */
   kdf?: { N: number; r: number; p: number };
+  /** Boîte à clé (service worker : W dans IndexedDB ; tests : en mémoire). */
+  box?: KeyBox;
 }
 
 export interface SessionStatus {
   hasVault: boolean;
   unlocked: boolean;
   autoLockMin: number;
+  /** Mode parano : session perdue à l'arrêt du service worker, à la perte du focus, en veille. */
+  paranoid: boolean;
   /** Attente avant le prochain essai de mot de passe (ms), 0 si libre. */
   waitMs: number;
 }
@@ -50,10 +55,12 @@ export class SessionError extends Error {
   }
 }
 
-const K = { vault: 'vault', throttle: 'throttle', autoLock: 'autoLockMin', key: 'vaultKey' } as const;
+const K = { vault: 'vault', throttle: 'throttle', autoLock: 'autoLockMin', key: 'vaultKey', paranoid: 'paranoid' } as const;
 
 export function makeSession(deps: SessionDeps) {
   const now = deps.now ?? Date.now;
+  const box = deps.box ?? makeKeyBox(memoryWrapStore());
+  const paranoid = async () => (await deps.disk.get<boolean>(K.paranoid)) === true;
 
   /*
    * UNE opération sensible à la fois. Sans file, dix essais envoyés ensemble
@@ -81,7 +88,7 @@ export function makeSession(deps: SessionDeps) {
   };
   const open = async (vaultKey: Uint8Array) => {
     try {
-      await deps.session.set(K.key, bytesToHex(vaultKey));
+      await deps.session.set(K.key, await box.seal(vaultKey, !(await paranoid())));
     } finally {
       vaultKey.fill(0);
     }
@@ -90,12 +97,22 @@ export function makeSession(deps: SessionDeps) {
 
   async function lock(): Promise<void> {
     await deps.session.remove(K.key);
+    await box.clear();
     await deps.alarms.clear(AUTO_LOCK_ALARM);
   }
 
+  /** Bloc scellé ET clé d'emballage disponible ; sinon (parano après un arrêt, ancien format) la session est fermée. */
+  async function sealed(): Promise<SealedKey | null> {
+    const s = await deps.session.get<unknown>(K.key);
+    if (s === undefined) return null;
+    if (isSealedKey(s) && (await box.available())) return s;
+    await lock();
+    return null;
+  }
+
   async function status(): Promise<SessionStatus> {
-    const [vault, key, t] = await Promise.all([deps.disk.get(K.vault), deps.session.get<string>(K.key), throttle()]);
-    return { hasVault: vault !== undefined, unlocked: !!key, autoLockMin: await autoLockMin(), waitMs: waitMs(t, now()) };
+    const [vault, t] = await Promise.all([deps.disk.get(K.vault), throttle()]);
+    return { hasVault: vault !== undefined, unlocked: !!(await sealed()), autoLockMin: await autoLockMin(), paranoid: await paranoid(), waitMs: waitMs(t, now()) };
   }
 
   /** Premier mot de passe : crée le coffre vide et ouvre la session. */
@@ -168,7 +185,14 @@ export function makeSession(deps: SessionDeps) {
 
   /** Activité de l'utilisateur : le délai d'inactivité repart de zéro. */
   async function touch(): Promise<void> {
-    if (await deps.session.get(K.key)) await arm();
+    if (await sealed()) await arm();
+  }
+
+  /** Mode parano : effet immédiat sur la session ouverte (la clé d'emballage quitte IndexedDB, ou y revient). */
+  async function setParanoid(on: unknown): Promise<void> {
+    if (typeof on !== 'boolean') throw new SessionError('BAD_SETTING');
+    await deps.disk.set(K.paranoid, on);
+    if (await sealed()) await box.persist(!on);
   }
 
   async function setAutoLock(minutes: unknown): Promise<void> {
@@ -182,9 +206,13 @@ export function makeSession(deps: SessionDeps) {
    * Copie à effacer par l'appelant après usage. `LOCKED` si la session est fermée.
    */
   async function vaultKey(): Promise<Uint8Array> {
-    const k = await deps.session.get<string>(K.key);
-    if (!k) throw new SessionError('LOCKED');
-    return hexToBytes(k);
+    const s = await sealed();
+    const k = s && (await box.open(s));
+    if (!k) {
+      if (s) await lock();
+      throw new SessionError('LOCKED');
+    }
+    return k;
   }
 
   /**
@@ -218,6 +246,8 @@ export function makeSession(deps: SessionDeps) {
     lock: () => serial(lock),
     touch,
     setAutoLock,
+    setParanoid,
+    paranoid,
     vaultKey,
     readVault,
   };

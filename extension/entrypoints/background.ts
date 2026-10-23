@@ -1,6 +1,7 @@
 import { isOwnExtensionPage } from '../lib/internal';
 import { lockSessionToExtension, makeStore } from '../lib/storage';
 import { makeSession, AUTO_LOCK_ALARM } from '../lib/session';
+import { idbWrapStore, KEYBOX_DB, makeKeyBox } from '../lib/keyBox';
 import { handleInternal } from '../lib/router';
 import { makeWallets } from '../lib/wallets';
 import { makePortfolio } from '../lib/portfolio';
@@ -21,7 +22,8 @@ import { safeIcon } from '../lib/siteInfo';
 import { makeSites } from '../lib/sites';
 import { makeApprovals } from '../lib/approvals';
 import { makeDapp } from '../lib/dapp';
-import { inpageRegistered, makeDappHost, registerInpage } from '../lib/dappHost';
+import { makeDappHost, registeredMatches, registerInpage } from '../lib/dappHost';
+import { makeSiteAccess } from '../lib/siteAccess';
 
 /**
  * Service worker : le cerveau de l'extension, seul à toucher au coffre.
@@ -37,6 +39,7 @@ export default defineBackground(() => {
     disk: makeStore(browser.storage.local),
     session: makeStore(browser.storage.session),
     alarms: browser.alarms,
+    box: makeKeyBox(idbWrapStore()),
   });
 
   const disk = makeStore(browser.storage.local);
@@ -109,6 +112,12 @@ export default defineBackground(() => {
       (await browser.windows.create({ url: browser.runtime.getURL(`/approval.html#${id}`), type: 'popup', width: 380, height: 640, focused: true }))?.id,
     close: async (windowId) => void (await browser.windows.remove(windowId).catch(() => {})),
   });
+  // Présence sur les sites : partout, ou sites autorisés seulement (réglage).
+  const siteAccess = makeSiteAccess({
+    disk,
+    connected: async () => (await sites.list()).map((x) => x.origin),
+    register: async (matches) => registerInpage((await disk.get<boolean>('defaultProvider')) === true, matches),
+  });
   const host = makeDappHost(() => dapp, (origin) => approvals.originGone(origin));
   const dapp = makeDapp({ session, wallets, sites, approvals, emit: host.emit, t: explainT, tFor: explainTFor, dappAllowed: () => whitelist.dappAllowed(), executeDeps: { companion } });
   browser.runtime.onConnect.addListener((port) => host.accept(port));
@@ -133,7 +142,7 @@ export default defineBackground(() => {
     }
     await session.lock().catch(() => {});
     // Liens avec le téléphone : fermés de son côté (WalletConnect efface alors ses sessions).
-    if (((await indexedDB.databases?.().catch(() => [])) ?? []).length) await companion.unlinkAll();
+    if (((await indexedDB.databases?.().catch(() => [])) ?? []).some((d) => d.name !== KEYBOX_DB)) await companion.unlinkAll();
     const lang = (await browser.storage.local.get(LANG_KEY))[LANG_KEY];
     await browser.alarms.clearAll();
     await browser.storage.session.clear();
@@ -145,11 +154,12 @@ export default defineBackground(() => {
       if (keys.length) await browser.storage.local.remove(keys);
     }, 5_000);
     void browser.action.setBadgeText({ text: '' }).catch(() => {});
-    // « Kalyx par défaut » revient à sa valeur de départ.
-    await registerInpage(false).catch(() => {});
+    // « Kalyx par défaut » et la présence sur les sites reviennent à leur valeur de départ.
+    await siteAccess.apply().catch(() => {});
   };
   const ensureInpage = async () => {
-    if (!(await inpageRegistered())) await registerInpage((await disk.get<boolean>('defaultProvider')) === true);
+    const want = await siteAccess.matches();
+    if ((await registeredMatches())?.join() !== [...want].sort().join()) await siteAccess.apply();
   };
   void ensureInpage().catch(() => {});
 
@@ -157,20 +167,38 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener((d) => {
     if (d.reason === 'install') void browser.tabs.create({ url: browser.runtime.getURL('/onboarding.html') });
     // Installation ou mise à jour : le script de page est réenregistré dans sa version courante.
-    void (async () => registerInpage((await disk.get<boolean>('defaultProvider')) === true))().catch(() => {});
+    void siteAccess.apply().catch(() => {});
   });
 
   browser.alarms.onAlarm.addListener((a) => {
     if (a.name === AUTO_LOCK_ALARM) void session.lock();
     if (a.name === TX_ALARM) void txWatch.tick();
   });
+  /*
+   * Mode parano : verrouillé aussi après 1 min sans activité de l'ordinateur
+   * (au lieu de l'écran verrouillé seulement) et dès que Chrome perd le focus
+   * (autre application au premier plan). 1,5 s de grâce : passer d'une
+   * fenêtre Chrome à une autre fait brièvement « aucune fenêtre ».
+   */
+  browser.idle.setDetectionInterval(60);
   browser.idle.onStateChanged.addListener((state) => {
     if (state === 'locked') void session.lock();
+    else if (state === 'idle') void session.paranoid().then(async (on) => void (on && (await session.lock())));
+  });
+  let blur: ReturnType<typeof setTimeout> | undefined;
+  browser.windows.onFocusChanged.addListener((id) => {
+    clearTimeout(blur);
+    if (id !== browser.windows.WINDOW_ID_NONE) return;
+    blur = setTimeout(async () => {
+      if (!(await session.paranoid())) return;
+      const focused = (await browser.windows.getAll().catch(() => [])).some((w) => w.focused);
+      if (!focused) await session.lock();
+    }, 1500);
   });
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, siteAccess, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await siteAccess.apply()) }).then(reply);
     return true; // réponse asynchrone
   });
 });

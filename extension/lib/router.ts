@@ -29,6 +29,7 @@ import { SwapError, SwapFail, type Swap } from './swap';
 import { listChains } from '../../src/domain/chains/registry';
 import { WalletError as CoreError } from '../../src/domain/errors';
 import { LANGS } from '../ui/i18n';
+import type { SiteAccess } from './siteAccess';
 
 /** Services de l'écran principal (absents des tests qui ne les visent pas). */
 export interface Services {
@@ -55,6 +56,8 @@ export interface Services {
   contacts?: Contacts;
   /** Échange (swap et pont), moteur de l'app. */
   swap?: Swap;
+  /** Présence de Kalyx sur les sites (partout, ou sites autorisés seulement). */
+  siteAccess?: SiteAccess;
   /** Mot de passe oublié : efface TOUTES les données de l'extension (sauf la langue), sans la redémarrer. */
   reset?: () => Promise<void>;
 }
@@ -72,7 +75,7 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, siteAccess } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
@@ -101,6 +104,10 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         // Sans mot de passe (c'est le cas d'usage) : la page doit recopier la phrase de confirmation exacte.
         if (!reset || m.confirm !== RESET_CONFIRM) return { ok: false, error: 'BAD_REQUEST' };
         await reset();
+        return { ok: true };
+      case 'vault:set-paranoid':
+        await unlocked();
+        await session.setParanoid(m.on);
         return { ok: true };
       case 'vault:set-auto-lock':
         await session.setAutoLock(m.minutes);
@@ -511,6 +518,31 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!disk || (m.lang !== null && !(LANGS as readonly unknown[]).includes(m.lang))) return { ok: false, error: 'BAD_REQUEST' };
         if (m.lang === null) await disk.remove('lang');
         else await disk.set('lang', m.lang);
+        return { ok: true };
+      case 'sites:access': {
+        if (!siteAccess) break;
+        const origin = typeof m.origin === 'string' ? m.origin : '';
+        return { ok: true, mode: await siteAccess.mode(), allowed: await siteAccess.allowed(), active: origin ? await siteAccess.active(origin) : null };
+      }
+      case 'sites:set-mode':
+        if (!siteAccess || (m.mode !== 'all' && m.mode !== 'allowed')) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        await siteAccess.setMode(m.mode);
+        return { ok: true };
+      case 'sites:allow':
+        if (!siteAccess || !str(m.origin, 300)) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        try {
+          return { ok: true, origin: await siteAccess.allow(m.origin) };
+        } catch (e) {
+          const code = (e as Error).message;
+          if (code === 'BAD_ORIGIN' || code === 'TOO_MANY_SITES') return { ok: false, error: code };
+          throw e;
+        }
+      case 'sites:forbid':
+        if (!siteAccess || !str(m.origin, 300)) return { ok: false, error: 'BAD_REQUEST' };
+        await unlocked();
+        await siteAccess.forbid(m.origin);
         return { ok: true };
       case 'settings:get-default':
         if (!disk) break;
