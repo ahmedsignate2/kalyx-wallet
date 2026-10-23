@@ -24,9 +24,15 @@
   --pill-depth: 0 6px 14px rgba(90, 58, 24, 0.1);
   --pill-on: var(--surface-1);
 }
-@media (prefers-color-scheme: dark) {
-  :root { --depth: 0 10px 20px rgba(0, 0, 0, 0.45); --pill-depth: 0 3px 8px rgba(0, 0, 0, 0.4); --pill-on: var(--surface-3); }
-}
+/*
+ * Accessibilité (WCAG AA : 4,5:1 sur fond et surfaces) : le gris tertiaire,
+ * et en Crème le vert, le rouge et l'ambre, sont foncés juste assez — mesuré
+ * sur la surface la plus claire (surface-2). Le reste des couleurs est celui de l'app.
+ */
+:root { --text-tertiary: #8C8881; }
+:root[data-theme="light"] { --text-tertiary: #6D665C; --up: #137645; --down: #B73B32; --warning: #925A0C; --danger: #BF2E3C; }
+/* Nuit (défaut) ; Crème : data-theme="light" posé par public/theme-boot.js. */
+:root:not([data-theme="light"]) { --depth: 0 10px 20px rgba(0, 0, 0, 0.45); --pill-depth: 0 3px 8px rgba(0, 0, 0, 0.4); --pill-on: var(--surface-3); }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 500 16px/22px var(--font); -webkit-font-smoothing: antialiased; }
@@ -91,10 +97,8 @@ textarea { resize: none; min-height: 110px; }
 .scene { position: absolute !important; inset: 0 0 auto 0; height: 120px; pointer-events: none; overflow: hidden; z-index: 0; -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent); mask-image: linear-gradient(to bottom, #000 45%, transparent); }
 .scene svg { width: 100%; height: 100%; display: block; }
 .scene .dunes-dark { display: none; }
-@media (prefers-color-scheme: dark) {
-  .scene .dunes-light { display: none; }
-  .scene .dunes-dark { display: block; }
-}
+:root:not([data-theme="light"]) .scene .dunes-light { display: none; }
+:root:not([data-theme="light"]) .scene .dunes-dark { display: block; }
 .landscape .breath { transform-box: fill-box; transform-origin: center; animation: breath 6s ease-in-out infinite alternate; }
 @keyframes breath { from { opacity: 0.8; transform: scale(1); } to { opacity: 1; transform: scale(1.05); } }
 @media (prefers-reduced-motion: reduce) { .landscape .breath { animation: none; } .btn, .option, .tile { transition: none; } }

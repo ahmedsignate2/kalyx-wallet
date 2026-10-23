@@ -66,6 +66,9 @@ interface Entry {
   busy: boolean;
 }
 
+/** Fenêtre gardée après un accord réussi, le temps de voir la coche (elle se ferme aussi d'elle-même). */
+const SUCCESS_LINGER_MS = 900;
+
 export function makeApprovals(deps: ApprovalDeps) {
   const now = deps.now ?? Date.now;
   const pending = new Map<string, Entry>();
@@ -81,10 +84,14 @@ export function makeApprovals(deps: ApprovalDeps) {
   }
 
   const changed = () => deps.onChange?.(pending.size);
-  function close(id: string, e: Entry) {
+  /** `afterMs` : accord réussi, la fenêtre montre sa coche un instant avant de se fermer (la demande, elle, est déjà close). */
+  function close(id: string, e: Entry, afterMs = 0) {
     pending.delete(id);
     changed();
-    if (e.windowId !== undefined) void deps.close(e.windowId).catch(() => {});
+    if (e.windowId === undefined) return;
+    const shut = () => void deps.close(e.windowId!).catch(() => {});
+    if (afterMs > 0) setTimeout(shut, afterMs);
+    else shut();
   }
 
   /**
@@ -135,7 +142,7 @@ export function makeApprovals(deps: ApprovalDeps) {
     try {
       const result = await e.run({ walletId: d.walletId, index: d.index, reduceTo: d.reduceTo });
       refusals.delete(rkey(e.req.origin, e.req.kind, e.req.family));
-      close(id, e);
+      close(id, e, SUCCESS_LINGER_MS);
       e.resolve(result);
       return { ok: true };
     } catch (err) {

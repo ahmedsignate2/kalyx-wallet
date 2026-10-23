@@ -29,6 +29,8 @@ import { addressWithContact, contactSheet, contactsScreen, loadContacts } from '
 import { errorText, LOCALE, t } from './i18n';
 import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
 import { allowedSitesSheet, capSelect, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
+import { getMode, getTheme, isExpert, setMode, setSounds, setTheme, soundsOn, type Mode, type Theme } from './prefs';
+import { play } from './sound';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -281,6 +283,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
               await navigator.clipboard.writeText(addr);
               btn.dataset.copied = '1';
               label.textContent = t('copied');
+              play('tap');
               pulse(btn);
               setTimeout(() => (delete btn.dataset.copied, (label.textContent = t('copy'))), 1400);
             },
@@ -656,6 +659,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
             await navigator.clipboard.writeText(r.hash);
             copy.dataset.copied = '1';
             copyLabel.textContent = t('copied');
+            play('tap');
             setTimeout(() => (delete copy.dataset.copied, (copyLabel.textContent = t('copy'))), 1400);
           },
         },
@@ -767,6 +771,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   /* ── Réglages ── */
+  /** « Réglages avancés » reste ouvert quand l'écran se redessine (après un interrupteur). */
+  let advOpen = false;
   function settings(dir: 'fwd' | 'back' | 'none' = 'fwd') {
     away = true;
     if (dir !== 'none') navIn(app, dir);
@@ -818,35 +824,59 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         end ?? glyph('chevron', 16),
       );
     const group = (title: string, ...rows: (Node | false)[]) => h('section', { class: 'group' }, h('p', { class: 'group-title' }, title), h('div', { class: 'list card' }, ...rows.filter((r): r is Node => !!r)));
+    /*
+     * Mode Débutant : les réglages pointus (parano, présence sur les sites,
+     * téléphone seul, code de contrainte, liste blanche, réseaux) se rangent
+     * sous « Réglages avancés », replié. Expert : tout à plat.
+     */
+    const expert = isExpert();
+    const advanced = (...rows: (Node | false)[]): (Node | false)[] =>
+      expert ? rows : [h('details', { class: 'adv', 'data-testid': 'advanced', open: advOpen, on: { toggle: (e) => (advOpen = (e.target as HTMLDetailsElement).open) } }, h('summary', { class: 'row link-row' }, h('span', { class: 'set-ico' }, glyph('gear', 18)), h('span', { class: 'grow' }, h('strong', {}, t('advTitle')), h('p', { class: 'small muted' }, t('advBody'))), glyph('caretDown', 16)), ...rows.filter((r): r is Node => !!r))];
+    // Apparence : thème (Nuit par défaut), mode, sons. Propre à cet ordinateur.
+    const choiceRow = <V extends string>(icon: string, title: string, body: string, testid: string, value: V, choices: [V, string][], onPick: (v: V) => void) => {
+      const sel = h('select', { class: 'inline', 'aria-label': title, 'data-testid': testid }, ...choices.map(([v, label]) => h('option', { value: v, selected: v === value }, label)));
+      sel.addEventListener('change', () => onPick(sel.value as V));
+      return h('div', { class: 'row' }, h('span', { class: 'set-ico' }, glyph(icon, 18)), h('span', { class: 'grow' }, h('strong', {}, title), h('p', { class: 'small muted' }, body)), sel);
+    };
+    const look = group(
+      t('lookTitle'),
+      choiceRow<Theme>('eye', t('themeTitle'), t('themeBody'), 'theme', getTheme(), [['dark', t('themeDark')], ['light', t('themeLight')], ['system', t('themeSystem')]], (v) => setTheme(v)),
+      choiceRow<Mode>('faq', t('modeTitle'), t(getMode() === 'expert' ? 'modeExpertBody' : 'modeBeginnerBody'), 'mode', getMode(), [['beginner', t('modeBeginner')], ['expert', t('modeExpert')]], (v) => (setMode(v), settings('none'))),
+      switchRow('support', t('soundTitle'), t('soundBody'), 'sounds', soundsOn(), async (on) => (setSounds(on), on && play('success'), { ok: true }), () => settings('none')),
+    );
     app.replaceChildren(
       h(
         'div',
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('language', t('language'), languageSelect()), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('language', t('language'), languageSelect()), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), expert && item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        look,
         group(
           t('setSecurity'),
           askPw,
-          switchRow('lock', t('paranoTitle'), t('paranoBody'), 'paranoid', !!data?.status.paranoid, async (on) => { const r = await send({ type: 'vault:set-paranoid', on }); if (r.ok && data) data.status.paranoid = on; return r; }, () => settings('none')),
           // Plafond journalier de dépense (dans la devise affichée).
           item('currency', t('capTitle'), capSelect(data?.fiat ?? 'usd', LOCALE, () => void 0)),
-          phoneOnly,
-          siteMode,
-          siteList,
           item('lock', t('pwChange'), null, () => changePasswordSheet(), 'change-password'),
           // Passkey : cérémonie WebAuthn dans un onglet (le popup se fermerait).
           item('sign', t('pkTitle'), h('span', { class: 'small muted', 'data-testid': 'pk-state-row' }, t(data?.status.passkeyHere ? 'pkOn' : 'pkOff')), () => void openOnboarding(opts.mode === 'popup', '#passkey'), 'passkey-open'),
-          item('security', t('drTitle'), h('span', { class: 'small muted' }, t(data?.status.duress ? 'drOn' : 'drOff')), () => duressSheet(!!data?.status.duress, () => void refreshStatus().then(() => settings('none'))), 'duress-open'),
           item('import', t('bkExport'), null, () => exportBackupSheet(), 'export-backup'),
           item('dapps', t('sitesTitle'), null, () => (void sitesScreen(app, () => settings('back')), navIn(app, 'fwd'))),
-          item('check', t('wlTitle'), null, () => (whitelistScreen(app, () => settings('back')), navIn(app, 'fwd'))),
           // Autorisations de tokens : pour un compte qui a une adresse EVM.
           !!current().a?.evm && item('sign', t('apprTitle'), null, () => (allowancesScreen(app, () => settings('back')), navIn(app, 'fwd')), 'allowances'),
           // Phrase de récupération (portefeuille à phrase) : mot de passe redemandé, liste blanche respectée.
           current().w?.kind === 'seed' && item('phrase', t('showPhrase'), null, () => void openPhrase(), 'show-phrase'),
           // Téléphone relié (mode compagnon) : couper le lien.
           current().w?.kind === 'companion' && item('close', t('compUnlink'), null, () => unlinkPhone(), 'unlink-phone'),
+          ...advanced(
+            switchRow('lock', t('paranoTitle'), t('paranoBody'), 'paranoid', !!data?.status.paranoid, async (on) => { const r = await send({ type: 'vault:set-paranoid', on }); if (r.ok && data) data.status.paranoid = on; return r; }, () => settings('none')),
+            phoneOnly,
+            siteMode,
+            siteList,
+            item('security', t('drTitle'), h('span', { class: 'small muted' }, t(data?.status.duress ? 'drOn' : 'drOff')), () => duressSheet(!!data?.status.duress, () => void refreshStatus().then(() => settings('none'))), 'duress-open'),
+            item('check', t('wlTitle'), null, () => (whitelistScreen(app, () => settings('back')), navIn(app, 'fwd'))),
+            !expert && item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'),
+          ),
         ),
         group(
           t('setHelp'),

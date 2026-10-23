@@ -20,6 +20,8 @@ import { createBackupChallenge, unknownWords, type WordChallenge } from '../../.
 import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
 import { languageSelect } from '../../ui/helpScreen';
 import { createPasskey, passkeyPrf, passkeySupported, unlockWith, type PasskeyStatus } from '../../ui/passkey';
+import { getMode, getTheme, setMode, setTheme, type Mode, type Theme } from '../../ui/prefs';
+import { play } from '../../ui/sound';
 
 interface WalletMeta {
   id: string;
@@ -534,6 +536,43 @@ function importKeyScreen() {
   area.focus();
 }
 
+/**
+ * À ton goût : thème (essayé en direct) et mode, choisis une fois ici,
+ * modifiables ensuite dans Réglages › Apparence.
+ */
+function personalize(): HTMLElement {
+  const group = <V extends string>(label: string, value: V, choices: [V, string, Node | null][], pick: (v: V) => void, testid: string) => {
+    const buttons = choices.map(([v, name, extra]) => {
+      const b = h('button', { type: 'button', 'aria-pressed': String(v === value), 'data-testid': `${testid}-${v}` }, extra, name);
+      b.addEventListener('click', () => {
+        for (const x of buttons) x.setAttribute('aria-pressed', String(x === b));
+        pick(v);
+        play('tap');
+      });
+      return b;
+    });
+    return h('div', { class: 'stack', style: 'gap:8px', role: 'group', 'aria-label': label }, h('p', { class: 'small muted' }, label), h('div', { class: 'pick' }, ...buttons));
+  };
+  const modeNote = h('p', { class: 'small muted' }, t(getMode() === 'expert' ? 'modeExpertBody' : 'modeBeginnerBody'));
+  return h(
+    'section',
+    { class: 'card stack', style: 'gap:14px', 'data-testid': 'personalize' },
+    h('strong', {}, t('obLookTitle')),
+    group<Theme>(t('themeTitle'), getTheme(), [['dark', t('themeDark'), h('span', { class: 'swatch dark' })], ['light', t('themeLight'), h('span', { class: 'swatch light' })], ['system', t('themeSystem'), h('span', { class: 'swatch system' })]], setTheme, 'ob-theme'),
+    group<Mode>(t('modeTitle'), getMode(), [['beginner', t('modeBeginner'), null], ['expert', t('modeExpert'), null]], (v) => (setMode(v), (modeNote.textContent = t(v === 'expert' ? 'modeExpertBody' : 'modeBeginnerBody'))), 'ob-mode'),
+    modeNote,
+  );
+}
+
+/** Kalyx pas encore épinglé dans la barre de Chrome : comment l'y mettre (rien s'il y est déjà). */
+const pinTip = h('div', {});
+void (async () => {
+  const action = browser.action as unknown as { getUserSettings?: () => Promise<{ isOnToolbar?: boolean }> };
+  const st = await action.getUserSettings?.().catch(() => null);
+  // Déjà épinglé : rien à dire. Inconnu (navigateur sans cette API) : le conseil reste.
+  if (st?.isOnToolbar !== true) pinTip.replaceChildren(h('p', { class: 'small muted pin-tip', 'data-testid': 'pin-tip' }, t('donePin')));
+})();
+
 /* ── Fin ── */
 async function finish(notes: string[] = []) {
   // La phrase créée n'a plus rien à faire dans cette page.
@@ -556,7 +595,8 @@ async function finish(notes: string[] = []) {
         ...w.accounts.map((a) => h('div', { class: 'acct-addrs' }, ...[a.evm && ['EVM', a.evm], a.solana && ['SOL', a.solana]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
       ),
     ),
-    h('p', { class: 'small muted' }, t('donePin')),
+    personalize(),
+    pinTip,
     h('label', { class: 'small muted' }, t('autoLock')),
     select,
     h('button', { class: 'btn', type: 'button', on: { click: () => window.close() } }, t('done')),

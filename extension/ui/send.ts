@@ -9,6 +9,7 @@
  */
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
+import { play } from './sound';
 import { activityT, errorText, LOCALE, t } from './i18n';
 import type { AssetView, DraftView, QuoteView } from '../lib/send';
 import { addressView } from './address';
@@ -271,8 +272,9 @@ function formatSum(amount: string, fee: string, decimals: number): string {
 
 function sentScreen(app: HTMLElement, txid: string, explorer: string | undefined, done: () => void) {
   const status = h('p', { class: 'muted', role: 'status' }, t('statusPending'));
+  play('success');
   app.replaceChildren(
-    h('div', { class: 'center' }, h('h1', {}, t('sentTitle')), h('p', { class: 'mono small' }, `${txid.slice(0, 10)}…${txid.slice(-8)}`), status,
+    h('div', { class: 'center' }, h('div', { class: 'success-badge' }, glyph('check', 34)), h('h1', {}, t('sentTitle')), h('p', { class: 'mono small' }, `${txid.slice(0, 10)}…${txid.slice(-8)}`), status,
       explorer && h('a', { class: 'btn secondary', href: explorer, target: '_blank', rel: 'noopener noreferrer' }, t('viewExplorer')),
       h('button', { class: 'btn', type: 'button', on: { click: done } }, t('done')),
     ),

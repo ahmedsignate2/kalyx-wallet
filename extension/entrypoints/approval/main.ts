@@ -16,6 +16,8 @@ import { glyph } from '../../ui/glyph';
 import { avatar } from '../../ui/avatar';
 import { openSheet } from '../../ui/sheet';
 import { addressView } from '../../ui/address';
+import { isExpert } from '../../ui/prefs';
+import { play } from '../../ui/sound';
 
 interface Req {
   id: string;
@@ -100,7 +102,10 @@ function siteHero(origin: string, testid = true) {
  * à la plus légère (trois visibles, le reste en dépliant). Calculé localement.
  */
 function scoreCard(sc: Review['score']) {
-  const row = (f: Review['score']['factors'][number]) => h('li', {}, h('span', { class: 'pts' }, `+${f.points}`), h('span', {}, t(`rk_${f.code}` as 'rk_lossOnly', f.params ?? {})));
+  // Expert : les points de chaque raison, et toutes les raisons dépliées. Débutant : les raisons, en mots.
+  const expert = isExpert();
+  const row = (f: Review['score']['factors'][number]) => h('li', {}, expert && h('span', { class: 'pts' }, `+${f.points}`), h('span', {}, t(`rk_${f.code}` as 'rk_lossOnly', f.params ?? {})));
+  const shown = expert ? sc.factors.length : 3;
   return h(
     'section',
     { class: `card score ${sc.level}`, 'data-testid': 'risk-score', 'aria-label': t('rkTitle') },
@@ -111,8 +116,9 @@ function scoreCard(sc: Review['score']) {
       h('span', { class: 'score-num', 'data-testid': 'risk-num' }, t('rkScore', { score: sc.score })),
     ),
     h('div', { class: 'meter', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(sc.score), 'aria-label': t('rkTitle') }, h('i', { style: `width:${Math.max(3, sc.score)}%` })),
-    sc.factors.length ? h('ul', { class: 'factors' }, ...sc.factors.slice(0, 3).map(row)) : h('p', { class: 'small muted' }, t('rkNone')),
-    sc.factors.length > 3 && h('details', {}, h('summary', {}, t('rkMore', { n: sc.factors.length - 3 })), h('ul', { class: 'factors' }, ...sc.factors.slice(3).map(row))),
+    sc.factors.length ? h('ul', { class: 'factors' }, ...sc.factors.slice(0, shown).map(row)) : h('p', { class: 'small muted' }, t('rkNone')),
+    sc.factors.length > shown && h('details', {}, h('summary', {}, t('rkMore', { n: sc.factors.length - shown })), h('ul', { class: 'factors' }, ...sc.factors.slice(shown).map(row))),
+    !expert && sc.level !== 'low' && h('p', { class: 'small', 'data-testid': 'risk-help' }, t('rkHelp')),
     h('p', { class: 'small muted' }, t('rkLocal')),
   );
 }
@@ -168,13 +174,20 @@ async function signScreen(req: Req) {
     }).catch(() => null);
     pw.value = '';
     phoneWait.hidden = true;
-    if (x?.ok) return window.close();
+    if (x?.ok) return done();
     if (x?.error === 'REQUEST_EXPIRED') return gone();
     // L'action a échoué : on reste, on dit pourquoi ; réessayer ou refuser.
     // Raison connue : dans la langue de la fenêtre ; sinon le message (court) de l'échec.
     const reason = x?.params?.reason;
     err.textContent = x?.error === 'ACTION_FAILED' ? t('apFailed', { m: hasErrorText(reason) ? errorText(reason) : (x.params?.message ?? '') }) : errorText(x?.error, x?.params);
+    play('error');
     ok.disabled = false;
+  };
+  /** Accord parti : une coche, un son discret (si activé), puis la fenêtre se ferme. */
+  const done = () => {
+    play('success');
+    app.replaceChildren(h('div', { class: 'center', role: 'status', 'data-testid': 'approved' }, h('div', { class: 'success-badge' }, glyph('check', 34)), h('p', {}, t(sending || onPhone ? 'apDoneSent' : 'apDoneSigned'))));
+    setTimeout(() => window.close(), matchMedia('(prefers-reduced-motion: reduce)').matches ? 300 : 700);
   };
 
   // Danger : maintenir 2 s (un clic, même automatisé ou hérité, ne suffit pas).
@@ -190,6 +203,16 @@ async function signScreen(req: Req) {
       timer = setTimeout(() => (stop(), void approve()), HOLD_MS);
     });
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) ok.addEventListener(ev, stop);
+    // Clavier : Espace ou Entrée MAINTENUS 2 s (la répétition de touche ne relance pas le compte).
+    ok.addEventListener('keydown', (e) => {
+      if ((e.key !== ' ' && e.key !== 'Enter') || ok.disabled) return;
+      e.preventDefault();
+      if (e.repeat || ok.classList.contains('holding')) return;
+      ok.classList.add('holding');
+      timer = setTimeout(() => (stop(), void approve()), HOLD_MS);
+    });
+    ok.addEventListener('keyup', (e) => (e.key === ' ' || e.key === 'Enter') && stop());
+    ok.addEventListener('blur', stop);
   } else ok.addEventListener('click', () => void approve());
   document.addEventListener('keydown', (e) => e.key === 'Escape' && void refuse());
 
@@ -216,7 +239,7 @@ async function signScreen(req: Req) {
           h('div', { class: 'amount' }, reduceAmount, h('span', { class: 'small muted' }, rv.reduce.symbol)),
           h('p', { class: 'small muted' }, t('apReduceHint', { s: rv.reduce.symbol })),
         ),
-      rv.details.length > 0 && h('details', {}, h('summary', {}, t('apDetails')), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
+      rv.details.length > 0 && h('details', { open: isExpert(), 'data-testid': 'tech-details' }, h('summary', {}, t('apDetails')), isExpert() && h('div', { class: 'kv' }, h('span', { class: 'small muted' }, t('apMethod')), h('p', { class: 'mono small' }, rv.method)), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
       rv.approval && h('label', { class: 'row-inline small' }, h('span', { class: 'grow muted' }, t('grRemind')), remind),
       capPassword && h('p', { class: 'banner warn', role: 'status', 'data-testid': 'cap-note' }, glyph('warning', 16), h('span', { class: 'grow' }, t('capNote', { remaining: String(Math.floor(capRemaining ?? 0)) }))),
       askPassword && pw,

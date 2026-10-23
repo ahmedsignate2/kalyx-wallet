@@ -5,6 +5,7 @@
  */
 import { glyph } from './glyph';
 import { h, send } from './dom';
+import { play } from './sound';
 import { errorText, LOCALE, t } from './i18n';
 
 interface Source {
@@ -145,6 +146,7 @@ export function swapScreen(app: HTMLElement, back: () => void, opts: { onPhone: 
         return;
       }
       const done = r as unknown as { txid: string; explorer?: string };
+      play('success');
       quoteBox.replaceChildren(
         h(
           'div',

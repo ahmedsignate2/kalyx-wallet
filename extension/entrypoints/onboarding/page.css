@@ -13,13 +13,11 @@ body { min-height: 100vh; }
 .ob-steps i { height: 4px; flex: 1; border-radius: 2px; background: var(--surface-3); transition: background var(--d-base); }
 .ob-steps i.done { background: var(--up); }
 .ob-steps i.on { background: linear-gradient(90deg, var(--up), var(--surface-3)); }
-.success-badge { align-self: center; width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--up); color: #fff; animation: pop var(--d-slow) var(--ease-spring) both, ring 1.6s var(--ease-out) 0.3s; }
-@keyframes ring { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 50%, transparent); } to { box-shadow: 0 0 0 26px transparent; } }
 .grid { transition: filter var(--d-slow) var(--ease-out); }
 .word { transition: transform var(--d-fast); }
 .btn.shake { animation: shake 0.4s; border-color: var(--danger); }
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
-@media (prefers-reduced-motion: reduce) { .success-badge, .btn.shake { animation: none; } .grid { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .btn.shake { animation: none; } .grid { transition: none; } }
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; user-select: none; -webkit-user-select: none; }
 .grid.hidden { filter: blur(9px); }
 .word { background: var(--surface-2); border-radius: 12px; padding: 9px 10px; font-weight: 500; }

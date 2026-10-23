@@ -41,8 +41,9 @@ const skyVars = [...skyBlock[1].matchAll(/^\s+([a-zA-Z0-9]+): '([^']+)'/gm)].map
 if (skyVars.length < 8) throw new Error('palette sky incomplète');
 const darkBase = Object.entries(tk.dark).map(([k, v]) => `--${kebab(k)}: ${v};`).join(' ');
 const css = `/* GÉNÉRÉ par scripts/gen-design.mjs depuis ui/tokens.ts de l'app — ne pas modifier à la main. */
-:root { color-scheme: light; ${vars('light')} --gold: ${tk.BRAND_GOLD.light}; --gold-deep: ${tk.BRAND_GOLD.deep}; }
-@media (prefers-color-scheme: dark) { :root { color-scheme: dark; ${vars('dark')} } }
+/* Nuit par défaut ; Crème quand public/theme-boot.js pose data-theme="light" (choix, ou « Système » sur un système clair). */
+:root { color-scheme: dark; ${vars('dark')} --gold: ${tk.BRAND_GOLD.light}; --gold-deep: ${tk.BRAND_GOLD.deep}; }
+:root[data-theme="light"] { color-scheme: light; ${vars('light')} }
 .on-sky { color-scheme: dark; ${darkBase} ${skyVars.join(' ')} color: var(--text); }
 `;
 writeFileSync(join(here, '../ui/tokens.css'), css);
