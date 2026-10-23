@@ -22,7 +22,7 @@ import { SolanaAdapterV2 } from '../../src/domain/chains/v2/SolanaAdapterV2';
 import { BitcoinAdapterV2 } from '../../src/domain/chains/v2/BitcoinAdapterV2';
 import { withSigner } from '../../src/domain/chains/v2/signer';
 import { signerFor } from './signer';
-import { checkSolSignature, checkTxHash, evmChainFor, evmTxParam, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
+import { BTC_CAIP, checkBtcTxid, checkSolSignature, checkTxHash, evmChainFor, evmTxParam, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
 import type { Companion } from './companion';
 import type { EvmPayload } from '../../src/domain/chains/v2/EvmAdapterV2';
 import type { SolanaPayload } from '../../src/domain/chains/v2/SolanaAdapterV2';
@@ -389,9 +389,17 @@ export function makeSend(deps: SendDeps) {
       if (!deps.companion) throw new WalletError('NOT_SUPPORTED', 'COMPANION_UNAVAILABLE');
       let txid: string;
       let opaque: number | undefined;
-      // Bitcoin via le téléphone : pas encore (le compte du téléphone n'expose pas d'adresse bc1 ici).
-      if (familyOf(chain) === 'bitcoin') throw new WalletError('NOT_SUPPORTED', 'COMPANION');
-      if (familyOf(chain) === 'evm') {
+      if (familyOf(chain) === 'bitcoin') {
+        /*
+         * Bitcoin : le téléphone reçoit le destinataire et le montant en
+         * satoshis (spec WalletConnect « sendTransfer »), choisit ses pièces,
+         * signe et diffuse. Les frais affichés ici sont une estimation : le
+         * téléphone montre les siens avant de valider.
+         */
+        const p = held.draft.payload as { dest: string; target: bigint };
+        const res = await deps.companion.request<{ txid?: unknown }>(meta, BTC_CAIP, 'sendTransfer', { account: held.draft.from, recipientAddress: p.dest, amount: p.target.toString() });
+        txid = checkBtcTxid(res?.txid);
+      } else if (familyOf(chain) === 'evm') {
         const p = held.draft.payload as EvmPayload;
         const id = evmChainFor(meta.evmChains ?? [], p.chainId);
         const tx = evmTxParam({ from: held.draft.from, to: p.to, data: p.data, value: p.value, gas: p.gasLimit });

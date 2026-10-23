@@ -3,6 +3,7 @@ import { base58 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import { makeSend } from './send';
 import { addressKey, makeWhitelist } from './whitelist';
+import { BTC_CAIP } from './companionCore';
 import { makeHome } from './home';
 import { makePortfolio } from './portfolio';
 import { makeSession } from './session';
@@ -282,6 +283,27 @@ describe('mode compagnon', () => {
     expect(calls).toEqual([{ chainId: 'eip155:1', method: 'eth_sendTransaction', params: [{ from: phone, to: STRANGER, data: '0x', value: '0x16345785d8a0000', gas: '0x5208' }] }]);
     expect(log.signedBy).toBeUndefined();
     expect(log.broadcasts).toBe(0);
+  });
+
+  test('Bitcoin du téléphone : destinataire et montant EN SATOSHIS partent au téléphone, txid contrôlé', async () => {
+    const phoneBtc = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+    const DEST = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+    const calls: { chainId: string; method: string; params: unknown }[] = [];
+    const companion = { request: async (_m: unknown, chainId: string, method: string, params: unknown) => (calls.push({ chainId, method, params }), { txid: 'E'.repeat(64) }) } as unknown as Companion;
+    const v1 = new BitcoinChainAdapter(BITCOIN);
+    Object.assign(v1, { getFeeRates: async () => ({ slow: 2, normal: 5, fast: 10 }), confirmedUtxos: async () => [{ txid: 'a'.repeat(64), vout: 0, value: 200_000 }], broadcastHex: async () => { throw new Error('jamais diffusé ici'); } });
+    const pf = makePortfolio({ disk: makeStore(disk), t: activityT, locale: 'fr-FR', now: () => clock, load: async () => [holding('bitcoin', 'BTC', 200_000n, 8)], history: async () => [] });
+    const h = makeHome(makeStore(disk), session, wallets, pf, 'eur');
+    const w = await wallets.addCompanion({ topic: 't-btc', bitcoin: phoneBtc, evmChains: [], label: 'Téléphone' });
+    await h.select(w.id, 0);
+    await h.refresh();
+    const s2 = makeSend({ session, wallets, home: h, portfolio: pf, whitelist, now: () => clock, adapterFor: (c) => (c.family === 'bitcoin' ? new BitcoinAdapterV2(BITCOIN, v1) : fakeAdapter(c, log)), companion });
+    const d = await s2.prepare({ assetKey: 'bitcoin:native', to: DEST, amount: '0.0005' });
+    expect(d.from).toBe(phoneBtc);
+    expect(d.onPhone).toBe(true);
+    const r = await s2.confirm(d.id);
+    expect(r.txid).toBe('e'.repeat(64));
+    expect(calls).toEqual([{ chainId: BTC_CAIP, method: 'sendTransfer', params: { account: phoneBtc, recipientAddress: DEST, amount: '50000' } }]);
   });
 
   test('compte local : rien ne part au téléphone', async () => {

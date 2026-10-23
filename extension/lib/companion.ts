@@ -65,6 +65,7 @@ export interface CompanionCandidate {
   topic: string;
   evm?: string;
   solana?: string;
+  bitcoin?: string;
   evmChains: number[];
   peer: { name: string; url: string };
 }
@@ -103,13 +104,13 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
         await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Comptes illisibles' } }).catch(() => {});
         throw e;
       }
-      if (!acc.evm && !acc.solana) {
+      if (!acc.evm && !acc.solana && !acc.bitcoin) {
         await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Aucun compte partagé' } }).catch(() => {});
         throw new RpcError(4100, 'COMPANION_NO_ACCOUNT');
       }
       const meta = s.peer?.metadata ?? {};
       const peer = { name: String(meta.name ?? '').slice(0, 60), url: String(meta.url ?? '').slice(0, 120) };
-      const cand: CompanionCandidate = { topic: s.topic, evm: acc.evm, solana: acc.solana, evmChains: acc.evmChains, peer };
+      const cand: CompanionCandidate = { topic: s.topic, evm: acc.evm, solana: acc.solana, bitcoin: acc.bitcoin, evmChains: acc.evmChains, peer };
       pending = { c: cand, label, timer: setTimeout(() => void drop(cand.topic), CONFIRM_TIMEOUT_MS) };
       return cand;
     });
@@ -136,7 +137,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
       await drop(topic);
       return null;
     }
-    return wallets.addCompanion({ topic: c.topic, evm: c.evm, solana: c.solana, evmChains: c.evmChains, label });
+    return wallets.addCompanion({ topic: c.topic, evm: c.evm, solana: c.solana, bitcoin: c.bitcoin, evmChains: c.evmChains, label });
   }
 
   /** Attend l'accord du téléphone (ou son refus, ou l'expiration du QR). Rien n'est enregistré avant `confirm`. */

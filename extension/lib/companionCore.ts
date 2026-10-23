@@ -17,10 +17,14 @@ import { verifyMessage, verifyTypedData, getBytes, isHexString } from 'ethers';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
 import { RpcError } from './rpcError';
+import { isValidBtcAddress } from '../../src/domain/validation/btcAddress';
 
 export const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 export const EVM_METHODS = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData_v4'];
 export const SOL_METHODS = ['solana_signMessage', 'solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'];
+/** Bitcoin (WalletConnect « bip122 », réseau principal) : envoi, montant en satoshis, signé et diffusé par le téléphone. */
+export const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';
+export const BTC_METHODS = ['sendTransfer'];
 
 /** Ce que l'extension propose au téléphone : les réseaux EVM qu'elle connaît, et Solana. Tout est optionnel : le téléphone partage ce qu'il a. */
 export function proposal(evmChainIds: number[]) {
@@ -29,6 +33,7 @@ export function proposal(evmChainIds: number[]) {
     optionalNamespaces: {
       eip155: { chains, methods: EVM_METHODS, events: ['accountsChanged', 'chainChanged'] },
       solana: { chains: [SOLANA_CAIP], methods: SOL_METHODS, events: [] as string[] },
+      bip122: { chains: [BTC_CAIP], methods: BTC_METHODS, events: [] as string[] },
     },
   };
 }
@@ -43,9 +48,10 @@ const SOL_ADDR = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
  * adresses EVM différentes dans une session, c'est une session qu'on ne
  * comprend pas — refusée plutôt que de signer pour la mauvaise.
  */
-export function sessionAccounts(ns: Namespaces): { evm?: string; solana?: string; evmChains: number[] } {
+export function sessionAccounts(ns: Namespaces): { evm?: string; solana?: string; bitcoin?: string; evmChains: number[] } {
   const evm = new Set<string>();
   const sol = new Set<string>();
+  const btc = new Set<string>();
   const evmChains: number[] = [];
   for (const acc of ns.eip155?.accounts ?? []) {
     const m = /^eip155:(\d{1,12}):(0x[0-9a-fA-F]{40})$/.exec(acc);
@@ -57,11 +63,16 @@ export function sessionAccounts(ns: Namespaces): { evm?: string; solana?: string
     const m = /^solana:([1-9A-HJ-NP-Za-km-z]{32}):([1-9A-HJ-NP-Za-km-z]{32,44})$/.exec(acc);
     if (m && `solana:${m[1]}` === SOLANA_CAIP && SOL_ADDR.test(m[2])) sol.add(m[2]);
   }
-  if (evm.size > 1 || sol.size > 1) throw new RpcError(-32603, 'COMPANION_AMBIGUOUS');
+  for (const acc of ns.bip122?.accounts ?? []) {
+    const m = /^(bip122:[0-9a-f]{32}):([0-9A-Za-z]{25,90})$/.exec(acc);
+    // Réseau principal seulement ; bech32 ramené en minuscules (une seule forme pour comparer).
+    if (m && m[1] === BTC_CAIP && isValidBtcAddress(m[2])) btc.add(/^bc1/i.test(m[2]) ? m[2].toLowerCase() : m[2]);
+  }
+  if (evm.size > 1 || sol.size > 1 || btc.size > 1) throw new RpcError(-32603, 'COMPANION_AMBIGUOUS');
   const evmAddr = [...evm][0];
   // Adresse EVM rendue avec la casse de la session (somme de contrôle) si elle y est.
   const evmCased = evmAddr ? (ns.eip155?.accounts ?? []).map((a) => a.split(':')[2]).find((a) => a?.toLowerCase() === evmAddr) : undefined;
-  return { evm: evmCased && EVM_ADDR.test(evmCased) ? evmCased : undefined, solana: [...sol][0], evmChains: [...new Set(evmChains)] };
+  return { evm: evmCased && EVM_ADDR.test(evmCased) ? evmCased : undefined, solana: [...sol][0], bitcoin: [...btc][0], evmChains: [...new Set(evmChains)] };
 }
 
 /** Réseau EVM de la session pour une demande : celui du site s'il est partagé, sinon le premier partagé. */
@@ -141,4 +152,10 @@ const qty = (v: bigint) => `0x${v.toString(16)}`;
 
 export function evmTxParam(tx: { from: string; to: string; data: string; value: bigint; gas?: bigint }) {
   return { from: tx.from, to: tx.to, data: tx.data || '0x', value: qty(tx.value), ...(tx.gas ? { gas: qty(tx.gas) } : {}) };
+}
+
+/** Identifiant de transaction Bitcoin rendu par le téléphone : 64 caractères hexadécimaux, rien d'autre. */
+export function checkBtcTxid(v: unknown): string {
+  if (typeof v !== 'string' || !/^[0-9a-f]{64}$/i.test(v)) throw new RpcError(-32603, 'COMPANION_BAD_RESULT');
+  return v.toLowerCase();
 }

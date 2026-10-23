@@ -28,7 +28,7 @@ interface WalletMeta {
   label: string;
   kind: 'seed' | 'privateKey' | 'companion';
   backedUp: boolean;
-  accounts: { index: number; evm?: string; solana?: string }[];
+  accounts: { index: number; evm?: string; solana?: string; bitcoin?: string }[];
 }
 
 // Pas de rechargement en plein parcours (la phrase en cours serait perdue) : la langue se choisit sur l'accueil.
@@ -383,6 +383,7 @@ interface Candidate {
   topic: string;
   evm?: string;
   solana?: string;
+  bitcoin?: string;
   peer: { name: string; url: string };
 }
 
@@ -415,6 +416,7 @@ function confirmPhoneScreen(c: Candidate) {
     !!c.peer.name && h('p', { class: 'small muted' }, `${t('compDevice')} : `, h('strong', {}, c.peer.name)),
     row('EVM', c.evm),
     row('Solana', c.solana),
+    row('Bitcoin', c.bitcoin),
     err,
     yes,
     no,
@@ -592,7 +594,7 @@ async function finish(notes: string[] = []) {
         h('strong', {}, w.label),
         !w.backedUp && h('div', { class: 'banner' }, h('span', {}, t('backupBanner'))),
         // Une ligne par adresse, sans espaces de remplissage : « EVM 0x9858…da94 ».
-        ...w.accounts.map((a) => h('div', { class: 'acct-addrs' }, ...[a.evm && ['EVM', a.evm], a.solana && ['SOL', a.solana]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
+        ...w.accounts.map((a) => h('div', { class: 'acct-addrs' }, ...[a.evm && ['EVM', a.evm], a.solana && ['SOL', a.solana], a.bitcoin && ['BTC', a.bitcoin]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
       ),
     ),
     personalize(),
