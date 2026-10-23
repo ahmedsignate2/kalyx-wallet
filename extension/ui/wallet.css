@@ -338,3 +338,13 @@ details > summary::-webkit-details-marker { display: none; }
 .act.swap .disc { color: var(--ink-swap); }
 .acts:has(> :nth-child(5)) { gap: 10px; }
 .acts:has(> :nth-child(5)) .act { min-width: 58px; }
+
+/* ── Aide et infos (vague 5) ── */
+.faq details.banner > summary { text-align: start; color: var(--text); font-weight: 600; }
+.faq details.banner > summary .grow { flex: 1; }
+.faq details.banner > p { padding-inline: 36px 12px; }
+.about-head { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0 4px; }
+.about-head img { border-radius: 14px; }
+.about-head strong { font-size: 17px; }
+.link.forgot { align-self: center; margin-top: 4px; font-size: 13px; color: var(--text-secondary); }
+.ob-lang { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }

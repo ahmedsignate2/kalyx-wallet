@@ -61,22 +61,34 @@ Le bot Telegram Kalyx ne demande ni ne reçoit jamais de clé ni de phrase. Pour
 • les alertes de prix que vous créez (actif, seuil, sens, état).
 Les commandes de prix, de gas et d'analyse de token interrogent des services publics (CoinGecko, DefiLlama, Binance, GoPlus, nœuds publics) sans transmettre votre identité. Une limitation de débit utilise un compteur temporaire (quelques minutes). Vous pouvez supprimer vos alertes à tout moment (/alerts), et demander l'effacement complet de vos données à support@kalyxwallet.com.
 
-## 7. Vos droits (RGPD)
-Les seules données personnelles que l'éditeur peut détenir sont celles du bot Telegram (§ précédent) et les messages que vous adressez volontairement au support. Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL (cnil.fr). Pour les exercer : support@kalyxwallet.com. Les données de l'application, elles, ne quittent pas votre appareil : vous en gardez l'entière maîtrise.
+## 7. Extension de navigateur Kalyx
+L'extension Kalyx Wallet (Chrome et navigateurs Chromium) est un portefeuille non-custodial indépendant de l'app : vos clés et votre phrase de récupération sont chiffrées sur votre ordinateur avec votre mot de passe (scrypt, puis AES-256-GCM) et n'en sortent jamais. Votre mot de passe n'est jamais enregistré ; quand l'extension est déverrouillée, la clé du coffre reste en mémoire du navigateur et s'efface au verrouillage ou à la fermeture du navigateur.
+• Restent sur votre ordinateur : le coffre chiffré, le carnet d'adresses (chiffré avec la clé du coffre), vos réglages et votre langue, votre liste blanche, les sites connectés, les tokens ajoutés et le cache des soldes. Désinstaller l'extension, ou « Mot de passe oublié ? » sur l'écran de verrouillage, efface tout.
+• Aucune statistique d'usage, aucune télémétrie, aucun traceur.
+• Pour afficher soldes et activité et envoyer vos transactions, l'extension interroge directement les nœuds publics des réseaux et des explorateurs de blocs (adresses PUBLIQUES et transactions signées), DefiLlama et CoinGecko (identifiants de jetons, pas vos adresses), GoPlus (adresse d'un contrat ou d'un destinataire, domaine d'un site, avant une signature) et les hébergeurs des logos de jetons. Pour les tokens ERC-20, les NFT, les prix manquants, l'historique et la simulation, elle passe par le relais Kalyx (Cloudflare), qui transmet l'adresse PUBLIQUE à Alchemy (tokens, NFT, prix), Etherscan (historique EVM) et Helius (historique et simulation Solana) sans qu'aucune clé d'API soit dans l'extension ; le relais ne garde aucun journal.
+• Échange (Swap et pont) : seulement quand vous demandez un devis, l'adresse PUBLIQUE, les tokens et le montant sont transmis à LI.FI et Relay.link (par le relais Kalyx) et à Jupiter (Solana). La transaction est signée dans l'extension, après vérification du devis.
+• Achat : l'adresse PUBLIQUE du compte actif, le réseau et la crypto choisis sont transmis à Stripe par le relais Kalyx pour ouvrir la page de paiement ; le paiement et la vérification d'identité ont lieu chez Stripe, selon sa propre politique.
+• Mode compagnon : la liaison avec l'app de votre téléphone passe par le réseau de relais WalletConnect (Reown) ; les demandes y sont chiffrées de bout en bout, le relais ne voit que votre adresse IP.
+• Les notifications (issue d'une transaction) sont affichées par votre navigateur ; aucun serveur de notification n'est utilisé.
+• Un site web ne voit votre adresse que si vous acceptez de le connecter, dans une fenêtre de Kalyx ; il ne peut rien signer sans votre accord, demandé à chaque fois. Vous pouvez le déconnecter à tout moment.
+• Permissions demandées : stockage local, alarmes et état de veille (verrouillage automatique), panneau latéral, notifications (issue d'une transaction), et accès aux sites avec enregistrement d'un script de page, pour que ceux-ci puissent proposer une connexion ou une signature.
 
-## 8. Notifications & alertes
+## 8. Vos droits (RGPD)
+Les seules données personnelles que l'éditeur peut détenir sont celles du bot Telegram (§ 6) et les messages que vous adressez volontairement au support. Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL (cnil.fr). Pour les exercer : support@kalyxwallet.com. Les données de l'application, elles, ne quittent pas votre appareil : vous en gardez l'entière maîtrise.
+
+## 9. Notifications & alertes
 Toutes les notifications générées par Kalyx Wallet sont strictement locales (générées au niveau du système d'exploitation de votre téléphone). Aucun serveur distant de notification push n'est sollicité, ce qui garantit qu'aucun jeton d'appareil (device push token) n'est jamais transmis à un tiers.
 
-## 9. Mesures de sécurité cryptographiques
+## 10. Mesures de sécurité cryptographiques
 La phrase de récupération est chiffrée en AES-256-GCM avec une clé dérivée de votre code PIN (scrypt), puis stockée dans le stockage sécurisé du système (Keychain iOS / Keystore Android).
 L'application dispose d'un verrouillage automatique dès la mise en veille, d'un écran de garde anti-capture d'écran et d'un ralentisseur anti brute-force sur le code PIN.
 Bien que ces défenses soient à l'état de l'art, aucun système informatique n'est inviolable : il est impératif de conserver votre phrase de récupération écrite sur papier hors ligne.
 Protections supplémentaires, toutes locales : liste blanche des destinataires (24 h avant qu'une adresse ajoutée ou une désactivation prenne effet), code de contrainte ouvrant un portefeuille leurre, copie biométrique de la phrase gardée par le système (empreinte ou visage exigé), explication et simulation des signatures avant validation, confirmation avant qu'un site change de réseau. La sauvegarde chiffrée utilise un mot de passe distinct du PIN (scrypt + AES-256-GCM).
 
-## 10. Protection des mineurs
+## 11. Protection des mineurs
 L'application Kalyx Wallet n'est pas destinée aux personnes de moins de 16 ans. Nous ne sollicitons ni ne conservons sciemment aucune information relative à des mineurs.
 
-## 11. Mentions légales & Hébergement (LCEN)
+## 12. Mentions légales & Hébergement (LCEN)
 Conformément à l'article 6 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN) :
 • Éditeur : KALYX (Ahamed Signate)
 • Statut : Entrepreneur individuel
@@ -86,5 +98,5 @@ Conformément à l'article 6 de la loi n° 2004-575 du 21 juin 2004 pour la conf
 • Hébergement de l'application : application mobile non-custodial exécutée localement sur l'appareil de l'utilisateur, sans serveur central de stockage de clés ni base de données d'utilisateurs. Seul le relais TON (sans journalisation) est opéré sur Cloudflare Workers.
 Le détail complet de ces mentions figure sur la page dédiée « Mentions légales ».
 
-## 12. Évolution de la politique & Contact
+## 13. Évolution de la politique & Contact
 La présente politique de confidentialité peut être révisée pour refléter l'évolution des fonctionnalités ou du cadre réglementaire. La date de mise à jour fait foi. Pour toute demande relative à la protection des données ou pour signaler un problème de sécurité : support@kalyxwallet.com ou sur Telegram @kalyxntw.

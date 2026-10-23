@@ -13,7 +13,7 @@ const app = document.getElementById('app')!;
 const wallet = mountWallet(app, {
   mode: 'panel',
   onNoVault: (hasVault) => noVaultScreen(app, false, hasVault),
-  onLocked: () => lockedScreen(app, () => void wallet.load()),
+  onLocked: () => lockedScreen(app, () => void wallet.load(), false),
 });
 void wallet.load(true);
 // Le panneau reste ouvert : il suit le verrouillage automatique sans attendre un clic (sans le repousser).

@@ -50,3 +50,6 @@ export const DEFAULT_AUTO_LOCK_MIN = 15;
 export function validAutoLock(min: unknown): min is (typeof AUTO_LOCK_CHOICES)[number] {
   return typeof min === 'number' && (AUTO_LOCK_CHOICES as readonly number[]).includes(min);
 }
+
+/** Code que la page d'onboarding joint pour tout effacer (mot de passe oublié) : jamais envoyé par erreur. */
+export const RESET_CONFIRM = 'ERASE-ALL-KALYX-DATA';

@@ -5,6 +5,7 @@ import { makeStore, type StorageArea } from './storage';
 import { makeWallets } from './wallets';
 import { makeAssets } from './assets';
 import { makeNfts } from './nfts';
+import { RESET_CONFIRM } from './policy';
 
 function area(): StorageArea {
   const data: Record<string, unknown> = {};
@@ -83,4 +84,29 @@ describe('routeur interne', () => {
     expect(await call({ type: 'swap:quote', from: 'x' })).toEqual({ ok: false, error: 'LOCKED' });
     expect(await call({ type: 'swap:confirm', id: 'x', password: 'Plage-Orange-47!' })).toEqual({ ok: false, error: 'LOCKED' });
   });
+
+  test('langue : réglable verrouillé, seulement une des 15 ; null rend celle du navigateur', async () => {
+    const s = fresh();
+    const disk = makeStore(area());
+    const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { disk });
+    expect(await go({ type: 'settings:get-lang' })).toEqual({ ok: true, lang: null });
+    for (const lang of ['xx', 'FR', 42, undefined, '__proto__']) expect(await go({ type: 'settings:set-lang', lang })).toEqual({ ok: false, error: 'BAD_REQUEST' });
+    expect(await go({ type: 'settings:set-lang', lang: 'ja' })).toEqual({ ok: true });
+    expect(await go({ type: 'settings:get-lang' })).toEqual({ ok: true, lang: 'ja' });
+    expect(await go({ type: 'settings:set-lang', lang: null })).toEqual({ ok: true });
+    expect(await go({ type: 'settings:get-lang' })).toEqual({ ok: true, lang: null });
+  });
+
+  test('mot de passe oublié : tout effacer exige le code exact, jamais par défaut', async () => {
+    const s = fresh();
+    let resets = 0;
+    const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { reset: async () => void resets++ });
+    for (const confirm of [undefined, true, 'erase', `${RESET_CONFIRM} `]) expect(await go({ type: 'vault:reset', confirm })).toEqual({ ok: false, error: 'BAD_REQUEST' });
+    expect(resets).toBe(0);
+    expect(await go({ type: 'vault:reset', confirm: RESET_CONFIRM })).toEqual({ ok: true });
+    expect(resets).toBe(1);
+    // Sans service de réinitialisation (fenêtre d'approbation, tests) : refusé.
+    expect(await h(s, { type: 'vault:reset', confirm: RESET_CONFIRM })).toEqual({ ok: false, error: 'BAD_REQUEST' });
+  });
+
 });

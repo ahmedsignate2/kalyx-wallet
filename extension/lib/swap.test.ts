@@ -179,7 +179,7 @@ describe('échange : signature', () => {
     const v = await sw.quote({ from: 'ethereum:native', toChainId: 'ethereum', toToken: USDC, amount: '0.1' });
     const e = await sw.confirm(v.id, false).catch((x: Error & { params?: Record<string, string> }) => x);
     expect((e as Error).message).toBe('SWAP_TX_FAILED');
-    expect((e as { params: { reason: string } }).params.reason.length).toBeLessThanOrEqual(120);
-    expect((e as { params: { reason: string } }).params.reason.startsWith('execution reverted')).toBe(true);
+    expect((e as unknown as { params: { reason: string } }).params.reason.length).toBeLessThanOrEqual(120);
+    expect((e as unknown as { params: { reason: string } }).params.reason.startsWith('execution reverted')).toBe(true);
   });
 });
