@@ -119,4 +119,27 @@ describe('routeur interne', () => {
     expect(await h(s, { type: 'vault:status' })).toMatchObject({ unlocked: true, paranoid: true });
   });
 
+
+  test('téléphone seul : refuse toute clé locale ; ne s’active pas s’il en reste ; le couper redemande le mot de passe', async () => {
+    const s = fresh();
+    const disk = makeStore(area());
+    const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { disk });
+    await go({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    expect(await go({ type: 'settings:set-phone-only', on: true })).toEqual({ ok: true });
+    for (const m of [{ type: 'wallet:create' }, { type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' }, { type: 'wallet:import-key', key: '0x' + '11'.repeat(32), family: 'evm' }]) {
+      expect(await go(m)).toEqual({ ok: false, error: 'PHONE_ONLY' });
+    }
+    expect(await go({ type: 'settings:set-phone-only', on: false })).toEqual({ ok: false, error: 'BAD_REQUEST' });
+    expect(await go({ type: 'settings:set-phone-only', on: false, password: 'faux-mot-de-passe' })).toMatchObject({ ok: false, error: 'WRONG_PASSWORD' });
+  });
+
+  test('téléphone seul : refusé tant qu’une clé locale reste dans l’extension', async () => {
+    const s = fresh();
+    const disk = makeStore(area());
+    const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { disk });
+    await go({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    await go({ type: 'wallet:create' });
+    expect(await go({ type: 'settings:set-phone-only', on: true })).toEqual({ ok: false, error: 'HAS_LOCAL_KEYS' });
+  });
+
 });

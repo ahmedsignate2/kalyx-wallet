@@ -243,9 +243,10 @@ async function factors() {
  */
 async function hardening() {
   const PAGE = `<!doctype html><meta charset="utf-8"><title>site</title><body><script>
-    window.kx = { providers: [] };
-    window.addEventListener('eip6963:announceProvider', (e) => window.kx.providers.push(e.detail.info.rdns));
+    window.kx = { providers: [], p: [] };
+    window.addEventListener('eip6963:announceProvider', (e) => (window.kx.providers.push(e.detail.info.rdns), window.kx.p.push(e.detail.provider)));
     window.dispatchEvent(new Event('eip6963:requestProvider'));
+    window.kx.call = (method, params) => window.kx.p[0].request({ method, params }).then((r) => ({ r }), (e) => ({ code: e.code }));
   </script>`;
   const server = createServer((req, res) => (res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }), res.end(PAGE)));
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -301,6 +302,29 @@ async function hardening() {
     const st = await bg({ type: 'vault:status' });
     st.paranoid && st.unlocked ? console.log('✓ mode parano activé (session gardée ouverte)') : fail(`parano ${JSON.stringify(st)}`);
     if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await ext.emulateMedia({ colorScheme: scheme }), await ext.waitForTimeout(350), await ext.screenshot({ path: join(process.env.SHOTS, `settings-security-${scheme}.png`), fullPage: true });
+
+    // Page altérée : un script annonce un FAUX « Kalyx » (même rdns) ; la signature suivante le signale.
+    const win = (pred) => ctx.waitForEvent('page', { predicate: (p) => p.url().includes('/approval.html') && pred(p), timeout: 15_000 });
+    await site.evaluate(() => void (window.kx.c = window.kx.call('eth_requestAccounts')));
+    const cw = await win(() => true);
+    await cw.getByRole('button', { name: 'Connecter' }).waitFor();
+    await cw.waitForTimeout(800);
+    await cw.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
+    await site.evaluate(() => window.kx.c);
+    await site.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('eip6963:announceProvider', { detail: { info: { uuid: 'x', name: 'Kalyx', icon: '', rdns: 'com.kalyxwallet' }, provider: { request: async () => null } } }));
+      window.kx.s = window.kx.call('personal_sign', ['0x6869', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94']);
+    });
+    const sigWin = await win(() => true);
+    await sigWin.locator('[data-testid=risk-score]').waitFor();
+    const txt = await sigWin.locator('[data-testid=risk-score]').textContent();
+    txt.includes('Page altérée') && txt.includes('45/100') ? console.log('✓ faux « Kalyx » annoncé par la page : « Page altérée » dans le score (45/100)') : fail(`page altérée ${txt}`);
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sigWin.emulateMedia({ colorScheme: scheme }), await sigWin.waitForTimeout(300), await sigWin.screenshot({ path: join(process.env.SHOTS, `risk-tampered-${scheme}.png`) });
+    await sigWin.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
+    (await site.evaluate(() => window.kx.s)).code === 4001 ? console.log('✓ refusé : rien de signé') : fail('refus');
+
+    // Téléphone seul : refusé tant qu'une clé locale est là ; aucune création de clé ensuite possible.
+    (await bg({ type: 'settings:set-phone-only', on: true })).error === 'HAS_LOCAL_KEYS' ? console.log('✓ « Téléphone seul » refusé : une clé locale est encore dans l’extension') : fail('téléphone seul accepté avec clé locale');
 
     // Retour au mode partout.
     (await bg({ type: 'sites:set-mode', mode: 'all' })).ok;
@@ -1010,6 +1034,9 @@ async function dapps() {
     await sw1.locator('[data-testid=headline]').waitFor();
     console.log(`✓ fenêtre de signature : « ${await sw1.locator('[data-testid=headline]').textContent()} »`);
     (await sw1.locator('[data-testid=message]').textContent()) === 'Bonjour Kalyx' ? console.log('✓ message montré en clair') : fail('message');
+    // Score local : site connecté à l'instant (+5), rien d'autre → faible.
+    const num1 = await sw1.locator('[data-testid=risk-num]').textContent();
+    num1 === '5/100' && (await sw1.locator('[data-testid=risk-score]').getAttribute('class')).includes('low') ? console.log('✓ score de risque : 5/100, faible (site tout juste connecté)') : fail(`score ${num1}`);
     if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-sign-${scheme}.png`) });
     await sw1.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true, timeout: 5000 }).catch(() => {});
     r = await page.evaluate(() => window.kx.p);
@@ -1023,6 +1050,8 @@ async function dapps() {
     sw1 = await nextWindow();
     await sw1.locator('[data-testid=risk]').waitFor();
     (await sw1.locator('[data-testid=risk]').textContent()).startsWith('Danger') ? console.log('✓ SIWE d’un autre domaine : « Danger »') : fail('risque SIWE');
+    const sc2 = await sw1.locator('[data-testid=risk-score]').textContent();
+    sc2.includes('55/100') && sc2.includes('Message prévu pour un autre site (evil.example)') ? console.log('✓ score : 55/100, raison « message prévu pour un autre site » en premier') : fail(`score SIWE ${sc2}`);
     if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-danger-${scheme}.png`) });
     const hold = sw1.getByRole('button', { name: 'Maintenir pour signer' });
     await sw1.waitForTimeout(900);

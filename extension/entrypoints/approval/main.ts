@@ -30,6 +30,7 @@ interface Review {
   details: { label: string; value: string }[];
   messageText?: string;
   reduce?: { symbol: string; decimals: number; suggested?: string };
+  score: { score: number; level: 'low' | 'medium' | 'high'; factors: { code: string; points: number; params?: Record<string, string> }[] };
 }
 interface WalletMeta {
   id: string;
@@ -92,12 +93,36 @@ function siteHero(origin: string, testid = true) {
   );
 }
 
+/**
+ * Score de risque : un nombre, une jauge, puis les raisons de la plus lourde
+ * à la plus légère (trois visibles, le reste en dépliant). Calculé localement.
+ */
+function scoreCard(sc: Review['score']) {
+  const row = (f: Review['score']['factors'][number]) => h('li', {}, h('span', { class: 'pts' }, `+${f.points}`), h('span', {}, t(`rk_${f.code}` as 'rk_lossOnly', f.params ?? {})));
+  return h(
+    'section',
+    { class: `card score ${sc.level}`, 'data-testid': 'risk-score', 'aria-label': t('rkTitle') },
+    h(
+      'div',
+      { class: 'score-head' },
+      h('strong', {}, `${t('rkTitle')} · ${t(sc.level === 'high' ? 'rkHigh' : sc.level === 'medium' ? 'rkMedium' : 'rkLow')}`),
+      h('span', { class: 'score-num', 'data-testid': 'risk-num' }, t('rkScore', { score: sc.score })),
+    ),
+    h('div', { class: 'meter', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(sc.score), 'aria-label': t('rkTitle') }, h('i', { style: `width:${Math.max(3, sc.score)}%` })),
+    sc.factors.length ? h('ul', { class: 'factors' }, ...sc.factors.slice(0, 3).map(row)) : h('p', { class: 'small muted' }, t('rkNone')),
+    sc.factors.length > 3 && h('details', {}, h('summary', {}, t('rkMore', { n: sc.factors.length - 3 })), h('ul', { class: 'factors' }, ...sc.factors.slice(3).map(row))),
+    h('p', { class: 'small muted' }, t('rkLocal')),
+  );
+}
+
 async function signScreen(req: Req) {
   app.replaceChildren(h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')), h('p', { class: 'muted', role: 'status' }, t('apAnalyzing')));
   const r = await send<{ review: Review; askPassword: boolean; onPhone?: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
   if (!r?.ok) return r?.error === 'REQUEST_EXPIRED' ? gone() : void app.append(h('p', { class: 'error' }, errorText(r?.error)));
   const { review: rv, askPassword, onPhone } = r;
   const ex = rv.explanation;
+  // Score élevé : comme un danger, il faut maintenir pour signer (même si l'explication seule ne l'exigeait pas).
+  const hold = ex.holdToSign || rv.score.level === 'high';
   const err = h('p', { class: 'error', role: 'alert' });
   const pw = h('input', { type: 'password', placeholder: t('apPassword'), autocomplete: 'current-password' });
   const reduceBox = h('input', { type: 'checkbox', style: 'width:auto' });
@@ -108,7 +133,7 @@ async function signScreen(req: Req) {
   void send<SiteReport>({ type: 'approval:site', id }).then((x) => {
     if (x?.ok && x.lookalike) lookalikeBox.replaceChildren(h('div', { class: 'banner danger', role: 'alert' }, glyph('warning', 18), h('span', {}, t('apSiteLookalike', { brand: x.lookalike }))));
   });
-  const label = ex.holdToSign ? t('apHold') : onPhone ? t('sendToPhone') : sending ? t('apConfirm') : t('apSign');
+  const label = hold ? t('apHold') : onPhone ? t('sendToPhone') : sending ? t('apConfirm') : t('apSign');
   // Mode compagnon : la signature se fait sur le téléphone ; pendant l'attente, on le dit.
   const phoneWait = h('p', { class: 'pill quiet status', hidden: true, role: 'status', 'data-testid': 'on-phone' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('onPhoneHint'));
   const ok = h('button', { class: `btn arming ${ex.risk === 'danger' ? 'danger' : ''}`, type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, label);
@@ -143,7 +168,7 @@ async function signScreen(req: Req) {
   };
 
   // Danger : maintenir 2 s (un clic, même automatisé ou hérité, ne suffit pas).
-  if (ex.holdToSign) {
+  if (hold) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const stop = () => {
       clearTimeout(timer);
@@ -166,6 +191,7 @@ async function signScreen(req: Req) {
       lookalikeBox,
       h('div', { class: 'kicker' }, h('span', { class: `risk-pill ${ex.risk}` }, glyph(ex.risk === 'none' ? 'check' : 'warning', 12), ex.risk === 'none' ? ex.title : t(`apRisk_${ex.risk}` as 'apRisk_danger')), rv.chainName && h('span', { class: 'small muted' }, rv.chainName)),
       h('h1', { 'data-testid': 'headline' }, ex.headline),
+      scoreCard(rv.score),
       ex.detail && h('p', { class: 'muted' }, ex.detail),
       ex.risk !== 'none' &&
         h('div', { class: `banner ${ex.risk === 'danger' ? 'danger' : 'warn'}`, role: 'alert', 'data-testid': 'risk' }, h('div', {}, h('strong', {}, t(`apRisk_${ex.risk}` as 'apRisk_danger')), ...ex.reasons.map((x) => h('p', {}, x)))),
@@ -182,7 +208,7 @@ async function signScreen(req: Req) {
         ),
       rv.details.length > 0 && h('details', {}, h('summary', {}, t('apDetails')), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
       askPassword && pw,
-      ex.holdToSign && h('p', { class: 'small muted' }, t('apHoldHint')),
+      hold && h('p', { class: 'small muted' }, t('apHoldHint')),
       phoneWait,
       err,
       // Danger : Refuser en premier (et focalisé), signer à droite.

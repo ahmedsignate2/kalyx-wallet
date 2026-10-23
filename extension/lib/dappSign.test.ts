@@ -236,4 +236,19 @@ describe('explication (fenêtre)', () => {
     expect(r.explanation.risk).toBe('danger');
     expect(r.explanation.holdToSign).toBe(true);
   });
+
+  test('score : approbation illimitée sur un site nouveau, page altérée → élevé, raisons expliquées', async () => {
+    const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveData(MAX), value: '0x0' } }, SITE, { ...quiet, site: async () => ({ known: false, tampered: ['rdnsSpoof'] }) });
+    expect(r.score.factors.map((f) => f.code)).toEqual(['pageTampered', 'unlimitedApproval', 'firstVisit']);
+    expect(r.score).toMatchObject({ score: 80, level: 'high' });
+  });
+
+  test('score : sosie d’une marque et http public', async () => {
+    const r = await review({ kind: 'personal', from: EVM0, hex: '0x6869', text: 'hi', siwe: null }, 'http://uniswap-app.com', { ...quiet, site: async () => ({ known: true, tampered: [] }) });
+    expect(r.score.factors.map((f) => f.code)).toContain('insecureSite');
+    // Message simple, site connu, rien de signalé : faible.
+    const clean = await review({ kind: 'personal', from: EVM0, hex: '0x6869', text: 'hi', siwe: null }, SITE, { ...quiet, site: async () => ({ known: true, tampered: [] }) });
+    expect(clean.score).toMatchObject({ score: 0, level: 'low' });
+  });
+
 });

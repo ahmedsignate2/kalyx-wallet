@@ -36,6 +36,8 @@ import { parseAmount } from '../../src/domain/validation/amount';
 import { looksLikeSolanaTransaction } from '../../lib/solanaMessage';
 import { signMessageParam } from '../../lib/dappProvider';
 import { RpcError } from './rpcError';
+import { scoreRisk, type RiskScore, type RiskSignals } from './riskScore';
+import { lookalikeOf } from './siteInfo';
 import { signerFor } from './signer';
 import { executeOnPhone } from './companionSign';
 import type { Companion } from './companion';
@@ -63,6 +65,8 @@ export interface Review {
   messageText?: string;
   /** Approbation illimitée réductible : jeton, décimales, et montant suggéré (simulation). */
   reduce?: { symbol: string; decimals: number; suggested?: string };
+  /** Score de risque 0-100 et ses raisons (lib/riskScore), calculé ici. */
+  score: RiskScore;
 }
 
 const hexQ = (v: unknown): string | undefined => (typeof v === 'string' && /^0x[0-9a-fA-F]{1,64}$/.test(v) ? v : typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? `0x${v.toString(16)}` : undefined);
@@ -173,6 +177,8 @@ export interface ReviewDeps {
   assess?: typeof assessAddress;
   phishing?: typeof isPhishingSite;
   tokenMeta?: (chain: ChainConfig, token: string) => Promise<{ symbol: string; decimals: number } | null>;
+  /** Ce que Kalyx sait du site : déjà connecté par le passé, signes d'une page altérée (lib/dappHost). */
+  site?: (origin: string) => Promise<{ known: boolean; tampered: string[] }>;
 }
 
 const withTimeoutOrNull = <T>(p: Promise<T>): Promise<T | null> => Promise.race([p.catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), ANALYSIS_MS))]);
@@ -197,15 +203,38 @@ export async function readTokenMeta(chain: ChainConfig, token: string): Promise<
   }
 }
 
+/**
+ * Explication + score. Les signaux du score viennent des mêmes analyses que
+ * l'explication (aucune requête de plus), plus ce que Kalyx sait du site.
+ */
 export async function review(req: SignRequest, origin: string, deps: ReviewDeps): Promise<Review> {
+  const signals: RiskSignals = {};
+  const [r, site] = await Promise.all([explainOnly(req, origin, deps, signals), deps.site ? withTimeoutOrNull(deps.site(origin)) : null]);
+  const u = new URL(origin);
+  const brand = lookalikeOf(u.hostname);
+  if (brand) signals.lookalike = { brand };
+  if (u.protocol === 'http:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname)) signals.insecureSite = true;
+  if (site && !site.known) signals.firstVisit = true;
+  if (site?.tampered.length) signals.pageTampered = true;
+  return { ...r, score: scoreRisk(signals) };
+}
+
+async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, sig: RiskSignals): Promise<Omit<Review, 'score'>> {
   const t = deps.t;
   const host = new URL(origin).host;
   const phishingSite = (await withTimeoutOrNull((deps.phishing ?? isPhishingSite)(origin))) === true;
+  if (phishingSite) sig.phishingSite = true;
   const assess = deps.assess ?? assessAddress;
-  const risk = async (chainId: number, addr?: string) => (addr ? await withTimeoutOrNull(assess(chainId, addr)) : null);
+  const risk = async (chainId: number, addr?: string) => {
+    const a = addr ? await withTimeoutOrNull(assess(chainId, addr)) : null;
+    if (a?.level === 'danger') sig.contractDanger = true;
+    return a;
+  };
 
   if (req.kind === 'personal') {
-    const explanation = explainRequest({ kind: req.siwe ? 'siwe' : 'message', domain: host, siwe: req.siwe, siweMismatch: !!req.siwe && siweDomainMismatch(req.siwe.domain, origin), messageText: req.text, phishingSite, t });
+    const siweMismatch = !!req.siwe && siweDomainMismatch(req.siwe.domain, origin);
+    if (siweMismatch) sig.domainMismatch = { domain: req.siwe!.domain.slice(0, 60) };
+    const explanation = explainRequest({ kind: req.siwe ? 'siwe' : 'message', domain: host, siwe: req.siwe, siweMismatch, messageText: req.text, phishingSite, t });
     return { explanation, method: 'personal_sign', messageText: clip(req.text ?? req.hex), details: [{ label: 'Compte', value: req.from }] };
   }
   if (req.kind === 'typed') {
@@ -214,6 +243,9 @@ export async function review(req: SignRequest, origin: string, deps: ReviewDeps)
     const meta = s?.token && chain ? await withTimeoutOrNull((deps.tokenMeta ?? readTokenMeta)(chain, s.token)) : null;
     const addressRisk = chain?.evmChainId && s?.verifyingContract ? await risk(chain.evmChainId, s.verifyingContract) : null;
     const explanation = explainRequest({ kind: 'typedData', domain: host, typed: s, tokenSymbol: meta?.symbol ?? null, tokenDecimals: meta?.decimals ?? null, addressRisk, phishingSite, connectedChainId: chain?.evmChainId, t });
+    if (explanation.canReduceApproval) sig.unlimitedApproval = true;
+    if (s?.details?.some((d) => /échéance|deadline/i.test(d.label) && /sans expiration/i.test(d.value))) sig.permitNoExpiry = true;
+    if (s?.order) sig.nftOrder = true;
     return {
       explanation,
       method: 'eth_signTypedData_v4',
@@ -237,6 +269,10 @@ export async function review(req: SignRequest, origin: string, deps: ReviewDeps)
     const [meta, addressRisk] = await Promise.all([token ? withTimeoutOrNull((deps.tokenMeta ?? readTokenMeta)(chain, token)) : null, risk(chain.evmChainId!, req.tx.to)]);
     const sim: Simulation | null = await withTimeoutOrNull((deps.simulate ?? simulateTx)(chain, { from: req.from, to: req.tx.to, value, data: req.tx.data }, meta ?? undefined));
     const explanation = explainRequest({ kind: 'tx', domain: host, decoded, simulation: sim, addressRisk, phishingSite, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, txValue: value, t });
+    if (decoded.kind === 'approveAll' && decoded.approved) sig.approveAll = true;
+    if (decoded.kind === 'approve' && decoded.unlimited) sig.unlimitedApproval = true;
+    if (sim && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
+    if (!sim && (value > 0n || req.tx.data.length > 2)) sig.noSimulation = true;
     const suggested =
       decoded.kind === 'approve' ? sim?.changes.find((c) => c.direction === 'out' && c.contract && same(c.contract, decoded.token))?.rawAmount : undefined;
     return {
@@ -262,6 +298,7 @@ export async function review(req: SignRequest, origin: string, deps: ReviewDeps)
   const explanation = explainRequest({ kind: 'solanaTx', domain: host, solana: desc, phishingSite, t });
   // Plusieurs transactions : seule la première est décrite — on le dit, et le risque monte d'un cran.
   if (req.txs.length > 1) {
+    sig.manyTxs = { n: String(req.txs.length) };
     if (explanation.risk === 'none') explanation.risk = 'warning';
     explanation.reasons.push(t('exManyTxs' as never, { n: String(req.txs.length) }));
   }

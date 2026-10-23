@@ -171,3 +171,21 @@ export function duressSheet(active: boolean, changed: () => void) {
     active && remove,
   );
 }
+
+/** « Téléphone seul » coupé : mot de passe redemandé (l'extension pourra de nouveau contenir des clés). */
+export function phoneOnlyOffSheet(changed: () => void) {
+  const err = h('p', { class: 'error', role: 'alert' });
+  const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', 'data-testid': 'po-password' });
+  const go = h('button', { class: 'btn', type: 'button', 'data-testid': 'po-off' }, t('poOffGo'));
+  go.onclick = async () => {
+    if (!pw.value) return;
+    go.disabled = true;
+    const r = await send({ type: 'settings:set-phone-only', on: false, password: pw.value }).catch(() => ({ ok: false, error: 'INTERNAL' }));
+    go.disabled = false;
+    pw.value = '';
+    if (!r.ok) return void (err.textContent = r.error === 'WRONG_PASSWORD' ? t('wrongPassword') : errorText(r.error));
+    sheet.close();
+    changed();
+  };
+  const sheet = openSheet(t('poOffTitle'), h('p', {}, t('poOffBody')), pw, err, go);
+}
