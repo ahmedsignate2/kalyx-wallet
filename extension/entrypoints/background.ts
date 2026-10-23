@@ -25,6 +25,8 @@ import { makeDapp } from '../lib/dapp';
 import { makeDappHost, registeredMatches, registerInpage } from '../lib/dappHost';
 import { makeSiteAccess } from '../lib/siteAccess';
 import { makeProfiledStore } from '../lib/profile';
+import { makeSpendCap } from '../lib/spendCap';
+import { makeGrants } from '../lib/grants';
 
 /**
  * Service worker : le cerveau de l'extension, seul à toucher au coffre.
@@ -100,7 +102,21 @@ export default defineBackground(() => {
         .catch(() => {}),
     schedule: (on) => void (on ? browser.alarms.create(TX_ALARM, { periodInMinutes: 0.5 }) : browser.alarms.clear(TX_ALARM)).catch(() => {}),
   });
+  // Plafond journalier et rappels d'autorisations (par profil, comme le reste).
+  const cap = makeSpendCap({ disk });
+  const grants = makeGrants({ disk });
+  const GRANTS_ALARM = 'kalyx-grants';
+  const GRANTS_NOTIF = 'kalyx-grants';
+  void browser.alarms.get(GRANTS_ALARM).then(async (a) => void (a || (await browser.alarms.create(GRANTS_ALARM, { periodInMinutes: 30 })))).catch(() => {});
+  const remindGrants = async () => {
+    const due = await grants.takeDue();
+    if (!due.length) return;
+    const list = due.slice(0, 3).map((g) => `${g.symbol} · ${new URL(g.origin).host}`).join(', ');
+    await browser.notifications.create(GRANTS_NOTIF, { type: 'basic', iconUrl: browser.runtime.getURL('/icon/128.png'), title: t('grNotifTitle', { n: due.length }), message: t('grNotifBody', { list }) }).catch(() => {});
+  };
   browser.notifications.onClicked.addListener((nid) => {
+    // Rappel d'autorisations : l'écran des autorisations, dans un onglet (le popup ne s'ouvre pas par programme).
+    if (nid === GRANTS_NOTIF) return void browser.tabs.create({ url: browser.runtime.getURL('/sidepanel.html#allowances') }).then(() => browser.notifications.clear(nid)).catch(() => {});
     void txWatch.explorerOf(nid).then((url) => {
       if (url && /^https:\/\//.test(url)) void browser.tabs.create({ url });
     });
@@ -140,6 +156,14 @@ export default defineBackground(() => {
     executeDeps: { companion },
     reviewDeps: {
       // Score de risque : site connecté depuis plus de 24 h ? signes d'une page altérée ?
+      // Plafond journalier : prix du dernier cliché du compte affiché (aucune requête de plus).
+      priceOf: async (chainId, contract) => {
+        const cur = await home.current();
+        if (!cur) return null;
+        const hs = await portfolio.holdings(cur.acct, await home.fiat());
+        const h = hs.find((x) => x.chainId === chainId && (contract ? x.contract?.toLowerCase() === contract.toLowerCase() : x.kind === 'native'));
+        return h && h.price > 0 ? h.price : null;
+      },
       site: async (origin) => {
         const s = await sites.get(origin);
         const since = Math.min(...[s.evm?.at, s.solana?.at].filter((x): x is number => typeof x === 'number'));
@@ -200,6 +224,7 @@ export default defineBackground(() => {
   browser.alarms.onAlarm.addListener((a) => {
     if (a.name === AUTO_LOCK_ALARM) void session.lock();
     if (a.name === TX_ALARM) void txWatch.tick();
+    if (a.name === GRANTS_ALARM) void remindGrants().catch(() => {});
   });
   /*
    * Mode parano : verrouillé aussi après 1 min sans activité de l'ordinateur
@@ -225,7 +250,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, siteAccess, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await siteAccess.apply()) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, siteAccess, cap, grants, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await siteAccess.apply()) }).then(reply);
     return true; // réponse asynchrone
   });
 });

@@ -31,6 +31,8 @@ interface Review {
   messageText?: string;
   reduce?: { symbol: string; decimals: number; suggested?: string };
   score: { score: number; level: 'low' | 'medium' | 'high'; factors: { code: string; points: number; params?: Record<string, string> }[] };
+  outFiat: number | null;
+  approval?: { chainId: string; chainName: string; token: string; symbol: string; spender: string };
 }
 interface WalletMeta {
   id: string;
@@ -117,15 +119,22 @@ function scoreCard(sc: Review['score']) {
 
 async function signScreen(req: Req) {
   app.replaceChildren(h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')), h('p', { class: 'muted', role: 'status' }, t('apAnalyzing')));
-  const r = await send<{ review: Review; askPassword: boolean; onPhone?: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
+  const r = await send<{ review: Review; askPassword: boolean; capPassword?: boolean; capRemaining?: number | null; onPhone?: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
   if (!r?.ok) return r?.error === 'REQUEST_EXPIRED' ? gone() : void app.append(h('p', { class: 'error' }, errorText(r?.error)));
-  const { review: rv, askPassword, onPhone } = r;
+  const { review: rv, askPassword, capPassword, capRemaining, onPhone } = r;
   const ex = rv.explanation;
   // Score élevé : comme un danger, il faut maintenir pour signer (même si l'explication seule ne l'exigeait pas).
   const hold = ex.holdToSign || rv.score.level === 'high';
   const err = h('p', { class: 'error', role: 'alert' });
   const pw = h('input', { type: 'password', placeholder: t('apPassword'), autocomplete: 'current-password' });
-  const reduceBox = h('input', { type: 'checkbox', style: 'width:auto' });
+  // Montant exact par défaut quand la simulation le connaît : on n'accorde que ce qu'il faut.
+  const reduceBox = h('input', { type: 'checkbox', style: 'width:auto', checked: !!rv.reduce?.suggested, 'data-testid': 'reduce' });
+  // Autorisation : rappel de révocation à l'échéance choisie (24 h par défaut).
+  const remind = h(
+    'select',
+    { class: 'inline', 'aria-label': t('grRemind'), 'data-testid': 'remind' },
+    ...[1, 24, 168, 0].map((hrs) => h('option', { value: String(hrs), selected: hrs === 24 }, t(hrs === 0 ? 'grNever' : hrs === 1 ? 'grIn1h' : hrs === 24 ? 'grIn24h' : 'grIn7d'))),
+  );
   const reduceAmount = h('input', { type: 'text', inputMode: 'decimal', value: rv.reduce?.suggested ?? '', placeholder: '0.0', 'aria-label': t('apReduce') });
   const sending = rv.method === 'eth_sendTransaction' || rv.method === 'solana:signAndSendTransaction';
   // Domaine sosie d'un site connu : l'alerte suit jusque dans la signature.
@@ -155,6 +164,7 @@ async function signScreen(req: Req) {
       approve: true,
       password: askPassword ? pw.value : undefined,
       reduceTo: rv.reduce && reduceBox.checked && reduceAmount.value.trim() ? reduceAmount.value.trim() : undefined,
+      remindHours: rv.approval ? Number(remind.value) : undefined,
     }).catch(() => null);
     pw.value = '';
     phoneWait.hidden = true;
@@ -207,6 +217,8 @@ async function signScreen(req: Req) {
           h('p', { class: 'small muted' }, t('apReduceHint', { s: rv.reduce.symbol })),
         ),
       rv.details.length > 0 && h('details', {}, h('summary', {}, t('apDetails')), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
+      rv.approval && h('label', { class: 'row-inline small' }, h('span', { class: 'grow muted' }, t('grRemind')), remind),
+      capPassword && h('p', { class: 'banner warn', role: 'status', 'data-testid': 'cap-note' }, glyph('warning', 16), h('span', { class: 'grow' }, t('capNote', { remaining: String(Math.floor(capRemaining ?? 0)) }))),
       askPassword && pw,
       hold && h('p', { class: 'small muted' }, t('apHoldHint')),
       phoneWait,

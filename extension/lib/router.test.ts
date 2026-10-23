@@ -6,6 +6,7 @@ import { makeWallets } from './wallets';
 import { makeAssets } from './assets';
 import { makeNfts } from './nfts';
 import { RESET_CONFIRM } from './policy';
+import { makeSpendCap } from './spendCap';
 
 function area(): StorageArea {
   const data: Record<string, unknown> = {};
@@ -140,6 +141,26 @@ describe('routeur interne', () => {
     await go({ type: 'vault:create', password: 'Plage-Orange-47!' });
     await go({ type: 'wallet:create' });
     expect(await go({ type: 'settings:set-phone-only', on: true })).toEqual({ ok: false, error: 'HAS_LOCAL_KEYS' });
+  });
+
+
+  test('plafond journalier : au-delà, mot de passe exigé (rien n’est signé) ; ensuite le cumul compte', async () => {
+    const s = fresh();
+    const disk = makeStore(area());
+    const cap = makeSpendCap({ disk });
+    let confirmed = 0;
+    const swap = { valueOf: () => 400, confirm: async () => (confirmed++, { txid: '0x1' }) } as never;
+    const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { disk, cap, swap });
+    await go({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    expect(await go({ type: 'cap:set', limit: 500 })).toEqual({ ok: true });
+    expect(await go({ type: 'swap:confirm', id: 'q1' })).toMatchObject({ ok: true });
+    expect(await go({ type: 'swap:confirm', id: 'q2' })).toEqual({ ok: false, error: 'CAP_PASSWORD', params: { remaining: '100' } });
+    expect(confirmed).toBe(1);
+    expect(await go({ type: 'swap:confirm', id: 'q2', password: 'faux-mot-de-passe' })).toMatchObject({ ok: false, error: 'WRONG_PASSWORD' });
+    expect(confirmed).toBe(1);
+    // Relever le plafond : mot de passe ; le baisser : non.
+    expect(await go({ type: 'cap:set', limit: 5000 })).toEqual({ ok: false, error: 'PASSWORD_REQUIRED' });
+    expect(await go({ type: 'cap:set', limit: 100 })).toEqual({ ok: true });
   });
 
 });

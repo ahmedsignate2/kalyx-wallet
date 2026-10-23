@@ -117,7 +117,12 @@ interface Held {
   until: number;
   /** « 0.1 ETH » : ce qui part, pour la notification d'issue. */
   what: string;
+  /** Valeur de ce qui part, dans la devise affichée (plafond journalier) ; null si le prix est inconnu. */
+  fiat: number | null;
 }
+
+/** Montant brut × prix, dans la devise affichée ; null sans prix. */
+export const fiatOf = (raw: bigint, decimals: number, price: number): number | null => (price > 0 ? (Number(raw) / 10 ** decimals) * price : null);
 
 export interface SendDeps {
   session: Session;
@@ -311,7 +316,7 @@ export function makeSend(deps: SendDeps) {
 
     const id = bytesToHex(crypto.getRandomValues(new Uint8Array(12)));
     const until = now() + DRAFT_TTL_MS;
-    drafts.set(id, { draft, adapter: a, walletId: cur.wallet.id, index: cur.index, risky: !!match, until, what: `${formatTokenAmount(draft.amount, asset.decimals)} ${asset.symbol}` });
+    drafts.set(id, { draft, adapter: a, walletId: cur.wallet.id, index: cur.index, risky: !!match, until, what: `${formatTokenAmount(draft.amount, asset.decimals)} ${asset.symbol}`, fiat: fiatOf(draft.amount, asset.decimals, asset.price) });
     for (const [k, v] of drafts) if (v.until < now()) drafts.delete(k);
 
     return {
@@ -407,7 +412,10 @@ export function makeSend(deps: SendDeps) {
     return st;
   }
 
-  return { assets, quote, prepare, confirm, status, check };
+  /** Valeur d'un brouillon en attente (plafond journalier) ; undefined s'il n'existe plus. */
+  const valueOf = (id: string): number | null | undefined => drafts.get(id)?.fiat;
+
+  return { assets, quote, prepare, confirm, status, check, valueOf };
 }
 
 export type Send = ReturnType<typeof makeSend>;

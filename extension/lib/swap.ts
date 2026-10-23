@@ -109,6 +109,8 @@ interface Held {
   toChain: ChainConfig;
   shownMin: bigint;
   needsAck: boolean;
+  /** Valeur de ce qui part, dans la devise affichée (plafond journalier) ; null sans prix. */
+  fiat: number | null;
 }
 
 export interface SwapDeps {
@@ -295,7 +297,8 @@ export function makeSwap(deps: SwapDeps) {
     };
     const q = await getQuote(params);
     if (!q) throw new SwapFail('SWAP_NO_ROUTE');
-    const h: Held = { quote: q, at: now(), params, fromChain, toChain, shownMin: q.toAmountMin, needsAck: false };
+    const price = holdings.find((x) => x.id === src.key)?.price ?? 0;
+    const h: Held = { quote: q, at: now(), params, fromChain, toChain, shownMin: q.toAmountMin, needsAck: false, fiat: price > 0 ? (Number(raw) / 10 ** src.decimals) * price : null };
     guard(q, h);
     const v0 = viewOf('', h);
     h.needsAck = v0.impact != null && v0.impact >= IMPACT_ACK;
@@ -381,7 +384,7 @@ export function makeSwap(deps: SwapDeps) {
     }
   }
 
-  return { sources, targets, quote, confirm, stage: (id: unknown) => (typeof id === 'string' ? stages.get(id) ?? null : null), slippages: SLIPPAGES };
+  return { sources, targets, quote, confirm, stage: (id: unknown) => (typeof id === 'string' ? stages.get(id) ?? null : null), slippages: SLIPPAGES, valueOf: (id: unknown) => (typeof id === 'string' ? held.get(id)?.fiat : undefined) };
 }
 
 export type Swap = ReturnType<typeof makeSwap>;

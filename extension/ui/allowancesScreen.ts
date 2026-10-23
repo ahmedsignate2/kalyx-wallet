@@ -5,7 +5,7 @@
  * (frais réseau), confirmée explicitement, et suivie jusqu'à son issue.
  */
 import { glyph } from './glyph';
-import { h, send } from './dom';
+import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
 import { openSheet } from './sheet';
 import { cascade } from './motion';
@@ -34,6 +34,63 @@ const CHAINS: [string, string][] = [
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
+interface Grant {
+  id: string;
+  chainName: string;
+  symbol: string;
+  spender: string;
+  origin: string;
+  expiresAt: number;
+  expired: boolean;
+}
+
+/**
+ * Rappels : les autorisations accordées aux sites par Kalyx, avec leur
+ * échéance. Les échues en tête, et « Tout révoquer » en un clic (chaque
+ * révocation reste une transaction signée, ou validée sur le téléphone).
+ */
+function remindersCard(refresh: () => void): HTMLElement {
+  const box = h('div', { class: 'stack', 'data-testid': 'reminders' });
+  void send<{ grants: Grant[] }>({ type: 'grants:list' }).then((r) => {
+    if (!r.ok || !r.grants.length) return;
+    const expired = r.grants.filter((g) => g.expired);
+    const left = (ms: number) => (ms < 3_600_000 ? t('grLeftMin', { n: Math.max(1, Math.round(ms / 60_000)) }) : ms < 172_800_000 ? t('grLeftH', { n: Math.round(ms / 3_600_000) }) : t('grLeftD', { n: Math.round(ms / 86_400_000) }));
+    const row = (g: Grant) =>
+      h(
+        'div',
+        { class: 'row' },
+        h('span', { class: 'set-ico' }, glyph(g.expired ? 'warning' : 'clock', 18)),
+        h(
+          'span',
+          { class: 'grow' },
+          h('strong', {}, `${g.symbol} · ${g.chainName}`),
+          h('p', { class: 'small muted' }, `${new URL(g.origin).host} · ${short(g.spender)}`),
+          h('p', { class: `small ${g.expired ? 'warn-text' : 'muted'}` }, g.expired ? t('grExpired') : left(g.expiresAt - Date.now())),
+        ),
+        h('button', { class: 'link small', type: 'button', 'aria-label': t('grDismiss'), on: { click: async () => (await send({ type: 'grants:dismiss', id: g.id }), refresh()) } }, glyph('close', 16)),
+      );
+    const status = h('p', { class: 'small muted', role: 'status' });
+    const all = h('button', { class: 'btn danger', type: 'button', 'data-testid': 'revoke-expired' }, t('grRevokeAll', { n: expired.length }));
+    all.onclick = async () => {
+      all.disabled = true;
+      status.textContent = t('grRevoking');
+      const x = await send<{ done: number; failed: { symbol: string; error: string }[] }>({ type: 'grants:revoke-expired' }).catch(() => null);
+      all.disabled = false;
+      status.textContent = x?.ok ? t('grRevoked', { n: x.done }) + (x.failed.length ? ` ${t('grFailed', { list: x.failed.map((f) => f.symbol).join(', ') })}` : '') : errorText(x?.error);
+      if (x?.ok) setTimeout(refresh, 1500);
+    };
+    box.replaceChildren(
+      ...nodes(
+      h('p', { class: 'group-title' }, t('grTitle')),
+      h('div', { class: 'list card' }, ...[...expired, ...r.grants.filter((g) => !g.expired)].map(row)),
+      expired.length > 0 && all,
+      status,
+      ),
+    );
+  });
+  return box;
+}
+
 export function allowancesScreen(app: HTMLElement, back: () => void, chain = 'ethereum') {
   const select = h('select', { class: 'inline', 'aria-label': t('network'), 'data-testid': 'allow-chain', on: { change: () => allowancesScreen(app, back, select.value) } }, ...CHAINS.map(([id, name]) => h('option', { value: id, selected: id === chain }, name)));
   const body = h('div', { class: 'stack' }, h('p', { class: 'small muted' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), ` ${t('refreshing')}`));
@@ -46,6 +103,7 @@ export function allowancesScreen(app: HTMLElement, back: () => void, chain = 'et
       h('h1', {}, t('apprTitle')),
       h('p', { class: 'small muted' }, t('apprIntro')),
       h('div', { class: 'list card' }, h('div', { class: 'row' }, h('span', { class: 'set-ico' }, glyph('dapps', 18)), h('span', { class: 'grow' }, h('strong', {}, t('network'))), select)),
+      remindersCard(() => allowancesScreen(app, back, chain)),
       err,
       body,
     ),
