@@ -50,7 +50,7 @@ writeFileSync(join(here, '../ui/tokens.css'), css);
 /* ── Icônes ── */
 const iconSrc = readFileSync(join(root, 'ui/icon.tsx'), 'utf8');
 const map = Object.fromEntries([...iconSrc.matchAll(/^\s+([a-zA-Z]+): \{ icon: ([A-Za-z]+)Icon/gm)].map((m) => [m[1], m[2]]));
-const WANT = ['send', 'receive', 'buy', 'exchange', 'lock', 'gear', 'copy', 'chevron', 'caretDown', 'warning', 'check', 'checkmark', 'trendUp', 'trendDown', 'history', 'dapps', 'security', 'eye', 'eyeOff', 'errorCircle', 'alert', 'clock', 'walletconnect', 'about', 'support', 'reset', 'wallet', 'extensions', 'currency', 'add', 'import', 'create', 'phrase', 'arrowUpRight', 'sign'];
+const WANT = ['send', 'receive', 'buy', 'exchange', 'lock', 'gear', 'copy', 'chevron', 'caretDown', 'warning', 'check', 'checkmark', 'trendUp', 'trendDown', 'history', 'dapps', 'security', 'eye', 'eyeOff', 'errorCircle', 'alert', 'clock', 'walletconnect', 'about', 'support', 'reset', 'wallet', 'extensions', 'currency', 'add', 'import', 'create', 'phrase', 'arrowUpRight', 'sign', 'language', 'faq'];
 const defsDir = join(root, 'node_modules/phosphor-react-native/src/defs');
 const icons = {};
 for (const name of WANT) {

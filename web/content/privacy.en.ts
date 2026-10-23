@@ -73,11 +73,15 @@ Price, gas and token-scan commands query public services (CoinGecko, DefiLlama, 
     id: 'extension',
     title: '7. Kalyx browser extension',
     body: `The Kalyx Wallet extension (Chrome and Chromium browsers) is a non-custodial wallet independent of the app: your keys and recovery phrase are encrypted on your computer with your password (scrypt, then AES-256-GCM) and never leave it. Your password is never stored; while the extension is unlocked, the vault key stays in the browser's memory and is erased when it locks or the browser closes.
-• Stays on your computer: the encrypted vault, your settings, your whitelist, connected sites and the balance cache. Uninstalling the extension erases everything.
+• Stays on your computer: the encrypted vault, the address book (encrypted with the vault key), your settings and language, your whitelist, connected sites, added tokens and the balance cache. Uninstalling the extension, or “Forgot password?” on the lock screen, erases everything.
 • No usage statistics, no telemetry, no trackers.
 • To show balances and activity and send your transactions, the extension directly queries the networks' public nodes and block explorers (PUBLIC addresses and signed transactions), DefiLlama and CoinGecko (token identifiers, not your addresses), GoPlus (a contract or recipient address, a site's domain, before a signature) and the hosts of token logos. For ERC-20 tokens, NFTs, missing prices, history and simulation, it goes through the Kalyx relay (Cloudflare), which forwards the PUBLIC address to Alchemy (tokens, NFTs, prices), Etherscan (EVM history) and Helius (Solana history and simulation) with no API key inside the extension; the relay keeps no logs.
+• Swap and bridge: only when you request a quote, the PUBLIC address, the tokens and the amount are sent to LI.FI and Relay.link (through the Kalyx relay) and to Jupiter (Solana). The transaction is signed in the extension, after the quote is checked.
+• Buy: the PUBLIC address of the active account, the chosen network and crypto are sent to Stripe through the Kalyx relay to open the payment page; payment and identity verification happen at Stripe, under its own policy.
+• Companion mode: the link with the app on your phone goes through the WalletConnect (Reown) relay network; requests are end-to-end encrypted, the relay only sees your IP address.
+• Notifications (outcome of a transaction) are shown by your browser; no notification server is used.
 • A website only sees your address if you agree to connect it, in a Kalyx window; it can't sign anything without your approval, asked every time. You can disconnect it at any time.
-• Permissions requested: local storage, alarms and idle state (automatic lock), side panel, and site access so websites can propose a connection or a signature.`,
+• Permissions requested: local storage, alarms and idle state (automatic lock), side panel, notifications (outcome of a transaction), and site access with a registered page script, so websites can propose a connection or a signature.`,
   },
   {
     id: 'droits',

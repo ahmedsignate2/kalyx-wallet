@@ -14,10 +14,11 @@ import { avatar } from '../../ui/avatar';
 import { addressView } from '../../ui/address';
 import { glyph } from '../../ui/glyph';
 import { h, send } from '../../ui/dom';
-import { applyLang, errorText, reasonText, t } from '../../ui/i18n';
+import { applyLang, errorText, LANG, reasonText, t } from '../../ui/i18n';
 import { passwordStrength } from '../../../src/security/passwordStrength';
 import { createBackupChallenge, unknownWords, type WordChallenge } from '../../../src/domain/wallet/backupChallenge';
-import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH } from '../../lib/policy';
+import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
+import { languageSelect } from '../../ui/helpScreen';
 
 interface WalletMeta {
   id: string;
@@ -27,7 +28,8 @@ interface WalletMeta {
   accounts: { index: number; evm?: string; solana?: string }[];
 }
 
-applyLang();
+// Pas de rechargement en plein parcours (la phrase en cours serait perdue) : la langue se choisit sur l'accueil.
+applyLang(document, false);
 const app = document.getElementById('app')!;
 let afterAuth: () => void = () => {};
 /** Phrase en cours de création (oubliée à la fin du parcours). */
@@ -63,6 +65,51 @@ function welcome() {
     h('p', { class: 'muted' }, t('welcomeSub')),
     h('button', { class: 'btn', type: 'button', on: { click: () => withAuth(createFlow) } }, t('create')),
     h('button', { class: 'btn secondary', type: 'button', on: { click: () => withAuth(importMenu) } }, t('haveOne')),
+    h('label', { class: 'ob-lang small muted' }, glyph('language', 16), languageSelect()),
+  );
+}
+
+/* ── Mot de passe oublié : tout effacer, puis restaurer ── */
+function resetScreen() {
+  const err = errorLine();
+  const ack = h('input', { type: 'checkbox', 'data-testid': 'reset-ack' });
+  const word = t('rsWord');
+  const typed = h('input', { type: 'text', autocomplete: 'off', spellcheck: false, 'aria-label': t('rsType', { word }), placeholder: word, 'data-testid': 'reset-word' });
+  const go = h('button', { class: 'btn danger', type: 'submit', disabled: true, 'data-testid': 'reset-go' }, t('rsGo'));
+  const sync = () => {
+    go.disabled = !ack.checked || typed.value.trim().toLocaleUpperCase(LANG) !== word.toLocaleUpperCase(LANG);
+    err.textContent = '';
+  };
+  ack.addEventListener('change', sync);
+  typed.addEventListener('input', sync);
+  const form = h(
+    'form',
+    {
+      class: 'stack',
+      on: {
+        submit: async (e) => {
+          e.preventDefault();
+          if (go.disabled) return;
+          go.disabled = true;
+          const r = await send({ type: 'vault:reset', confirm: RESET_CONFIRM }).catch(() => ({ ok: false, error: 'INTERNAL' }));
+          if (!r.ok) return (showError(err, r), sync());
+          // Tout est effacé : l'accueil, pour créer ou restaurer.
+          history.replaceState(null, '', location.pathname);
+          welcome();
+        },
+      },
+    },
+    h('label', { class: 'check' }, ack, h('span', {}, t('rsAck'))),
+    h('label', { class: 'stack small' }, t('rsType', { word }), typed),
+    err,
+    go,
+  );
+  screen(
+    backLink(() => (history.replaceState(null, '', location.pathname), welcome())),
+    h('h1', {}, t('rsTitle')),
+    h('p', { class: 'muted' }, t('rsBody')),
+    h('p', { class: 'banner warn', role: 'note' }, glyph('warning', 18), h('span', {}, t('rsWarn'))),
+    form,
   );
 }
 
@@ -499,4 +546,5 @@ if (verifyId) verifyLaterScreen(verifyId);
 else if (location.hash === '#companion') {
   history.replaceState(null, '', location.pathname);
   void withAuth(companionScreen);
-} else welcome();
+} else if (location.hash === '#reset') resetScreen();
+else welcome();

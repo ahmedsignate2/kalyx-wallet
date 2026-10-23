@@ -283,6 +283,7 @@ const fr = {
   ctTitle: 'Carnet d’adresses', ctIntro: 'Un nom sur une adresse, chiffré avec ton coffre. Un contact ne remplace pas la liste blanche : vérifie toujours l’adresse avant d’envoyer.', ctAdd: 'Ajouter un contact', ctEdit: 'Modifier le contact', ctName: 'Nom', ctNamePh: 'Ex. : Léa', ctAddress: 'Adresse', ctAddressPh: 'Adresse EVM (0x…) ou Solana', ctEmpty: 'Aucun contact pour l’instant.', ctNone: 'Aucun contact EVM. Ajoute-en depuis Réglages, Carnet d’adresses.', ctNoneSol: 'Aucun contact Solana. Ajoute-en depuis Réglages, Carnet d’adresses.', ctRemove: 'Supprimer ce contact', ctPrevious: 'Ancienne adresse :', ctChangedOn: 'Adresse modifiée le {d}', ctChangeWarn: 'Tu changes l’adresse de {name}. Un escroc qui obtient l’accès à ton ordinateur ferait exactement ça. Vérifie la nouvelle adresse avec la personne, par un autre moyen.', ctChangeAck: 'J’ai vérifié la nouvelle adresse avec la personne', ctLookalikeWarn: 'Cette adresse ressemble à celle de {name} (même début, même fin) mais ce n’est pas la même. Les escrocs fabriquent ces sosies pour se glisser dans ton historique.', ctLookalikeAck: 'Je sais que ce n’est pas l’adresse de {name} et je veux l’enregistrer', ctAckNeeded: 'Coche la case pour confirmer.', txConfirmed: 'Confirmée', txDate: 'Date', txHash: 'Hash', e_CONTACT_EXISTS: 'Cette adresse est déjà enregistrée ({name}).', e_CONTACT_ADDRESS_CHANGE: 'Changer l’adresse d’un contact demande une confirmation.', e_TOO_MANY_CONTACTS: 'Limite de 200 contacts atteinte.', e_UNKNOWN_CONTACT: 'Ce contact n’existe plus.', e_CONTACTS_UNREADABLE: 'Carnet d’adresses illisible : il n’a pas été modifié.', e_CONTACT_LOOKALIKE: 'Cette adresse ressemble à celle de {name}.',
   swShort: 'Swap', swTitle: 'Swap', swIntro: 'Un token contre un autre, ou d’un réseau à l’autre. Kalyx compare LI.FI, Jupiter et Relay et contrôle chaque devis avant de le signer : l’arrivée est toujours ton compte.', swFrom: 'De', swTo: 'Vers', swGetQuote: 'Obtenir un devis', swQuoting: 'Recherche du meilleur devis…', swYouGet: 'Tu reçois', swMin: 'Au moins {v} garantis', swPay: 'Tu paies', swRoute: 'Route', swServiceFee: 'Frais de service', swKalyxFee: 'Frais Kalyx', swNoFee: 'Aucun', swSlippage: 'Tolérance de prix', swImpact: 'Écart de prix', swDuration: 'Durée estimée', swApprovalNote: 'Une autorisation de {symbol}, au montant exact de l’échange, sera signée d’abord.', swImpactWarn: 'L’écart entre ce que tu paies et ce que tu reçois est élevé ({pct}). La liquidité est faible ou le prix bouge.', swImpactAck: 'J’ai compris l’écart et je veux échanger quand même', swSwapNow: 'Swap', swBridgeNow: 'Bridge', swStApproving: 'Autorisation en cours…', swStApprovalWait: 'Attente de la confirmation de l’autorisation…', swStSwapping: 'Échange en cours…', swSent: 'Échange envoyé', swSentNote: 'Tu recevras une notification à la confirmation. Les soldes se mettent à jour ensuite.', swNoSource: 'Aucun actif à échanger sur ce compte pour l’instant.', e_SWAP_TOKENS_UNAVAILABLE: 'Liste des tokens indisponible pour ce réseau. Réessaie.', e_SWAP_NO_SOURCE: 'Cet actif n’est plus disponible sur ce compte.', e_SWAP_BAD_TARGET: 'Token d’arrivée inconnu : choisis-le dans la liste.', e_SWAP_SAME_TOKEN: 'Choisis deux tokens différents.', e_SWAP_NO_ADDRESS: 'Ce compte n’a pas d’adresse sur {chain}.', e_SWAP_KEEP_GAS: 'Garde au moins {amount} pour les frais réseau.', e_SWAP_NEED_GAS: 'Il faut au moins {amount} pour payer les frais réseau.', e_SWAP_NO_ROUTE: 'Aucune route trouvée pour cet échange.', e_SWAP_REFUSED: 'Devis refusé par le contrôle de sécurité : rien n’a été signé.', e_SWAP_QUOTE_GONE: 'Ce devis a expiré : demandes-en un nouveau.', e_SWAP_ACK_NEEDED: 'Confirme l’écart de prix pour continuer.', e_SWAP_QUOTE_WORSE: 'Le prix a baissé depuis le devis (minimum maintenant {min}) : rien n’a été signé. Redemande un devis.', e_SWAP_APPROVAL_NOT_SEEN: 'L’autorisation est confirmée mais pas encore visible sur le réseau. Réessaie dans quelques secondes.', e_SWAP_AMOUNT_BELOW_MINIMUM: 'Montant trop petit pour cette route.', e_SWAP_AMOUNT_ABOVE_MAXIMUM: 'Montant trop élevé pour cette route.', e_SWAP_NO_LIQUIDITY: 'Pas assez de liquidité pour ce montant.', e_SWAP_INVALID_TOKEN: 'Token non pris en charge par les fournisseurs.', e_SWAP_INVALID_ADDRESS: 'Adresse de réception invalide.', e_SWAP_SLIPPAGE_TOO_HIGH: 'Tolérance de prix trop faible pour ce marché : augmente-la.', e_SWAP_INSUFFICIENT_GAS: 'Pas assez de token natif pour payer les frais réseau.', e_SWAP_INSUFFICIENT_FUNDS: 'Solde insuffisant.', e_SWAP_RATE_LIMITED: 'Trop de demandes : réessaie dans un instant.', e_SWAP_NETWORK: 'Service d’échange injoignable. Vérifie ta connexion.', e_SWAP_QUOTE_EXPIRED: 'Ce devis a expiré : demandes-en un nouveau.', e_SWAP_PROVIDER_UNAVAILABLE: 'Fournisseurs d’échange indisponibles pour le moment.',
   e_SWAP_TX_FAILED: 'La transaction n’est pas passée : {reason}',
+  language: 'Langue', langAuto: 'Langue du navigateur ({name})', faq: 'Questions fréquentes', about: 'À propos', privacy: 'Politique de confidentialité', terms: 'Conditions d’utilisation', legalNotice: 'Mentions légales', supportTelegram: 'Support sur Telegram', supportEmail: 'Écrire au support', aboutBody: 'Kalyx Wallet est un portefeuille non-custodial : tes clés restent chiffrées sur cet ordinateur. Kalyx n’y a jamais accès et ne peut ni bloquer, ni déplacer, ni récupérer tes fonds.', aboutNoTracking: 'Aucune publicité, aucune télémétrie, aucun traceur.', aboutEditor: 'Éditeur', forgotPw: 'Mot de passe oublié ?', rsTitle: 'Réinitialiser l’extension', rsBody: 'Personne ne peut retrouver ton mot de passe, pas même Kalyx. Pour reprendre la main, efface l’extension, puis restaure tes portefeuilles avec leur phrase de récupération ou une sauvegarde chiffrée.', rsWarn: 'Tout est effacé de cet ordinateur : portefeuilles, carnet d’adresses, sites connectés, réglages et liens avec le téléphone (ses comptes restent dans l’app). Sans phrase de récupération ni sauvegarde, les fonds de ces portefeuilles seront perdus pour toujours.', rsAck: 'J’ai la phrase de récupération (ou une sauvegarde) de chaque portefeuille', rsType: 'Pour confirmer, écris {word}', rsWord: 'EFFACER', rsGo: 'Tout effacer', faqQ1: 'Où sont mes clés ?', faqA1: 'Sur cet ordinateur, dans un coffre chiffré avec ton mot de passe (scrypt, puis AES-256-GCM). Elles ne sont jamais envoyées à Kalyx ni à aucun serveur. Les comptes reliés au téléphone (mode compagnon) gardent leurs clés dans l’app Kalyx.', faqQ2: 'J’ai oublié mon mot de passe', faqA2: 'Personne ne peut le retrouver, pas même Kalyx. Sur l’écran de verrouillage, touche « {forgot} » : l’extension est effacée, puis tu restaures tes portefeuilles avec leur phrase de récupération ou une sauvegarde chiffrée.', faqQ3: 'Comment sauvegarder mon portefeuille ?', faqA3: 'Note ta phrase de récupération sur papier et garde-la hors ligne ({phrase}). Tu peux aussi exporter une sauvegarde chiffrée ({backup}), que l’app et l’extension savent restaurer.', faqQ4: 'On me demande ma phrase de récupération', faqA4: 'C’est une arnaque. Ni Kalyx, ni son support, ni aucun site ne te la demandera. Ne la saisis que dans l’accueil de Kalyx, pour restaurer un portefeuille.', faqQ5: 'Que peut faire un site connecté ?', faqA5: 'Voir l’adresse que tu as accepté de partager. Chaque transaction ou signature s’ouvre dans une fenêtre Kalyx qui explique ce qu’elle fait : rien n’est signé sans ton accord. Pour déconnecter un site : {sites}.', faqQ6: 'Qu’est-ce qu’une autorisation de token ?', faqA6: 'Une permission donnée à un contrat de dépenser tes tokens sans nouvelle signature. Révoque celles dont tu ne te sers plus : {approvals}.', faqQ7: 'Pourquoi l’extension se verrouille-t-elle ?', faqA7: 'Après le délai d’inactivité choisi ({lock}), quand l’ordinateur se verrouille et quand le navigateur se ferme. Ton mot de passe est alors redemandé.', faqQ8: 'Quels réseaux sont pris en charge ?', faqA8: 'Les réseaux compatibles Ethereum (EVM) et Solana. Bitcoin et TON sont dans l’app Kalyx sur téléphone. Pour afficher ou masquer un réseau : {networks}.',
 };
 
 type Dict = typeof fr;
@@ -550,6 +551,7 @@ const en: Dict = {
   ctTitle: 'Address book', ctIntro: 'A name for an address, encrypted with your vault. A contact doesn’t replace the whitelist: always check the address before sending.', ctAdd: 'Add a contact', ctEdit: 'Edit contact', ctName: 'Name', ctNamePh: 'e.g. Lea', ctAddress: 'Address', ctAddressPh: 'EVM (0x…) or Solana address', ctEmpty: 'No contacts yet.', ctNone: 'No EVM contacts. Add some from Settings, Address book.', ctNoneSol: 'No Solana contacts. Add some from Settings, Address book.', ctRemove: 'Delete this contact', ctPrevious: 'Previous address:', ctChangedOn: 'Address changed on {d}', ctChangeWarn: 'You’re changing {name}’s address. A scammer with access to your computer would do exactly this. Check the new address with the person, another way.', ctChangeAck: 'I checked the new address with the person', ctLookalikeWarn: 'This address looks like {name}’s (same start, same end) but it isn’t the same. Scammers make these lookalikes to slip into your history.', ctLookalikeAck: 'I know this isn’t {name}’s address and I want to save it', ctAckNeeded: 'Tick the box to confirm.', txConfirmed: 'Confirmed', txDate: 'Date', txHash: 'Hash', e_CONTACT_EXISTS: 'This address is already saved ({name}).', e_CONTACT_ADDRESS_CHANGE: 'Changing a contact’s address needs a confirmation.', e_TOO_MANY_CONTACTS: 'Limit of 200 contacts reached.', e_UNKNOWN_CONTACT: 'This contact no longer exists.', e_CONTACTS_UNREADABLE: 'Address book unreadable: it wasn’t changed.', e_CONTACT_LOOKALIKE: 'This address looks like {name}’s.',
   swShort: 'Swap', swTitle: 'Swap', swIntro: 'One token for another, or from one network to another. Kalyx compares LI.FI, Jupiter and Relay and checks every quote before signing: it always arrives in your account.', swFrom: 'From', swTo: 'To', swGetQuote: 'Get a quote', swQuoting: 'Finding the best quote…', swYouGet: 'You receive', swMin: 'At least {v} guaranteed', swPay: 'You pay', swRoute: 'Route', swServiceFee: 'Service fee', swKalyxFee: 'Kalyx fee', swNoFee: 'None', swSlippage: 'Price tolerance', swImpact: 'Price gap', swDuration: 'Estimated time', swApprovalNote: 'An approval of {symbol}, for the exact swap amount, will be signed first.', swImpactWarn: 'The gap between what you pay and what you receive is high ({pct}). Liquidity is low or the price is moving.', swImpactAck: 'I understand the gap and want to swap anyway', swSwapNow: 'Swap', swBridgeNow: 'Bridge', swStApproving: 'Approving…', swStApprovalWait: 'Waiting for the approval to confirm…', swStSwapping: 'Swapping…', swSent: 'Swap sent', swSentNote: 'You’ll get a notification when it confirms. Balances update after that.', swNoSource: 'No assets to swap on this account yet.', e_SWAP_TOKENS_UNAVAILABLE: 'Token list unavailable for this network. Try again.', e_SWAP_NO_SOURCE: 'This asset is no longer available on this account.', e_SWAP_BAD_TARGET: 'Unknown destination token: pick it from the list.', e_SWAP_SAME_TOKEN: 'Pick two different tokens.', e_SWAP_NO_ADDRESS: 'This account has no address on {chain}.', e_SWAP_KEEP_GAS: 'Keep at least {amount} for network fees.', e_SWAP_NEED_GAS: 'You need at least {amount} to pay network fees.', e_SWAP_NO_ROUTE: 'No route found for this swap.', e_SWAP_REFUSED: 'Quote refused by the safety check: nothing was signed.', e_SWAP_QUOTE_GONE: 'This quote has expired: request a new one.', e_SWAP_ACK_NEEDED: 'Confirm the price gap to continue.', e_SWAP_QUOTE_WORSE: 'The price dropped since the quote (minimum now {min}): nothing was signed. Request a new quote.', e_SWAP_APPROVAL_NOT_SEEN: 'The approval is confirmed but not yet visible on the network. Try again in a few seconds.', e_SWAP_AMOUNT_BELOW_MINIMUM: 'Amount too small for this route.', e_SWAP_AMOUNT_ABOVE_MAXIMUM: 'Amount too large for this route.', e_SWAP_NO_LIQUIDITY: 'Not enough liquidity for this amount.', e_SWAP_INVALID_TOKEN: 'Token not supported by the providers.', e_SWAP_INVALID_ADDRESS: 'Invalid receiving address.', e_SWAP_SLIPPAGE_TOO_HIGH: 'Price tolerance too low for this market: raise it.', e_SWAP_INSUFFICIENT_GAS: 'Not enough native token to pay network fees.', e_SWAP_INSUFFICIENT_FUNDS: 'Insufficient balance.', e_SWAP_RATE_LIMITED: 'Too many requests: try again in a moment.', e_SWAP_NETWORK: 'Swap service unreachable. Check your connection.', e_SWAP_QUOTE_EXPIRED: 'This quote has expired: request a new one.', e_SWAP_PROVIDER_UNAVAILABLE: 'Swap providers unavailable right now.',
   e_SWAP_TX_FAILED: 'The transaction didn’t go through: {reason}',
+  language: 'Language', langAuto: 'Browser language ({name})', faq: 'FAQ', about: 'About', privacy: 'Privacy policy', terms: 'Terms of use', legalNotice: 'Legal notice', supportTelegram: 'Support on Telegram', supportEmail: 'Email support', aboutBody: 'Kalyx Wallet is a non-custodial wallet: your keys stay encrypted on this computer. Kalyx never has access to them and can’t freeze, move or recover your funds.', aboutNoTracking: 'No ads, no telemetry, no trackers.', aboutEditor: 'Publisher', forgotPw: 'Forgot password?', rsTitle: 'Reset the extension', rsBody: 'Nobody can recover your password, not even Kalyx. To get back in, erase the extension, then restore your wallets with their recovery phrase or an encrypted backup.', rsWarn: 'Everything is erased from this computer: wallets, address book, connected sites, settings and links with your phone (its accounts stay in the app). Without a recovery phrase or backup, the funds in these wallets will be lost forever.', rsAck: 'I have the recovery phrase (or a backup) of every wallet', rsType: 'To confirm, type {word}', rsWord: 'ERASE', rsGo: 'Erase everything', faqQ1: 'Where are my keys?', faqA1: 'On this computer, in a vault encrypted with your password (scrypt, then AES-256-GCM). They’re never sent to Kalyx or to any server. Accounts linked to your phone (companion mode) keep their keys in the Kalyx app.', faqQ2: 'I forgot my password', faqA2: 'Nobody can recover it, not even Kalyx. On the lock screen, tap “{forgot}”: the extension is erased, then you restore your wallets with their recovery phrase or an encrypted backup.', faqQ3: 'How do I back up my wallet?', faqA3: 'Write your recovery phrase on paper and keep it offline ({phrase}). You can also export an encrypted backup ({backup}), which the app and the extension can restore.', faqQ4: 'Someone is asking for my recovery phrase', faqA4: 'It’s a scam. Kalyx, its support and websites will never ask for it. Only type it in Kalyx’s welcome screen, to restore a wallet.', faqQ5: 'What can a connected site do?', faqA5: 'See the address you agreed to share. Every transaction or signature opens in a Kalyx window that explains what it does: nothing is signed without your approval. To disconnect a site: {sites}.', faqQ6: 'What is a token approval?', faqA6: 'Permission for a contract to spend your tokens without a new signature. Revoke the ones you no longer use: {approvals}.', faqQ7: 'Why does the extension lock?', faqA7: 'After the inactivity delay you chose ({lock}), when your computer locks and when the browser closes. Your password is then asked again.', faqQ8: 'Which networks are supported?', faqA8: 'Ethereum-compatible (EVM) networks and Solana. Bitcoin and TON are in the Kalyx app on your phone. To show or hide a network: {networks}.',
 };
 
 export type Key = keyof Dict;
@@ -565,13 +567,46 @@ export function langOf(tag: string | undefined): Lang {
 }
 
 const NAV = typeof navigator !== 'undefined' ? navigator.language : undefined;
-/** Langue du navigateur. */
-export const LANG: Lang = langOf(NAV);
-export const IS_FR = LANG === 'fr';
-/** Formats (nombres, dates) : ceux du navigateur, s'il parle une langue prise en charge. */
-export const LOCALE = NAV && langOf(NAV) !== 'en' ? NAV : NAV?.toLowerCase().startsWith('en') ? NAV : 'en-US';
-export const IS_RTL = LANG === 'ar';
-const dict: Dict = { ...en, ...DICTS[LANG] };
+
+/** Clé du choix de langue : dans storage.local (source, lue par le service worker) et recopiée ici pour une lecture immédiate. */
+export const LANG_KEY = 'kalyx.lang';
+/** Langue choisie dans les réglages (pages de l'extension seulement : le service worker n'a pas de localStorage). */
+function savedLang(): Lang | null {
+  try {
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem(LANG_KEY) : null;
+    return v && (LANGS as readonly string[]).includes(v) ? (v as Lang) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Formats (nombres, dates) : ceux du navigateur s'il parle la langue affichée, sinon ceux de la langue. */
+function localeFor(lang: Lang): string {
+  if (NAV && langOf(NAV) === lang && (lang !== 'en' || NAV.toLowerCase().startsWith('en'))) return NAV;
+  return lang === 'en' ? 'en-US' : lang;
+}
+
+/** Langue affichée : celle choisie, sinon celle du navigateur. */
+export let LANG: Lang = savedLang() ?? langOf(NAV);
+/** Langue choisie à la main (null : celle du navigateur). */
+export let CHOSEN: Lang | null = savedLang();
+export let IS_FR = LANG === 'fr';
+export let LOCALE = localeFor(LANG);
+export let IS_RTL = LANG === 'ar';
+let dict: Dict = { ...en, ...DICTS[LANG] };
+
+/** Change de langue (service worker : au démarrage et quand le réglage change). Une valeur inconnue rend celle du navigateur. */
+export function setLang(choice: string | null | undefined): void {
+  CHOSEN = choice && (LANGS as readonly string[]).includes(choice) ? (choice as Lang) : null;
+  LANG = CHOSEN ?? langOf(NAV);
+  IS_FR = LANG === 'fr';
+  LOCALE = localeFor(LANG);
+  IS_RTL = LANG === 'ar';
+  dict = { ...en, ...DICTS[LANG] };
+}
+
+/** Nom de chaque langue dans sa propre langue (le sélecteur reste lisible quelle que soit la langue affichée). */
+export const LANG_NAMES: Record<Lang, string> = { fr: 'Français', en: 'English', es: 'Español', pt: 'Português', de: 'Deutsch', it: 'Italiano', nl: 'Nederlands', pl: 'Polski', tr: 'Türkçe', ru: 'Русский', ar: 'العربية', hi: 'हिन्दी', zh: '中文', ja: '日本語', ko: '한국어' };
 
 /** Devise par défaut : l'euro dans la zone euro, le dollar ailleurs. */
 const EUROZONE = new Set(['AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PT', 'SI', 'SK']);
@@ -582,9 +617,42 @@ export function defaultFiat(tag: string | undefined = NAV): 'eur' | 'usd' {
 }
 
 /** Pose la langue et le sens d'écriture sur la page (l'arabe s'écrit de droite à gauche). */
-export function applyLang(doc: Document = document): void {
+export function applyLang(doc: Document = document, live = true): void {
   doc.documentElement.lang = LANG;
   doc.documentElement.dir = IS_RTL ? 'rtl' : 'ltr';
+  followLang(live);
+}
+
+/**
+ * La langue enregistrée (storage.local, écrite par le service worker) est
+ * recopiée dans le localStorage de la page, lu sans attendre au chargement ;
+ * si elle diffère de celle affichée, la page se recharge dans la bonne langue.
+ * Jamais de boucle : sans localStorage utilisable, rien ne se recharge.
+ */
+function followLang(live: boolean): void {
+  try {
+    void browser.storage.local.get(LANG_KEY).then((r) => useLang(r[LANG_KEY]), () => {});
+    // « live » : la page suit un changement fait ailleurs (sauf un parcours qu'un rechargement casserait : onboarding).
+    if (live)
+      browser.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && LANG_KEY in changes) useLang(changes[LANG_KEY].newValue);
+      });
+  } catch {
+    /* hors extension (tests) */
+  }
+}
+
+/** Affiche la page dans cette langue (null : celle du navigateur), en la rechargeant si elle change. */
+export function useLang(v: unknown): void {
+  const want = typeof v === 'string' && (LANGS as readonly string[]).includes(v) ? v : null;
+  if (want === CHOSEN) return;
+  try {
+    if (want) localStorage.setItem(LANG_KEY, want);
+    else localStorage.removeItem(LANG_KEY);
+  } catch {
+    return;
+  }
+  if (savedLang() === want) location.reload();
 }
 
 const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));

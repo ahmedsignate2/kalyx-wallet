@@ -9,7 +9,7 @@ import { makeAssets } from '../lib/assets';
 import { makeNfts } from '../lib/nfts';
 import { makeContacts } from '../lib/contacts';
 import { makeSwap } from '../lib/swap';
-import { activityT, defaultFiat, explainT, explainTFor, LOCALE, t } from '../ui/i18n';
+import { activityT, defaultFiat, explainT, explainTFor, LANG_KEY, LOCALE, setLang, t } from '../ui/i18n';
 import { makeTxWatch } from '../lib/txWatch';
 import { makeAllowances } from '../lib/allowances';
 import { makeChainTime } from '../lib/chainTime';
@@ -40,9 +40,19 @@ export default defineBackground(() => {
   });
 
   const disk = makeStore(browser.storage.local);
+  // Langue choisie dans les réglages (notifications, phrases d'activité, explications des signatures).
+  void disk.get<string>('lang').then(setLang).catch(() => {});
   const wallets = makeWallets(disk, session);
   const assets = makeAssets({ disk });
-  const portfolio = makePortfolio({ disk, t: activityT, locale: LOCALE, assets });
+  const portfolio = makePortfolio({
+    disk,
+    t: activityT,
+    // Lue à chaque usage : suit un changement de langue sans redémarrer.
+    get locale() {
+      return LOCALE;
+    },
+    assets,
+  });
   const nfts = makeNfts({ disk, hiddenChains: async () => (await assets.prefs()).hiddenChains });
   const home = makeHome(disk, session, wallets, portfolio, defaultFiat());
   const contacts = makeContacts(disk, session);
@@ -106,7 +116,38 @@ export default defineBackground(() => {
   // Verrouillage / déverrouillage (la clé de session apparaît ou disparaît) : les sites connectés suivent.
   browser.storage.onChanged.addListener((changes, area) => {
     if (area === 'session' && 'kalyx.vaultKey' in changes) void dapp.lockChanged(host.origins());
+    if (area === 'local' && LANG_KEY in changes) setLang(changes[LANG_KEY].newValue as string | undefined);
   });
+
+  /*
+   * Mot de passe oublié : TOUT est effacé (coffre, réglages, sites, carnet,
+   * liens avec le téléphone), sauf la langue, SANS redémarrer l'extension
+   * (runtime.reload peut la laisser désactivée). Ce que le service worker
+   * garde en mémoire est inutilisable sans coffre ; les sites connectés sont
+   * prévenus et leurs demandes en attente refusées.
+   */
+  const reset = async () => {
+    for (const origin of host.origins()) {
+      approvals.originGone(origin);
+      await dapp.disconnect(origin).catch(() => {});
+    }
+    await session.lock().catch(() => {});
+    // Liens avec le téléphone : fermés de son côté (WalletConnect efface alors ses sessions).
+    if (((await indexedDB.databases?.().catch(() => [])) ?? []).length) await companion.unlinkAll();
+    const lang = (await browser.storage.local.get(LANG_KEY))[LANG_KEY];
+    await browser.alarms.clearAll();
+    await browser.storage.session.clear();
+    await browser.storage.local.clear();
+    if (typeof lang === 'string') await browser.storage.local.set({ [LANG_KEY]: lang });
+    // Une actualisation déjà en vol a pu réécrire son cache (soldes, activité, NFT : données publiques) : second passage sur ces caches seulement.
+    setTimeout(async () => {
+      const keys = Object.keys(await browser.storage.local.get(null)).filter((k) => /^kalyx\.(portfolio|activity|custom|nfts)\./.test(k));
+      if (keys.length) await browser.storage.local.remove(keys);
+    }, 5_000);
+    void browser.action.setBadgeText({ text: '' }).catch(() => {});
+    // « Kalyx par défaut » revient à sa valeur de départ.
+    await registerInpage(false).catch(() => {});
+  };
   const ensureInpage = async () => {
     if (!(await inpageRegistered())) await registerInpage((await disk.get<boolean>('defaultProvider')) === true);
   };
@@ -129,7 +170,7 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((msg: unknown, sender, reply) => {
     if (!isOwnExtensionPage(sender, browser.runtime.id)) return false;
-    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
+    handleInternal(session, wallets, msg, undefined, { home, send, whitelist, disk, sites, approvals, dapp, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, setDefault: async (on: boolean) => (await disk.set('defaultProvider', on), await registerInpage(on)) }).then(reply);
     return true; // réponse asynchrone
   });
 });

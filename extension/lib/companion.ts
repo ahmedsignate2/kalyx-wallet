@@ -180,7 +180,16 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     await c?.disconnect({ topic: meta.topic, reason: { code: 6000, message: 'Déliée depuis l’extension' } }).catch(() => {});
   }
 
-  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink };
+  /** Réinitialisation de l'extension : chaque session encore ouverte est fermée côté téléphone (au mieux, en 5 s max). */
+  async function unlinkAll(): Promise<void> {
+    if (!PROJECT_ID && !opts.client) return;
+    const c = await withTimeout(client(), 5_000, 'COMPANION_OFFLINE').catch(() => null);
+    if (!c) return;
+    const all = c.session.getAll().map((s) => c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Extension réinitialisée' } }).catch(() => {}));
+    await withTimeout(Promise.all(all), 5_000, 'COMPANION_OFFLINE').catch(() => {});
+  }
+
+  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink, unlinkAll };
 }
 
 export type Companion = ReturnType<typeof makeCompanion>;

@@ -3,7 +3,8 @@
  * les phrases reprises de l'app (explication, activité) présentes partout.
  */
 import { describe, expect, it } from 'vitest';
-import { DICTS, LANGS, defaultFiat, explainTFor, langOf } from './i18n';
+import { DICTS, LANGS, LANG_NAMES, defaultFiat, explainTFor, langOf, setLang, t } from './i18n';
+import * as i18n from './i18n';
 import { APP_TEXT } from './appText';
 import { EXTRA } from './explainText';
 
@@ -48,4 +49,21 @@ describe('traductions', () => {
     expect(defaultFiat('pt-BR')).toBe('usd');
     expect(defaultFiat(undefined)).toBe('usd');
   });
+
+  it('choisir une langue : tout suit (phrases, formats, sens) ; inconnue = celle du navigateur', () => {
+    const before = i18n.LANG;
+    setLang('ar');
+    expect(i18n.LANG).toBe('ar');
+    expect(i18n.CHOSEN).toBe('ar');
+    expect(i18n.IS_RTL).toBe(true);
+    expect(t('faq')).toBe((DICTS.ar as Record<string, string>).faq);
+    setLang('de');
+    expect(i18n.LOCALE.startsWith('de')).toBe(true);
+    expect(t('rsWord')).toBe('LÖSCHEN');
+    setLang('klingon');
+    expect(i18n.CHOSEN).toBeNull();
+    expect(i18n.LANG).toBe(before);
+    expect(Object.keys(LANG_NAMES).sort()).toEqual([...LANGS].sort());
+  });
+
 });

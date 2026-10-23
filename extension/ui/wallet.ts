@@ -27,6 +27,7 @@ import { changePasswordSheet, exportBackupSheet, manageWalletScreen } from './ma
 import { addTokenSheet, networksScreen } from './assetsScreen';
 import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
+import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -36,7 +37,6 @@ const VERSION = (() => {
   const m = browser.runtime.getManifest();
   return m.version_name ?? m.version;
 })();
-const SUPPORT_EMAIL = 'support@kalyxwallet.com';
 
 interface WalletMeta {
   id: string;
@@ -794,7 +794,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
-        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('language', t('language'), languageSelect()), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
         group(
           t('setSecurity'),
           askPw,
@@ -809,7 +809,12 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           // Téléphone relié (mode compagnon) : couper le lien.
           current().w?.kind === 'companion' && item('close', t('compUnlink'), null, () => unlinkPhone(), 'unlink-phone'),
         ),
-        group(t('setHelp'), item('support', t('reportIssue'), null, () => void reportIssue(), 'report')),
+        group(
+          t('setHelp'),
+          item('faq', t('faq'), null, () => (faqScreen(app, () => settings('back')), navIn(app, 'fwd')), 'faq-open'),
+          item('support', t('reportIssue'), null, () => void reportIssue(), 'report'),
+          item('about', t('about'), null, () => (aboutScreen(app, () => settings('back'), VERSION), navIn(app, 'fwd')), 'about-open'),
+        ),
         h('p', { class: 'small muted note' }, t('reportNote')),
         h('p', { class: 'small muted note' }, `${t('version', { v: VERSION })} · ${t('beta')}`),
       ),

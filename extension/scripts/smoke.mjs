@@ -32,9 +32,9 @@ const launch = (lang = 'fr') => chromium.launchPersistentContext(mkdtempSync(joi
   executablePath: process.env.CHROMIUM_PATH,
   args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, '--headless=new', `--lang=${lang}`],
 });
-// ONLY=onboarding|dapps|attacks|langs : une seule partie (plus rapide à relancer).
-if (['onboarding', 'dapps', 'attacks', 'langs'].includes(process.env.ONLY)) {
-  await { onboarding, dapps, attacks, langs }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs|help : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs', 'help'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs, help }[process.env.ONLY]();
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
 }
@@ -100,6 +100,116 @@ await onboarding();
 await dapps();
 await attacks();
 await langs();
+await help();
+
+/**
+ * Aide et conformité (vague 5) : FAQ, À propos et documents légaux dans la
+ * langue affichée, langue choisie à la main (la page suit), puis « Mot de
+ * passe oublié ? » : tout est effacé et l'extension repart de zéro.
+ */
+async function help() {
+  const PW = 'Plage-Orange-47!';
+  const SHOTS = process.env.SHOTS;
+  const both = async (p, name) => {
+    if (!SHOTS) return;
+    for (const scheme of ['light', 'dark']) await p.emulateMedia({ colorScheme: scheme }), await p.waitForTimeout(350), await p.screenshot({ path: join(SHOTS, `${name}-${scheme}.png`) });
+    await p.emulateMedia({ colorScheme: 'light' });
+  };
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const popup = await ctx.newPage();
+    await popup.setViewportSize({ width: 360, height: 600 });
+    await popup.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => popup.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+    await popup.reload();
+    await popup.locator('[data-testid=account]').waitFor();
+    const tabs = () => popup.evaluate(() => {
+      const create = chrome.tabs.create.bind(chrome.tabs);
+      window.__tabs = [];
+      chrome.tabs.create = (o) => (window.__tabs.push(o.url), /^(https:|mailto:)/.test(o.url) ? Promise.resolve({}) : create(o));
+    });
+
+    // FAQ : 8 questions, les chemins des menus remplis avec les vrais libellés.
+    await popup.getByRole('button', { name: 'Réglages' }).click();
+    await popup.locator('[data-testid=faq-open]').click();
+    const nq = await popup.locator('[data-testid=faq] details').count();
+    nq === 8 ? console.log('✓ FAQ : 8 questions') : fail(`FAQ : ${nq} questions`);
+    await popup.locator('[data-testid=faq] summary').nth(4).click();
+    const a5 = (await popup.locator('[data-testid=faq] details[open] p').textContent()) ?? '';
+    a5.includes('Réglages › Sécurité › Sites connectés') && !/[{}]/.test(a5) ? console.log('✓ FAQ : chemin de réglage réel (Réglages › Sécurité › Sites connectés)') : fail(`FAQ : « ${a5} »`);
+    await both(popup, 'faq');
+    await popup.locator('header.bar .link').click();
+
+    // À propos : version, éditeur, documents légaux du site dans la langue affichée.
+    await tabs();
+    await popup.locator('[data-testid=about-open]').click();
+    await popup.locator('[data-testid=privacy]').click();
+    await popup.locator('[data-testid=terms]').click();
+    const opened = await popup.evaluate(() => window.__tabs);
+    opened.join() === 'https://kalyxwallet.com/fr/privacy,https://kalyxwallet.com/fr/terms' ? console.log('✓ À propos : confidentialité et conditions du site, en français') : fail(`liens légaux ${opened}`);
+    (await popup.getByText('SIREN 130 046 865').count()) === 1 ? console.log('✓ À propos : éditeur affiché') : fail('éditeur absent');
+    await both(popup, 'about');
+    await popup.locator('header.bar .link').click();
+
+    // Langue choisie à la main : enregistrée, la page se recharge dans cette langue ; « navigateur » revient au français.
+    await Promise.all([popup.waitForEvent('load'), popup.locator('[data-testid=language]').selectOption('ja')]);
+    await popup.locator('[data-testid=account]').waitFor();
+    const lang = (await popup.evaluate(() => chrome.storage.local.get('kalyx.lang')))['kalyx.lang'];
+    const jaHome = await popup.evaluate(() => document.documentElement.lang);
+    lang === 'ja' && jaHome === 'ja' && (await popup.getByRole('button', { name: '設定' }).count()) === 1 ? console.log('✓ langue choisie (日本語) : enregistrée, la page suit') : fail(`langue ${lang} / ${jaHome}`);
+    // Une autre vue ouverte suit aussi (panneau latéral).
+    const panel = await ctx.newPage();
+    await panel.goto(`chrome-extension://${id}/sidepanel.html`);
+    await panel.locator('[data-testid=account]').waitFor();
+    (await panel.evaluate(() => document.documentElement.lang)) === 'ja' ? console.log('✓ panneau latéral dans la langue choisie') : fail('panneau pas dans la langue choisie');
+    await popup.getByRole('button', { name: '設定' }).click();
+    await Promise.all([panel.waitForEvent('load'), popup.waitForEvent('load'), popup.locator('[data-testid=language]').selectOption('')]);
+    await popup.locator('[data-testid=account]').waitFor();
+    (await popup.evaluate(() => document.documentElement.lang)) === 'fr' && (await panel.evaluate(() => document.documentElement.lang)) === 'fr'
+      ? console.log('✓ retour à la langue du navigateur : toutes les vues suivent')
+      : fail('retour à la langue du navigateur');
+    await panel.close();
+
+    // Mot de passe oublié : rien sans la case ET le mot exact ; ensuite tout est effacé.
+    await bg({ type: 'vault:lock' });
+    await popup.reload();
+    await popup.locator('input[type=password]').waitFor();
+    const resetTab = ctx.waitForEvent('page', { predicate: (p) => p.url().endsWith('/onboarding.html#reset') });
+    await popup.locator('[data-testid=forgot-password]').click();
+    const rp = await resetTab;
+    await rp.locator('[data-testid=reset-go]').waitFor();
+    const go = rp.locator('[data-testid=reset-go]');
+    await rp.locator('[data-testid=reset-word]').fill('effacer');
+    const offNoAck = await go.isDisabled();
+    await rp.locator('[data-testid=reset-ack]').check();
+    await rp.locator('[data-testid=reset-word]').fill('efface');
+    const offBadWord = await go.isDisabled();
+    await rp.locator('[data-testid=reset-word]').fill('effacer');
+    offNoAck && offBadWord && !(await go.isDisabled()) ? console.log('✓ réinitialisation : case ET mot exact exigés') : fail('réinitialisation : bouton actif trop tôt');
+    await both(rp, 'reset');
+    await go.click();
+    // L'onglet revient à l'accueil (créer ou restaurer).
+    await rp.getByRole('button', { name: 'Créer un portefeuille' }).waitFor({ timeout: 15_000 });
+    const ob = rp;
+    const after = await ob.evaluate(async () => ({ st: await chrome.runtime.sendMessage({ type: 'vault:status' }), local: await chrome.storage.local.get(null), session: await chrome.storage.session.get(null) }));
+    !after.st.hasVault && Object.keys(after.local).length === 0 && Object.keys(after.session).length === 0
+      ? console.log('✓ mot de passe oublié : tout effacé (disque et session), retour à l’accueil')
+      : fail(`après réinitialisation ${JSON.stringify({ st: after.st, local: Object.keys(after.local), session: Object.keys(after.session) })}`);
+    // Le popup ouvert ensuite repart de zéro, et l'extension reste utilisable : nouveau coffre.
+    // (le popup s'est fermé en ouvrant l'onglet de réinitialisation)
+    const p2 = await ctx.newPage();
+    await p2.goto(`chrome-extension://${id}/popup.html`);
+    await p2.getByRole('button', { name: 'Commencer' }).waitFor({ timeout: 10_000 }).then(() => console.log('✓ popup après effacement : « Commencer »'), () => fail('popup après effacement'));
+    const bg2 = (m) => p2.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    (await bg2({ type: 'vault:create', password: PW })).ok && (await bg2({ type: 'vault:status' })).unlocked ? console.log('✓ nouveau coffre créé juste après, sans redémarrer') : fail('nouveau coffre après effacement');
+  } finally {
+    await ctx.close();
+  }
+}
 
 /**
  * Langues (lot 7) : l'accueil s'affiche dans la langue du navigateur, l'arabe

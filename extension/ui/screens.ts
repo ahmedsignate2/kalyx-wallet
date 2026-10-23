@@ -6,7 +6,7 @@ import { h, send } from './dom';
 import { errorText, t } from './i18n';
 import { landscape } from './landscape';
 
-export async function openOnboarding(close: boolean, hash: '' | '#companion' = '') {
+export async function openOnboarding(close: boolean, hash: '' | '#companion' | '#reset' = '') {
   await browser.tabs.create({ url: browser.runtime.getURL(`/onboarding.html${hash}`) });
   if (close) window.close();
 }
@@ -28,7 +28,7 @@ export function noVaultScreen(app: HTMLElement, close: boolean, hasVault = false
   center(app, h('p', { class: 'muted' }, t('popupNoVault')), h('button', { class: 'btn', type: 'button', on: { click: () => void openOnboarding(close) } }, t(hasVault ? 'addWallet' : 'getStarted')));
 }
 
-export function lockedScreen(app: HTMLElement, onUnlocked: () => void) {
+export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = true) {
   const err = h('p', { class: 'error', role: 'alert' });
   const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'current-password' });
   const go = h('button', { class: 'btn', type: 'submit' }, t('unlock'));
@@ -53,6 +53,8 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void) {
     err,
     go,
   );
-  center(app, h('p', { class: 'muted' }, t('popupUnlockSub')), form);
+  // Mot de passe oublié : Kalyx ne peut pas le retrouver ; l'onboarding explique comment tout effacer et restaurer.
+  const forgot = h('button', { class: 'link forgot', type: 'button', 'data-testid': 'forgot-password', on: { click: () => void openOnboarding(close, '#reset') } }, t('forgotPw'));
+  center(app, h('p', { class: 'muted' }, t('popupUnlockSub')), form, forgot);
   pw.focus();
 }
