@@ -276,7 +276,14 @@ export function WalletConnectHost() {
     const decoded = tx ? decodeTx({ to: tx.to, value: tx.value, data: tx.data }) : null;
     const vc = request.verifyContext?.verified ?? {};
     const verify = { validation: vc.validation as 'VALID' | 'INVALID' | 'UNKNOWN' | undefined, isScam: !!vc.isScam };
-    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana, btc, messageText };
+    /*
+     * Extension Kalyx en mode compagnon : elle joint le site qui a fait la
+     * demande (`kalyxSite`). Montré comme « site via Kalyx — extension » au lieu
+     * de « kalyxwallet.com ». Une simple origine https (ou http local), sinon ignoré.
+     */
+    const rawSite = request.params?.request?.kalyxSite;
+    const originSite = typeof rawSite === 'string' && /^(https:\/\/[a-z0-9.-]+|http:\/\/(localhost|127\.0\.0\.1))(:\d{1,5})?$/i.test(rawSite) ? rawSite.toLowerCase() : null;
+    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana, btc, messageText, originSite };
   }, [request, sessions, t]);
 
   // Simulation (transactions uniquement).
@@ -301,7 +308,8 @@ export function WalletConnectHost() {
     return () => {
       alive = false;
     };
-  }, [request]);
+    // Compte changé (« Signer avec Compte 2 ») : la simulation se refait depuis le bon compte.
+  }, [request, activeAccountIndex]);
 
   // Token d'un Permit / Permit2 : symbole et décimales, pour ne jamais afficher « tes Permit2 ».
   const resolvePermitToken = useEffectEvent((isAlive: () => boolean) => {
@@ -331,6 +339,7 @@ export function WalletConnectHost() {
       return;
     }
     if (!info) return;
+    if (info.originSite) isPhishingSite(info.originSite).then((p) => isAlive() && setPhishSite(p)).catch(() => {});
     const cid = info.chain?.evmChainId ?? 1;
     if (info.kind === 'tx' && info.tx?.to) {
       setRisk('loading');
@@ -432,17 +441,25 @@ export function WalletConnectHost() {
      * Signer est alors bloqué (le coffre refuserait de toute façon).
      */
     let accountMismatch: string | null = null;
+    /** Le compte demandé est dans ce portefeuille : « Signer avec Compte 2 » y passe, puis signe. */
+    let switchTo: { index: number; name: string; address: string } | null = null;
     try {
-      assertSessionAccount(useWalletConnect.getState().wallet, request.topic, request.params?.chainId);
+      assertSessionAccount(useWalletConnect.getState().wallet, request.topic, request.params?.chainId, info.method, request.params?.request?.params);
     } catch (e) {
       // Message construit ici (pas `friendlyTxError`, qui journalise à chaque rendu).
-      const address = isWalletError(e) ? e.meta?.address : undefined;
-      accountMismatch = address ? t('errWrongAccountAddr').replace('{address}', String(address)) : t('errWrongAccount');
+      const meta = isWalletError(e) ? e.meta : undefined;
+      const address = meta?.address;
+      if (address && meta?.switchIndex != null && Number.isInteger(Number(meta.switchIndex))) {
+        const index = Number(meta.switchIndex);
+        switchTo = { index, name: accountDisplayName({ index, label: meta.switchLabel ?? '' }, t), address: String(address) };
+      } else {
+        accountMismatch = address ? t('errWrongAccountAddr').replace('{address}', String(address)) : t('errWrongAccount');
+      }
     }
     const baseExplanation = explainRequest({
       kind,
       method: info.method,
-      domain: peer?.url ? hostOf(peer.url) : undefined,
+      domain: info.originSite ? hostOf(info.originSite) : peer?.url ? hostOf(peer.url) : undefined,
       siwe,
       siweMismatch: phishing,
       typed,
@@ -465,7 +482,13 @@ export function WalletConnectHost() {
     });
     const explanation = accountMismatch
       ? { ...baseExplanation, risk: 'danger' as const, reasons: [accountMismatch, ...baseExplanation.reasons] }
-      : baseExplanation;
+      : switchTo
+        ? {
+            ...baseExplanation,
+            risk: baseExplanation.risk === 'none' ? ('warning' as const) : baseExplanation.risk,
+            reasons: [t('wcOtherAccount').replace(/\{name\}/g, switchTo.name).replace('{address}', switchTo.address), ...baseExplanation.reasons],
+          }
+        : baseExplanation;
     const rawJson = JSON.stringify(request.params?.request?.params ?? {}, null, 2).slice(0, 1600);
 
     // « Réduire au montant exact » : approve illimité → montant issu de la simulation
@@ -508,7 +531,8 @@ export function WalletConnectHost() {
       <>
         <SignSheet
           visible={!confirming}
-          peer={peer ? { name: peer.name, url: peer.url, icon: peer.icon } : null}
+          peer={info.originSite ? { name: hostOf(info.originSite), url: info.originSite } : peer ? { name: peer.name, url: peer.url, icon: peer.icon } : null}
+          via={info.originSite ? peer?.name || t('appGeneric') : undefined}
           verify={verify}
           explanation={explanation}
           simulating={simulating}
@@ -516,9 +540,14 @@ export function WalletConnectHost() {
           address={signerAddress}
           raw={rawJson}
           onReject={reject}
-          onSign={() => { if (!accountMismatch) setConfirming(true); }}
+          onSign={() => {
+            if (accountMismatch) return;
+            // Passe sur le compte que la demande nomme ; la fiche se recalcule, puis le PIN.
+            if (switchTo) useWallet.getState().setActiveAccount(switchTo.index);
+            setConfirming(true);
+          }}
           onReduceApproval={reducible && reducedAmount ? onReduce : undefined}
-          signLabel={kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' || kind === 'btcTransfer' || kind === 'btcPsbt' ? t("wcSignConfirm") : kind === 'btcAccounts' ? t('allow') : t("wcSign")}
+          signLabel={switchTo ? t('wcSignWith').replace('{name}', switchTo.name) : kind === 'siwe' ? t("wcSignConnect") : kind === 'tx' || kind === 'btcTransfer' || kind === 'btcPsbt' ? t("wcSignConfirm") : kind === 'btcAccounts' ? t('allow') : t("wcSign")}
         />
         <ConfirmUnlock
           visible={confirming}
@@ -533,7 +562,7 @@ export function WalletConnectHost() {
             value: `${formatTokenAmount(tx.value, 18)} ${chain?.nativeSymbol ?? ''}`.trim(),
             method: `${info.method} — ${explanation.title}: ${explanation.headline}`,
             network: chain?.name,
-            url: peer?.url,
+            url: info.originSite ?? peer?.url,
           } : undefined}
         />
       </>

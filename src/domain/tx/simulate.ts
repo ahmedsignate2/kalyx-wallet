@@ -27,7 +27,21 @@ export interface Simulation {
   changes: AssetChange[];
   /** Approbations accordées par la tx (décodées, même en statique). */
   approvals: { spender: string; token: string; unlimited: boolean; all?: boolean }[];
+  /** La simulation a tourné et dit que la transaction ÉCHOUERAIT (message du nœud, court). */
   error?: string;
+}
+
+/**
+ * Nœuds qui ne savent pas simuler (« Unsupported method » : Alchemy sur
+ * certains réseaux ou certaines offres). Retenus pour la session : on ne
+ * redemande pas à chaque transaction, on passe directement à la lecture statique.
+ */
+const noSimulator = new Set<string>();
+
+/** Pur : l'erreur JSON-RPC dit-elle « méthode inconnue ici » (et non « la transaction échouerait ») ? */
+export function isUnsupportedMethod(err: { code?: number; message?: string } | undefined): boolean {
+  if (!err) return false;
+  return err.code === -32601 || /unsupported method|method not (found|supported|available)|does not exist|not available on/i.test(err.message ?? '');
 }
 
 /** Pur : parse la réponse Alchemy → changements du point de vue de `from`. */
@@ -82,7 +96,7 @@ export async function simulateTx(
   const url = chain.rpcUrls.find(isAlchemyRpc);
   // Relais en pause (quota) : la lecture statique reste, sans simulation.
   const svc = url ? relayServiceOf(url) : null;
-  if (!url || (svc && relayPaused(svc))) return fallback;
+  if (!url || (svc && relayPaused(svc)) || noSimulator.has(url)) return fallback;
   try {
     const value = typeof tx.value === 'bigint' ? '0x' + tx.value.toString(16) : tx.value ? '0x' + BigInt(tx.value).toString(16) : '0x0';
     const res = await withTimeout(
@@ -91,9 +105,19 @@ export async function simulateTx(
       () => new Error('timeout'),
     );
     noteRelayResponse(url, res);
-    const json = (await res.json()) as { result?: { error?: { message?: string } }; error?: { message?: string } };
-    if (json.error) return { ...fallback, error: json.error.message };
-    if (json.result?.error) return { ...fallback, error: json.result.error.message ?? 'La simulation a échoué' };
+    if (!res.ok) return fallback; // quota, 503 : lecture statique, sans message technique
+    const json = (await res.json()) as { result?: { error?: { message?: string } }; error?: { code?: number; message?: string } };
+    /*
+     * Erreur du NŒUD (méthode absente sur ce réseau, quota…) : ce n'est pas un
+     * verdict sur la transaction. Lecture statique, et l'écran dit simplement
+     * « simulation indisponible » — jamais le message anglais brut du fournisseur.
+     */
+    if (json.error) {
+      if (isUnsupportedMethod(json.error)) noSimulator.add(url);
+      return fallback;
+    }
+    // La simulation a tourné : la transaction échouerait. Message du nœud, raccourci.
+    if (json.result?.error) return { ...fallback, error: (json.result.error.message ?? 'reverted').slice(0, 140) };
     const changes = parseAlchemySimulation(json, tx.from);
     return { source: 'alchemy', changes, approvals: fallback.approvals };
   } catch {

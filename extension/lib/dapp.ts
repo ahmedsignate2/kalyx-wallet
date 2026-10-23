@@ -113,7 +113,7 @@ export function makeDapp(deps: DappDeps) {
         const now = await deps.sites.get(origin);
         if (now[family]?.walletId !== g.walletId || now[family]?.index !== g.index) throw new RpcError(4100, 'Le site a été déconnecté entre-temps');
         if (!(await deps.dappAllowed())) throw new RpcError(4100, 'Liste blanche active : signatures de dApps désactivées');
-        return execute(req, { walletId: g.walletId, index: g.index }, { reduceTo: a.reduceTo }, { session: deps.session, wallets: deps.wallets, ...deps.executeDeps });
+        return execute(req, { walletId: g.walletId, index: g.index }, { reduceTo: a.reduceTo, site: origin }, { session: deps.session, wallets: deps.wallets, ...deps.executeDeps });
       },
       req,
     );

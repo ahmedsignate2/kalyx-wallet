@@ -33,6 +33,7 @@ export function SignSheet({
   onSign,
   onReduceApproval,
   signLabel,
+  via,
 }: {
   visible: boolean;
   peer: { name: string; url: string; icon?: string } | null;
@@ -47,6 +48,8 @@ export function SignSheet({
   onSign: () => void;
   onReduceApproval?: () => void;
   signLabel?: string;
+  /** Demande relayée (extension Kalyx) : nom de l'intermédiaire, sous le vrai site. */
+  via?: string;
 }) {
   const t = useT();
   const { colors } = useTheme();
@@ -77,6 +80,7 @@ export function SignSheet({
             <Text variant="caption" tone={badDomain ? 'danger' : 'secondary'} numberOfLines={1} style={{ flexShrink: 1 }}>{host || t('unknownDomain')}</Text>
             {verified ? <Icon name="check" size={14} color={colors.textSecondary} /> : null}
           </View>
+          {via ? <Text variant="micro" tone="tertiary" numberOfLines={1}>{t('wcVia').replace('{name}', via)}</Text> : null}
         </View>
         {address ? <AddressGlyph address={address} size={32} /> : null}
       </View>

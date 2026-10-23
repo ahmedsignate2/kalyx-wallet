@@ -384,7 +384,7 @@ export function signSolanaTx(bytes: Uint8Array, seed: Uint8Array, publicKey: Uin
   return out;
 }
 
-export async function execute(req: SignRequest, grant: { walletId: string; index: number }, opts: { reduceTo?: string } = {}, deps: ExecuteDeps): Promise<unknown> {
+export async function execute(req: SignRequest, grant: { walletId: string; index: number }, opts: { reduceTo?: string; /** Site qui demande, montré sur le téléphone en mode compagnon. */ site?: string } = {}, deps: ExecuteDeps): Promise<unknown> {
   const family = req.kind === 'solMessage' || req.kind === 'solTx' ? 'solana' : 'evm';
   // Compte du téléphone (mode compagnon) : la signature se fait là-bas, vérifiée ici.
   const meta = (await deps.wallets.list()).find((w) => w.id === grant.walletId);
@@ -392,7 +392,7 @@ export async function execute(req: SignRequest, grant: { walletId: string; index
     if (!deps.companion) throw new RpcError(4900, 'COMPANION_UNAVAILABLE');
     const acct = meta.accounts[0];
     if ((family === 'evm' ? acct?.evm : acct?.solana)?.toLowerCase() !== req.from.toLowerCase()) throw new RpcError(4100, 'Ce compte n’est pas celui du téléphone');
-    return executeOnPhone(req, meta, deps.companion, { reduceTo: opts.reduceTo, tokenMeta: deps.tokenMeta ?? readTokenMeta });
+    return executeOnPhone(req, meta, deps.companion, { reduceTo: opts.reduceTo, site: opts.site, tokenMeta: deps.tokenMeta ?? readTokenMeta });
   }
   const signer = await signerFor(deps.session, deps.wallets, grant.walletId, grant.index, family, req.from);
 

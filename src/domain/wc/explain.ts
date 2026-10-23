@@ -96,7 +96,7 @@ export type ExplainKey =
   | 'exApproveAllReason' | 'exApproveAllHeadline' | 'exApproveAllDetail'
   | 'exApproveUnlimitedReason' | 'exApproveHeadlineUnlimited' | 'exApproveHeadline' | 'exApproveDetailUnlimited' | 'exApproveDetailLimited'
   | 'exTitleTx' | 'exSwapHeadline' | 'exSendHeadline' | 'exSendHeadlineTo' | 'exReceiveHeadline' | 'exApprovalsHeadline'
-  | 'exContractHeadline' | 'exContractHeadlineTo' | 'exContractDetail' | 'exContractDetailErr'
+  | 'exContractHeadline' | 'exContractHeadlineTo' | 'exContractDetail' | 'exContractDetailErr' | 'exContractDetailNoSim'
   | 'exTitleRead' | 'exBtcAccountsHeadline' | 'exBtcAccountsDetail'
   | 'exBtcIrreversible' | 'exTitleBtcSend' | 'exBtcSendHeadline' | 'exBtcSendHeadlineTo' | 'exBtcSendAsk' | 'exBtcSendDetail'
   | 'exTitleBtcTx' | 'exPsbtBroadcastNow' | 'exPsbtLater' | 'exPsbtHeadlineTo' | 'exPsbtHeadlineMany' | 'exPsbtHeadline'
@@ -234,7 +234,7 @@ export function explainRequest(input: ExplainInput): SignExplanation {
      * signaler alarmait à chaque envoi, en particulier sur les réseaux où le
      * simulateur n'existe pas (Sepolia, Base Sepolia…).
      */
-    if (!input.simulating && (!sim || sim.error) && (input.txValue ?? 0n) > 0n) {
+    if (!input.simulating && (!sim || sim.error || sim.source === 'static') && (input.txValue ?? 0n) > 0n) {
       const amount = `${formatDecimalString(formatUnits(input.txValue!, input.nativeDecimals ?? 18))} ${input.nativeSymbol ?? ''}`.trim();
       if (!lose.length) lose.push(amount);
       if (d?.kind !== 'empty') {
@@ -275,7 +275,8 @@ export function explainRequest(input: ExplainInput): SignExplanation {
     return {
       title: tr('exTitleTx'),
       headline: d?.kind === 'contract' && d.to ? tr('exContractHeadlineTo', { site, to: short(d.to) }) : tr('exContractHeadline', { site }),
-      detail: sim?.error ? tr('exContractDetailErr', { error: sim.error }) : tr('exContractDetail'),
+      // Lecture statique (pas de simulateur sur ce réseau) : on ne prétend pas avoir simulé.
+      detail: sim?.error ? tr('exContractDetailErr', { error: sim.error }) : sim?.source === 'static' ? tr('exContractDetailNoSim') : tr('exContractDetail'),
       lose, receive, risk, reasons, holdToSign: risk === 'danger', canReduceApproval,
     };
   }

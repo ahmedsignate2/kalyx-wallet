@@ -58,17 +58,19 @@ export async function executeOnPhone(
   req: SignRequest,
   meta: WalletMeta,
   companion: Companion,
-  opts: { reduceTo?: string; tokenMeta?: (chain: ChainConfig, token: string) => Promise<{ symbol: string; decimals: number } | null> } = {},
+  opts: { reduceTo?: string; site?: string; tokenMeta?: (chain: ChainConfig, token: string) => Promise<{ symbol: string; decimals: number } | null> } = {},
 ): Promise<unknown> {
   const sessionChains = meta.evmChains ?? [];
+  // Le site qui demande voyage avec la demande : le téléphone l'affiche à la place de « Kalyx — extension ».
+  const ask = (chainId: string, method: string, params: unknown) => companion.request(meta, chainId, method, params, opts.site);
   if (req.kind === 'personal') {
     const chain = evmChainFor(sessionChains);
-    const sig = await companion.request(meta, `eip155:${chain}`, 'personal_sign', [req.hex, req.from]);
+    const sig = await ask(`eip155:${chain}`, 'personal_sign', [req.hex, req.from]);
     return checkPersonal(sig, req.hex, req.from);
   }
   if (req.kind === 'typed') {
     const chain = evmChainFor(sessionChains, Number.parseInt(req.chainId, 16));
-    const sig = await companion.request(meta, `eip155:${chain}`, 'eth_signTypedData_v4', [req.from, JSON.stringify(req.data)]);
+    const sig = await ask(`eip155:${chain}`, 'eth_signTypedData_v4', [req.from, JSON.stringify(req.data)]);
     return checkTyped(sig, req.data, req.from);
   }
   if (req.kind === 'evmTx') {
@@ -85,23 +87,23 @@ export async function executeOnPhone(
       data = new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [d.spender, parseAmount(opts.reduceTo, tm.decimals).raw]);
     }
     const tx = evmTxParam({ from: req.from, to: req.tx.to, data, value: BigInt(req.tx.value), gas: req.tx.gas ? BigInt(req.tx.gas) : undefined });
-    return checkTxHash(await companion.request(meta, `eip155:${id}`, 'eth_sendTransaction', [tx]));
+    return checkTxHash(await ask(`eip155:${id}`, 'eth_sendTransaction', [tx]));
   }
   if (req.kind === 'solMessage') {
     const bytes = base64.decode(req.message);
-    const res = await companion.request(meta, SOLANA_CAIP, 'solana_signMessage', { message: base58.encode(bytes), pubkey: req.from });
+    const res = await ask(SOLANA_CAIP, 'solana_signMessage', { message: base58.encode(bytes), pubkey: req.from });
     const sig = checkSolMessage(res, bytes, req.from);
     return [{ signedMessage: req.message, signature: base64.encode(sig) }];
   }
   // Transactions Solana.
   if (req.send) {
     if (req.txs.length !== 1) throw new RpcError(-32602, 'Une seule transaction à envoyer à la fois');
-    const sig = checkSolSignature(await companion.request(meta, SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: req.txs[0] }));
+    const sig = checkSolSignature(await ask(SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: req.txs[0] }));
     return [{ signature: base64.encode(base58.decode(sig)) }];
   }
   const signed =
     req.txs.length === 1
-      ? checkSolSigned(await companion.request(meta, SOLANA_CAIP, 'solana_signTransaction', { transaction: req.txs[0] }), 1)
-      : checkSolSigned(await companion.request(meta, SOLANA_CAIP, 'solana_signAllTransactions', { transactions: req.txs }), req.txs.length);
+      ? checkSolSigned(await ask(SOLANA_CAIP, 'solana_signTransaction', { transaction: req.txs[0] }), 1)
+      : checkSolSigned(await ask(SOLANA_CAIP, 'solana_signAllTransactions', { transactions: req.txs }), req.txs.length);
   return signed.map((s, k) => ({ signedTransaction: checkSolSignedTx(req.txs[k], s, req.from) }));
 }

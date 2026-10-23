@@ -128,14 +128,14 @@ describe('mode compagnon : partie pure', () => {
 function fakeClient(answer: (method: string, params: unknown) => Promise<unknown>) {
   const handlers: Record<string, ((e: { topic: string }) => void)[]> = {};
   const sessions = new Set<string>();
-  const calls: { chainId: string; method: string; params: unknown }[] = [];
+  const calls: { chainId: string; method: string; params: unknown; site?: string }[] = [];
   let approve: (s: { topic: string; namespaces: Record<string, { accounts?: string[] }> }) => void = () => {};
   const client: WcClient = {
     async connect() {
       return { uri: 'wc:abc@2?relay-protocol=irn&symKey=00', approval: () => new Promise((r) => (approve = r)) };
     },
-    async request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown } }) {
-      calls.push({ chainId: a.chainId, method: a.request.method, params: a.request.params });
+    async request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; kalyxSite?: string } }) {
+      calls.push({ chainId: a.chainId, method: a.request.method, params: a.request.params, ...(a.request.kalyxSite ? { site: a.request.kalyxSite } : {}) });
       return (await answer(a.request.method, a.request.params)) as T;
     },
     async disconnect(a) {
@@ -273,6 +273,12 @@ describe('mode compagnon : lien avec le téléphone', () => {
     const sig = await executeOnPhone({ kind: 'personal', from: PHONE.address, hex, text: 'bonjour', siwe: null }, meta, companion);
     expect(sig).toMatch(/^0x[0-9a-f]{130}$/);
     expect(fake.calls[0]).toEqual({ chainId: 'eip155:1', method: 'personal_sign', params: [hex, PHONE.address] });
+  });
+
+  test('le site qui demande voyage avec la demande (affiché sur le téléphone)', async () => {
+    const { fake, companion, meta } = await link(async () => PHONE.signMessage(toUtf8Bytes('bonjour')));
+    await executeOnPhone({ kind: 'personal', from: PHONE.address, hex: hexlify(toUtf8Bytes('bonjour')), text: 'bonjour', siwe: null }, meta, companion, { site: 'https://app.uniswap.org' });
+    expect(fake.calls[0].site).toBe('https://app.uniswap.org');
   });
 
   test('le téléphone signe avec un autre compte : rien n’est rendu au site', async () => {
