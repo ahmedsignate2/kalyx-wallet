@@ -427,7 +427,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const req = approvals.get(m.id);
         if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
         const s = sites ? await sites.get(req.origin) : null;
-        return { ok: true, ...(await siteReport(req.origin, !!(s?.evm || s?.solana))) };
+        return { ok: true, ...(await siteReport(req.origin, !!(s?.evm || s?.solana || s?.bitcoin))) };
       }
       case 'approval:respond': {
         if (!approvals) break;
@@ -443,7 +443,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
           // Le compte choisi doit exister ET avoir une adresse pour la famille demandée.
           const w = (await wallets.list()).find((x) => x.id === m.walletId);
           const a = w?.accounts.find((x) => x.index === m.index);
-          if (!w || !a || !(req.family === 'evm' ? a.evm : a.solana)) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
+          if (!w || !a || !(req.family === 'evm' ? a.evm : req.family === 'solana' ? a.solana : a.bitcoin)) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
           walletId = w.id;
           index = a.index;
         } else {
@@ -619,6 +619,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
             origin: s.origin,
             evm: label(s.evm),
             solana: label(s.solana),
+            bitcoin: label(s.bitcoin),
             chain: chains.find((c) => c.family === 'evm' && c.evmChainId === Number.parseInt(s.chainId, 16))?.name ?? s.chainId,
           })),
         };

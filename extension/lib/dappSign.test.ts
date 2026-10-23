@@ -9,6 +9,11 @@ import { makeSession } from './session';
 import { makeStore, type StorageArea } from './storage';
 import { makeWallets } from './wallets';
 import { review, utf8B64 } from './dappSign';
+import { bytesToHex } from '@noble/hashes/utils';
+import { Transaction as BtcTx, p2wpkh, SigHash } from '@scure/btc-signer';
+import { deriveBtcSigner, p2wpkhAddress } from '../../src/crypto/btc';
+import { mnemonicToSeedSync } from '../../src/crypto/mnemonic';
+import { signBip322Message } from '../../src/domain/chains/btcSign';
 import { explainT } from '../ui/i18n';
 import type { RawTxRequest } from '../../src/domain/chains/EvmChainAdapter';
 
@@ -39,6 +44,7 @@ let lastError: { code: number; message: string } | null;
 let allowed: boolean;
 let sentEvm: { req: RawTxRequest; from: string; pkAddress: string }[];
 let sentSol: string[];
+let sentBtc: string[];
 let opened: number;
 
 const code = async (p: Promise<unknown>) => {
@@ -58,6 +64,7 @@ beforeEach(async () => {
   allowed = true;
   sentEvm = [];
   sentSol = [];
+  sentBtc = [];
   opened = 0;
   decide = () => ({ approve: true, walletId, index: 0 });
   approvals = makeApprovals({
@@ -86,6 +93,7 @@ beforeEach(async () => {
       sendEvm: async (_c, req, from, pk) => (sentEvm.push({ req, from, pkAddress: new Wallet(pk).address }), `0x${'cd'.repeat(32)}`),
       sendSolana: async (b64) => (sentSol.push(b64), base58.encode(new Uint8Array(64).fill(7))),
       tokenMeta: async () => ({ symbol: 'USDC', decimals: 6 }),
+      sendBitcoin: async (hexTx) => (sentBtc.push(hexTx), 'f'.repeat(64)),
     },
   });
   await session.create('Plage-Orange-47!');
@@ -251,4 +259,72 @@ describe('explication (fenêtre)', () => {
     expect(clean.score).toMatchObject({ score: 0, level: 'low' });
   });
 
+});
+
+describe('Bitcoin (Wallet Standard)', () => {
+  const BTC0 = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+  const DEST = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+  const keys = () => deriveBtcSigner(mnemonicToSeedSync(ABOUT), 0);
+  /** PSBT : une entrée à nous (200 000 sats), une sortie vers DEST, la monnaie vers nous. Option : une entrée étrangère, un sighash. */
+  const psbt = (opts: { foreign?: boolean; sighash?: number } = {}) => {
+    const me = p2wpkh(keys().publicKey);
+    const other = p2wpkh(deriveBtcSigner(mnemonicToSeedSync(ABOUT), 5).publicKey);
+    const tx = new BtcTx();
+    tx.addInput({ txid: 'a'.repeat(64), index: 0, witnessUtxo: { script: me.script, amount: 200_000n }, ...(opts.sighash !== undefined ? { sighashType: opts.sighash } : {}) });
+    if (opts.foreign) tx.addInput({ txid: 'b'.repeat(64), index: 1, witnessUtxo: { script: other.script, amount: 50_000n } });
+    tx.addOutputAddress(DEST, 120_000n);
+    tx.addOutputAddress(BTC0, 79_000n);
+    return base64.encode(tx.toPSBT());
+  };
+  const ask = (indexes: number[], extra: Record<string, unknown> = {}) => [{ psbt: psbt(extra as never), inputsToSign: [{ address: BTC0, signingIndexes: indexes }], chain: 'bitcoin:mainnet' }];
+
+  beforeEach(async () => {
+    const r = (await dapp.handle(SITE, 'bitcoin', 'btc_connect', [{ purposes: ['payment'] }])) as { address: string; publicKey: string };
+    expect(r.address).toBe(BTC0);
+    expect(r.publicKey).toBe(bytesToHex(keys().publicKey));
+  });
+
+  test('connexion : adresse de paiement et clé publique ; « ordinals » seul refusé', async () => {
+    expect(await code(dapp.handle('https://autre.example', 'bitcoin', 'btc_connect', [{ purposes: ['ordinals'] }]))).toBe(4200);
+    expect(await dapp.handle(SITE, 'bitcoin', 'btc_connect', [{ silent: true }])).toMatchObject({ address: BTC0 });
+  });
+
+  test('PSBT : signé par la clé du compte, entrée demandée seulement', async () => {
+    const [r] = (await dapp.handle(SITE, 'bitcoin', 'btc_signTransaction', ask([0]))) as { signedPsbt: string }[];
+    const signed = BtcTx.fromPSBT(base64.decode(r.signedPsbt));
+    const sig = signed.getInput(0).partialSig!;
+    expect(sig).toHaveLength(1);
+    expect(bytesToHex(sig[0][0])).toBe(bytesToHex(keys().publicKey));
+    expect(sentBtc).toHaveLength(0);
+  });
+
+  test('signer et diffuser : transaction finalisée, txId rendu', async () => {
+    const [r] = (await dapp.handle(SITE, 'bitcoin', 'btc_signAndSendTransaction', ask([0]))) as { txId: string }[];
+    expect(r.txId).toBe('f'.repeat(64));
+    expect(sentBtc).toHaveLength(1);
+    const tx = BtcTx.fromRaw(Uint8Array.from(sentBtc[0].match(/../g)!.map((x) => Number.parseInt(x, 16))));
+    expect(p2wpkhAddress(tx.getInput(0).finalScriptWitness![1])).toBe(BTC0);
+  });
+
+  test('refus : entrée d’un autre compte, mode SIGHASH non-ALL, autre réseau', async () => {
+    expect(await code(dapp.handle(SITE, 'bitcoin', 'btc_signTransaction', ask([0, 1], { foreign: true })))).toBe(4100);
+    expect(await code(dapp.handle(SITE, 'bitcoin', 'btc_signTransaction', ask([0], { sighash: SigHash.SINGLE_ANYONECANPAY })))).toBe(4200);
+    const testnet = ask([0]);
+    testnet[0].chain = 'bitcoin:testnet';
+    expect(await code(dapp.handle(SITE, 'bitcoin', 'btc_signTransaction', testnet))).toBe(4200);
+    expect(sentBtc).toHaveLength(0);
+  });
+
+  test('explication : ce qui part vers DEST, la monnaie reconnue, les frais', async () => {
+    const r = await review({ kind: 'btcPsbt', from: BTC0, pub: bytesToHex(keys().publicKey), psbt: psbt(), indexes: [0], send: true }, SITE, { t: explainT, phishing: async () => false });
+    expect(r.explanation.lose).toEqual(['0.0012 BTC']);
+    expect(r.details.some((d) => d.value.startsWith(DEST))).toBe(true);
+    expect(r.details.find((d) => d.label === 'Frais')?.value).toBe('0.00001 BTC');
+  });
+
+  test('message : BIP-322 du compte (identique à celui de l’app), binaire refusé', async () => {
+    const [r] = (await dapp.handle(SITE, 'bitcoin', 'btc_signMessage', [{ message: utf8B64('Connexion à Magic Eden') }])) as { signature: string }[];
+    expect(r.signature).toBe(await signBip322Message('Connexion à Magic Eden', keys()));
+    expect(await code(dapp.handle(SITE, 'bitcoin', 'btc_signMessage', [{ message: base64.encode(new Uint8Array([0xff, 0xfe, 0x00])) }]))).toBe(4200);
+  });
 });

@@ -137,4 +137,5 @@ export default {
   lookTitle: '화면', themeTitle: '테마', themeBody: '기본은 나이트. 시스템은 컴퓨터 설정을 따릅니다.', themeDark: '나이트', themeLight: '크림', themeSystem: '시스템', modeTitle: '모드', modeBeginner: '초보자', modeExpert: '전문가', modeBeginnerBody: '핵심부터: 기술 세부 정보는 접혀 있고 고급 설정은 따로 정리됩니다.', modeExpertBody: '모두 펼침: 기술 세부 정보, 점수 배점, 고급 설정이 모두 보입니다.', soundTitle: '은은한 소리', soundBody: '서명이나 송금이 나갈 때 부드러운 소리. 기본은 꺼짐.', advTitle: '고급 설정', advBody: '편집증 모드, 사이트 표시, 휴대폰 전용, 강요 코드, 허용 목록, 네트워크.', rkHelp: '점수가 높을수록 이 요청으로 잃을 수 있는 것이 큽니다. 의심되면 거절하세요: 거절에는 비용이 없습니다.', apDoneSent: '보냄', apDoneSigned: '서명함', apMethod: '메서드', obLookTitle: '내 취향대로',
   receiveBtcNote: 'Bitcoin 네트워크의 비트코인만 받을 수 있습니다. bc1 주소는 다른 자산을 받지 않습니다.',
   recipientPhBtc: 'Bitcoin 주소(bc1…)', ctNoneBtc: 'Bitcoin 연락처가 없습니다. 설정 › 주소록에서 추가하세요.', ctAddressPhAll: 'EVM(0x…), Solana 또는 Bitcoin 주소', e_BTC_DUST: '이 Bitcoin 주소에는 너무 적습니다: 최소 {min} {symbol}, 아니면 네트워크가 거래를 거부합니다.', e_BTC_TOO_MANY_INPUTS: '한 번의 거래로 모으기에는 작은 코인이 너무 많습니다. 더 적은 금액을 보내세요.',
+  apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '휴대폰 계정은 아직 Bitcoin 사이트를 지원하지 않습니다. 이 확장 프로그램의 계정을 사용하세요.',
 };

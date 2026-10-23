@@ -137,4 +137,5 @@ export default {
   lookTitle: '外観', themeTitle: 'テーマ', themeBody: '既定はナイト。「システム」はパソコンの設定に合わせます。', themeDark: 'ナイト', themeLight: 'クリーム', themeSystem: 'システム', modeTitle: 'モード', modeBeginner: 'ビギナー', modeExpert: 'エキスパート', modeBeginnerBody: '大事なことを先に：技術的な詳細は折りたたみ、上級者向け設定はまとめておきます。', modeExpertBody: 'すべて表示：技術的な詳細を開き、スコアの点数と上級者向け設定を表示します。', soundTitle: '控えめなサウンド', soundBody: '署名や送金のときに小さな音を鳴らします。既定はオフ。', advTitle: '詳細設定', advBody: 'パラノイドモード、サイトでの表示、スマホのみ、強要コード、許可リスト、ネットワーク。', rkHelp: 'スコアが高いほど、このリクエストで損をするおそれが大きくなります。迷ったら拒否：拒否しても何も失いません。', apDoneSent: '送信しました', apDoneSigned: '署名しました', apMethod: 'メソッド', obLookTitle: 'お好みに',
   receiveBtcNote: 'Bitcoin ネットワーク上のビットコインのみ。bc1 アドレスはそれ以外を受け取れません。',
   recipientPhBtc: 'Bitcoin アドレス（bc1…）', ctNoneBtc: 'Bitcoin の連絡先がありません。設定 › アドレス帳から追加してください。', ctAddressPhAll: 'EVM（0x…）、Solana、Bitcoin のアドレス', e_BTC_DUST: 'この Bitcoin アドレスには少なすぎます：最低 {min} {symbol}。それ未満だとネットワークに拒否されます。', e_BTC_TOO_MANY_INPUTS: '1 回の取引にまとめるには小さなコインが多すぎます。少ない金額を送ってください。',
+  apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'スマホのアカウントではまだ Bitcoin サイトに対応していません。この拡張機能のアカウントを使ってください。',
 };

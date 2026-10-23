@@ -36,6 +36,8 @@ export interface AccountMeta {
   solana?: string;
   /** Bitcoin SegWit natif (bc1…, BIP-84) : comptes d'une phrase seulement. */
   bitcoin?: string;
+  /** Sa clé publique compressée (hex) : les sites Bitcoin la demandent avec l'adresse. */
+  bitcoinPub?: string;
 }
 
 export interface WalletMeta {
@@ -73,11 +75,16 @@ export class WalletError extends Error {}
 const newId = () => `w-${bytesToHex(getRandomBytes(8))}`;
 const normalizePhrase = (p: string) => normalizeBackupSecret('seed', p);
 
+const btcOf = (seed: Uint8Array, index: number) => {
+  const b = deriveBtcAccount(seed, index);
+  return { bitcoin: b.address, bitcoinPub: b.publicKey.replace(/^0x/, '') };
+};
+
 /** Adresses d'un compte d'une phrase (mêmes chemins que le mobile). */
 export async function accountsFromPhrase(phrase: string, indexes: number[]): Promise<AccountMeta[]> {
   const seed = await mnemonicToSeed(phrase);
   try {
-    return indexes.map((index) => ({ index, label: `Compte ${index + 1}`, evm: deriveEvmAccount(seed, index).address, solana: deriveSolanaAccount(seed, index).address, bitcoin: deriveBtcAccount(seed, index).address }));
+    return indexes.map((index) => ({ index, label: `Compte ${index + 1}`, evm: deriveEvmAccount(seed, index).address, solana: deriveSolanaAccount(seed, index).address, ...btcOf(seed, index) }));
   } finally {
     seed.fill(0);
   }
@@ -267,19 +274,19 @@ export function makeWallets(disk: Store, session: Session) {
    * ne fait rien s'il n'y a rien à compléter.
    */
   async function backfillBitcoin(): Promise<boolean> {
-    const missing = (await list()).filter((w) => w.kind === 'seed' && w.accounts.some((a) => !a.bitcoin));
+    const missing = (await list()).filter((w) => w.kind === 'seed' && w.accounts.some((a) => !a.bitcoin || !a.bitcoinPub));
     if (!missing.length) return false;
     const filled = await session.withVault(async (vault, key) => {
-      const out = new Map<string, Map<number, string>>();
+      const out = new Map<string, Map<number, { bitcoin?: string; bitcoinPub?: string }>>();
       for (const w of missing) {
         const { secret } = readSecret(vault, key, w.id);
         const derived = await accountsFromPhrase(secret, w.accounts.map((a) => a.index));
-        out.set(w.id, new Map(derived.map((a) => [a.index, a.bitcoin!])));
+        out.set(w.id, new Map(derived.map((a) => [a.index, { bitcoin: a.bitcoin, bitcoinPub: a.bitcoinPub }])));
       }
       return { result: out };
     });
     // Relu juste avant d'écrire : un compte ajouté entre-temps n'est pas perdu.
-    await save((await list()).map((w) => (filled.has(w.id) ? { ...w, accounts: w.accounts.map((a) => (a.bitcoin ? a : { ...a, bitcoin: filled.get(w.id)!.get(a.index) })) } : w)));
+    await save((await list()).map((w) => (filled.has(w.id) ? { ...w, accounts: w.accounts.map((a) => (a.bitcoin && a.bitcoinPub ? a : { ...a, ...filled.get(w.id)!.get(a.index) })) } : w)));
     return true;
   }
 

@@ -23,7 +23,7 @@ interface Req {
   id: string;
   origin: string;
   kind: 'connect' | 'sign';
-  family: 'evm' | 'solana';
+  family: 'evm' | 'solana' | 'bitcoin';
 }
 interface Review {
   explanation: { title: string; headline: string; detail?: string; lose: string[]; receive: string[]; risk: 'none' | 'warning' | 'danger'; reasons: string[]; holdToSign: boolean };
@@ -41,7 +41,7 @@ interface WalletMeta {
   label: string;
   kind?: 'seed' | 'privateKey' | 'companion';
   lost?: boolean;
-  accounts: { index: number; evm?: string; solana?: string }[];
+  accounts: { index: number; evm?: string; solana?: string; bitcoin?: string }[];
 }
 interface SiteReport {
   verdict: 'safe' | 'phishing' | 'unknown';
@@ -257,11 +257,11 @@ async function signScreen(req: Req) {
 function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: string; index: number } | null) {
   const url = new URL(req.origin);
   // Tous les comptes de tous les portefeuilles (téléphone compris), groupés par portefeuille.
-  const options = wallets.flatMap((w) =>
-    w.accounts
-      .filter((a) => (req.family === 'evm' ? a.evm : a.solana))
-      .map((a) => ({ value: `${w.id}|${a.index}`, wallet: w, label: t('account', { n: a.index + 1 }), address: (req.family === 'evm' ? a.evm : a.solana)!, phone: w.kind === 'companion', lost: !!w.lost })),
-  );
+  const addr = (a: WalletMeta['accounts'][number]) => (req.family === 'evm' ? a.evm : req.family === 'solana' ? a.solana : a.bitcoin);
+  // Sites Bitcoin : comptes de ce coffre seulement (un compte du téléphone n'y est pas encore servi).
+  const options = wallets
+    .filter((w) => !(req.family === 'bitcoin' && w.kind === 'companion'))
+    .flatMap((w) => w.accounts.filter((a) => addr(a)).map((a) => ({ value: `${w.id}|${a.index}`, wallet: w, label: t('account', { n: a.index + 1 }), address: addr(a)!, phone: w.kind === 'companion', lost: !!w.lost })));
   type Opt = (typeof options)[number];
   // Le compte proposé : celui de l'accueil, sinon le premier utilisable ; une feuille pour en choisir un autre.
   let chosen: Opt | undefined = options.find((o) => o.value === `${selected?.walletId}|${selected?.index}` && !o.lost) ?? options.find((o) => !o.lost) ?? options[0];
@@ -351,7 +351,7 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
       url.hostname.split('.').some((p) => p.startsWith('xn--')) && h('div', { class: 'banner danger' }, h('span', {}, t('apIdn'))),
       url.protocol === 'http:' && h('div', { class: 'banner warn' }, h('span', {}, t('apLocal'))),
       siteBox,
-      h('p', { class: 'group-title' }, `${t('apAccount')} · ${req.family === 'evm' ? t('apFamilyEvm') : t('apFamilySol')}`),
+      h('p', { class: 'group-title' }, `${t('apAccount')} · ${req.family === 'evm' ? t('apFamilyEvm') : req.family === 'solana' ? t('apFamilySol') : t('apFamilyBtc')}`),
       acctCard,
       h('div', { class: 'perm' }, glyph('eye', 18), h('p', { class: 'small' }, t('apBody'))),
       ackRow,

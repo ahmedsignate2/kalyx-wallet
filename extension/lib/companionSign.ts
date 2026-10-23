@@ -95,6 +95,7 @@ export async function executeOnPhone(
     const sig = checkSolMessage(res, bytes, req.from);
     return [{ signedMessage: req.message, signature: base64.encode(sig) }];
   }
+  if (req.kind !== 'solTx') throw new RpcError(4200, 'COMPANION_NO_BTC_SITES');
   // Transactions Solana.
   if (req.send) {
     if (req.txs.length !== 1) throw new RpcError(-32602, 'Une seule transaction à envoyer à la fois');

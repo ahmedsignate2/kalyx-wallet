@@ -179,6 +179,45 @@ async function bitcoin() {
     !pr.ok && /RPC_UNAVAILABLE|INSUFFICIENT_FUNDS/.test(pr.error) ? console.log(`✓ Envoyer BTC sans réseau : refus clair (${pr.error}), rien de signé`) : fail(`prépa BTC hors réseau ${JSON.stringify(pr)}`);
     const bad = await bg({ type: 'send:prepare', assetKey: 'bitcoin:native', to: '0x1111111111111111111111111111111111111111', amount: '0.001' });
     bad.error === 'INVALID_ADDRESS' ? console.log('✓ Envoyer BTC : adresse EVM refusée') : fail(`adresse EVM pour BTC ${JSON.stringify(bad)}`);
+    // Site Bitcoin (Wallet Standard) : découverte, connexion dans la fenêtre Kalyx, message signé.
+    const PAGE = `<!doctype html><meta charset="utf-8"><title>btc</title><body><script>
+      window.kx = { wallets: [] };
+      const api = { register: (w) => (window.kx.wallets.push(w), () => {}) };
+      window.addEventListener('wallet-standard:register-wallet', (e) => e.detail(api));
+      window.dispatchEvent(new CustomEvent('wallet-standard:app-ready', { detail: api }));
+      window.kx.btc = () => window.kx.wallets.find((w) => w.features['bitcoin:connect']);
+    </script>`;
+    const server = createServer((req, res) => (res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }), res.end(PAGE)));
+    await new Promise((res) => server.listen(0, '127.0.0.1', res));
+    try {
+      const site = await ctx.newPage();
+      await site.goto(`http://localhost:${server.address().port}`);
+      await site.waitForFunction(() => !!window.kx.btc(), null, { timeout: 5000 }).then(() => console.log('✓ site Bitcoin : Kalyx découvert (Wallet Standard « bitcoin:* »)'), () => fail('portefeuille Bitcoin non annoncé'));
+      await site.evaluate(() => {
+        window.kx.conn = window.kx.btc().features['bitcoin:connect'].connect({ purposes: ['payment'] }).then((r) => ({ a: r.accounts.map((x) => x.address), pk: r.accounts[0]?.publicKey?.length }), (e) => ({ e: e.code }));
+      });
+      const win = await ctx.waitForEvent('page', { predicate: (pg) => pg.url().includes('/approval.html'), timeout: 10_000 });
+      await win.getByRole('button', { name: 'Connecter' }).waitFor();
+      (await win.getByText('Bitcoin', { exact: false }).count()) ? console.log('✓ fenêtre de connexion : compte Bitcoin proposé') : fail('fenêtre BTC');
+      await win.waitForTimeout(800);
+      await win.getByRole('button', { name: 'Connecter' }).click({ noWaitAfter: true }).catch(() => {});
+      const conn = await site.evaluate(() => window.kx.conn);
+      conn.a?.[0] === BTC0 && conn.pk === 33 ? console.log('✓ site Bitcoin connecté : adresse bc1 et clé publique (33 octets)') : fail(`connexion BTC ${JSON.stringify(conn)}`);
+      await site.evaluate(() => {
+        const w = window.kx.btc();
+        window.kx.sig = w.features['bitcoin:signMessage'].signMessage({ account: w.accounts[0], message: new TextEncoder().encode('Bonjour Kalyx') }).then((r) => ({ n: r[0].signature.length }), (e) => ({ e: e.code }));
+      });
+      const sw = await ctx.waitForEvent('page', { predicate: (pg) => pg.url().includes('/approval.html'), timeout: 10_000 });
+      await sw.locator('[data-testid=message]').waitFor();
+      (await sw.locator('[data-testid=message]').textContent()) === 'Bonjour Kalyx' ? console.log('✓ message Bitcoin montré en clair') : fail('message BTC');
+      await sw.waitForTimeout(800);
+      await sw.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true }).catch(() => {});
+      const sig = await site.evaluate(() => window.kx.sig);
+      sig.n > 100 ? console.log(`✓ message signé en BIP-322 (${sig.n} octets de témoin)`) : fail(`signature BTC ${JSON.stringify(sig)}`);
+    } finally {
+      server.close();
+    }
+
     r.portfolio.failed.includes('Bitcoin') || btcHeld ? console.log(`✓ soldes : Bitcoin lu ou nommé s’il ne répond pas (${btcHeld ? 'lu' : 'injoignable ici'}), jamais un faux zéro`) : fail(`Bitcoin ni lu ni signalé ${JSON.stringify(r.portfolio.failed)}`);
   } finally {
     await ctx.close();

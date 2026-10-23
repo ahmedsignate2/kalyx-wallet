@@ -29,6 +29,10 @@ import { simulateTx, type Simulation } from '../../src/domain/tx/simulate';
 import { explainRequest, type ExplainT, type SignExplanation } from '../../src/domain/wc/explain';
 import { hexToText, parseSiwe, siweDomainMismatch, summarizeTypedData, type SiweMessage, type TypedDataSummary } from '../../src/domain/wc/message';
 import { describeSolanaTransaction, parseSolanaMessage, type SolanaTxDescription } from '../../src/domain/wc/solanaTx';
+import { summarizePsbt } from '../../src/domain/wc/psbtSummary';
+import { signBip322Message } from '../../src/domain/chains/btcSign';
+import type { BitcoinChainAdapter } from '../../src/domain/chains/BitcoinChainAdapter';
+import { Transaction as BtcTx, p2wpkh, SigHash } from '@scure/btc-signer';
 import { assessAddress, isPhishingSite } from '../../src/domain/security/goplus';
 import { isValidEvmAddress } from '../../src/domain/validation/address';
 import { formatTokenAmount } from '../../src/domain/validation/format';
@@ -52,7 +56,9 @@ export type SignRequest =
   | { kind: 'personal'; from: string; hex: string; text: string | null; siwe: SiweMessage | null }
   | { kind: 'typed'; from: string; chainId: string; data: { domain: Record<string, unknown>; types: Record<string, unknown>; message: unknown; primaryType?: string }; summary: TypedDataSummary | null }
   | { kind: 'solMessage'; from: string; message: string; text: string | null }
-  | { kind: 'solTx'; from: string; txs: string[]; send: boolean };
+  | { kind: 'solTx'; from: string; txs: string[]; send: boolean }
+  | { kind: 'btcMessage'; from: string; text: string }
+  | { kind: 'btcPsbt'; from: string; pub: string; psbt: string; indexes: number[]; send: boolean };
 
 /** Ce que la fenêtre montre. Tout est déjà du texte : aucun bigint, aucune donnée brute non bornée. */
 export interface Review {
@@ -171,6 +177,73 @@ export function parseSolana(method: string, params: unknown[], from: string): Si
   }
   throw new RpcError(4200, `Méthode non prise en charge : ${method.slice(0, 60)}`);
 }
+
+/**
+ * Bitcoin (Wallet Standard « bitcoin:* », réseau principal). Ce que Kalyx
+ * accepte, et rien de plus :
+ *  - un message en TEXTE (signé en BIP-322, la forme des adresses bc1q) ;
+ *  - un PSBT dont chaque entrée à signer est BIEN À CE COMPTE (son script
+ *    est celui de l'adresse bc1 accordée), signée en SIGHASH_ALL seulement.
+ *    Les autres modes (NONE, SINGLE, ANYONECANPAY) laissent quelqu'un
+ *    d'autre modifier la transaction après coup : c'est la base des ventes
+ *    piégées d'ordinals — refusés.
+ */
+export function parseBitcoin(method: string, params: unknown[], from: string, pub: string): SignRequest {
+  const inputs = params.filter((p): p is Record<string, unknown> => !!p && typeof p === 'object');
+  if (inputs.length !== 1) throw new RpcError(-32602, 'Une demande à la fois');
+  const i = inputs[0];
+  if (i.chain !== undefined && i.chain !== 'bitcoin:mainnet') throw new RpcError(4200, 'Réseau Bitcoin non pris en charge');
+  if (method === 'btc_signMessage') {
+    let bytes: Uint8Array;
+    try {
+      bytes = base64.decode(String(i.message ?? ''));
+    } catch {
+      throw new RpcError(-32602, 'Message illisible');
+    }
+    if (!bytes.length || bytes.length > 64 * 1024) throw new RpcError(-32602, 'Message invalide');
+    let text: string;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      throw new RpcError(4200, 'Message binaire : signature refusée (seul un texte lisible est signé)');
+    }
+    return { kind: 'btcMessage', from, text };
+  }
+  if (method === 'btc_signTransaction' || method === 'btc_signAndSendTransaction') {
+    const psbt = typeof i.psbt === 'string' ? i.psbt : '';
+    if (!psbt || psbt.length > 400_000) throw new RpcError(-32602, 'PSBT invalide');
+    let tx: BtcTx;
+    try {
+      tx = BtcTx.fromPSBT(base64.decode(psbt), { allowUnknownOutputs: true });
+    } catch {
+      throw new RpcError(-32602, 'PSBT illisible');
+    }
+    const asks = Array.isArray(i.inputsToSign) ? (i.inputsToSign as Record<string, unknown>[]) : [];
+    if (!asks.length) throw new RpcError(-32602, 'Aucune entrée à signer');
+    const mine = p2wpkh(hexToBytesSafe(pub)).script;
+    const indexes = new Set<number>();
+    for (const a of asks) {
+      if (typeof a?.address !== 'string' || a.address.toLowerCase() !== from.toLowerCase()) throw new RpcError(4100, 'Entrée demandée pour un autre compte');
+      if (a.sigHash !== undefined && a.sigHash !== 'ALL') throw new RpcError(4200, 'Mode de signature refusé (seul SIGHASH_ALL)');
+      for (const n of Array.isArray(a.signingIndexes) ? a.signingIndexes : []) {
+        if (!Number.isInteger(n) || n < 0 || n >= tx.inputsLength) throw new RpcError(-32602, 'Entrée inexistante');
+        const inp = tx.getInput(n as number);
+        const script = inp.witnessUtxo?.script;
+        if (!script || bytesToHex(script) !== bytesToHex(mine)) throw new RpcError(4100, 'Cette entrée n’appartient pas à ce compte');
+        if (inp.sighashType !== undefined && inp.sighashType !== SigHash.ALL && inp.sighashType !== SigHash.DEFAULT) throw new RpcError(4200, 'Mode de signature refusé (seul SIGHASH_ALL)');
+        indexes.add(n as number);
+      }
+    }
+    if (!indexes.size) throw new RpcError(-32602, 'Aucune entrée à signer');
+    return { kind: 'btcPsbt', from, pub, psbt, indexes: [...indexes].sort((a, b) => a - b), send: method === 'btc_signAndSendTransaction' };
+  }
+  throw new RpcError(4200, `Méthode non prise en charge : ${method.slice(0, 60)}`);
+}
+
+const hexToBytesSafe = (h: string): Uint8Array => {
+  if (!/^[0-9a-f]{66}$/i.test(h)) throw new RpcError(-32603, 'Clé publique Bitcoin illisible');
+  return Uint8Array.from(h.match(/../g)!.map((x) => Number.parseInt(x, 16)));
+};
 
 /* ── 2. Expliquer ── */
 
@@ -323,6 +396,29 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
           : undefined,
     };
   }
+  if (req.kind === 'btcMessage') {
+    const explanation = explainRequest({ kind: 'message', domain: host, messageText: req.text, phishingSite, t });
+    return { explanation, method: 'bitcoin:signMessage', chainName: 'Bitcoin', messageText: clip(req.text), details: [{ label: 'Compte', value: req.from }], outFiat: 0 };
+  }
+  if (req.kind === 'btcPsbt') {
+    const summary = summarizePsbt(req.psbt, [req.from]);
+    const explanation = explainRequest({ kind: 'btcPsbt', domain: host, btc: { psbt: summary, inputs: req.indexes.length, broadcast: req.send }, phishingSite, t });
+    if (!summary || summary.unknownInputs) sig.noSimulation = true;
+    const price = summary && summary.sent > 0n && deps.priceOf ? await withTimeoutOrNull(deps.priceOf('bitcoin')) : null;
+    const fmt = (v: bigint) => `${formatTokenAmount(v, 8)} BTC`;
+    return {
+      explanation,
+      method: req.send ? 'bitcoin:signAndSendTransaction' : 'bitcoin:signTransaction',
+      chainName: 'Bitcoin',
+      details: [
+        { label: 'Entrées signées', value: req.indexes.join(', ') },
+        ...(summary?.outputs ?? []).slice(0, 12).map((o) => ({ label: o.mine ? 'Retour vers ce compte' : 'Sortie', value: `${o.address ?? '?'} · ${fmt(o.sats)}` })),
+        ...(summary?.fee != null ? [{ label: 'Frais', value: fmt(summary.fee) }] : []),
+      ],
+      // Ce qui part (hors monnaie rendue) ; inconnu sans PSBT lisible ou sans prix.
+      outFiat: !summary ? null : summary.sent === 0n ? 0 : price ? (Number(summary.sent) / 1e8) * price : null,
+    };
+  }
   if (req.kind === 'solMessage') {
     const explanation = explainRequest({ kind: 'message', domain: host, messageText: req.text ?? `0x${bytesToHex(base64.decode(req.message))}`, phishingSite, t });
     return { explanation, method: 'solana:signMessage', messageText: clip(req.text ?? `0x${bytesToHex(base64.decode(req.message))}`), details: [{ label: 'Compte', value: req.from }], outFiat: 0 };
@@ -356,6 +452,7 @@ export interface ExecuteDeps {
   /** Injectables (tests) : diffusion. */
   sendEvm?: (chain: ChainConfig, req: RawTxRequest, from: string, pk: string) => Promise<string>;
   sendSolana?: (rawB64: string) => Promise<string>;
+  sendBitcoin?: (hexTx: string) => Promise<string>;
   tokenMeta?: (chain: ChainConfig, token: string) => Promise<{ symbol: string; decimals: number } | null>;
   /** Mode compagnon : le lien avec le téléphone, qui signe à la place du coffre. */
   companion?: Companion;
@@ -385,10 +482,12 @@ export function signSolanaTx(bytes: Uint8Array, seed: Uint8Array, publicKey: Uin
 }
 
 export async function execute(req: SignRequest, grant: { walletId: string; index: number }, opts: { reduceTo?: string; /** Site qui demande, montré sur le téléphone en mode compagnon. */ site?: string } = {}, deps: ExecuteDeps): Promise<unknown> {
-  const family = req.kind === 'solMessage' || req.kind === 'solTx' ? 'solana' : 'evm';
+  const family = req.kind === 'solMessage' || req.kind === 'solTx' ? 'solana' : req.kind === 'btcMessage' || req.kind === 'btcPsbt' ? 'bitcoin' : 'evm';
   // Compte du téléphone (mode compagnon) : la signature se fait là-bas, vérifiée ici.
   const meta = (await deps.wallets.list()).find((w) => w.id === grant.walletId);
   if (meta?.kind === 'companion') {
+    // Sites Bitcoin depuis le téléphone : pas encore (le téléphone ne partage pas sa clé publique ici).
+    if (family === 'bitcoin') throw new RpcError(4200, 'COMPANION_NO_BTC_SITES');
     if (!deps.companion) throw new RpcError(4900, 'COMPANION_UNAVAILABLE');
     const acct = meta.accounts[0];
     if ((family === 'evm' ? acct?.evm : acct?.solana)?.toLowerCase() !== req.from.toLowerCase()) throw new RpcError(4100, 'Ce compte n’est pas celui du téléphone');
@@ -450,6 +549,24 @@ export async function execute(req: SignRequest, grant: { walletId: string; index
       if (s.curve !== 'secp256k1') throw new Error('courbe');
       return send(chain, raw, req.from, `0x${bytesToHex(s.privateKey)}`);
     });
+  }
+  if (req.kind === 'btcMessage') {
+    const sig = await withSigner(signer, async (s) => {
+      if (s.curve !== 'secp256k1') throw new Error('courbe');
+      return signBip322Message(req.text, { privateKey: s.privateKey, publicKey: s.publicKey });
+    });
+    return [{ signedMessage: base64.encode(utf8ToBytes(req.text)), signature: sig }];
+  }
+  if (req.kind === 'btcPsbt') {
+    const tx = BtcTx.fromPSBT(base64.decode(req.psbt), { allowUnknownOutputs: true });
+    await withSigner(signer, async (s) => {
+      if (s.curve !== 'secp256k1') throw new Error('courbe');
+      for (const n of req.indexes) tx.signIdx(s.privateKey, n, [SigHash.ALL, SigHash.DEFAULT]);
+    });
+    if (!req.send) return [{ signedPsbt: base64.encode(tx.toPSBT()) }];
+    tx.finalize();
+    const broadcast = deps.sendBitcoin ?? ((hexTx: string) => (getAdapter('bitcoin') as unknown as BitcoinChainAdapter).broadcastHex(hexTx));
+    return [{ txId: await broadcast(tx.hex) }];
   }
   if (req.kind === 'solMessage') {
     const bytes = base64.decode(req.message);

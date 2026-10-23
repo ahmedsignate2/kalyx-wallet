@@ -12,6 +12,7 @@ interface SiteRow {
   origin: string;
   evm: { address: string; wallet: string; index: number } | null;
   solana: { address: string; wallet: string; index: number } | null;
+  bitcoin?: { address: string; wallet: string; index: number } | null;
   chain: string;
 }
 
@@ -58,7 +59,7 @@ export async function sitesScreen(app: HTMLElement, back: () => void) {
           'div',
           { class: 'grow' },
           h('strong', {}, host),
-          ...[s.evm && `EVM ${short(s.evm.address)} · ${t('networkLabel', { n: s.chain })}`, s.solana && `Solana ${short(s.solana.address)}`]
+          ...[s.evm && `EVM ${short(s.evm.address)} · ${t('networkLabel', { n: s.chain })}`, s.solana && `Solana ${short(s.solana.address)}`, s.bitcoin && `Bitcoin ${short(s.bitcoin.address)}`]
             .filter((x): x is string => !!x)
             .map((x) => h('p', { class: 'small muted' }, x)),
         ),

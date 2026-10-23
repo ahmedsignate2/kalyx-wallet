@@ -56,7 +56,7 @@ export default defineContentScript({
       const id = d.id;
       if (typeof id !== 'number' || !Number.isSafeInteger(id)) return;
       const reject = (code: number, message: string) => toPage({ k: 'kalyx:res', id, error: { code, message } });
-      if ((d.family !== 'evm' && d.family !== 'solana') || typeof d.method !== 'string' || d.method.length > 80 || !Array.isArray(d.params)) return reject(-32602, 'Requête invalide');
+      if ((d.family !== 'evm' && d.family !== 'solana' && d.family !== 'bitcoin') || typeof d.method !== 'string' || d.method.length > 80 || !Array.isArray(d.params)) return reject(-32602, 'Requête invalide');
       let size = 0;
       try {
         size = JSON.stringify(d.params).length;
