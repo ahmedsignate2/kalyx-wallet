@@ -5,12 +5,17 @@
  * propre au navigateur.
  *
  * « Utilisé » = la moindre trace : nonce ou solde sur les grands réseaux EVM,
- * une signature ou un solde sur Solana. Un réseau muet rend « inconnu »,
+ * une signature ou un solde sur Solana, une transaction ou un solde sur Bitcoin. Un réseau muet rend « inconnu »,
  * jamais « vide » (on ne cache pas des fonds en concluant trop vite).
  */
 import { combineActivity, discoverAccountIndexes, type AccountActivity } from '../../src/domain/wallet/accountDiscovery';
 import { ARBITRUM, BASE, BNB, ETHEREUM, OPTIMISM, POLYGON, SOLANA } from '../../src/domain/chains/configs';
 import type { ChainConfig } from '../../src/domain/chains/types';
+import { getAdapter } from '../../src/domain/chains/registry';
+
+/** Bitcoin : API REST (mempool.space, blockstream), pas du JSON-RPC — sonde à part, remplaçable dans les tests. */
+export type BtcProbe = (address: string) => Promise<boolean>;
+const btcProbe: BtcProbe = (address) => (getAdapter('bitcoin') as unknown as { hasActivity: BtcProbe }).hasActivity(address);
 
 const TIMEOUT = 8_000;
 const EVM = [ETHEREUM, BASE, ARBITRUM, OPTIMISM, POLYGON, BNB];
@@ -68,20 +73,22 @@ async function solActivity(rpc: Rpc, address: string): Promise<AccountActivity> 
 }
 
 /** Activité d'un compte, tous réseaux : utilisé si l'un le voit, vide seulement si TOUS répondent vide. */
-export async function accountActivity(rpc: Rpc, evm: string | undefined, solana: string | undefined): Promise<AccountActivity> {
+export async function accountActivity(rpc: Rpc, evm: string | undefined, solana: string | undefined, bitcoin?: string, btc: BtcProbe = btcProbe): Promise<AccountActivity> {
   const probes: Promise<AccountActivity>[] = [];
   if (evm) for (const c of EVM) probes.push(evmActivity(rpc, c, evm));
   if (solana) probes.push(solActivity(rpc, solana));
+  if (bitcoin) probes.push(btc(bitcoin).then((used): AccountActivity => (used ? 'used' : 'empty'), (): AccountActivity => 'unknown'));
   return combineActivity(await Promise.all(probes));
 }
 
 export async function discoverAccounts(
-  addressesOf: (index: number) => Promise<{ evm?: string; solana?: string }>,
+  addressesOf: (index: number) => Promise<{ evm?: string; solana?: string; bitcoin?: string }>,
   rpc: Rpc = fetchRpc,
   onProgress?: (index: number) => void,
+  btc: BtcProbe = btcProbe,
 ) {
   return discoverAccountIndexes(async (i) => {
     const a = await addressesOf(i);
-    return accountActivity(rpc, a.evm, a.solana);
+    return accountActivity(rpc, a.evm, a.solana, a.bitcoin, btc);
   }, { onProgress });
 }

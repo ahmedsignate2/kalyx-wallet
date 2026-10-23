@@ -13,6 +13,8 @@ import { mnemonicToSeedSync } from '../../src/crypto/mnemonic';
 const ABOUT = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const EVM0 = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
 const SOL0 = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
+/** BIP-84, vecteur officiel de la phrase « abandon … about » (même valeur que src/crypto/btc.test.ts). */
+const BTC0 = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
 const PK = deriveEvmAccount(mnemonicToSeedSync(ABOUT), 0).privateKey;
 
 function area(): StorageArea & { data: Record<string, unknown> } {
@@ -50,7 +52,7 @@ describe('portefeuilles de l’extension', () => {
 
   test('importer une phrase : MÊMES adresses que le mobile, phrase normalisée, doublon refusé', async () => {
     const w = await wallets.importPhrase(`  ${ABOUT.toUpperCase().replace(/ /g, '   ')}  `);
-    expect(w.accounts[0]).toMatchObject({ index: 0, evm: EVM0, solana: SOL0 });
+    expect(w.accounts[0]).toMatchObject({ index: 0, evm: EVM0, solana: SOL0, bitcoin: BTC0 });
     await expect(wallets.importPhrase(ABOUT)).rejects.toThrow('DUPLICATE');
     const vault = (await session.readVault())!;
     expect(readSecret(vault, await session.vaultKey(), w.id).secret).toBe(ABOUT);
@@ -121,16 +123,47 @@ describe('recherche des comptes', () => {
     const w = await wallets.importPhrase(ABOUT);
     const table = await wallets.addressTable(w.id, 10);
     const used = new Set([table[0].evm!, table[2].evm!]); // comptes n° 1 et 3 (index 1 et 3)
-    const r = await discoverAccounts(async (i) => table.find((a) => a.index === i) ?? {}, evmFor(used));
+    const r = await discoverAccounts(async (i) => table.find((a) => a.index === i) ?? {}, evmFor(used), undefined, async () => false);
     expect(r.found).toEqual([1, 3]);
     expect(r.lastChecked).toBe(6);
     const updated = await wallets.addAccounts(w.id, r.found);
     expect(updated.accounts.map((a) => a.index)).toEqual([0, 1, 3]);
   });
 
+  test('compte utilisé seulement en Bitcoin : retrouvé', async () => {
+    const w = await wallets.importPhrase(ABOUT);
+    const table = await wallets.addressTable(w.id, 10);
+    const btcUsed = table[1].bitcoin!; // compte n° 2
+    const r = await discoverAccounts(async (i) => table.find((a) => a.index === i) ?? {}, evmFor(new Set()), undefined, async (a) => a === btcUsed);
+    expect(r.found).toEqual([2]);
+  });
+
+  test('Bitcoin muet : « inconnu », jamais « vide »', async () => {
+    const empty: Rpc = evmFor(new Set());
+    expect(await accountActivity(empty, EVM0, SOL0, BTC0, async () => { throw new Error('offline'); })).toBe('unknown');
+  });
+
   test('réseau muet : « inconnu », jamais « vide »', async () => {
     const down: Rpc = async () => { throw new Error('offline'); };
     expect(await accountActivity(down, EVM0, SOL0)).toBe('unknown');
+  });
+});
+
+describe('Bitcoin', () => {
+  test('portefeuille d’avant Bitcoin : adresse bc1 ajoutée, une fois', async () => {
+    const w = await wallets.importPhrase(ABOUT);
+    await wallets.addAccounts(w.id, [1]);
+    // Métadonnées telles qu'écrites par une version sans Bitcoin.
+    const store = makeStore(disk);
+    const old = (await store.get<{ accounts: { bitcoin?: string }[] }[]>('wallets'))!;
+    for (const x of old) for (const a of x.accounts) delete a.bitcoin;
+    await store.set('wallets', old);
+    expect(await wallets.backfillBitcoin()).toBe(true);
+    const accts = (await wallets.list())[0].accounts;
+    expect(accts[0].bitcoin).toBe(BTC0);
+    expect(accts[1].bitcoin).toMatch(/^bc1q/);
+    expect(accts[1].bitcoin).not.toBe(BTC0);
+    expect(await wallets.backfillBitcoin()).toBe(false);
   });
 });
 

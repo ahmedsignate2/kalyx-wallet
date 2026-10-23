@@ -56,9 +56,9 @@ process.on('beforeExit', () => {
     process.exitCode = 1;
   }
 });
-// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors|beauty : une seule partie (plus rapide à relancer).
-if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors', 'beauty'].includes(process.env.ONLY)) {
-  await { onboarding, dapps, attacks, langs, help, hardening, factors, beauty }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors|beauty|bitcoin : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors', 'beauty', 'bitcoin'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs, help, hardening, factors, beauty, bitcoin }[process.env.ONLY]();
   if (cspViolations.length) fail('violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
@@ -133,6 +133,50 @@ await help();
 await hardening();
 await factors();
 await beauty();
+await bitcoin();
+
+/**
+ * Bitcoin (lecture) : la MÊME adresse bc1 que l'app (vecteur BIP-84 officiel),
+ * ajoutée aux portefeuilles d'avant Bitcoin, affichée dans Recevoir ;
+ * réseau Bitcoin injoignable → nommé, jamais un faux zéro.
+ */
+async function bitcoin() {
+  const BTC0 = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const p = await ctx.newPage();
+    await p.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => p.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    const w = await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+    const acct = (await bg({ type: 'home:get' })).wallets[0].accounts[0];
+    acct.bitcoin === BTC0 ? console.log('✓ Bitcoin : même adresse bc1 que l’app (BIP-84, vecteur officiel)') : fail(`adresse BTC ${acct.bitcoin} ${JSON.stringify(w).slice(0, 80)}`);
+
+    // Portefeuille enregistré par une version sans Bitcoin : l'adresse est ajoutée à l'ouverture.
+    await p.evaluate(async () => {
+      const k = Object.keys(await chrome.storage.local.get(null)).find((x) => x.endsWith('wallets'));
+      const v = (await chrome.storage.local.get(k))[k];
+      for (const x of v) for (const a of x.accounts) delete a.bitcoin;
+      await chrome.storage.local.set({ [k]: v });
+    });
+    (await bg({ type: 'home:get' })).wallets[0].accounts[0].bitcoin === BTC0 ? console.log('✓ portefeuille d’avant Bitcoin : adresse bc1 ajoutée au déverrouillage') : fail('rattrapage BTC');
+
+    await p.reload();
+    await p.locator('[data-testid=account]').waitFor();
+    await p.getByRole('button', { name: 'Recevoir' }).first().click();
+    await p.getByRole('tab', { name: 'Bitcoin' }).click();
+    const shown = (await p.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '');
+    shown === BTC0 ? console.log('✓ Recevoir : onglet Bitcoin, adresse bc1 et QR') : fail(`Recevoir BTC ${shown}`);
+
+    const r = await bg({ type: 'portfolio:refresh' });
+    const btcHeld = [...r.portfolio.main, ...r.portfolio.small].some((h) => h.chainId === 'bitcoin');
+    r.portfolio.failed.includes('Bitcoin') || btcHeld ? console.log(`✓ soldes : Bitcoin lu ou nommé s’il ne répond pas (${btcHeld ? 'lu' : 'injoignable ici'}), jamais un faux zéro`) : fail(`Bitcoin ni lu ni signalé ${JSON.stringify(r.portfolio.failed)}`);
+  } finally {
+    await ctx.close();
+  }
+}
 
 /**
  * Beauté & UX (vague 5) : Nuit par défaut, Crème et Système, mode Débutant /
@@ -168,8 +212,7 @@ async function beauty() {
     await p.locator('[data-testid=theme]').selectOption('system');
     (await look()).attr === 'light' ? console.log('✓ Système sur un système clair : Crème') : fail('Système clair');
     await p.emulateMedia({ colorScheme: 'dark' });
-    await p.waitForTimeout(150);
-    (await look()).attr === null ? console.log('✓ Système suit le passage en sombre, en direct') : fail('Système sombre');
+    (await p.waitForFunction(() => !document.documentElement.hasAttribute('data-theme'), null, { timeout: 3000 }).then(() => true, () => false)) ? console.log('✓ Système suit le passage en sombre, en direct') : fail('Système sombre');
     await p.locator('[data-testid=theme]').selectOption('dark');
 
     // Mode Débutant (défaut) : réglages pointus repliés ; Expert : tout à plat.

@@ -18,6 +18,7 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { generateMnemonic, mnemonicToSeed, validateMnemonic } from '../../src/crypto/mnemonic';
 import { deriveEvmAccount, evmAccountFromPrivateKey } from '../../src/crypto/hd';
 import { deriveSolanaAccount, deriveSolanaSigner } from '../../src/crypto/solana';
+import { deriveBtcAccount } from '../../src/crypto/btc';
 import { parseImportedKey } from '../../src/domain/keys/importKey';
 import { classifyRecoveryPhrase } from '../../src/domain/keys/recoveryPhrase';
 import { createWalletsBackup, restoreBackup, normalizeBackupSecret, type BackupWallet } from '../../src/domain/backup/cloudBackup';
@@ -33,6 +34,8 @@ export interface AccountMeta {
   label: string;
   evm?: string;
   solana?: string;
+  /** Bitcoin SegWit natif (bc1…, BIP-84) : comptes d'une phrase seulement. */
+  bitcoin?: string;
 }
 
 export interface WalletMeta {
@@ -74,7 +77,7 @@ const normalizePhrase = (p: string) => normalizeBackupSecret('seed', p);
 export async function accountsFromPhrase(phrase: string, indexes: number[]): Promise<AccountMeta[]> {
   const seed = await mnemonicToSeed(phrase);
   try {
-    return indexes.map((index) => ({ index, label: `Compte ${index + 1}`, evm: deriveEvmAccount(seed, index).address, solana: deriveSolanaAccount(seed, index).address }));
+    return indexes.map((index) => ({ index, label: `Compte ${index + 1}`, evm: deriveEvmAccount(seed, index).address, solana: deriveSolanaAccount(seed, index).address, bitcoin: deriveBtcAccount(seed, index).address }));
   } finally {
     seed.fill(0);
   }
@@ -258,6 +261,28 @@ export function makeWallets(disk: Store, session: Session) {
    * comptes : le coffre ne sert qu'un instant, le réseau est interrogé ensuite,
    * hors de la file (une recherche lente ne bloque rien d'autre).
    */
+  /**
+   * Portefeuilles à phrase créés avant Bitcoin : leurs comptes reçoivent leur
+   * adresse bc1 (même phrase, même chemin que l'app). Coffre ouvert requis ;
+   * ne fait rien s'il n'y a rien à compléter.
+   */
+  async function backfillBitcoin(): Promise<boolean> {
+    const missing = (await list()).filter((w) => w.kind === 'seed' && w.accounts.some((a) => !a.bitcoin));
+    if (!missing.length) return false;
+    const filled = await session.withVault(async (vault, key) => {
+      const out = new Map<string, Map<number, string>>();
+      for (const w of missing) {
+        const { secret } = readSecret(vault, key, w.id);
+        const derived = await accountsFromPhrase(secret, w.accounts.map((a) => a.index));
+        out.set(w.id, new Map(derived.map((a) => [a.index, a.bitcoin!])));
+      }
+      return { result: out };
+    });
+    // Relu juste avant d'écrire : un compte ajouté entre-temps n'est pas perdu.
+    await save((await list()).map((w) => (filled.has(w.id) ? { ...w, accounts: w.accounts.map((a) => (a.bitcoin ? a : { ...a, bitcoin: filled.get(w.id)!.get(a.index) })) } : w)));
+    return true;
+  }
+
   async function addressTable(walletId: string, max = 20): Promise<AccountMeta[]> {
     return session.withVault(async (vault, key) => {
       const w = (await list()).find((x) => x.id === walletId);
@@ -386,7 +411,7 @@ export function makeWallets(disk: Store, session: Session) {
     return { file: await createWalletsBackup(items, backupPassword), count: items.length };
   }
 
-  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, revealPhrase, addCompanion, markCompanionLost, removeCompanion, renameWallet, renameAccount, addNextAccount, removeWallet, revealKey, exportBackup };
+  return { list, create, importPhrase, importKey, importBackup, addAccounts, markBackedUp, addressTable, backfillBitcoin, revealPhrase, addCompanion, markCompanionLost, removeCompanion, renameWallet, renameAccount, addNextAccount, removeWallet, revealKey, exportBackup };
 }
 
 export type Wallets = ReturnType<typeof makeWallets>;

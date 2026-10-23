@@ -54,6 +54,30 @@ beforeEach(() => {
 const make = (load: Load, history?: (c: string, a: string) => Promise<TxSummary[]>) =>
   makePortfolio({ disk: makeStore(disk), t: activityT, locale: 'fr-FR', now: () => clock, load, history });
 
+describe('Bitcoin', () => {
+  const BTC = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+  test('solde BTC lu avec l’adresse bc1 du compte, compté dans le total', async () => {
+    let seen: { btcAddress?: string } = {};
+    const load: Load = async (a) => ((seen = a), [holding('bitcoin', 'BTC', 0.01, 60000, { id: 'bitcoin:native', decimals: 8, raw: 1_000_000n }), holding('ethereum', 'ETH', 0.5, 3000)]);
+    const v = await make(load).refresh({ ...ACCT, bitcoin: BTC }, 'eur');
+    expect(seen.btcAddress).toBe(BTC);
+    expect(v.total).toBe(2100);
+    expect(v.main.map((h) => h.symbol)).toContain('BTC');
+  });
+
+  test('activité Bitcoin lue à l’adresse bc1', async () => {
+    const asked: string[] = [];
+    const p = make(loader([holding('bitcoin', 'BTC', 0.01, 60000, { id: 'bitcoin:native', decimals: 8, raw: 1_000_000n })]), async (c, a) => (asked.push(`${c}:${a}`), []));
+    await p.refresh({ ...ACCT, bitcoin: BTC }, 'eur');
+    await p.refreshActivity({ ...ACCT, bitcoin: BTC }, 'eur');
+    expect(asked).toContain(`bitcoin:${BTC}`);
+    // Sans adresse Bitcoin (clé importée EVM/Solana) : le réseau n'est pas interrogé.
+    asked.length = 0;
+    await p.refreshActivity(ACCT, 'eur');
+    expect(asked.some((x) => x.startsWith('bitcoin:'))).toBe(false);
+  });
+});
+
 describe('soldes', () => {
   test('jamais lu : total INCONNU (null), pas 0', async () => {
     const p = make(loader([]));
