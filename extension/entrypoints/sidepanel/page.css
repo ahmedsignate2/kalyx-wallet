@@ -1,0 +1,5 @@
+/* Styles propres à cette page (hors ligne : la CSP refuse les <style> en ligne). */
+#app { --pad: 18px; max-width: 560px; margin: 0 auto; min-height: 100vh; padding: var(--pad); display: flex; flex-direction: column; gap: 16px; }
+.center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; }
+.center img { width: 72px; height: 72px; }
+.center form { width: 100%; }

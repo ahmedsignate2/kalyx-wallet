@@ -11,7 +11,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = 
   for (const [k, v] of Object.entries(props)) {
     if (k === 'on') for (const [ev, fn] of Object.entries(v as Record<string, (e: Event) => void>)) el.addEventListener(ev, fn);
     else if (k === 'class') el.className = String(v);
-    else if (k === 'style') el.setAttribute('style', String(v));
+    // CSSOM, pas l'attribut : la CSP des pages (style-src 'self') refuse les attributs style.
+    else if (k === 'style') el.style.cssText = String(v);
     // Attributs à tiret (aria-*, data-*) : ce ne sont pas des propriétés du DOM.
     else if (k.includes('-')) { if (v !== false && v != null) el.setAttribute(k, v === true ? 'true' : String(v)); }
     else if (v === true) el.setAttribute(k, '');

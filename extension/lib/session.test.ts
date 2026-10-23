@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { makeSession, AUTO_LOCK_ALARM, type Alarms } from './session';
 import { makeStore, type StorageArea } from './storage';
+import { makeKeyBox, memoryWrapStore, type WrapKeyStore } from './keyBox';
 
 const FAST = { N: 1 << 10, r: 8, p: 1 };
 const PW = 'Plage-Orange-47!';
@@ -15,12 +16,14 @@ function area(): StorageArea & { data: Record<string, unknown> } {
   };
 }
 
-let disk: ReturnType<typeof area>, mem: ReturnType<typeof area>, alarms: Alarms & { set: Map<string, number> }, clock: number;
-const session = () => makeSession({ disk: makeStore(disk), session: makeStore(mem), alarms, now: () => clock, kdf: FAST });
+let disk: ReturnType<typeof area>, mem: ReturnType<typeof area>, alarms: Alarms & { set: Map<string, number> }, clock: number, idb: WrapKeyStore;
+// Chaque appel = une instance du service worker ; `idb` joue IndexedDB (survit aux redémarrages).
+const session = () => makeSession({ disk: makeStore(disk), session: makeStore(mem), alarms, now: () => clock, kdf: FAST, box: makeKeyBox(idb) });
 
 beforeEach(() => {
   disk = area();
   mem = area();
+  idb = memoryWrapStore();
   clock = 1_000_000;
   const set = new Map<string, number>();
   alarms = { set, create: (n, i) => void set.set(n, i.delayInMinutes), clear: (n) => set.delete(n) };
@@ -33,8 +36,12 @@ describe('session de l’extension', () => {
     expect(await s.status()).toMatchObject({ hasVault: true, unlocked: true, autoLockMin: 15 });
     expect(Object.keys(disk.data)).toEqual(['kalyx.vault']);
     expect(Object.keys(mem.data)).toEqual(['kalyx.vaultKey']);
-    // La clé de session n'apparaît nulle part sur le disque.
-    expect(JSON.stringify(disk.data)).not.toContain(mem.data['kalyx.vaultKey'] as string);
+    // En session : un bloc scellé (48 octets chiffrés), jamais la clé en clair.
+    expect(mem.data['kalyx.vaultKey']).toMatchObject({ n: expect.stringMatching(/^[0-9a-f]{24}$/), ct: expect.stringMatching(/^[0-9a-f]{96}$/) });
+    const raw = await s.vaultKey();
+    const hex = Buffer.from(raw).toString('hex');
+    expect(JSON.stringify(mem.data)).not.toContain(hex);
+    expect(JSON.stringify(disk.data)).not.toContain(hex);
     expect(alarms.set.get(AUTO_LOCK_ALARM)).toBe(15);
   });
 
@@ -113,6 +120,46 @@ describe('session de l’extension', () => {
   test('redémarrage du service worker : une NOUVELLE instance retrouve la session (zone session)', async () => {
     await session().create(PW);
     expect(await session().status()).toMatchObject({ unlocked: true });
+  });
+
+  test('mode parano : la clé d’emballage ne survit pas à l’arrêt du service worker', async () => {
+    const a = session();
+    await a.create(PW);
+    await a.setParanoid(true);
+    expect(await idb.get()).toBeNull();
+    expect(await a.status()).toMatchObject({ unlocked: true, paranoid: true });
+    // Nouvelle instance (service worker redémarré) : bloc présent mais inutilisable → verrouillé, bloc effacé.
+    const b = session();
+    expect(await b.status()).toMatchObject({ unlocked: false });
+    expect(mem.data['kalyx.vaultKey']).toBeUndefined();
+    await expect(b.vaultKey()).rejects.toThrow('LOCKED');
+    // Déverrouillé en parano : rien dans IndexedDB ; mode coupé en cours de session : W y revient.
+    await b.unlock(PW);
+    expect(await idb.get()).toBeNull();
+    await b.setParanoid(false);
+    expect(await idb.get()).not.toBeNull();
+    expect(await session().status()).toMatchObject({ unlocked: true, paranoid: false });
+  });
+
+  test('ancien format (clé en hexadécimal) ou bloc altéré : session fermée, jamais acceptée', async () => {
+    const s = session();
+    await s.create(PW);
+    mem.data['kalyx.vaultKey'] = 'ab'.repeat(32);
+    expect(await s.status()).toMatchObject({ unlocked: false });
+    await s.unlock(PW);
+    const b = mem.data['kalyx.vaultKey'] as { n: string; ct: string };
+    mem.data['kalyx.vaultKey'] = { ...b, ct: (b.ct[0] === '0' ? '1' : '0') + b.ct.slice(1) };
+    await expect(s.vaultKey()).rejects.toThrow('LOCKED');
+    expect(await s.status()).toMatchObject({ unlocked: false });
+  });
+
+  test('verrouiller efface aussi la clé d’emballage', async () => {
+    const s = session();
+    await s.create(PW);
+    expect(await idb.get()).not.toBeNull();
+    await s.lock();
+    expect(await idb.get()).toBeNull();
+    await expect(s.setParanoid('oui')).rejects.toThrow('BAD_SETTING');
   });
 
   test('coffre altéré sur le disque : refusé proprement', async () => {

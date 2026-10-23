@@ -28,6 +28,7 @@ import { addTokenSheet, networksScreen } from './assetsScreen';
 import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
+import { allowedSitesSheet, loadAccess, siteBanner, switchRow } from './securityScreen';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -50,7 +51,7 @@ interface WalletMeta {
 }
 
 interface HomeData {
-  status: { hasVault: boolean; unlocked: boolean; autoLockMin: number; waitMs: number };
+  status: { hasVault: boolean; unlocked: boolean; autoLockMin: number; paranoid: boolean; waitMs: number };
   wallets?: WalletMeta[];
   selected?: { walletId: string; index: number } | null;
   fiat?: string;
@@ -380,6 +381,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return h(
       'div',
       { class: 'stack', style: 'gap:8px' },
+      // Mode « sites autorisés seulement » : Kalyx absent de l'onglet ouvert → l'y activer.
+      siteBanner(),
       w &&
         !w.backedUp &&
         h(
@@ -779,6 +782,15 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         settings('none');
       };
     });
+    // Présence sur les sites : interrupteur, puis la liste des sites autorisés (mode restreint).
+    const siteMode = h('div');
+    const siteList = h('div');
+    void loadAccess().then((a) => {
+      if (!a) return;
+      siteMode.replaceWith(switchRow('dapps', t('siteModeTitle'), t('siteModeBody'), 'site-mode', a.mode === 'allowed', (on) => send({ type: 'sites:set-mode', mode: on ? 'allowed' : 'all' }), () => settings('none')));
+      if (a.mode === 'allowed') siteList.replaceWith(item('check', t('allowedSites', { n: a.allowed.length }), null, () => allowedSitesSheet(a.allowed, () => settings('none')), 'allowed-open'));
+      else siteList.remove();
+    });
     const item = (icon: string, label: string, end: Node | null, fn?: () => void, testid?: string) =>
       h(
         fn ? 'button' : 'div',
@@ -798,6 +810,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         group(
           t('setSecurity'),
           askPw,
+          switchRow('lock', t('paranoTitle'), t('paranoBody'), 'paranoid', !!data?.status.paranoid, async (on) => { const r = await send({ type: 'vault:set-paranoid', on }); if (r.ok && data) data.status.paranoid = on; return r; }, () => settings('none')),
+          siteMode,
+          siteList,
           item('lock', t('pwChange'), null, () => changePasswordSheet(), 'change-password'),
           item('import', t('bkExport'), null, () => exportBackupSheet(), 'export-backup'),
           item('dapps', t('sitesTitle'), null, () => (void sitesScreen(app, () => settings('back')), navIn(app, 'fwd'))),
@@ -816,7 +831,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           item('about', t('about'), null, () => (aboutScreen(app, () => settings('back'), VERSION), navIn(app, 'fwd')), 'about-open'),
         ),
         h('p', { class: 'small muted note' }, t('reportNote')),
-        h('p', { class: 'small muted note' }, `${t('version', { v: VERSION })} · ${t('beta')}`),
+        h('p', { class: 'small muted note' }, t('version', { v: VERSION })),
       ),
     );
   }

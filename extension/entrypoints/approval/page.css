@@ -1,0 +1,6 @@
+/* Styles propres à cette page (hors ligne : la CSP refuse les <style> en ligne). */
+/* Fenêtre agrandie par l'utilisateur : la lecture reste sur une colonne. */
+#app { --pad: 18px; min-height: 100vh; padding: 18px; display: flex; flex-direction: column; gap: 14px; max-width: 560px; margin: 0 auto; }
+.center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; }
+.center img { width: 72px; height: 72px; }
+.center form { width: 100%; }

@@ -109,4 +109,14 @@ describe('routeur interne', () => {
     expect(await h(s, { type: 'vault:reset', confirm: RESET_CONFIRM })).toEqual({ ok: false, error: 'BAD_REQUEST' });
   });
 
+
+  test('mode parano : verrouillé, refusé ; valeur non booléenne refusée', async () => {
+    const s = fresh();
+    expect(await h(s, { type: 'vault:set-paranoid', on: true })).toEqual({ ok: false, error: 'LOCKED' });
+    await h(s, { type: 'vault:create', password: 'Plage-Orange-47!' });
+    expect(await h(s, { type: 'vault:set-paranoid', on: 'oui' })).toEqual({ ok: false, error: 'BAD_SETTING' });
+    expect(await h(s, { type: 'vault:set-paranoid', on: true })).toEqual({ ok: true });
+    expect(await h(s, { type: 'vault:status' })).toMatchObject({ unlocked: true, paranoid: true });
+  });
+
 });

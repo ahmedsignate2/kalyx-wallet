@@ -13,10 +13,14 @@ const MAX_BYTES = 512 * 1024;
 const MAX_IN_FLIGHT = 30;
 
 export default defineContentScript({
+  // Enregistré par le service worker (lib/dappHost) : partout, ou sur les sites autorisés seulement.
+  registration: 'runtime',
   matches: ['http://*/*', 'https://*/*'],
   runAt: 'document_start',
   allFrames: false,
   main() {
+    // Jamais dans un cadre (défense en profondeur : l'enregistrement l'exclut déjà).
+    if (window.top !== window) return;
     const ORIGIN = location.origin;
     let port: ReturnType<typeof browser.runtime.connect> | null = null;
     const inFlight = new Set<number>();

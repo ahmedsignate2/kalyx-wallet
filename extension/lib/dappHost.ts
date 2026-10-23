@@ -9,29 +9,32 @@ import type { Dapp } from './dapp';
 type Port = ReturnType<typeof browser.runtime.connect>;
 
 const INPAGE_ID = 'kalyx-inpage';
-const MATCHES = ['http://*/*', 'https://*/*'];
+const RELAY_ID = 'kalyx-relay';
 /** Au-delà, un site qui mitraille les demandes est mis en attente (fenêtre glissante). */
 const RATE = { max: 120, windowMs: 10_000 };
 
-/** (Ré)enregistre le script de page : seul, ou précédé du drapeau « Kalyx par défaut ». */
-export async function registerInpage(asDefault: boolean): Promise<void> {
-  await browser.scripting.unregisterContentScripts({ ids: [INPAGE_ID] }).catch(() => {});
+/**
+ * (Ré)enregistre le script de page (monde de la page, seul ou précédé du
+ * drapeau « Kalyx par défaut ») et le relais (monde isolé), sur ces motifs
+ * seulement (lib/siteAccess) ; aucun motif : Kalyx absent de tous les sites.
+ * Page principale uniquement : jamais dans un cadre.
+ */
+export async function registerInpage(asDefault: boolean, matches: string[]): Promise<void> {
+  // Un id inconnu fait échouer tout l'appel : un par un.
+  for (const id of [INPAGE_ID, RELAY_ID]) await browser.scripting.unregisterContentScripts({ ids: [id] }).catch(() => {});
+  if (!matches.length) return;
+  const common = { matches, runAt: 'document_start' as const, allFrames: false, persistAcrossSessions: true };
   await browser.scripting.registerContentScripts([
-    {
-      id: INPAGE_ID,
-      js: asDefault ? ['inpage-flag.js', 'inpage.js'] : ['inpage.js'],
-      matches: MATCHES,
-      runAt: 'document_start',
-      world: 'MAIN',
-      allFrames: false,
-      persistAcrossSessions: true,
-    },
+    { id: INPAGE_ID, js: asDefault ? ['inpage-flag.js', 'inpage.js'] : ['inpage.js'], world: 'MAIN', ...common },
+    { id: RELAY_ID, js: ['content-scripts/relay.js'], world: 'ISOLATED', ...common },
   ]);
 }
 
-export async function inpageRegistered(): Promise<boolean> {
-  const list = await browser.scripting.getRegisteredContentScripts({ ids: [INPAGE_ID] }).catch(() => []);
-  return list.length > 0;
+/** Scripts enregistrés, et sur quels motifs (pour savoir s'il faut les réenregistrer). */
+export async function registeredMatches(): Promise<string[] | null> {
+  const list = await browser.scripting.getRegisteredContentScripts({ ids: [INPAGE_ID, RELAY_ID] }).catch(() => []);
+  if (list.length !== 2) return null;
+  return [...(list[0].matches ?? [])].sort();
 }
 
 export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string) => void) {

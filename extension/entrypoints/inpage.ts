@@ -27,6 +27,8 @@ interface ProviderError extends Error {
 }
 
 export default defineUnlistedScript(() => {
+  // Jamais dans un cadre : seule la page principale parle à Kalyx.
+  if (window.top !== window) return;
   if (window.__kalyxInjected__) return;
   Object.defineProperty(window, '__kalyxInjected__', { value: true });
   const asDefault = window.__kalyxDefault__ === true;

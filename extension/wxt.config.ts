@@ -40,8 +40,33 @@ export default defineConfig({
     // Le script de page (monde MAIN) est enregistré par le service worker : il lui faut l'accès aux sites.
     host_permissions: ['http://*/*', 'https://*/*'],
     icons: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png', 128: 'icon/128.png' },
-    // Pages de l'extension : nos scripts seulement, aucun plugin, jamais affichées dans le cadre d'un site.
-    content_security_policy: { extension_pages: "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" },
+    /*
+     * Pages de l'extension : rien par défaut, puis le strict nécessaire.
+     *  - nos scripts et nos styles seulement (aucun inline, aucun eval) ;
+     *  - images https (logos de tokens, NFT), réseau https/wss (nœuds, relais, WalletConnect) ;
+     *  - aucun cadre, ni dedans ni autour ; aucun formulaire envoyé ailleurs ;
+     *  - Trusted Types sans aucune politique : toute injection de HTML ou de script par chaîne échoue.
+     */
+    content_security_policy: {
+      extension_pages: [
+        "default-src 'none'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "img-src 'self' https: data: blob:",
+        "font-src 'self'",
+        "connect-src 'self' https: wss:",
+        "media-src 'self' data:",
+        "worker-src 'self'",
+        "manifest-src 'self'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+        "frame-src 'none'",
+        "frame-ancestors 'none'",
+        "require-trusted-types-for 'script'",
+        "trusted-types 'none'",
+      ].join('; '),
+    },
     action: { default_title: 'Kalyx Wallet', default_icon: { 16: 'icon/16.png', 32: 'icon/32.png', 48: 'icon/48.png' } },
   },
 });
