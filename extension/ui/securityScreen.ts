@@ -124,3 +124,50 @@ export function siteBanner(): HTMLElement {
   })();
   return slot;
 }
+
+/**
+ * Code de contrainte : le régler, le changer ou le retirer (mot de passe
+ * redemandé). Le service worker refuse un code identique au mot de passe.
+ */
+export function duressSheet(active: boolean, changed: () => void) {
+  const err = h('p', { class: 'error', role: 'alert' });
+  const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', 'data-testid': 'dr-password' });
+  const code = h('input', { type: 'password', placeholder: t('drCode'), autocomplete: 'off', 'data-testid': 'dr-code' });
+  const code2 = h('input', { type: 'password', placeholder: t('drConfirm'), autocomplete: 'off', 'data-testid': 'dr-code2' });
+  const save = h('button', { class: 'btn', type: 'button', 'data-testid': 'dr-save' }, t('drSave'));
+  const remove = h('button', { class: 'btn danger', type: 'button', 'data-testid': 'dr-remove' }, t('drRemove'));
+  const done = (msg: string) => {
+    sheet.body.replaceChildren(h('p', { class: 'banner', role: 'status', 'data-testid': 'dr-done' }, glyph('check', 16), h('span', { class: 'grow' }, msg)));
+    changed();
+  };
+  const run = async (btn: HTMLButtonElement, msg: Record<string, unknown>, ok: string) => {
+    err.textContent = '';
+    btn.disabled = true;
+    const r = await send(msg).catch(() => ({ ok: false, error: 'INTERNAL' }));
+    btn.disabled = false;
+    pw.value = '';
+    if (!r.ok) return void (err.textContent = r.error === 'WRONG_PASSWORD' ? t('wrongPassword') : errorText(r.error));
+    done(ok);
+  };
+  save.onclick = () => {
+    if (!pw.value || !code.value) return;
+    if (code.value !== code2.value) return void (err.textContent = t('drMismatch'));
+    void run(save, { type: 'vault:set-duress', password: pw.value, code: code.value }, `${t('drSaved')} ${t('drHow')}`);
+  };
+  remove.onclick = () => {
+    if (!pw.value) return void (err.textContent = t('pwCurrent'));
+    void run(remove, { type: 'vault:remove-duress', password: pw.value }, t('drRemoved'));
+  };
+  const sheet = openSheet(
+    t('drTitle'),
+    h('p', {}, t('drIntro')),
+    !active && h('p', { class: 'small muted' }, t('drHow')),
+    pw,
+    code,
+    code2,
+    err,
+    save,
+    active && h('p', { class: 'small muted' }, t('drRemoveWarn')),
+    active && remove,
+  );
+}

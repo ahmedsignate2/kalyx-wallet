@@ -24,6 +24,7 @@ import { makeApprovals } from '../lib/approvals';
 import { makeDapp } from '../lib/dapp';
 import { makeDappHost, registeredMatches, registerInpage } from '../lib/dappHost';
 import { makeSiteAccess } from '../lib/siteAccess';
+import { makeProfiledStore } from '../lib/profile';
 
 /**
  * Service worker : le cerveau de l'extension, seul à toucher au coffre.
@@ -35,14 +36,21 @@ export default defineBackground(() => {
   // La zone session (clé du coffre) n'est jamais lisible par une page web.
   void lockSessionToExtension(browser.storage.session as never).catch(() => {});
 
+  const rawDisk = makeStore(browser.storage.local);
+  const sessionArea = makeStore(browser.storage.session);
   const session = makeSession({
-    disk: makeStore(browser.storage.local),
-    session: makeStore(browser.storage.session),
+    disk: rawDisk,
+    session: sessionArea,
     alarms: browser.alarms,
     box: makeKeyBox(idbWrapStore()),
+    purge: async (prefix) => {
+      const keys = Object.keys(await browser.storage.local.get(null)).filter((k) => k.startsWith(prefix));
+      if (keys.length) await browser.storage.local.remove(keys);
+    },
   });
 
-  const disk = makeStore(browser.storage.local);
+  // Données des modules : celles du profil ouvert (le vrai, ou le leurre du code de contrainte).
+  const disk = makeProfiledStore(rawDisk, sessionArea);
   // Langue choisie dans les réglages (notifications, phrases d'activité, explications des signatures).
   void disk.get<string>('lang').then(setLang).catch(() => {});
   const wallets = makeWallets(disk, session);
@@ -83,7 +91,8 @@ export default defineBackground(() => {
    */
   const TX_ALARM = 'kalyx-txwatch';
   const txWatch = makeTxWatch({
-    store: makeStore(browser.storage.session),
+    // Par profil : une transaction du vrai profil ne se signale jamais dans le leurre.
+    store: makeProfiledStore(sessionArea, sessionArea),
     check: (w) => send.check(w),
     notify: (outcome, w) =>
       void browser.notifications

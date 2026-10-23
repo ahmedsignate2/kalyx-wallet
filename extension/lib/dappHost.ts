@@ -19,7 +19,7 @@ const RATE = { max: 120, windowMs: 10_000 };
  * seulement (lib/siteAccess) ; aucun motif : Kalyx absent de tous les sites.
  * Page principale uniquement : jamais dans un cadre.
  */
-export async function registerInpage(asDefault: boolean, matches: string[]): Promise<void> {
+async function doRegister(asDefault: boolean, matches: string[]): Promise<void> {
   // Un id inconnu fait échouer tout l'appel : un par un.
   for (const id of [INPAGE_ID, RELAY_ID]) await browser.scripting.unregisterContentScripts({ ids: [id] }).catch(() => {});
   if (!matches.length) return;
@@ -28,6 +28,19 @@ export async function registerInpage(asDefault: boolean, matches: string[]): Pro
     { id: INPAGE_ID, js: asDefault ? ['inpage-flag.js', 'inpage.js'] : ['inpage.js'], world: 'MAIN', ...common },
     { id: RELAY_ID, js: ['content-scripts/relay.js'], world: 'ISOLATED', ...common },
   ]);
+}
+
+/*
+ * Un enregistrement à la fois : l'installation, le démarrage et un réglage
+ * peuvent en demander en même temps ; entrelacés, l'un retirerait les
+ * scripts que l'autre vient de poser (un site chargé à cet instant n'aurait
+ * plus de relais).
+ */
+let registering: Promise<void> = Promise.resolve();
+export function registerInpage(asDefault: boolean, matches: string[]): Promise<void> {
+  const run = registering.then(() => doRegister(asDefault, matches));
+  registering = run.catch(() => {});
+  return run;
 }
 
 /** Scripts enregistrés, et sur quels motifs (pour savoir s'il faut les réenregistrer). */

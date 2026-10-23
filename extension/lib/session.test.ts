@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { makeSession, AUTO_LOCK_ALARM, type Alarms } from './session';
 import { makeStore, type StorageArea } from './storage';
 import { makeKeyBox, memoryWrapStore, type WrapKeyStore } from './keyBox';
+import { makeProfiledStore } from './profile';
+import { addSecret, readSecret } from './vault';
 
 const FAST = { N: 1 << 10, r: 8, p: 1 };
 const PW = 'Plage-Orange-47!';
@@ -18,7 +20,10 @@ function area(): StorageArea & { data: Record<string, unknown> } {
 
 let disk: ReturnType<typeof area>, mem: ReturnType<typeof area>, alarms: Alarms & { set: Map<string, number> }, clock: number, idb: WrapKeyStore;
 // Chaque appel = une instance du service worker ; `idb` joue IndexedDB (survit aux redémarrages).
-const session = () => makeSession({ disk: makeStore(disk), session: makeStore(mem), alarms, now: () => clock, kdf: FAST, box: makeKeyBox(idb) });
+const purge = async (prefix: string) => {
+  for (const k of Object.keys(disk.data)) if (k.startsWith(prefix)) delete disk.data[k];
+};
+const session = () => makeSession({ disk: makeStore(disk), session: makeStore(mem), alarms, now: () => clock, kdf: FAST, box: makeKeyBox(idb), purge });
 
 beforeEach(() => {
   disk = area();
@@ -35,7 +40,7 @@ describe('session de l’extension', () => {
     await s.create(PW);
     expect(await s.status()).toMatchObject({ hasVault: true, unlocked: true, autoLockMin: 15 });
     expect(Object.keys(disk.data)).toEqual(['kalyx.vault']);
-    expect(Object.keys(mem.data)).toEqual(['kalyx.vaultKey']);
+    expect(Object.keys(mem.data).sort()).toEqual(['kalyx.profile', 'kalyx.vaultKey']);
     // En session : un bloc scellé (48 octets chiffrés), jamais la clé en clair.
     expect(mem.data['kalyx.vaultKey']).toMatchObject({ n: expect.stringMatching(/^[0-9a-f]{24}$/), ct: expect.stringMatching(/^[0-9a-f]{96}$/) });
     const raw = await s.vaultKey();
@@ -169,4 +174,148 @@ describe('session de l’extension', () => {
     (disk.data['kalyx.vault'] as { kdf: { N: number } }).kdf.N = 1 << 24;
     await expect(s.unlock(PW)).rejects.toThrow('CORRUPTED');
   });
+
+describe('passkey (second facteur, PRF)', () => {
+  const PRF = new Uint8Array(32).fill(7);
+  const OTHER = new Uint8Array(32).fill(9);
+  const P = { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'ab'.repeat(32), prf: PRF };
+
+  test('il faut les deux facteurs ; le mot de passe seul ne donne rien', async () => {
+    const s = session();
+    await s.create(PW);
+    await expect(s.addPasskey('mauvais-mot-de-passe', P)).rejects.toThrow('WRONG_PASSWORD');
+    await s.addPasskey(PW, P);
+    expect(await s.status()).toMatchObject({ passkey: { cred: P.cred, salt: P.salt }, passkeyHere: true });
+    await s.lock();
+    await expect(s.unlock(PW)).rejects.toThrow('PASSKEY_REQUIRED');
+    clock += 3_600_000;
+    await expect(s.unlock(PW, OTHER)).rejects.toThrow('WRONG_PASSKEY');
+    clock += 3_600_000;
+    await expect(s.unlock('mauvais-mot-de-passe', PRF)).rejects.toThrow('WRONG_PASSWORD');
+    clock += 3_600_000;
+    await s.unlock(PW, PRF);
+    expect(await s.status()).toMatchObject({ unlocked: true });
+  });
+
+  test('changer le mot de passe ne demande pas la passkey, et la garde', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.addPasskey(PW, P);
+    await s.changePassword(PW, 'Autre-Mot-De-Passe-91!');
+    await s.checkPassword('Autre-Mot-De-Passe-91!');
+    await s.lock();
+    await expect(s.unlock('Autre-Mot-De-Passe-91!')).rejects.toThrow('PASSKEY_REQUIRED');
+    clock += 3_600_000;
+    await s.unlock('Autre-Mot-De-Passe-91!', PRF);
+  });
+
+  test('retirer la passkey : les deux facteurs une dernière fois ; ensuite le mot de passe suffit', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.addPasskey(PW, P);
+    await expect(s.addPasskey(PW, P)).rejects.toThrow('PASSKEY_EXISTS');
+    await expect(s.removePasskey(PW, OTHER)).rejects.toThrow('WRONG_PASSKEY');
+    clock += 3_600_000;
+    await s.removePasskey(PW, PRF);
+    await s.lock();
+    await s.unlock(PW);
+    expect(await s.status()).toMatchObject({ passkey: null, passkeyHere: false });
+  });
+});
+
+describe('code de contrainte (profil leurre)', () => {
+  const CODE = 'Code-Leurre-2026!';
+  const profiled = () => makeProfiledStore(makeStore(disk), makeStore(mem));
+
+  test('le code ne peut pas être le mot de passe ; il ouvre le leurre, le mot de passe le vrai', async () => {
+    const s = session();
+    await s.create(PW);
+    await expect(s.setDuress(PW, PW)).rejects.toThrow('DURESS_SAME');
+    await expect(s.setDuress('faux', CODE)).rejects.toThrow('WRONG_PASSWORD');
+    clock += 3_600_000;
+    await s.setDuress(PW, CODE);
+    expect(await s.status()).toMatchObject({ duress: true });
+    await profiled().set('wallets', ['vrai']);
+    await s.lock();
+
+    await s.unlock(CODE);
+    expect(mem.data['kalyx.profile']).toBe('decoy');
+    // Profil leurre : ni les données du vrai profil, ni la trace du code de contrainte.
+    expect(await profiled().get('wallets')).toBeUndefined();
+    expect(await s.status()).toMatchObject({ unlocked: true, duress: false });
+    await profiled().set('wallets', ['leurre']);
+    await s.withVault(async (vault, key) => ({ vault: addSecret(vault, key, 'w-leurre', 'privateKey', 'cle-du-leurre'), result: null }));
+    await s.lock();
+
+    await s.unlock(PW);
+    expect(await profiled().get('wallets')).toEqual(['vrai']);
+    // Le vrai coffre n'a jamais reçu le secret du leurre.
+    await expect(s.withVault(async (vault, key) => ({ result: readSecret(vault, key, 'w-leurre') }))).rejects.toThrow();
+    expect(Object.keys(disk.data).filter((k) => k.startsWith('kalyx.decoy.'))).toEqual(['kalyx.decoy.wallets']);
+  });
+
+  test('changer le code depuis le vrai profil garde les portefeuilles du leurre', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.setDuress(PW, CODE);
+    await s.lock();
+    await s.unlock(CODE);
+    await s.withVault(async (vault, key) => ({ vault: addSecret(vault, key, 'w-leurre', 'privateKey', 'cle-du-leurre'), result: null }));
+    await s.lock();
+    await s.unlock(PW);
+    await s.setDuress(PW, 'Nouveau-Code-2026!');
+    await s.lock();
+    await expect(s.unlock(CODE)).rejects.toThrow('WRONG_PASSWORD');
+    clock += 3_600_000;
+    await s.unlock('Nouveau-Code-2026!');
+    expect(await s.withVault(async (vault, key) => ({ result: readSecret(vault, key, 'w-leurre').secret }))).toBe('cle-du-leurre');
+  });
+
+  test('dans le leurre : « changer le mot de passe » change le code ; régler un code n’ouvre rien', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.setDuress(PW, CODE);
+    const real = JSON.stringify(disk.data['kalyx.decoyVault']);
+    await s.lock();
+    await s.unlock(CODE);
+    await s.setDuress(CODE, 'Encore-Un-Code-77!');
+    expect(JSON.stringify(disk.data['kalyx.decoyVault'])).toBe(real);
+    expect(await s.status()).toMatchObject({ duress: true });
+    await s.changePassword(CODE, 'Code-Change-2026!');
+    await s.lock();
+    await expect(s.unlock('Encore-Un-Code-77!')).rejects.toThrow('WRONG_PASSWORD');
+    clock += 3_600_000;
+    await s.unlock('Code-Change-2026!');
+    expect(mem.data['kalyx.profile']).toBe('decoy');
+    await s.lock();
+    await s.unlock(PW);
+    expect(mem.data['kalyx.profile']).toBe('main');
+  });
+
+  test('avec une passkey sur le vrai coffre, le code ouvre quand même le leurre', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.addPasskey(PW, { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'cd'.repeat(32), prf: new Uint8Array(32).fill(3) });
+    await s.setDuress(PW, CODE);
+    await s.lock();
+    await s.unlock(CODE, new Uint8Array(32).fill(3));
+    expect(mem.data['kalyx.profile']).toBe('decoy');
+  });
+
+  test('retirer le code efface le leurre et toutes ses données', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.setDuress(PW, CODE);
+    await s.lock();
+    await s.unlock(CODE);
+    await profiled().set('contacts', { ct: 'x' });
+    await s.lock();
+    await s.unlock(PW);
+    await s.removeDuress(PW);
+    expect(Object.keys(disk.data).filter((k) => k.includes('decoy'))).toEqual([]);
+    await s.lock();
+    await expect(s.unlock(CODE)).rejects.toThrow('WRONG_PASSWORD');
+  });
+});
+
 });

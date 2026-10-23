@@ -50,9 +50,9 @@ process.on('beforeExit', () => {
     process.exitCode = 1;
   }
 });
-// ONLY=onboarding|dapps|attacks|langs|help|hardening : une seule partie (plus rapide à relancer).
-if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening'].includes(process.env.ONLY)) {
-  await { onboarding, dapps, attacks, langs, help, hardening }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs, help, hardening, factors }[process.env.ONLY]();
   if (cspViolations.length) fail('violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
@@ -125,6 +125,117 @@ await attacks();
 await langs();
 await help();
 await hardening();
+await factors();
+
+/**
+ * Coffre (vague 2) : passkey réelle (authentificateur virtuel de Chrome avec
+ * PRF), exigée en plus du mot de passe ; code de contrainte qui ouvre un
+ * profil leurre séparé.
+ */
+async function factors() {
+  const PW = 'Plage-Orange-47!';
+  const CODE = 'Code-Leurre-2026!';
+  const SHOTS = process.env.SHOTS;
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const page = await ctx.newPage();
+    await page.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => page.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+
+    // Authentificateur virtuel (comme Touch ID), attaché à CET onglet : toutes les cérémonies s'y font.
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('WebAuthn.enable');
+    await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true } });
+
+    // Activer : mot de passe + case, puis la passkey (WebAuthn exige un onglet au premier plan).
+    await page.bringToFront();
+    await page.goto(`chrome-extension://${id}/onboarding.html#passkey`);
+    await page.locator('[data-testid=pk-go]').waitFor();
+    await page.locator('[data-testid=pk-password]').fill(PW);
+    await page.locator('[data-testid=pk-ack]').check();
+    if (SHOTS) await page.screenshot({ path: join(SHOTS, 'passkey-enable.png') });
+    await page.locator('[data-testid=pk-go]').click();
+    await page.locator('[data-testid=pk-done]').waitFor({ timeout: 15_000 }).catch(async () => fail(`activation : ${await page.locator('.error').allTextContents()}`));
+    let st = await bg({ type: 'vault:status' });
+    st.passkey?.cred && st.passkeyHere ? console.log('✓ passkey activée (WebAuthn PRF, authentificateur virtuel)') : fail(`passkey ${JSON.stringify(st)}`);
+    const vault = (await page.evaluate(() => chrome.storage.local.get('kalyx.vault')))['kalyx.vault'];
+    vault.passkey && vault.key.ct.length === 128 ? console.log('✓ coffre : enveloppe intérieure (passkey) dans l’extérieure (mot de passe)') : fail('format du coffre à passkey');
+
+    // Mot de passe seul : refusé par le service worker.
+    await bg({ type: 'vault:lock' });
+    (await bg({ type: 'vault:unlock', password: PW })).error === 'PASSKEY_REQUIRED' ? console.log('✓ mot de passe seul : refusé (passkey requise)') : fail('déverrouillé sans passkey');
+    await page.evaluate(() => chrome.storage.local.remove('kalyx.throttle'));
+
+    // Popup : le déverrouillage passe par un onglet.
+    await page.goto(`chrome-extension://${id}/popup.html`);
+    await page.locator('[data-testid=passkey-unlock-tab]').waitFor({ timeout: 8_000 }).then(() => console.log('✓ popup : « Déverrouiller avec la passkey » (onglet)'), () => fail('popup sans bouton passkey'));
+    if (SHOTS) await page.screenshot({ path: join(SHOTS, 'passkey-popup.png') });
+
+    // Panneau latéral : mot de passe puis passkey, sur place.
+    await page.goto(`chrome-extension://${id}/sidepanel.html`);
+    await page.locator('[data-testid=passkey-note]').filter({ hasText: /passkey/ }).waitFor({ timeout: 8_000 });
+    await page.locator('input[type=password]').fill(PW);
+    await page.getByRole('button', { name: 'Déverrouiller' }).click();
+    await page.locator('[data-testid=account]').waitFor({ timeout: 20_000 }).then(() => console.log('✓ panneau : mot de passe + passkey → déverrouillé'), () => fail('déverrouillage passkey'));
+
+    // Code de contrainte : réglé depuis les réglages (mot de passe redemandé, code ≠ mot de passe).
+    await page.getByRole('button', { name: 'Réglages' }).click();
+    await page.locator('[data-testid=duress-open]').click();
+    await page.locator('[data-testid=dr-password]').fill(PW);
+    await page.locator('[data-testid=dr-code]').fill(PW);
+    await page.locator('[data-testid=dr-code2]').fill(PW);
+    await page.locator('[data-testid=dr-save]').click();
+    await page.getByText('Le code doit être différent de ton mot de passe.').waitFor({ timeout: 15_000 }).then(() => console.log('✓ code de contrainte identique au mot de passe : refusé'), () => fail('code = mot de passe accepté'));
+    await page.locator('[data-testid=dr-password]').fill(PW);
+    await page.locator('[data-testid=dr-code]').fill(CODE);
+    await page.locator('[data-testid=dr-code2]').fill(CODE);
+    if (SHOTS) await page.screenshot({ path: join(SHOTS, 'duress-sheet.png') });
+    await page.locator('[data-testid=dr-save]').click();
+    await page.locator('[data-testid=dr-done]').waitFor({ timeout: 15_000 });
+    (await bg({ type: 'vault:status' })).duress ? console.log('✓ code de contrainte enregistré') : fail('code non enregistré');
+
+    // Sous la contrainte : le code (et la passkey, demandée à tous) ouvre le leurre — vide, sans rien du vrai.
+    await bg({ type: 'vault:lock' });
+    await page.reload();
+    await page.locator('input[type=password]').fill(CODE);
+    await page.getByRole('button', { name: 'Déverrouiller' }).click();
+    await page.getByRole('button', { name: 'Ajouter un portefeuille' }).waitFor({ timeout: 20_000 }).then(() => console.log('✓ code de contrainte : profil leurre, aucun portefeuille du vrai profil'), () => fail('leurre non ouvert'));
+    await bg({ type: 'wallet:import-phrase', phrase: 'legal winner thank year wave sausage worth useful legal winner thank yellow' });
+    st = await bg({ type: 'vault:status' });
+    !st.duress && !st.passkeyHere ? console.log('✓ leurre : ni code de contrainte ni passkey affichés') : fail(`leurre trahi ${JSON.stringify(st)}`);
+    const decoyHome = await bg({ type: 'home:get' });
+    const sites = await bg({ type: 'sites:list' });
+    const decoyWallets = (decoyHome.wallets ?? []).map((w) => w.label).join();
+    decoyHome.wallets?.length === 1 && sites.sites?.length === 0 ? console.log(`✓ leurre : son propre portefeuille (${decoyWallets})`) : fail(`leurre ${decoyWallets}`);
+    const local = await page.evaluate(() => chrome.storage.local.get(null));
+    Object.keys(local).some((k) => k.startsWith('kalyx.decoy.')) && !JSON.stringify(local['kalyx.decoy.wallets'] ?? '').includes('9858') ? console.log('✓ données du leurre séparées sur le disque (préfixe decoy.)') : fail('données du leurre mêlées');
+
+    // Retour au vrai : mot de passe + passkey → le vrai portefeuille, le leurre invisible.
+    await bg({ type: 'vault:lock' });
+    await page.reload();
+    await page.locator('input[type=password]').fill(PW);
+    await page.getByRole('button', { name: 'Déverrouiller' }).click();
+    await page.locator('[data-testid=account]').waitFor({ timeout: 20_000 });
+    const mainHome = await bg({ type: 'home:get' });
+    const addrs = (h) => (h.wallets ?? []).flatMap((w) => [w.id, ...(w.accounts ?? []).map((x) => x.evm)]).join();
+    mainHome.wallets?.length === 1 && mainHome.wallets[0].id !== decoyHome.wallets?.[0]?.id && addrs(mainHome) !== addrs(decoyHome) ? console.log('✓ vrai profil : uniquement le vrai portefeuille (autres adresses que le leurre)') : fail(`vrai profil mélangé ${addrs(mainHome)} / ${addrs(decoyHome)}`);
+
+    // Désactiver la passkey : les deux facteurs une dernière fois ; ensuite le mot de passe suffit.
+    await page.goto(`chrome-extension://${id}/onboarding.html#passkey`);
+    await page.locator('[data-testid=pk-go]').waitFor();
+    await page.locator('[data-testid=pk-password]').fill(PW);
+    await page.locator('[data-testid=pk-go]').click();
+    await page.locator('[data-testid=pk-done]').waitFor({ timeout: 15_000 });
+    await bg({ type: 'vault:lock' });
+    (await bg({ type: 'vault:unlock', password: PW })).ok ? console.log('✓ passkey désactivée : le mot de passe suffit de nouveau') : fail('désactivation passkey');
+  } finally {
+    await ctx.close();
+  }
+}
 
 /**
  * Durcissement : « sites autorisés seulement » (Kalyx invisible ailleurs,

@@ -19,6 +19,7 @@ import { passwordStrength } from '../../../src/security/passwordStrength';
 import { createBackupChallenge, unknownWords, type WordChallenge } from '../../../src/domain/wallet/backupChallenge';
 import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
 import { languageSelect } from '../../ui/helpScreen';
+import { createPasskey, passkeyPrf, passkeySupported, unlockWith, type PasskeyStatus } from '../../ui/passkey';
 
 interface WalletMeta {
   id: string;
@@ -66,6 +67,57 @@ function welcome() {
     h('button', { class: 'btn', type: 'button', on: { click: () => withAuth(createFlow) } }, t('create')),
     h('button', { class: 'btn secondary', type: 'button', on: { click: () => withAuth(importMenu) } }, t('haveOne')),
     h('label', { class: 'ob-lang small muted' }, glyph('language', 16), languageSelect()),
+  );
+}
+
+/* ── Passkey (second facteur) : activer ou désactiver ── */
+async function passkeyScreen() {
+  const st = await send<PasskeyStatus>({ type: 'vault:status' });
+  const on = !!(st.ok && st.passkey);
+  const err = errorLine();
+  const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', 'data-testid': 'pk-password' });
+  const ack = h('input', { type: 'checkbox', 'data-testid': 'pk-ack' });
+  const go = h('button', { class: on ? 'btn danger' : 'btn', type: 'submit', disabled: !on, 'data-testid': 'pk-go' }, t(on ? 'pkDisable' : 'pkEnable'));
+  if (!on) ack.addEventListener('change', () => (go.disabled = !ack.checked));
+  const form = h(
+    'form',
+    {
+      class: 'stack',
+      on: {
+        submit: async (e) => {
+          e.preventDefault();
+          if (!pw.value || go.disabled) return;
+          go.disabled = true;
+          err.textContent = '';
+          let r: { ok: boolean; error?: string; waitMs?: number };
+          try {
+            if (on) r = await send({ type: 'vault:passkey-remove', password: pw.value, prf: await passkeyPrf(st.passkey!.cred, st.passkey!.salt) });
+            else {
+              // Mot de passe vérifié AVANT de créer la passkey : pas de passkey orpheline sur l'authentificateur.
+              r = await send({ type: 'vault:check-password', password: pw.value });
+              if (r.ok) r = await send({ type: 'vault:passkey-add', password: pw.value, ...(await createPasskey()) });
+            }
+          } catch (x) {
+            r = { ok: false, error: (x as Error).message };
+          }
+          pw.value = '';
+          go.disabled = false;
+          if (!r.ok) return showError(err, r);
+          screen(h('h1', {}, t('pkTitle')), h('p', { class: 'banner', role: 'status', 'data-testid': 'pk-done' }, glyph('check', 18), h('span', {}, t(on ? 'pkDisabled' : 'pkEnabled'))));
+        },
+      },
+    },
+    pw,
+    !on && h('label', { class: 'check' }, ack, h('span', {}, t('pkAck'))),
+    err,
+    go,
+  );
+  screen(
+    h('h1', {}, t('pkTitle')),
+    h('p', { class: 'muted' }, t('pkIntro')),
+    h('p', { class: 'small muted', 'data-testid': 'pk-state' }, t(on ? 'pkOn' : 'pkOff')),
+    !on && h('p', { class: 'banner warn', role: 'note' }, glyph('warning', 18), h('span', {}, t('pkWarn'))),
+    passkeySupported() ? form : h('p', { class: 'error' }, t('pkUnsupported')),
   );
 }
 
@@ -175,6 +227,11 @@ function passwordScreen() {
 function unlockScreen() {
   const err = errorLine();
   const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'current-password' });
+  const note = h('p', { class: 'small muted', 'data-testid': 'passkey-note' });
+  let st: PasskeyStatus = { passkey: null };
+  void send<PasskeyStatus>({ type: 'vault:status' }).then((r) => {
+    if (r.ok && r.passkey) (st = { passkey: r.passkey }), (note.textContent = t('pkActiveNote'));
+  });
   const form = h(
     'form',
     {
@@ -182,7 +239,7 @@ function unlockScreen() {
       on: {
         submit: async (e) => {
           e.preventDefault();
-          const r = await send({ type: 'vault:unlock', password: pw.value });
+          const r = await unlockWith(pw.value, st);
           pw.value = '';
           if (!r.ok) return showError(err, r);
           afterAuth();
@@ -190,6 +247,7 @@ function unlockScreen() {
       },
     },
     pw,
+    note,
     err,
     h('button', { class: 'btn', type: 'submit' }, t('unlock')),
   );
@@ -547,4 +605,12 @@ else if (location.hash === '#companion') {
   history.replaceState(null, '', location.pathname);
   void withAuth(companionScreen);
 } else if (location.hash === '#reset') resetScreen();
+else if (location.hash === '#unlock') {
+  // Ouvert par le popup (coffre à passkey) : une fois déverrouillé, l'onglet n'a plus de raison d'être.
+  history.replaceState(null, '', location.pathname);
+  void withAuth(() => (screen(h('h1', {}, t('unlockTitle')), h('p', { class: 'banner', role: 'status', 'data-testid': 'unlocked' }, glyph('check', 18), h('span', {}, t('pkDoneClose')))), setTimeout(() => window.close(), 1200)));
+} else if (location.hash === '#passkey') {
+  history.replaceState(null, '', location.pathname);
+  void withAuth(() => void passkeyScreen());
+}
 else welcome();
