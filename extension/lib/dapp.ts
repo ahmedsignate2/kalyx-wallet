@@ -24,7 +24,7 @@ import type { Approvals } from './approvals';
 import type { Session } from './session';
 import type { Sites, Family, Site } from './sites';
 import type { Wallets } from './wallets';
-import { execute, parseEvm, parseSolana, review, type Review, type SignRequest } from './dappSign';
+import { execute, parseBitcoin, parseEvm, parseSolana, review, type Review, type SignRequest } from './dappSign';
 import type { ExplainT } from '../../src/domain/wc/explain';
 
 /** Signatures servies (fenêtre d'approbation). */
@@ -32,6 +32,7 @@ const SIGNING = new Set(['eth_sendTransaction', 'personal_sign', 'eth_sign', 'et
 /** Jamais servies : à éviter (eth_signTransaction sans diffusion, v1 sans domaine) ou à venir (lots d'appels). */
 const REFUSED = new Set(['eth_signTransaction', 'eth_signTypedData', 'wallet_sendCalls']);
 const SOLANA_SIGNING = new Set(['sol_signTransaction', 'sol_signAndSendTransaction', 'sol_signMessage']);
+const BITCOIN_SIGNING = new Set(['btc_signMessage', 'btc_signTransaction', 'btc_signAndSendTransaction']);
 
 export type Emit = (origin: string, event: string, data: unknown) => void;
 
@@ -54,6 +55,7 @@ export interface DappDeps {
 }
 
 const hex = (n: number) => `0x${n.toString(16)}`;
+const addressOf = (a: { evm?: string; solana?: string; bitcoin?: string } | undefined, f: Family) => (f === 'evm' ? a?.evm : f === 'solana' ? a?.solana : a?.bitcoin);
 
 /** Réseaux EVM qu'un site peut demander : ceux du registre (réseaux principaux et de test). */
 function evmChain(chainIdHex: string): ChainConfig | undefined {
@@ -72,8 +74,16 @@ export function makeDapp(deps: DappDeps) {
     if (!g) return null;
     const w = (await deps.wallets.list()).find((x) => x.id === g.walletId);
     const a = w?.accounts.find((x) => x.index === g.index);
-    const addr = family === 'evm' ? a?.evm : a?.solana;
+    const addr = addressOf(a, family);
     return addr && addr === g.address ? addr : null;
+  }
+
+  /** Clé publique Bitcoin du compte accordé (le standard la donne avec l'adresse). */
+  async function bitcoinPub(site: Site): Promise<string | null> {
+    const g = site.bitcoin;
+    if (!g) return null;
+    const w = (await deps.wallets.list()).find((x) => x.id === g.walletId);
+    return w?.accounts.find((x) => x.index === g.index)?.bitcoinPub ?? null;
   }
 
   async function connect(origin: string, family: Family): Promise<string> {
@@ -84,8 +94,10 @@ export function makeDapp(deps: DappDeps) {
     const address = await deps.approvals.request(origin, 'connect', family, async (g) => {
       const w = (await deps.wallets.list()).find((x) => x.id === g.walletId);
       const a = w?.accounts.find((x) => x.index === g.index);
-      const addr = family === 'evm' ? a?.evm : a?.solana;
+      const addr = addressOf(a, family);
       if (!addr) throw new RpcError(4100, 'Ce compte n’a pas d’adresse pour ce réseau');
+      // Bitcoin : il faut aussi la clé publique (absente d'un compte du téléphone).
+      if (family === 'bitcoin' && !a?.bitcoinPub) throw new RpcError(4100, 'COMPANION_NO_BTC_SITES');
       await deps.sites.grant(origin, family, { walletId: g.walletId, index: g.index, address: addr, at: Date.now() });
       return addr;
     });
@@ -204,11 +216,46 @@ export function makeDapp(deps: DappDeps) {
     throw new RpcError(4200, `Méthode non prise en charge : ${method.slice(0, 60)}`);
   }
 
+  /**
+   * Bitcoin (Wallet Standard). Une adresse « payment » seulement : Kalyx n'a
+   * pas d'adresse Taproot dédiée aux ordinals, il ne la simule pas.
+   */
+  async function bitcoin(origin: string, method: string, params: unknown[]): Promise<unknown> {
+    const site = await deps.sites.get(origin);
+    const account = async () => {
+      const s = await deps.sites.get(origin);
+      const address = await granted(s, 'bitcoin');
+      const publicKey = address ? await bitcoinPub(s) : null;
+      return address && publicKey ? { address, publicKey } : null;
+    };
+    switch (method) {
+      case 'btc_connect': {
+        const p = (params[0] ?? {}) as { silent?: unknown; purposes?: unknown };
+        const purposes = Array.isArray(p.purposes) ? p.purposes : ['payment'];
+        if (!purposes.includes('payment')) throw new RpcError(4200, 'Kalyx n’a pas d’adresse ordinals (Taproot) : seule l’adresse de paiement est partagée');
+        const a = (await unlocked()) ? await account() : null;
+        if (a) return a;
+        if (p.silent === true) return null;
+        await connect(origin, 'bitcoin');
+        return account();
+      }
+      case 'btc_disconnect':
+        await deps.sites.revoke(origin, 'bitcoin');
+        return null;
+    }
+    if (BITCOIN_SIGNING.has(method)) {
+      const pub = await bitcoinPub(site);
+      if (!pub) throw new RpcError(4100, 'Connecte d’abord ce site à Kalyx');
+      return sign(origin, 'bitcoin', (from) => parseBitcoin(method, params, from, pub));
+    }
+    throw new RpcError(4200, `Méthode non prise en charge : ${method.slice(0, 60)}`);
+  }
+
   /** Point d'entrée : une demande d'une page, son origine lue par Chrome. */
   async function handle(origin: string, family: Family, method: string, params: unknown[]): Promise<unknown> {
     if (typeof method !== 'string' || method.length > 80) throw new RpcError(-32602, 'Méthode invalide');
     if (!Array.isArray(params)) params = [];
-    return family === 'evm' ? evm(origin, method, params) : solana(origin, method, params);
+    return family === 'evm' ? evm(origin, method, params) : family === 'solana' ? solana(origin, method, params) : bitcoin(origin, method, params);
   }
 
   /** État à envoyer à une page qui (re)branche son relais : réseau, et comptes si accordés. */
@@ -219,6 +266,7 @@ export function makeDapp(deps: DappDeps) {
       chainId: site.chainId,
       evm: open ? await granted(site, 'evm') : null,
       solana: open ? await granted(site, 'solana') : null,
+      bitcoin: open && (await granted(site, 'bitcoin')) ? { address: site.bitcoin!.address, publicKey: await bitcoinPub(site) } : null,
     };
   }
 
@@ -231,6 +279,8 @@ export function makeDapp(deps: DappDeps) {
       if (site.evm) deps.emit(origin, 'accountsChanged', e ? [e] : []);
       const s = open ? await granted(site, 'solana') : null;
       if (site.solana) deps.emit(origin, 'solanaAccountsChanged', s ? [s] : []);
+      const b = open ? await granted(site, 'bitcoin') : null;
+      if (site.bitcoin) deps.emit(origin, 'bitcoinAccountsChanged', b ? [{ address: b, publicKey: await bitcoinPub(site) }] : []);
     }
   }
 
@@ -239,6 +289,7 @@ export function makeDapp(deps: DappDeps) {
     await deps.sites.revoke(origin);
     deps.emit(origin, 'accountsChanged', []);
     deps.emit(origin, 'solanaAccountsChanged', []);
+    deps.emit(origin, 'bitcoinAccountsChanged', []);
   }
 
   return { handle, hello, lockChanged, disconnect, reviewOf };

@@ -5,6 +5,8 @@
  *    à côté de MetaMask, Rabby…, sans conflit). `window.ethereum` n'est pris
  *    que si l'utilisateur a choisi « Kalyx par défaut » dans les réglages.
  *  - Solana : un portefeuille Wallet Standard (Jupiter, Raydium, Magic Eden…).
+ *  - Bitcoin : un portefeuille Wallet Standard « bitcoin:* » (adresse de
+ *    paiement bc1, messages BIP-322, PSBT), enregistré à part.
  *
  * Ce script n'a AUCUN pouvoir : pas de clé, pas d'API d'extension. Il poste
  * chaque demande au relais (script isolé), qui la passe au service worker ;
@@ -52,7 +54,7 @@ export default defineUnlistedScript(() => {
   const pending = new Map<number, { method: string; resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
   let nextId = 1;
 
-  function call(family: 'evm' | 'solana', method: string, params: unknown[] = []): Promise<unknown> {
+  function call(family: 'evm' | 'solana' | 'bitcoin', method: string, params: unknown[] = []): Promise<unknown> {
     return new Promise((resolve, reject) => {
       if (window.postMessage !== rawPost) tampered.add('postMessageHooked');
       if (asDefault && (window as { ethereum?: unknown }).ethereum !== provider) tampered.add('ethereumReplaced');
@@ -216,6 +218,90 @@ export default defineUnlistedScript(() => {
     },
   };
 
+  /* ── Bitcoin (Wallet Standard « bitcoin:* ») ── */
+  type BtcAccount = { address: string; publicKey: Uint8Array; chains: string[]; features: string[] };
+  const BTC_CHAINS = ['bitcoin:mainnet'];
+  const BTC_FEATURES = ['bitcoin:signMessage', 'bitcoin:signTransaction', 'bitcoin:signAndSendTransaction'];
+  let btcAccounts: BtcAccount[] = [];
+  const btcListeners = new Set<(p: { accounts: BtcAccount[] }) => void>();
+  const unhex = (h: string) => Uint8Array.from((h.match(/../g) ?? []).map((x) => Number.parseInt(x, 16)));
+  function setBitcoin(a: unknown) {
+    const v = a as { address?: unknown; publicKey?: unknown } | null;
+    const next = v && typeof v.address === 'string' && typeof v.publicKey === 'string' && /^[0-9a-f]{66}$/i.test(v.publicKey) ? [{ address: v.address, publicKey: unhex(v.publicKey), chains: BTC_CHAINS, features: BTC_FEATURES }] : [];
+    if ((next[0]?.address ?? null) === (btcAccounts[0]?.address ?? null)) return;
+    btcAccounts = next;
+    btcListeners.forEach((fn) => {
+      try {
+        fn({ accounts: btcAccounts });
+      } catch {
+        /* idem */
+      }
+    });
+  }
+  const btcInput = (i: { account?: { address?: string }; psbt?: Uint8Array; inputsToSign?: { account?: { address?: string }; signingIndexes?: number[]; sigHash?: string }[]; chain?: string; message?: Uint8Array }) => ({
+    chain: i.chain,
+    ...(i.message ? { message: b64(i.message) } : {}),
+    ...(i.psbt ? { psbt: b64(i.psbt), inputsToSign: (i.inputsToSign ?? []).map((x) => ({ address: x.account?.address, signingIndexes: x.signingIndexes, sigHash: x.sigHash })) } : {}),
+  });
+  const btcWallet = {
+    version: '1.0.0' as const,
+    name: 'Kalyx',
+    icon: KALYX_ICON_DATA_URI as `data:image/svg+xml;base64,${string}`,
+    chains: BTC_CHAINS,
+    get accounts() {
+      return btcAccounts.slice();
+    },
+    features: {
+      'bitcoin:connect': {
+        version: '1.0.0',
+        connect: async (input?: { purposes?: string[]; silent?: boolean }) => {
+          setBitcoin(await call('bitcoin', 'btc_connect', [{ purposes: input?.purposes ?? ['payment'], silent: input?.silent === true }]));
+          return { accounts: btcAccounts.slice() };
+        },
+      },
+      'standard:connect': {
+        version: '1.0.0',
+        connect: async (input?: { silent?: boolean }) => {
+          setBitcoin(await call('bitcoin', 'btc_connect', [{ purposes: ['payment'], silent: input?.silent === true }]));
+          return { accounts: btcAccounts.slice() };
+        },
+      },
+      'standard:disconnect': {
+        version: '1.0.0',
+        disconnect: async () => {
+          await call('bitcoin', 'btc_disconnect');
+          setBitcoin(null);
+        },
+      },
+      'standard:events': {
+        version: '1.0.0',
+        on: (event: string, listener: (p: { accounts: BtcAccount[] }) => void) => {
+          if (event !== 'change') return () => {};
+          btcListeners.add(listener);
+          return () => btcListeners.delete(listener);
+        },
+      },
+      'bitcoin:signMessage': {
+        version: '1.0.0',
+        signMessage: async (...inputs: { account?: { address?: string }; message?: Uint8Array }[]) => {
+          const r = (await call('bitcoin', 'btc_signMessage', inputs.map(btcInput))) as { signedMessage: string; signature: string }[];
+          return r.map((x) => ({ signedMessage: base64.decode(x.signedMessage), signature: base64.decode(x.signature) }));
+        },
+      },
+      'bitcoin:signTransaction': {
+        version: '1.0.0',
+        signTransaction: async (...inputs: Parameters<typeof btcInput>[0][]) => {
+          const r = (await call('bitcoin', 'btc_signTransaction', inputs.map(btcInput))) as { signedPsbt: string }[];
+          return r.map((x) => ({ signedPsbt: base64.decode(x.signedPsbt) }));
+        },
+      },
+      'bitcoin:signAndSendTransaction': {
+        version: '1.0.0',
+        signAndSendTransaction: async (...inputs: Parameters<typeof btcInput>[0][]) => (await call('bitcoin', 'btc_signAndSendTransaction', inputs.map(btcInput))) as { txId: string }[],
+      },
+    },
+  };
+
   /* ── Réponses et événements du relais ── */
   window.addEventListener('message', (e: MessageEvent) => {
     if (e.source !== window || e.origin !== ORIGIN) return;
@@ -231,13 +317,15 @@ export default defineUnlistedScript(() => {
       p.resolve(d.result);
     } else if (d?.k === 'kalyx:evt') {
       if (d.event === 'hello') {
-        const h = d.data as { chainId?: string; evm?: string | null; solana?: string | null };
+        const h = d.data as { chainId?: string; evm?: string | null; solana?: string | null; bitcoin?: unknown };
         setChain(h?.chainId);
         setAccounts(h?.evm ? [h.evm] : []);
         setSolana(h?.solana);
+        setBitcoin(h?.bitcoin ?? null);
       } else if (d.event === 'chainChanged') setChain(d.data);
       else if (d.event === 'accountsChanged') setAccounts(d.data);
       else if (d.event === 'solanaAccountsChanged') setSolana(Array.isArray(d.data) ? d.data[0] : null);
+      else if (d.event === 'bitcoinAccountsChanged') setBitcoin(Array.isArray(d.data) ? d.data[0] : null);
       else if (d.event === 'relayRestarted') {
         // Le service worker a redémarré : les demandes en vol n'auront pas de réponse.
         for (const [id, p] of pending) (pending.delete(id), p.reject(providerError({ code: 4900, message: 'Kalyx a redémarré : réessaie' })));
@@ -257,7 +345,7 @@ export default defineUnlistedScript(() => {
   announce();
 
   // Wallet Standard : s'enregistre auprès de l'application, qu'elle soit déjà prête ou non.
-  const registerSol = (api: { register: (w: unknown) => unknown }) => api.register(solWallet);
+  const registerSol = (api: { register: (w: unknown) => unknown }) => (api.register(solWallet), api.register(btcWallet));
   try {
     window.dispatchEvent(new CustomEvent('wallet-standard:register-wallet', { detail: registerSol }));
   } catch {

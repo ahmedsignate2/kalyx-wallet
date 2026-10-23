@@ -11,7 +11,7 @@
  */
 import type { Store } from './storage';
 
-export type Family = 'evm' | 'solana';
+export type Family = 'evm' | 'solana' | 'bitcoin';
 
 export interface SiteGrant {
   walletId: string;
@@ -24,6 +24,7 @@ export interface Site {
   origin: string;
   evm?: SiteGrant;
   solana?: SiteGrant;
+  bitcoin?: SiteGrant;
   /** Réseau EVM choisi par ce site (hexadécimal, EIP-155). */
   chainId: string;
 }
@@ -58,7 +59,7 @@ export function makeSites(disk: Store) {
       // Les plus anciens sans permission partent d'abord quand la liste déborde.
       const keys = Object.keys(sites);
       if (keys.length > MAX_SITES) {
-        for (const k of keys.filter((k) => !sites[k].evm && !sites[k].solana).slice(0, keys.length - MAX_SITES)) delete sites[k];
+        for (const k of keys.filter((k) => !sites[k].evm && !sites[k].solana && !sites[k].bitcoin).slice(0, keys.length - MAX_SITES)) delete sites[k];
       }
       await disk.set(KEY, sites);
       return out;
@@ -69,7 +70,7 @@ export function makeSites(disk: Store) {
 
   return {
     get: async (origin: string): Promise<Site> => (await all())[origin] ?? { origin, chainId: DEFAULT_CHAIN },
-    list: async (): Promise<Site[]> => Object.values(await all()).filter((s) => s.evm || s.solana),
+    list: async (): Promise<Site[]> => Object.values(await all()).filter((s) => s.evm || s.solana || s.bitcoin),
     grant: (origin: string, family: Family, g: SiteGrant) =>
       update((sites) => {
         sites[origin] = { ...(sites[origin] ?? { origin, chainId: DEFAULT_CHAIN }), [family]: g };
@@ -83,6 +84,7 @@ export function makeSites(disk: Store) {
         else {
           delete s.evm;
           delete s.solana;
+          delete s.bitcoin;
         }
       }),
     setChain: (origin: string, chainId: string) =>
@@ -95,6 +97,7 @@ export function makeSites(disk: Store) {
         for (const s of Object.values(sites)) {
           if (s.evm?.walletId === walletId) delete s.evm;
           if (s.solana?.walletId === walletId) delete s.solana;
+          if (s.bitcoin?.walletId === walletId) delete s.bitcoin;
         }
       }),
   };

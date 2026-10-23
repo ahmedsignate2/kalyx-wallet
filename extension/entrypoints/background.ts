@@ -166,7 +166,7 @@ export default defineBackground(() => {
       },
       site: async (origin) => {
         const s = await sites.get(origin);
-        const since = Math.min(...[s.evm?.at, s.solana?.at].filter((x): x is number => typeof x === 'number'));
+        const since = Math.min(...[s.evm?.at, s.solana?.at, s.bitcoin?.at].filter((x): x is number => typeof x === 'number'));
         return { known: Number.isFinite(since) && Date.now() - since > 86_400_000, tampered: host.tamperOf(origin) };
       },
     },

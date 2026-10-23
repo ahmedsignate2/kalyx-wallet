@@ -137,4 +137,5 @@ export default {
   lookTitle: '外观', themeTitle: '主题', themeBody: '默认为夜间。“系统”跟随你的电脑。', themeDark: '夜间', themeLight: '奶油', themeSystem: '系统', modeTitle: '模式', modeBeginner: '新手', modeExpert: '专家', modeBeginnerBody: '先看重点：技术细节默认折叠，高级设置收起。', modeExpertBody: '全部展开：技术细节打开，显示评分点数和高级设置。', soundTitle: '轻柔提示音', soundBody: '签名或转账发出时一声轻响。默认关闭。', advTitle: '高级设置', advBody: '偏执模式、在网站上的显示、仅手机、胁迫码、白名单、网络。', rkHelp: '分数越高，这个请求可能让你损失越多。拿不准就拒绝：拒绝不花任何代价。', apDoneSent: '已发送', apDoneSigned: '已签名', apMethod: '方法', obLookTitle: '按你的喜好',
   receiveBtcNote: '仅限比特币，且须在 Bitcoin 网络上。bc1 地址不接收其他任何资产。',
   recipientPhBtc: 'Bitcoin 地址（bc1…）', ctNoneBtc: '没有 Bitcoin 联系人。可在设置 › 地址簿中添加。', ctAddressPhAll: 'EVM（0x…）、Solana 或 Bitcoin 地址', e_BTC_DUST: '对此 Bitcoin 地址来说金额太小：至少 {min} {symbol}，否则网络会拒绝该交易。', e_BTC_TOO_MANY_INPUTS: '零散小额币太多，无法合并到一笔交易中。请发送更小的金额。',
+  apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '手机账户暂不支持 Bitcoin 网站：请使用本扩展中的账户。',
 };

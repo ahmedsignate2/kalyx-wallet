@@ -81,13 +81,13 @@ export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string)
     set.add(port);
     const stamps: number[] = [];
 
-    port.onMessage.addListener(async (m: { hello?: boolean; id?: number; family?: 'evm' | 'solana'; method?: string; params?: unknown[] }) => {
+    port.onMessage.addListener(async (m: { hello?: boolean; id?: number; family?: 'evm' | 'solana' | 'bitcoin'; method?: string; params?: unknown[] }) => {
       const dapp = getDapp();
       if (m?.hello) {
         port.postMessage({ event: 'hello', data: await dapp.hello(origin).catch(() => null) });
         return;
       }
-      if (typeof m?.id !== 'number' || (m.family !== 'evm' && m.family !== 'solana') || typeof m.method !== 'string') return;
+      if (typeof m?.id !== 'number' || (m.family !== 'evm' && m.family !== 'solana' && m.family !== 'bitcoin') || typeof m.method !== 'string') return;
       if (m.method === 'kalyx_tamper') {
         // Codes connus seulement ; un signalement ne fait qu'AUGMENTER le risque affiché (une page ne peut rien effacer).
         const seen = tampered.get(origin) ?? tampered.set(origin, new Set()).get(origin)!;
