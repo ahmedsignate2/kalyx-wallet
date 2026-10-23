@@ -172,6 +172,13 @@ async function bitcoin() {
 
     const r = await bg({ type: 'portfolio:refresh' });
     const btcHeld = [...r.portfolio.main, ...r.portfolio.small].some((h) => h.chainId === 'bitcoin');
+    // Envoyer : Bitcoin proposé ; réseau injoignable → refus nommé, rien de signé, rien de diffusé.
+    const assets = await bg({ type: 'send:assets' });
+    assets.assets?.some((x) => x.key === 'bitcoin:native') ? console.log('✓ Envoyer : Bitcoin proposé') : fail(`Envoyer sans Bitcoin ${JSON.stringify(assets).slice(0, 120)}`);
+    const pr = await bg({ type: 'send:prepare', assetKey: 'bitcoin:native', to: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', amount: '0.001' });
+    !pr.ok && /RPC_UNAVAILABLE|INSUFFICIENT_FUNDS/.test(pr.error) ? console.log(`✓ Envoyer BTC sans réseau : refus clair (${pr.error}), rien de signé`) : fail(`prépa BTC hors réseau ${JSON.stringify(pr)}`);
+    const bad = await bg({ type: 'send:prepare', assetKey: 'bitcoin:native', to: '0x1111111111111111111111111111111111111111', amount: '0.001' });
+    bad.error === 'INVALID_ADDRESS' ? console.log('✓ Envoyer BTC : adresse EVM refusée') : fail(`adresse EVM pour BTC ${JSON.stringify(bad)}`);
     r.portfolio.failed.includes('Bitcoin') || btcHeld ? console.log(`✓ soldes : Bitcoin lu ou nommé s’il ne répond pas (${btcHeld ? 'lu' : 'injoignable ici'}), jamais un faux zéro`) : fail(`Bitcoin ni lu ni signalé ${JSON.stringify(r.portfolio.failed)}`);
   } finally {
     await ctx.close();

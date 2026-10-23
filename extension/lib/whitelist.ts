@@ -41,7 +41,8 @@ const KEY = 'whitelist';
 const NAME = 'whitelist';
 
 /** Comparaison d'adresses : EVM sans casse, Solana (base58) à l'identique. */
-export const addressKey = (a: string) => (/^0x[0-9a-f]{40}$/i.test(a.trim()) ? a.trim().toLowerCase() : a.trim());
+/** Clé de comparaison : EVM et Bitcoin bech32 (bc1…) sont insensibles à la casse ; Solana et Bitcoin base58, non. */
+export const addressKey = (a: string) => (/^(0x[0-9a-f]{40}|bc1[0-9a-z]{6,87})$/i.test(a.trim()) ? a.trim().toLowerCase() : a.trim());
 
 export interface WhitelistView {
   enforced: boolean;
@@ -83,7 +84,7 @@ export function makeWhitelist(disk: Store, session: Session, wallets: Wallets, c
     const out = new Set<string>();
     for (const w of await wallets.list()) {
       if (!isTrustedWallet(s, w.id, now)) continue;
-      for (const a of w.accounts) for (const x of [a.evm, a.solana]) if (x) out.add(addressKey(x));
+      for (const a of w.accounts) for (const x of [a.evm, a.solana, a.bitcoin]) if (x) out.add(addressKey(x));
     }
     return out;
   }

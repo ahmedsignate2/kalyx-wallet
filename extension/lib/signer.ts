@@ -13,6 +13,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { signerFromEvmPrivateKey, signerFromRawKey, signerFromSeed } from '../../src/domain/chains/v2/derive';
 import { wipeSigner, type ChainSigner } from '../../src/domain/chains/v2/signer';
 import { evmAccountFromPrivateKey } from '../../src/crypto/hd';
+import { p2wpkhAddress } from '../../src/crypto/btc';
 import { mnemonicToSeed } from '../../src/crypto/mnemonic';
 import { WalletError } from '../../src/domain/errors';
 import { readSecret } from './vault';
@@ -20,11 +21,11 @@ import { addressKey } from './whitelist';
 import type { Session } from './session';
 import type { Wallets } from './wallets';
 
-export type SignFamily = 'evm' | 'solana';
+export type SignFamily = 'evm' | 'solana' | 'bitcoin';
 
 /** Adresse que donnerait ce signataire. */
-export function signerAddress(s: ChainSigner): string {
-  if (s.curve === 'secp256k1') return evmAccountFromPrivateKey(`0x${bytesToHex(s.privateKey)}`).address;
+export function signerAddress(s: ChainSigner, family: SignFamily = s.curve === 'secp256k1' ? 'evm' : 'solana'): string {
+  if (s.curve === 'secp256k1') return family === 'bitcoin' ? p2wpkhAddress(s.publicKey) : evmAccountFromPrivateKey(`0x${bytesToHex(s.privateKey)}`).address;
   return base58.encode(s.publicKey);
 }
 
@@ -55,7 +56,7 @@ export async function signerFor(session: Session, wallets: Wallets, walletId: st
       seed.fill(0);
     }
   });
-  if (addressKey(signerAddress(signer)) !== addressKey(expected)) {
+  if (addressKey(signerAddress(signer, family)) !== addressKey(expected)) {
     wipeSigner(signer);
     throw new WalletError('WRONG_ACCOUNT', 'La clé ne correspond pas au compte affiché');
   }

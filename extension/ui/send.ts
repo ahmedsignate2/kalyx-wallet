@@ -96,7 +96,7 @@ export function sendScreen(app: HTMLElement, back: () => void) {
   function onAsset() {
     const a = asset();
     balance.textContent = a ? (a.balanceFmt != null ? t('balanceIs', { b: `${a.balanceFmt} ${a.symbol}` }) : t('balanceUnknown')) : '';
-    to.placeholder = a?.family === 'solana' ? t('recipientPhSol') : t('recipientPh');
+    to.placeholder = a?.family === 'solana' ? t('recipientPhSol') : a?.family === 'bitcoin' ? t('recipientPhBtc') : t('recipientPh');
     maxBtn.disabled = !a || a.balanceFmt == null;
     useMax = false;
     maxBtn.classList.remove('on');

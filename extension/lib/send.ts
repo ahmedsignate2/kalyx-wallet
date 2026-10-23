@@ -1,5 +1,5 @@
 /**
- * ENVOYER — EVM et Solana, pièce native et tokens.
+ * ENVOYER — EVM, Solana (pièce native et tokens) et Bitcoin.
  *
  * Le pipeline est celui de l'app (adaptateurs v2 du cœur) : préparer →
  * vérifier → signer → diffuser → suivre. Ce module y ajoute les verrous de
@@ -19,6 +19,7 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { EvmAdapterV2 } from '../../src/domain/chains/v2/EvmAdapterV2';
 import { SolanaAdapterV2 } from '../../src/domain/chains/v2/SolanaAdapterV2';
+import { BitcoinAdapterV2 } from '../../src/domain/chains/v2/BitcoinAdapterV2';
 import { withSigner } from '../../src/domain/chains/v2/signer';
 import { signerFor } from './signer';
 import { checkSolSignature, checkTxHash, evmChainFor, evmTxParam, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
@@ -44,14 +45,14 @@ const GWEI = 1_000_000_000n;
 /** Garde-fou du mode manuel : au plus 5 × le palier Rapide (une virgule mal placée coûte cher). */
 const MANUAL_MAX_FACTOR = 5n;
 /** Réseaux dont la pièce native est proposée même sans solde lu (le réseau peut être muet). */
-const MAIN_NATIVES = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb', 'avalanche', 'solana'];
+const MAIN_NATIVES = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb', 'avalanche', 'solana', 'bitcoin'];
 
 export interface AssetView {
   key: string;
   chainId: string;
   chainName: string;
   chainLogo?: string;
-  family: 'evm' | 'solana';
+  family: Family;
   symbol: string;
   name: string;
   decimals: number;
@@ -140,12 +141,20 @@ export interface SendDeps {
   onSent?: (w: { txid: string; chainId: string; chainName: string; what: string; explorer?: string; opaque?: unknown; expiresAt?: number }) => void;
 }
 
-const familyOf = (c: ChainConfig): 'evm' | 'solana' => {
-  if (c.family === 'evm' || c.family === 'solana') return c.family;
+export type Family = 'evm' | 'solana' | 'bitcoin';
+
+const familyOf = (c: ChainConfig): Family => {
+  if (c.family === 'evm' || c.family === 'solana' || c.family === 'bitcoin') return c.family;
   throw new WalletError('NOT_SUPPORTED', `Réseau non servi par l'extension : ${c.name}`);
 };
 
-const defaultAdapter = (c: ChainConfig): ChainAdapterV2 => (familyOf(c) === 'evm' ? new EvmAdapterV2(c) : new SolanaAdapterV2(c));
+const defaultAdapter = (c: ChainConfig): ChainAdapterV2 => {
+  const f = familyOf(c);
+  return f === 'evm' ? new EvmAdapterV2(c) : f === 'solana' ? new SolanaAdapterV2(c) : new BitcoinAdapterV2(c);
+};
+
+/** Adresse du compte dans une famille ('' : le compte n'en a pas, ex. clé importée EVM). */
+const addrOf = (acct: Acct, f: string): string => (f === 'evm' ? acct.evm : f === 'solana' ? acct.solana : f === 'bitcoin' ? acct.bitcoin : '') ?? '';
 
 const toGwei = (wei: bigint) => formatTokenAmount(wei, 9).replace(/\s/g, '');
 function fromGwei(s: string): bigint {
@@ -154,6 +163,18 @@ function fromGwei(s: string): bigint {
   } catch {
     throw new WalletError('INVALID_AMOUNT', 'Frais manuels invalides');
   }
+}
+
+/**
+ * Refus Bitcoin rendus précis : poussière (minimum selon l'adresse) et trop
+ * de petites pièces — sinon l'écran ne disait que « montant trop petit » ou
+ * « non pris en charge ».
+ */
+function btcError(e: unknown): unknown {
+  if (!(e instanceof WalletError)) return e;
+  if (e.code === 'AMOUNT_TOO_SMALL') return new WalletError('AMOUNT_TOO_SMALL', 'BTC_DUST', e.meta);
+  if (e.code === 'NOT_SUPPORTED' && /pièces/.test(e.message)) return new WalletError('NOT_SUPPORTED', 'BTC_TOO_MANY_INPUTS');
+  return e;
 }
 
 export function makeSend(deps: SendDeps) {
@@ -175,8 +196,8 @@ export function makeSend(deps: SendDeps) {
     return cur;
   }
 
-  const fromOf = (acct: Acct, family: 'evm' | 'solana') => {
-    const from = family === 'evm' ? acct.evm : acct.solana;
+  const fromOf = (acct: Acct, family: Family) => {
+    const from = addrOf(acct, family);
     // Clé importée d'une seule famille : l'autre n'a pas d'adresse.
     if (!from) throw new WalletError('NOT_SUPPORTED', `WRONG_FAMILY:${family}`);
     return from;
@@ -195,8 +216,8 @@ export function makeSend(deps: SendDeps) {
       } catch {
         continue;
       }
-      if (c.family !== 'evm' && c.family !== 'solana') continue;
-      if ((c.family === 'evm' && !acct.evm) || (c.family === 'solana' && !acct.solana)) continue;
+      if (c.family !== 'evm' && c.family !== 'solana' && c.family !== 'bitcoin') continue;
+      if (!addrOf(acct, c.family)) continue;
       const key = `${c.id}:${h.kind === 'native' || !h.contract ? 'native' : h.contract}`;
       out.set(key, {
         key,
@@ -218,8 +239,8 @@ export function makeSend(deps: SendDeps) {
       const key = `${id}:native`;
       if (out.has(key)) continue;
       const c = listChains({ includeTestnets: false }).find((x) => x.id === id);
-      if (!c || (c.family === 'evm' && !acct.evm) || (c.family === 'solana' && !acct.solana)) continue;
-      out.set(key, { key, chainId: id, chainName: c.name, chainLogo: chainLogo(id), family: c.family as 'evm' | 'solana', symbol: c.nativeSymbol, name: c.nativeSymbol, decimals: c.nativeDecimals, balance: null, balanceFmt: null, price: 0 });
+      if (!c || !addrOf(acct, c.family)) continue;
+      out.set(key, { key, chainId: id, chainName: c.name, chainLogo: chainLogo(id), family: c.family as Family, symbol: c.nativeSymbol, name: c.nativeSymbol, decimals: c.nativeDecimals, balance: null, balanceFmt: null, price: 0 });
     }
     return [...out.values()];
   }
@@ -293,7 +314,11 @@ export function makeSend(deps: SendDeps) {
     if (input.max) {
       if (asset.balance == null) throw new WalletError('INVALID_AMOUNT', 'Solde inconnu');
       amount = BigInt(asset.balance);
-      if (!token) {
+      const btc = a as Partial<BitcoinAdapterV2>;
+      if (family === 'bitcoin' && btc.maxSendable) {
+        // Bitcoin : les frais dépendent des pièces à rassembler — c'est l'adaptateur qui calcule le maximum.
+        amount = (await btc.maxSendable(from, to, speed)).amount;
+      } else if (!token) {
         const q = a.quoteFees ? await a.quoteFees(from, { to, amount: 1n, token: null }) : null;
         amount -= q ? q[speed].cost : 0n;
       }
@@ -303,13 +328,15 @@ export function makeSend(deps: SendDeps) {
     }
 
     // 4. Brouillon (refus de l'adaptateur : solde, décimales, frais).
-    let draft = await a.prepareSend(from, { to, amount, token, speed });
+    let draft = await a.prepareSend(from, { to, amount, token, speed }).catch((e: unknown) => {
+      throw family === 'bitcoin' ? btcError(e) : e;
+    });
     if (input.manual && family === 'evm') draft = await applyManual(a, draft, input.manual, from);
     if (draft.warnings.some((w) => w.code === 'MEMO_REQUIRED')) throw new WalletError('MEMO_REQUIRED', 'Commentaire exigé');
 
     // 5. Anti-empoisonnement : sosie d'une adresse payée, de la liste, ou d'un compte à soi.
     const fiat = await deps.home.fiat();
-    const own = [cur.acct.evm, cur.acct.solana].filter((x): x is string => !!x);
+    const own = [cur.acct.evm, cur.acct.solana, cur.acct.bitcoin].filter((x): x is string => !!x);
     const known = [...(await deps.portfolio.paidAddresses(cur.acct, fiat)), ...(await deps.whitelist.known()), ...own];
     const knownKeys = new Set(known.map(addressKey));
     const match = knownKeys.has(addressKey(to)) ? null : detectPoisoning(to, known);
@@ -362,6 +389,8 @@ export function makeSend(deps: SendDeps) {
       if (!deps.companion) throw new WalletError('NOT_SUPPORTED', 'COMPANION_UNAVAILABLE');
       let txid: string;
       let opaque: number | undefined;
+      // Bitcoin via le téléphone : pas encore (le compte du téléphone n'expose pas d'adresse bc1 ici).
+      if (familyOf(chain) === 'bitcoin') throw new WalletError('NOT_SUPPORTED', 'COMPANION');
       if (familyOf(chain) === 'evm') {
         const p = held.draft.payload as EvmPayload;
         const id = evmChainFor(meta.evmChains ?? [], p.chainId);
