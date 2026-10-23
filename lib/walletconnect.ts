@@ -2,6 +2,7 @@ import { base58, base64, hex } from '@scure/base';
 import { isDecoySession } from './sessionMode';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { signMessageParam } from './dappProvider';
+import { checkSigner } from '../src/domain/wc/signerAccount';
 import { utf8ToBytes } from '@noble/hashes/utils';
 /**
  * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
@@ -406,22 +407,24 @@ function activeAccount() {
 }
 
 /**
- * Le compte qui signerait est-il celui que la dApp connaît ? Une session se noue
- * avec UN compte (choisi à la connexion) ; si l'utilisateur a changé de compte
- * ou de portefeuille depuis, signer avec l'actif produirait une signature d'un
- * compte jamais partagé. Refus clair, avec l'adresse attendue.
+ * Le compte qui signerait est-il celui que la demande nomme ? Une session
+ * partage un ou plusieurs comptes ; chaque demande en désigne un (`from`,
+ * adresse d'un message). Signer avec un autre produirait une signature d'un
+ * compte que le site n'attend pas. Refus clair, avec l'adresse attendue — et,
+ * quand ce compte est dans le portefeuille, son indice (`switchIndex`) pour
+ * que la fenêtre propose « Signer avec ce compte ».
  */
-export function assertSessionAccount(wallet: any, topic: string, chainId: unknown): void {
+export function assertSessionAccount(wallet: any, topic: string, chainId: unknown, method = '', params: unknown = []): void {
   const ns = typeof chainId === 'string' ? chainId.split(':')[0] : '';
   const session = wallet?.getActiveSessions?.()[topic];
   const shared: string[] = ((session?.namespaces?.[ns]?.accounts ?? []) as string[]).map((a) => String(a).split(':').pop() ?? '');
-  if (!shared.length) return;
   const w = useWallet.getState();
-  const acct = w.accounts.find((a) => a.index === w.activeAccountIndex);
-  const mine = ns === 'eip155' ? acct?.evmAddress : ns === 'solana' ? acct?.solAddress : ns === 'bip122' ? acct?.btcAddress : undefined;
-  if (!mine) return;
-  const same = ns === 'eip155' ? (a: string) => a.toLowerCase() === mine.toLowerCase() : (a: string) => a === mine;
-  if (!shared.some(same)) throw new WalletError('WRONG_ACCOUNT', 'compte actif ≠ compte de la session', { address: shortAddress(shared[0]) });
+  const r = checkSigner({ ns, shared, method, params, accounts: w.accounts, activeIndex: w.activeAccountIndex });
+  if (r.ok) return;
+  throw new WalletError('WRONG_ACCOUNT', 'compte demandé ≠ compte actif', {
+    address: shortAddress(r.address),
+    ...(r.switchTo ? { switchIndex: String(r.switchTo.index), switchLabel: r.switchTo.label ?? '' } : {}),
+  });
 }
 
 /** Retire LA demande traitée (par identifiant, pas la tête de file à l'aveugle) ; rend la file restante. */
@@ -792,7 +795,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
        * ordre hors chaîne). Seule la lecture des comptes reste possible.
        */
       if (!/getAccounts|getAccountAddresses|requestAccounts/i.test(method)) await (await import('./whitelistStore')).assertDappAllowed();
-      assertSessionAccount(wallet, topic, params.chainId);
+      assertSessionAccount(wallet, topic, params.chainId, method, p);
       if (!sessionHasChain(wallet, topic, params.chainId)) throw new Error('Réseau de la requête non supporté');
       // Expirée (le tableau de bord a déjà rendu la main à l'utilisateur) : jamais signée en retard.
       const expiry = Number(params.request?.expiryTimestamp);

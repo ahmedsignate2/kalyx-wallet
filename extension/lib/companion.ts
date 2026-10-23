@@ -32,7 +32,8 @@ const RELAY_TIMEOUT_MS = 20_000;
 /** Le strict nécessaire du client WalletConnect (remplaçable dans les tests). */
 export interface WcClient {
   connect(p: ReturnType<typeof proposal>): Promise<{ uri?: string; approval: () => Promise<{ topic: string; namespaces: Record<string, { accounts?: string[] }>; peer?: { metadata?: { name?: string; url?: string } } }> }>;
-  request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; expiryTimestamp?: number } }): Promise<T>;
+  /** `kalyxSite` : champ en plus, transmis tel quel par WalletConnect, lu par l'app Kalyx. */
+  request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; expiryTimestamp?: number; kalyxSite?: string } }): Promise<T>;
   disconnect(a: { topic: string; reason: { code: number; message: string } }): Promise<void>;
   on(event: 'session_delete' | 'session_expire', fn: (e: { topic: string }) => void): void;
   session: { getAll(): { topic: string }[] };
@@ -151,7 +152,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
   }
 
   /** Une demande transmise au téléphone ; il l'affiche et la fait valider. */
-  async function request<T>(meta: WalletMeta, chainId: string, method: string, params: unknown): Promise<T> {
+  async function request<T>(meta: WalletMeta, chainId: string, method: string, params: unknown, site?: string): Promise<T> {
     if (meta.kind !== 'companion' || !meta.topic) throw new RpcError(-32603, 'COMPANION_NOT_LINKED');
     if (meta.lost) throw new RpcError(4100, 'COMPANION_LOST');
     const c = await client();
@@ -162,7 +163,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     const keep = setInterval(() => opts.keepAlive?.(), 20_000);
     try {
       const expiryTimestamp = Math.floor((Date.now() + PHONE_TIMEOUT_MS) / 1000);
-      return await withTimeout(c.request<T>({ topic: meta.topic, chainId, request: { method, params, expiryTimestamp } }), PHONE_TIMEOUT_MS + 5_000, 'COMPANION_TIMEOUT');
+      return await withTimeout(c.request<T>({ topic: meta.topic, chainId, request: { method, params, expiryTimestamp, ...(site ? { kalyxSite: site } : {}) } }), PHONE_TIMEOUT_MS + 5_000, 'COMPANION_TIMEOUT');
     } catch (e) {
       const msg = (e as { message?: string })?.message ?? '';
       // Refus sur le téléphone : même code qu'un refus dans l'extension (4001).

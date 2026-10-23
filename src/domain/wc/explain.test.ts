@@ -196,4 +196,16 @@ describe('EIP-712 pour un autre réseau', () => {
     const same = explain({ kind: 'typedData', domain: 'x.com', typed: { ...typed, chainId: 8453 }, connectedChainId: 8453 });
     expect(same.reasons.join(' ')).not.toContain('Chain ID');
   });
+
+  it('réseau sans simulateur : ne prétend pas avoir simulé, signale la valeur qui part', () => {
+    const decoded = decodeTx({ to: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae', data: '0x12345678aa' });
+    const quiet = explain({ kind: 'tx', domain: 'app.test', decoded, simulation: { source: 'static', approvals: [], changes: [] } });
+    expect(quiet.detail).toMatch(/Pas de simulation sur ce réseau/);
+    const withValue = explain({ kind: 'tx', domain: 'app.test', decoded, txValue: 10n ** 15n, nativeSymbol: 'ETH', nativeDecimals: 18, simulation: { source: 'static', approvals: [], changes: [] } });
+    expect(withValue.risk).toBe('warning');
+    expect(withValue.lose).toEqual(['0.001 ETH']);
+    const reverted = explain({ kind: 'tx', domain: 'app.test', decoded, simulation: { source: 'static', approvals: [], changes: [], error: 'execution reverted' } });
+    expect(reverted.detail).toMatch(/échouerait \(execution reverted\)/);
+  });
 });
+
