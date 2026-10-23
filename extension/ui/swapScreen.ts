@@ -128,7 +128,7 @@ export function swapScreen(app: HTMLElement, back: () => void, opts: { onPhone: 
         const k = st?.ok && st.stage ? STAGES[st.stage] : undefined;
         if (k) status.textContent = `${t(k)}${opts.onPhone ? ` — ${t('onPhoneHint')}` : ''}`;
       }, 800);
-      const r = await send<{ txid: string; explorer?: string }>({ type: 'swap:confirm', id: q.id, ack: ack.checked, password: askPassword ? password.value : undefined }).catch((): R => ({ ok: false, error: 'INTERNAL' }));
+      const r = await send<{ txid: string; explorer?: string }>({ type: 'swap:confirm', id: q.id, ack: ack.checked, password: askPassword ? password.value : undefined }).finally(() => (password.value = '')).catch((): R => ({ ok: false, error: 'INTERNAL' }));
       clearInterval(timer);
       confirm.disabled = false;
       status.textContent = '';
@@ -136,6 +136,12 @@ export function swapScreen(app: HTMLElement, back: () => void, opts: { onPhone: 
         // Devis expiré ou moins bon : on le dit, et on en redemande un.
         err.textContent = errorText(r.error, (r as R).params);
         if (r.error === 'SWAP_QUOTE_GONE' || r.error === 'SWAP_QUOTE_WORSE') ((quote = null), (go.hidden = false));
+        // Plafond journalier dépassé : le mot de passe est demandé, le devis reste valable.
+        if ((r.error === 'CAP_PASSWORD' || r.error === 'PASSWORD_REQUIRED') && !askPassword) {
+          askPassword = true;
+          confirm.before(password);
+          password.focus();
+        }
         return;
       }
       const done = r as unknown as { txid: string; explorer?: string };

@@ -20,3 +20,4 @@
 .factors li { display: flex; gap: 8px; align-items: baseline; }
 .factors .pts { flex: none; min-width: 34px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-secondary); }
 @media (prefers-reduced-motion: reduce) { .score .meter i { transition: none; } }
+.row-inline { display: flex; align-items: center; gap: 10px; }

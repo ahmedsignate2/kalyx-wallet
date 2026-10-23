@@ -195,6 +195,9 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
   const go = h('button', { class: 'btn', type: 'button', disabled: true }, t('confirmSend'));
   // Mode compagnon : pendant la confirmation, la demande attend sur le téléphone.
   const phoneWait = h('p', { class: 'pill quiet status', hidden: true, role: 'status', 'data-testid': 'on-phone' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('onPhoneHint'));
+  // Plafond journalier dépassé (ou « redemander le mot de passe ») : le champ n'apparaît qu'à la demande du service worker.
+  const capNote = h('p', { class: 'banner warn', hidden: true, role: 'status', 'data-testid': 'cap-note' });
+  const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', maxLength: 1024, hidden: true, 'data-testid': 'cap-password' });
   const ready = () => (go.disabled = !!d.poisoning && !ack.checked);
   setTimeout(ready, CONFIRM_DELAY_MS);
   ack.addEventListener('change', () => setTimeout(ready, 0));
@@ -204,10 +207,18 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
     go.textContent = t('sending');
     err.textContent = '';
     phoneWait.hidden = !d.onPhone;
-    const r = await send<{ txid: string; explorer?: string }>({ type: 'send:confirm', id: d.id, acceptRisk: !!d.poisoning && ack.checked }).catch(() => null);
+    const r = await send<{ txid: string; explorer?: string }>({ type: 'send:confirm', id: d.id, acceptRisk: !!d.poisoning && ack.checked, password: pw.value || undefined }).catch(() => null);
     phoneWait.hidden = true;
+    pw.value = '';
     if (!r?.ok) {
       go.textContent = t('confirmSend');
+      if (r?.error === 'CAP_PASSWORD' || r?.error === 'PASSWORD_REQUIRED') {
+        capNote.hidden = r.error !== 'CAP_PASSWORD';
+        capNote.textContent = t('capNote', { remaining: (r.params as Record<string, string> | undefined)?.remaining ?? '0' });
+        pw.hidden = false;
+        go.disabled = false;
+        return void pw.focus();
+      }
       // Brouillon consommé ou périmé : on repart de la saisie.
       err.textContent = errorOf(r);
       if (r?.error === 'REQUEST_EXPIRED' || r?.error === 'WRONG_ACCOUNT') setTimeout(edit, 1600);
@@ -242,6 +253,8 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
     ...d.warnings.map((w) => h('div', { class: 'banner warn' }, h('span', {}, activityT(`w_${w}`)))),
     d.poisoning && h('label', { class: 'check' }, ack, h('span', {}, t('poisonAck'))),
     phoneWait,
+    capNote,
+    pw,
     err,
     go,
   ));

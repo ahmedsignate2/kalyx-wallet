@@ -28,7 +28,7 @@ import { addTokenSheet, networksScreen } from './assetsScreen';
 import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
-import { allowedSitesSheet, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
+import { allowedSitesSheet, capSelect, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -112,6 +112,11 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     data = r;
     render();
     if (first) {
+      // Ouvert depuis le rappel d'autorisations (notification) : directement l'écran des autorisations.
+      if (location.hash === '#allowances') {
+        history.replaceState(null, '', location.pathname);
+        if (current().a?.evm) (allowancesScreen(app, () => render()), (away = true));
+      }
       document.body.dataset.firstPaint = String(Math.round(performance.now()));
       if (opts.mode === 'popup') touch(); // ouvrir le popup est un geste de l'utilisateur
     }
@@ -824,6 +829,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
           t('setSecurity'),
           askPw,
           switchRow('lock', t('paranoTitle'), t('paranoBody'), 'paranoid', !!data?.status.paranoid, async (on) => { const r = await send({ type: 'vault:set-paranoid', on }); if (r.ok && data) data.status.paranoid = on; return r; }, () => settings('none')),
+          // Plafond journalier de dépense (dans la devise affichée).
+          item('currency', t('capTitle'), capSelect(data?.fiat ?? 'usd', LOCALE, () => void 0)),
           phoneOnly,
           siteMode,
           siteList,

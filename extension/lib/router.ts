@@ -31,6 +31,8 @@ import { listChains } from '../../src/domain/chains/registry';
 import { WalletError as CoreError } from '../../src/domain/errors';
 import { LANGS } from '../ui/i18n';
 import type { SiteAccess } from './siteAccess';
+import type { SpendCap } from './spendCap';
+import { REMIND_HOURS, type Grants } from './grants';
 
 /** Services de l'écran principal (absents des tests qui ne les visent pas). */
 export interface Services {
@@ -59,6 +61,10 @@ export interface Services {
   swap?: Swap;
   /** Présence de Kalyx sur les sites (partout, ou sites autorisés seulement). */
   siteAccess?: SiteAccess;
+  /** Plafond journalier de dépense (mot de passe au-delà). */
+  cap?: SpendCap;
+  /** Rappels d'expiration des autorisations accordées aux sites. */
+  grants?: Grants;
   /** Mot de passe oublié : efface TOUTES les données de l'extension (sauf la langue), sans la redémarrer. */
   reset?: () => Promise<void>;
 }
@@ -78,13 +84,26 @@ export type Reply = { ok: true; [k: string]: unknown } | { ok: false; error: str
 
 export async function handleInternal(session: Session, wallets: Wallets, msg: unknown, rpc?: Rpc, svc: Services = {}): Promise<Reply> {
   const m = (msg ?? {}) as Record<string, unknown>;
-  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, siteAccess } = svc;
+  const { home, send, whitelist, disk, sites, approvals, dapp, setDefault, companion, buy, siteIcon, allowances, txWatch, assets, nfts, contacts, swap, reset, siteAccess, cap, grants } = svc;
   const unlocked = async () => {
     if (!(await session.status()).unlocked) throw new SessionError('LOCKED');
   };
   /** « Téléphone seul » : aucune clé dans l'extension ; seuls les comptes du téléphone (mode compagnon). */
   const phoneOnly = async () => !!disk && (await disk.get<boolean>('phoneOnly')) === true;
   const noLocalKeys = { ok: false as const, error: 'PHONE_ONLY' };
+  /**
+   * Mot de passe exigé pour faire partir `value` ? (réglage « redemander pour
+   * signer », ou plafond journalier dépassé / valeur inconnue). Rend une
+   * réponse d'erreur, ou null si l'on peut continuer.
+   */
+  const passwordGate = async (value: number | null | undefined, password: unknown): Promise<Reply | null> => {
+    const ask = !!disk && (await disk.get<boolean>('askPasswordToSign')) === true;
+    const capped = !!cap && value !== undefined && (await cap.needsPassword(value));
+    if (!ask && !capped) return null;
+    if (!pw(password)) return { ok: false, error: capped ? 'CAP_PASSWORD' : 'PASSWORD_REQUIRED', ...(capped && cap ? { params: { remaining: String(Math.floor((await cap.status()).remaining ?? 0)) } } : {}) };
+    await session.checkPassword(password);
+    return null;
+  };
   try {
     switch (m.type) {
       case 'kalyx:core-self-test':
@@ -242,12 +261,13 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'swap:confirm': {
         if (!swap) break;
         await unlocked();
-        // « Redemander le mot de passe pour signer » vaut aussi pour un échange.
-        if (disk && (await disk.get<boolean>('askPasswordToSign')) === true) {
-          if (!pw(m.password)) return { ok: false, error: 'PASSWORD_REQUIRED' };
-          await session.checkPassword(m.password);
-        }
-        return { ok: true, ...(await swap.confirm(m.id, m.ack === true)) };
+        // « Redemander le mot de passe pour signer » et plafond journalier valent aussi pour un échange.
+        const value = swap.valueOf(m.id);
+        const gate = await passwordGate(value, m.password);
+        if (gate) return gate;
+        const done = await swap.confirm(m.id, m.ack === true);
+        await cap?.record(value ?? null);
+        return { ok: true, ...done };
       }
       case 'swap:stage':
         if (!swap) break;
@@ -356,7 +376,14 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!send) break;
         await unlocked();
         if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
-        return { ok: true, ...(await send.confirm(m.id, m.acceptRisk === true)) };
+        {
+          const value = send.valueOf(m.id);
+          const gate = await passwordGate(value, m.password);
+          if (gate) return gate;
+          const done = await send.confirm(m.id, m.acceptRisk === true);
+          await cap?.record(value ?? null);
+          return { ok: true, ...done };
+        }
       case 'send:status':
         if (!send) break;
         if (!str(m.txid, 200)) return { ok: false, error: 'BAD_REQUEST' };
@@ -411,6 +438,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!req) return { ok: false, error: 'REQUEST_EXPIRED' };
         let walletId = '';
         let index = 0;
+        let review: Awaited<ReturnType<NonNullable<Dapp['reviewOf']>>> | undefined;
         if (req.kind === 'connect') {
           // Le compte choisi doit exister ET avoir une adresse pour la famille demandée.
           const w = (await wallets.list()).find((x) => x.id === m.walletId);
@@ -420,14 +448,22 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
           index = a.index;
         } else {
           // Signature : le compte est celui ACCORDÉ au site, jamais choisi ici.
-          if (disk && (await disk.get<boolean>('askPasswordToSign')) === true) {
-            if (!pw(m.password)) return { ok: false, error: 'PASSWORD_REQUIRED' };
-            await session.checkPassword(m.password);
-          }
+          review = dapp ? await dapp.reviewOf(m.id)?.catch(() => undefined) : undefined;
+          const gate = await passwordGate(review ? review.outFiat : null, m.password);
+          if (gate) return gate;
+          if (m.remindHours !== undefined && !(REMIND_HOURS as readonly unknown[]).includes(m.remindHours)) return { ok: false, error: 'BAD_REQUEST' };
           if (m.reduceTo !== undefined && (typeof m.reduceTo !== 'string' || !/^\d{1,40}([.,]\d{1,40})?$/.test(m.reduceTo.trim()))) return { ok: false, error: 'INVALID_AMOUNT' };
         }
         const r = await approvals.respond(m.id, { approve: true, walletId, index, reduceTo: typeof m.reduceTo === 'string' ? m.reduceTo.trim().replace(',', '.') : undefined });
-        if (r.ok) return { ok: true };
+        if (r.ok) {
+          if (review) {
+            await cap?.record(review.outFiat);
+            // Autorisation accordée : rappel à l'échéance choisie (24 h par défaut ; 0 = jamais).
+            const hours = typeof m.remindHours === 'number' ? m.remindHours : 24;
+            if (review.approval && grants && hours > 0) await grants.add({ ...review.approval, origin: req.origin, at: Date.now(), expiresAt: Date.now() + hours * 3_600_000 });
+          }
+          return { ok: true };
+        }
         if (r.error.message === 'REQUEST_EXPIRED') return { ok: false, error: 'REQUEST_EXPIRED' };
         // L'action a échoué : la fenêtre reste ouverte et montre pourquoi.
         return { ok: false, error: 'ACTION_FAILED', params: { code: String(r.error.code), message: r.error.message.slice(0, 300), ...('reason' in r && r.reason ? { reason: r.reason } : {}) } };
@@ -441,7 +477,9 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const ar = approvals?.get(m.id);
         const g = ar && sites ? (await sites.get(ar.origin))[ar.family] : undefined;
         const onPhone = !!g && (await wallets.list()).some((w) => w.id === g.walletId && w.kind === 'companion');
-        return { ok: true, review: await p, askPassword: disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false, onPhone };
+        const rv = await p;
+        const capPassword = !!cap && (await cap.needsPassword(rv.outFiat));
+        return { ok: true, review: rv, askPassword: (disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false) || capPassword, capPassword, capRemaining: cap ? (await cap.status()).remaining : null, onPhone };
       }
       /* ── Autorisations de tokens ── */
       case 'allowances:list':
@@ -452,9 +490,59 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!allowances) break;
         await unlocked();
         const txid = await allowances.revoke(m.chain, m.token, m.spender);
+        if (grants && typeof m.chain === 'string' && typeof m.token === 'string' && typeof m.spender === 'string') await grants.remove(m.chain, m.token, m.spender);
         const chain = listChains().find((c) => c.id === m.chain);
         if (txWatch && chain) await txWatch.add({ txid, chainId: chain.id, chainName: chain.name, what: typeof m.label === 'string' ? m.label.slice(0, 60) : 'approve(0)', explorer: chain.explorerUrl ? `${chain.explorerUrl}/tx/${txid}` : undefined });
         return { ok: true, txid, explorer: chain?.explorerUrl ? `${chain.explorerUrl}/tx/${txid}` : undefined };
+      }
+      /* ── Rappels d'autorisations ── */
+      case 'grants:list':
+        if (!grants) break;
+        await unlocked();
+        return { ok: true, grants: (await grants.list()).map((g) => ({ ...g, expired: g.expiresAt <= Date.now() })) };
+      case 'grants:dismiss':
+        if (!grants) break;
+        await unlocked();
+        await grants.dismiss(m.id);
+        return { ok: true };
+      case 'grants:revoke-expired': {
+        // En un clic, mais chaque révocation reste une transaction signée (ou validée sur le téléphone).
+        if (!grants || !allowances) break;
+        await unlocked();
+        const done: string[] = [];
+        const failed: { symbol: string; error: string }[] = [];
+        for (const g of await grants.expired()) {
+          try {
+            const txid = await allowances.revoke(g.chainId, g.token, g.spender);
+            await grants.remove(g.chainId, g.token, g.spender);
+            const chain = listChains().find((c) => c.id === g.chainId);
+            if (txWatch && chain) await txWatch.add({ txid, chainId: chain.id, chainName: chain.name, what: `approve(0) ${g.symbol}`, explorer: chain.explorerUrl ? `${chain.explorerUrl}/tx/${txid}` : undefined });
+            done.push(txid);
+          } catch (e) {
+            failed.push({ symbol: g.symbol, error: (e as Error).message.slice(0, 80) });
+          }
+        }
+        return { ok: true, done: done.length, failed };
+      }
+      /* ── Plafond journalier ── */
+      case 'cap:get':
+        if (!cap) break;
+        return { ok: true, ...(await cap.status()) };
+      case 'cap:set': {
+        if (!cap) break;
+        await unlocked();
+        const next = m.limit === null ? null : m.limit;
+        // Relever ou retirer le plafond : mot de passe redemandé. Le baisser : non.
+        if (await cap.loosens(next as number | null)) {
+          if (!pw(m.password)) return { ok: false, error: 'PASSWORD_REQUIRED' };
+          await session.checkPassword(m.password);
+        }
+        try {
+          await cap.setLimit(next);
+        } catch {
+          return { ok: false, error: 'BAD_REQUEST' };
+        }
+        return { ok: true };
       }
       /* ── Mode compagnon : délier un téléphone ── */
       case 'companion:unlink': {

@@ -67,6 +67,10 @@ export interface Review {
   reduce?: { symbol: string; decimals: number; suggested?: string };
   /** Score de risque 0-100 et ses raisons (lib/riskScore), calculé ici. */
   score: RiskScore;
+  /** Valeur de ce qui part, dans la devise affichée (plafond journalier) ; null si inconnue. */
+  outFiat: number | null;
+  /** Autorisation de token accordée par cette transaction (rappel d'expiration). */
+  approval?: { chainId: string; chainName: string; token: string; symbol: string; spender: string };
 }
 
 const hexQ = (v: unknown): string | undefined => (typeof v === 'string' && /^0x[0-9a-fA-F]{1,64}$/.test(v) ? v : typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? `0x${v.toString(16)}` : undefined);
@@ -179,6 +183,8 @@ export interface ReviewDeps {
   tokenMeta?: (chain: ChainConfig, token: string) => Promise<{ symbol: string; decimals: number } | null>;
   /** Ce que Kalyx sait du site : déjà connecté par le passé, signes d'une page altérée (lib/dappHost). */
   site?: (origin: string) => Promise<{ known: boolean; tampered: string[] }>;
+  /** Prix d'un actif dans la devise affichée (natif si pas de contrat), null s'il est inconnu. */
+  priceOf?: (chainId: string, contract?: string) => Promise<number | null>;
 }
 
 const withTimeoutOrNull = <T>(p: Promise<T>): Promise<T | null> => Promise.race([p.catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), ANALYSIS_MS))]);
@@ -219,6 +225,29 @@ export async function review(req: SignRequest, origin: string, deps: ReviewDeps)
   return { ...r, score: scoreRisk(signals) };
 }
 
+/**
+ * Valeur sortante d'une transaction EVM, dans la devise affichée : la valeur
+ * native, plus chaque sortie simulée (jetons). Sans simulation alors que la
+ * transaction appelle un contrat, ou sans prix : inconnue (null).
+ */
+async function outFiatOf(chain: ChainConfig, value: bigint, data: string, sim: Simulation | null, priceOf?: ReviewDeps['priceOf']): Promise<number | null> {
+  const price = async (contract?: string) => (priceOf ? await withTimeoutOrNull(priceOf(chain.id, contract)) : null);
+  let total = 0;
+  if (value > 0n) {
+    const p = await price();
+    if (!p) return null;
+    total += (Number(value) / 10 ** chain.nativeDecimals) * p;
+  }
+  if (!sim) return data.length > 2 ? null : total;
+  for (const c of sim.changes.filter((x) => x.direction === 'out' && x.assetType !== 'NATIVE')) {
+    if (c.assetType !== 'ERC20' || !c.contract) return null;
+    const p = await price(c.contract);
+    if (!p) return null;
+    total += (Number(BigInt(c.rawAmount)) / 10 ** c.decimals) * p;
+  }
+  return total;
+}
+
 async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, sig: RiskSignals): Promise<Omit<Review, 'score'>> {
   const t = deps.t;
   const host = new URL(origin).host;
@@ -235,7 +264,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     const siweMismatch = !!req.siwe && siweDomainMismatch(req.siwe.domain, origin);
     if (siweMismatch) sig.domainMismatch = { domain: req.siwe!.domain.slice(0, 60) };
     const explanation = explainRequest({ kind: req.siwe ? 'siwe' : 'message', domain: host, siwe: req.siwe, siweMismatch, messageText: req.text, phishingSite, t });
-    return { explanation, method: 'personal_sign', messageText: clip(req.text ?? req.hex), details: [{ label: 'Compte', value: req.from }] };
+    return { explanation, method: 'personal_sign', messageText: clip(req.text ?? req.hex), details: [{ label: 'Compte', value: req.from }], outFiat: 0 };
   }
   if (req.kind === 'typed') {
     const chain = chainOfHex(req.chainId);
@@ -258,6 +287,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
         ...(s?.details ?? []),
       ],
       messageText: clip(JSON.stringify(req.data.message, null, 2)),
+      outFiat: 0,
     };
   }
   if (req.kind === 'evmTx') {
@@ -271,7 +301,8 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     const explanation = explainRequest({ kind: 'tx', domain: host, decoded, simulation: sim, addressRisk, phishingSite, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, txValue: value, t });
     if (decoded.kind === 'approveAll' && decoded.approved) sig.approveAll = true;
     if (decoded.kind === 'approve' && decoded.unlimited) sig.unlimitedApproval = true;
-    if (sim && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
+    // Perte sans contrepartie : signe d'un drain quand un CONTRAT est appelé (un simple paiement, lui, ne « reçoit » jamais rien).
+    if (req.tx.data.length > 2 && sim && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
     if (!sim && (value > 0n || req.tx.data.length > 2)) sig.noSimulation = true;
     const suggested =
       decoded.kind === 'approve' ? sim?.changes.find((c) => c.direction === 'out' && c.contract && same(c.contract, decoded.token))?.rawAmount : undefined;
@@ -284,6 +315,8 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
         { label: 'Valeur', value: `${formatTokenAmount(value, chain.nativeDecimals)} ${chain.nativeSymbol}` },
         { label: 'Données', value: req.tx.data.length > 10 ? `${req.tx.data.slice(0, 10)}… (${(req.tx.data.length - 2) / 2} octets)` : '—' },
       ],
+      outFiat: await outFiatOf(chain, value, req.tx.data, sim, deps.priceOf),
+      approval: decoded.kind === 'approve' && decoded.amount > 0n ? { chainId: chain.id, chainName: chain.name, token: decoded.token, symbol: meta?.symbol ?? '?', spender: decoded.spender } : undefined,
       reduce:
         explanation.canReduceApproval && decoded.kind === 'approve' && meta
           ? { symbol: meta.symbol, decimals: meta.decimals, suggested: suggested ? formatTokenAmount(BigInt(suggested), meta.decimals) : undefined }
@@ -292,7 +325,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
   }
   if (req.kind === 'solMessage') {
     const explanation = explainRequest({ kind: 'message', domain: host, messageText: req.text ?? `0x${bytesToHex(base64.decode(req.message))}`, phishingSite, t });
-    return { explanation, method: 'solana:signMessage', messageText: clip(req.text ?? `0x${bytesToHex(base64.decode(req.message))}`), details: [{ label: 'Compte', value: req.from }] };
+    return { explanation, method: 'solana:signMessage', messageText: clip(req.text ?? `0x${bytesToHex(base64.decode(req.message))}`), details: [{ label: 'Compte', value: req.from }], outFiat: 0 };
   }
   const desc: SolanaTxDescription | null = describeSolanaTransaction(base64.decode(req.txs[0]), req.from);
   const explanation = explainRequest({ kind: 'solanaTx', domain: host, solana: desc, phishingSite, t });
@@ -306,6 +339,8 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     explanation,
     method: req.send ? 'solana:signAndSendTransaction' : 'solana:signTransaction',
     chainName: 'Solana',
+    // Valeur d'une transaction Solana : non estimée ici (plafond : mot de passe redemandé).
+    outFiat: null,
     details: [
       ...(req.txs.length > 1 ? [{ label: 'Transactions', value: String(req.txs.length) }] : []),
       ...(desc?.programs ?? []).slice(0, 8).map((p) => ({ label: 'Programme', value: typeof p === 'string' ? p : JSON.stringify(p) })),

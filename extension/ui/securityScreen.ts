@@ -189,3 +189,48 @@ export function phoneOnlyOffSheet(changed: () => void) {
   };
   const sheet = openSheet(t('poOffTitle'), h('p', {}, t('poOffBody')), pw, err, go);
 }
+
+const CAPS = [100, 250, 500, 1000, 2500, 5000];
+
+/**
+ * Plafond journalier (dans la devise affichée) : un choix. Le baisser est
+ * immédiat ; le relever ou le retirer redemande le mot de passe.
+ */
+export function capSelect(fiat: string, locale: string, reload: () => void): HTMLSelectElement {
+  const money = (n: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: fiat.toUpperCase(), maximumFractionDigits: 0 }).format(n);
+  const sel = h('select', { class: 'inline', 'aria-label': t('capTitle'), 'data-testid': 'cap' }, h('option', { value: '' }, t('capOff')), ...CAPS.map((c) => h('option', { value: String(c) }, money(c))));
+  let current = '';
+  void send<{ limit: number | null; spent: number }>({ type: 'cap:get' }).then((r) => {
+    if (r.ok) sel.value = current = r.limit ? String(r.limit) : '';
+  });
+  const apply = async (password?: string) => {
+    const limit = sel.value ? Number(sel.value) : null;
+    const r = await send({ type: 'cap:set', limit, password }).catch(() => ({ ok: false, error: 'INTERNAL' }));
+    if (r.ok) return void ((current = sel.value), reload());
+    if (r.error === 'PASSWORD_REQUIRED' && password === undefined) return askPassword();
+    sel.value = current;
+  };
+  const askPassword = () => {
+    const err = h('p', { class: 'error', role: 'alert' });
+    const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', 'data-testid': 'cap-password' });
+    const go = h('button', { class: 'btn', type: 'button', 'data-testid': 'cap-confirm' }, t('capRaise'));
+    let done = false;
+    const sheet = openSheet(t('capTitle'), h('p', {}, t('capRaiseBody')), pw, err, go);
+    go.onclick = async () => {
+      const r = await send({ type: 'cap:set', limit: sel.value ? Number(sel.value) : null, password: pw.value }).catch(() => ({ ok: false, error: 'INTERNAL' }));
+      pw.value = '';
+      if (!r.ok) return void (err.textContent = r.error === 'WRONG_PASSWORD' ? t('wrongPassword') : errorText(r.error));
+      done = true;
+      current = sel.value;
+      sheet.close();
+      reload();
+    };
+    // Feuille fermée sans confirmer : le plafond reste celui d'avant.
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(sheet.body)) (observer.disconnect(), done || (sel.value = current));
+    });
+    observer.observe(document.body, { childList: true });
+  };
+  sel.addEventListener('change', () => void apply());
+  return sel;
+}

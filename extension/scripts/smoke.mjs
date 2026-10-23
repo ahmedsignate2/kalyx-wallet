@@ -323,6 +323,51 @@ async function hardening() {
     await sigWin.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
     (await site.evaluate(() => window.kx.s)).code === 4001 ? console.log('✓ refusé : rien de signé') : fail('refus');
 
+    // Plafond journalier (réglé à 100) : une autorisation demandée par le site, valeur inconnue (pas de réseau ici) → mot de passe.
+    await ext.reload();
+    await ext.locator('[data-testid=account]').waitFor();
+    await ext.getByRole('button', { name: 'Réglages' }).click();
+    await ext.locator('[data-testid=cap]').selectOption('100');
+    await ext.waitForTimeout(300);
+    (await bg({ type: 'cap:get' })).limit === 100 ? console.log('✓ plafond journalier réglé (100)') : fail('plafond non réglé');
+    // (délai anti-inondation après le refus précédent : 10 s)
+    await site.waitForTimeout(10_500);
+    await site.evaluate(() => {
+      const data = '0x095ea7b3' + '000000000000000000000000000000000022d473030f116ddee9f6b43ac78ba3' + 'f'.repeat(64);
+      window.kx.t = window.kx.call('eth_sendTransaction', [{ from: '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', to: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', data, value: '0x0' }]);
+    });
+    const tw = await win(() => true);
+    await tw.locator('[data-testid=risk-score]').waitFor({ timeout: 25_000 });
+    const remind = await tw.locator('[data-testid=remind]').inputValue().catch(() => null);
+    remind === '24' && (await tw.locator('[data-testid=cap-note]').count()) === 0
+      ? console.log('✓ autorisation : rappel de révocation (24 h par défaut) ; aucun fonds ne part, le plafond ne s’applique pas')
+      : fail(`fenêtre d'autorisation : rappel ${remind}`);
+    if (process.env.SHOTS) await tw.screenshot({ path: join(process.env.SHOTS, 'approve-remind.png'), fullPage: true });
+    await tw.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
+    await site.evaluate(() => window.kx.t);
+
+    // Envoi de valeur, prix inconnu (pas de réseau ici) : avec un plafond, mot de passe exigé ; sans lui, rien ne part.
+    // (deuxième refus d'affilée : le délai anti-inondation double, 20 s)
+    await site.waitForTimeout(20_500);
+    await site.evaluate(() => void (window.kx.v = window.kx.call('eth_sendTransaction', [{ from: '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', to: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8', value: '0x2386f26fc10000', data: '0x' }])));
+    const vw = await win(() => true);
+    await vw.locator('[data-testid=cap-note]').waitFor({ timeout: 25_000 }).then(() => console.log('✓ plafond journalier : note affichée, mot de passe demandé'), () => fail('pas de note de plafond'));
+    if (process.env.SHOTS) await vw.screenshot({ path: join(process.env.SHOTS, 'approve-cap.png'), fullPage: true });
+    // Le service worker refuse la signature sans mot de passe (vérifié aussi au niveau du routeur, tests unitaires).
+    const rid = new URL(vw.url()).hash.slice(1);
+    const resp = await ext.evaluate((x) => chrome.runtime.sendMessage({ type: 'approval:respond', id: x, approve: true }), rid);
+    resp.error === 'CAP_PASSWORD' && !vw.isClosed() ? console.log('✓ sans mot de passe : refusé par le service worker (CAP_PASSWORD), rien n’est signé') : fail(`plafond contourné ${JSON.stringify(resp)}`);
+    await vw.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
+    await site.evaluate(() => window.kx.v);
+
+    // Rappel échu → l'écran des autorisations (ouvert par la notification) propose de tout révoquer.
+    await ext.evaluate(() => chrome.storage.local.set({ 'kalyx.grants': [{ id: 'ethereum:x', chainId: 'ethereum', chainName: 'Ethereum', token: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', symbol: 'USDC', spender: '0x000000000022d473030f116ddee9f6b43ac78ba3', origin: 'https://app.uniswap.org', at: 1, expiresAt: 2 }] }));
+    const tab = await ctx.newPage();
+    await tab.goto(`chrome-extension://${id}/sidepanel.html#allowances`);
+    await tab.locator('[data-testid=revoke-expired]').waitFor({ timeout: 10_000 }).then(async () => ((await tab.locator('[data-testid=revoke-expired]').textContent()) === 'Tout révoquer (1)' ? console.log('✓ rappel échu : « Tout révoquer (1) » sur l’écran des autorisations') : fail('bouton révoquer')), () => fail('écran des rappels absent'));
+    if (process.env.SHOTS) await tab.screenshot({ path: join(process.env.SHOTS, 'reminders.png') });
+    await tab.close();
+
     // Téléphone seul : refusé tant qu'une clé locale est là ; aucune création de clé ensuite possible.
     (await bg({ type: 'settings:set-phone-only', on: true })).error === 'HAS_LOCAL_KEYS' ? console.log('✓ « Téléphone seul » refusé : une clé locale est encore dans l’extension') : fail('téléphone seul accepté avec clé locale');
 
