@@ -103,7 +103,7 @@ export function accountFromKey(input: string, family: Family): { account: Accoun
 /** Empreinte publique d'un portefeuille : sert à refuser un doublon sans rien déchiffrer. */
 const fingerprint = (w: Pick<WalletMeta, 'accounts'>) => {
   const a = w.accounts.find((x) => x.index === 0) ?? w.accounts[0];
-  return (a?.evm ?? a?.solana ?? '').toLowerCase();
+  return (a?.evm ?? a?.solana ?? a?.bitcoin ?? '').toLowerCase();
 };
 
 export function makeWallets(disk: Store, session: Session) {
@@ -202,10 +202,10 @@ export function makeWallets(disk: Store, session: Session) {
     for (let n = 2; ; n++) if (!taken.includes(`${base} ${n}`)) return `${base} ${n}`;
   }
 
-  async function addCompanion(p: { topic: string; evm?: string; solana?: string; evmChains: number[]; label: string }): Promise<WalletMeta> {
+  async function addCompanion(p: { topic: string; evm?: string; solana?: string; bitcoin?: string; evmChains: number[]; label: string }): Promise<WalletMeta> {
     return session.withVault(async () => {
       const all = await list();
-      const fp = (p.evm ?? p.solana ?? '').toLowerCase();
+      const fp = (p.evm ?? p.solana ?? p.bitcoin ?? '').toLowerCase();
       const prev = all.find((w) => w.kind === 'companion' && fingerprint(w) === fp);
       if (!prev && fp && all.some((w) => fingerprint(w) === fp)) throw new WalletError('DUPLICATE');
       if (!prev && all.length >= MAX_WALLETS) throw new WalletError('TOO_MANY_WALLETS');
@@ -219,7 +219,7 @@ export function makeWallets(disk: Store, session: Session) {
         createdAt: prev?.createdAt ?? Date.now(),
         // Rien à sauvegarder ici : la phrase est sur le téléphone.
         backedUp: true,
-        accounts: [{ index: 0, label: 'Compte 1', evm: p.evm, solana: p.solana }],
+        accounts: [{ index: 0, label: 'Compte 1', evm: p.evm, solana: p.solana, bitcoin: p.bitcoin }],
       };
       const next = prev ? all.map((w) => (w.id === prev.id ? meta : w)) : [...all, meta];
       return { result: meta, commit: () => save(next) };

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { Wallet, hexlify, toUtf8Bytes } from 'ethers';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
-import { checkPersonal, checkSolMessage, checkSolSigned, checkTxHash, checkTyped, evmChainFor, evmTxParam, proposal, sessionAccounts, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
+import { BTC_CAIP, checkBtcTxid, checkPersonal, checkSolMessage, checkSolSigned, checkTxHash, checkTyped, evmChainFor, evmTxParam, proposal, sessionAccounts, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
 import { checkSolSignedTx, executeOnPhone, splitSolanaTx } from './companionSign';
 import { makeCompanion, type WcClient } from './companion';
 import { makeSession } from './session';
@@ -30,6 +30,21 @@ const ns = (evm: string[], sol: string[] = []) => ({
 });
 
 describe('mode compagnon : partie pure', () => {
+  test('Bitcoin : proposé en option ; adresse bc1 du réseau principal lue (casse ramenée), testnet et ambiguïté refusés', () => {
+    expect(proposal([1]).optionalNamespaces.bip122).toEqual({ chains: [BTC_CAIP], methods: ['sendTransfer'], events: [] });
+    const btc = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+    expect(sessionAccounts({ bip122: { accounts: [`${BTC_CAIP}:${btc.toUpperCase()}`] } }).bitcoin).toBe(btc);
+    expect(sessionAccounts({ bip122: { accounts: [`bip122:000000000933ea01ad0ee984209779ba:${btc}`] } }).bitcoin).toBeUndefined();
+    expect(sessionAccounts({ bip122: { accounts: [`${BTC_CAIP}:pas-une-adresse`] } }).bitcoin).toBeUndefined();
+    expect(() => sessionAccounts({ bip122: { accounts: [`${BTC_CAIP}:${btc}`, `${BTC_CAIP}:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq`] } })).toThrow('COMPANION_AMBIGUOUS');
+  });
+
+  test('txid Bitcoin du téléphone : 64 hex, sinon refusé', () => {
+    expect(checkBtcTxid('AB'.repeat(32))).toBe('ab'.repeat(32));
+    expect(() => checkBtcTxid('0x' + 'ab'.repeat(32))).toThrow('COMPANION_BAD_RESULT');
+    expect(() => checkBtcTxid({ txid: 'x' })).toThrow('COMPANION_BAD_RESULT');
+  });
+
   test('proposition : réseaux EVM dédoublonnés, valeurs invalides écartées, Solana en plus, tout optionnel', () => {
     const p = proposal([1, 8453, 1, 0, -2, 1.5]);
     expect(p.optionalNamespaces.eip155.chains).toEqual(['eip155:1', 'eip155:8453']);
