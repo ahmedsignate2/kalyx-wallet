@@ -29,10 +29,11 @@ import type { Assets, CustomToken, ViewPrefs } from './assets';
 export interface Acct {
   evm?: string;
   solana?: string;
+  bitcoin?: string;
 }
 
-/** Familles servies par l'extension en v1. */
-const FAMILIES = new Set(['evm', 'solana']);
+/** Familles servies par l'extension. */
+const FAMILIES = new Set(['evm', 'solana', 'bitcoin']);
 const STALE_MS = 45_000;
 const MAX_ACTIVITY = 60;
 
@@ -135,6 +136,9 @@ export function chainLogo(id: string): string | undefined {
   const svg = embeddedChainLogo(uri);
   return svg ? `data:image/svg+xml,${encodeURIComponent(svg)}` : uri;
 }
+
+/** Adresse du compte sur un réseau ('' : le compte n'y a pas d'adresse). */
+const addressOn = (a: Acct, c: Pick<ChainConfig, 'family'>): string => (c.family === 'evm' ? a.evm : c.family === 'solana' ? a.solana : c.family === 'bitcoin' ? a.bitcoin : '') ?? '';
 
 /** Seuls les logos https sont repris d'un indexeur (jamais javascript:, data: ou http:). */
 const safeLogo = (u?: string) => (u && /^https:\/\//i.test(u) ? u : undefined);
@@ -286,7 +290,7 @@ export function makePortfolio(deps: PortfolioDeps) {
       const failed = new Set<string>();
       const before2 = await readCustom(a);
       const [fresh, customRead] = await Promise.all([
-        load({ evmAddress: a.evm ?? '', solAddress: a.solana }, fiat, false, failed),
+        load({ evmAddress: a.evm ?? '', solAddress: a.solana, btcAddress: a.bitcoin }, fiat, false, failed),
         deps.assets ? deps.assets.balances(a.evm, before2.list) : Promise.resolve({ items: [], failed: [] as string[] }),
       ]);
       // Tokens ajoutés : un réseau muet garde ses derniers soldes lus.
@@ -328,7 +332,7 @@ export function makePortfolio(deps: PortfolioDeps) {
     const { snap } = await readSnapshot(a, fiat);
     const holdings = snap?.holdings ?? [];
     const trusted = buildTrusted(verifiedContracts(holdings));
-    const own = [a.evm, a.solana].filter((x): x is string => !!x);
+    const own = [a.evm, a.solana, a.bitcoin].filter((x): x is string => !!x);
     const known = knownCounterparties(txs, trusted, own);
     const prices = new Map(holdings.filter((h) => h.verified && h.price > 0).map((h) => [h.symbol.toUpperCase(), h.price]));
     const money = new Intl.NumberFormat(deps.locale, { style: 'currency', currency: fiat.toUpperCase() });
@@ -396,7 +400,7 @@ export function makePortfolio(deps: PortfolioDeps) {
       const holdingChains = new Set((snap?.holdings ?? []).map((h) => h.chainId));
       const cachedChains = new Set(before.txs.map((t) => t.chain));
       const chains = pickHistoryChains(listChains({ includeTestnets: false }), holdingChains, cachedChains).filter(
-        (c) => (c.family === 'evm' && a.evm) || (c.family === 'solana' && a.solana),
+        (c) => !!addressOn(a, c),
       );
       const failed: string[] = [];
       /*
@@ -408,7 +412,7 @@ export function makePortfolio(deps: PortfolioDeps) {
       const silent = new Set((await deps.disk.get<StoredSnapshot>(key('portfolio', a, fiat)))?.failed ?? []);
       const lists = await Promise.all(
         chains.map(async (c) => {
-          const address = c.family === 'evm' ? a.evm! : a.solana!;
+          const address = addressOn(a, c);
           try {
             const got = await history(c.id, address);
             if (!got.length && silent.has(c.id)) throw new Error('SILENT');

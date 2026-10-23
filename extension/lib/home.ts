@@ -34,7 +34,7 @@ export function makeHome(disk: Store, session: Session, wallets: Wallets, portfo
     if (!wallet) return null;
     const account = wallet.accounts.find((a) => a.index === sel?.index) ?? wallet.accounts[0];
     if (!account) return null;
-    return { wallet, index: account.index, acct: { evm: account.evm, solana: account.solana } };
+    return { wallet, index: account.index, acct: { evm: account.evm, solana: account.solana, bitcoin: account.bitcoin } };
   }
 
   const needUnlocked = async () => {
@@ -45,6 +45,8 @@ export function makeHome(disk: Store, session: Session, wallets: Wallets, portfo
   async function get() {
     const st = await session.status();
     if (!st.hasVault || !st.unlocked) return { status: st };
+    // Portefeuilles d'avant Bitcoin : leur adresse bc1 est ajoutée une fois, coffre ouvert.
+    await wallets.backfillBitcoin().catch(() => false);
     const list = await wallets.list();
     const cur = await current(list);
     const f = await fiat();

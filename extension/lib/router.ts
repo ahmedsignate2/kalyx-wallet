@@ -335,7 +335,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const cur = await home.current();
         if (!cur) return { ok: false, error: 'UNKNOWN_ACCOUNT' };
         const warned = (await disk.get<string[]>('receiveWarned')) ?? [];
-        return { ok: true, walletId: cur.wallet.id, label: cur.wallet.label, index: cur.index, evm: cur.acct.evm, solana: cur.acct.solana, backedUp: cur.wallet.backedUp, warned: warned.includes(cur.wallet.id) };
+        return { ok: true, walletId: cur.wallet.id, label: cur.wallet.label, index: cur.index, evm: cur.acct.evm, solana: cur.acct.solana, bitcoin: cur.acct.bitcoin, backedUp: cur.wallet.backedUp, warned: warned.includes(cur.wallet.id) };
       }
       case 'receive:ack-warning': {
         if (!disk || !str(m.walletId, 64)) return { ok: false, error: 'BAD_REQUEST' };

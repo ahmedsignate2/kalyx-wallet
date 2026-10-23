@@ -6,8 +6,8 @@ const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 /**
  * Modules du cœur et de l'app remplacés, POUR L'EXTENSION, par leur version
  * navigateur. Le cœur reste inchangé ; l'extension n'embarque ni ce qu'elle
- * ne sert pas (Bitcoin, TON) ni les stores de l'app mobile.
- *  - registre des réseaux → EVM + Solana seulement ;
+ * ne sert pas (TON) ni les stores de l'app mobile.
+ *  - registre des réseaux → EVM, Solana et Bitcoin ;
  *  - journal technique de l'app → aucun journal ;
  *  - échanges STON.fi (TON) → aucun routeur TON accepté par le garde.
  */

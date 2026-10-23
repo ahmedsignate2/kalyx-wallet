@@ -1,9 +1,9 @@
 /**
  * Registre des réseaux de l'EXTENSION : même interface que celui du cœur
- * (src/domain/chains/registry), mais seuls les adaptateurs EVM et Solana sont
- * construits. Substitué au registre du cœur au moment du build (voir
- * scripts/registryPlugin.ts) : le cœur reste inchangé, et l'extension
- * n'embarque ni Bitcoin ni TON (prévus plus tard).
+ * (src/domain/chains/registry), mais seuls les adaptateurs EVM, Solana et
+ * Bitcoin sont construits. Substitué au registre du cœur au moment du build
+ * (voir scripts/registryPlugin.ts) : le cœur reste inchangé, et l'extension
+ * n'embarque pas TON (prévu plus tard).
  *
  * `listChains` rend tous les réseaux connus, comme dans l'app ; `getAdapter`
  * lève sur un réseau non servi, exactement comme sur un réseau inconnu — les
@@ -12,12 +12,14 @@
 import type { ChainAdapter, ChainConfig } from '../../src/domain/chains/types';
 import { EvmChainAdapter } from '../../src/domain/chains/EvmChainAdapter';
 import { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
+import { BitcoinChainAdapter } from '../../src/domain/chains/BitcoinChainAdapter';
 import { ALL_CHAINS } from '../../src/domain/chains/configs';
 import { isRelayUrl } from '../../src/domain/net/relay';
 
 function createAdapter(config: ChainConfig): ChainAdapter | null {
   if (config.family === 'evm') return new EvmChainAdapter(config);
   if (config.family === 'solana') return new SolanaChainAdapter(config);
+  if (config.family === 'bitcoin') return new BitcoinChainAdapter(config);
   return null;
 }
 
