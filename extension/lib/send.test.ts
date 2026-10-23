@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { base58 } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import { makeSend } from './send';
-import { makeWhitelist } from './whitelist';
+import { addressKey, makeWhitelist } from './whitelist';
 import { makeHome } from './home';
 import { makePortfolio } from './portfolio';
 import { makeSession } from './session';
@@ -11,7 +11,10 @@ import { makeWallets } from './wallets';
 import { handleInternal } from './router';
 import type { Companion } from './companion';
 import { activityT } from '../ui/i18n';
-import { ETHEREUM, SOLANA } from '../../src/domain/chains/configs';
+import { BITCOIN, ETHEREUM, SOLANA } from '../../src/domain/chains/configs';
+import { BitcoinChainAdapter } from '../../src/domain/chains/BitcoinChainAdapter';
+import { BitcoinAdapterV2 } from '../../src/domain/chains/v2/BitcoinAdapterV2';
+import { p2wpkhAddress } from '../../src/crypto/btc';
 import { evmAccountFromPrivateKey, deriveEvmAccount } from '../../src/crypto/hd';
 import { mnemonicToSeedSync } from '../../src/crypto/mnemonic';
 import type { ChainAdapterV2, SendDraft, SendRequest } from '../../src/domain/chains/v2/types';
@@ -193,6 +196,71 @@ describe('envoyer', () => {
     await session.lock();
     await expect(send.confirm(d.id)).rejects.toThrow();
     expect(log.broadcasts).toBe(0);
+  });
+});
+
+describe('Bitcoin', () => {
+  const BTC0 = 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu';
+  const DEST = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+  /** Réseau Bitcoin simulé : pièces et taux fixes, diffusion notée. La signature, elle, est la vraie. */
+  function btcNet(utxos: { txid: string; vout: number; value: number }[]) {
+    const v1 = new BitcoinChainAdapter(BITCOIN);
+    const out = { hex: '' };
+    Object.assign(v1, {
+      getFeeRates: async () => ({ slow: 2, normal: 5, fast: 10 }),
+      confirmedUtxos: async () => utxos,
+      broadcastHex: async (hex: string) => ((out.hex = hex), 'f'.repeat(64)),
+    });
+    return { adapter: new BitcoinAdapterV2(BITCOIN, v1), out };
+  }
+  const btcSend = (a: BitcoinAdapterV2) => {
+    const pf = makePortfolio({ disk: makeStore(disk), t: activityT, locale: 'fr-FR', now: () => clock, load: async () => [holding('bitcoin', 'BTC', 200_000n, 8)], history: async () => [] });
+    const h = makeHome(makeStore(disk), session, wallets, pf, 'eur');
+    return { s: makeSend({ session, wallets, home: h, portfolio: pf, whitelist, now: () => clock, adapterFor: (c) => (c.family === 'bitcoin' ? a : fakeAdapter(c, log)) }), h };
+  };
+
+  test('envoi : vraie transaction signée par la clé du compte bc1 affiché, vers le bon destinataire', async () => {
+    const { adapter, out } = btcNet([{ txid: 'a'.repeat(64), vout: 0, value: 200_000 }]);
+    const { s, h } = btcSend(adapter);
+    await h.refresh();
+    expect((await s.assets()).some((x) => x.key === 'bitcoin:native' && x.family === 'bitcoin')).toBe(true);
+    const d = await s.prepare({ assetKey: 'bitcoin:native', to: DEST, amount: '0.0005' });
+    expect(d.from).toBe(BTC0);
+    expect(d.amount).toBe('50000');
+    const r = await s.confirm(d.id);
+    expect(r.explorer).toBe(`https://mempool.space/tx/${'f'.repeat(64)}`);
+    const { Transaction, OutScript, Address, NETWORK } = await import('@scure/btc-signer');
+    const tx = Transaction.fromRaw(Buffer.from(out.hex, 'hex'), { allowUnknownOutputs: true });
+    const outs = Array.from({ length: tx.outputsLength }, (_, i) => tx.getOutput(i));
+    const addr = (o: (typeof outs)[number]) => Address(NETWORK).encode(OutScript.decode(o.script!));
+    expect(outs.map(addr)).toContain(DEST);
+    expect(outs.find((o) => addr(o) === DEST)!.amount).toBe(50_000n);
+    // La monnaie revient au compte ; la clé publique du témoin est celle de BTC0.
+    expect(outs.map(addr)).toContain(BTC0);
+    const witnessKey = tx.getInput(0).finalScriptWitness![1];
+    expect(p2wpkhAddress(witnessKey)).toBe(BTC0);
+  });
+
+  test('« Max » Bitcoin : calculé par l’adaptateur (pièces et frais réels)', async () => {
+    const { adapter } = btcNet([{ txid: 'a'.repeat(64), vout: 0, value: 120_000 }, { txid: 'b'.repeat(64), vout: 1, value: 80_000 }]);
+    const { s, h } = btcSend(adapter);
+    await h.refresh();
+    const d = await s.prepare({ assetKey: 'bitcoin:native', to: DEST, amount: '', max: true });
+    const m = await adapter.maxSendable(BTC0, DEST, 'normal');
+    expect(d.amount).toBe(m.amount.toString());
+    expect(BigInt(d.amount) + BigInt(d.fee)).toBe(200_000n);
+  });
+
+  test('poussière refusée avec le minimum ; adresse invalide refusée', async () => {
+    const { adapter } = btcNet([{ txid: 'a'.repeat(64), vout: 0, value: 200_000 }]);
+    const { s, h } = btcSend(adapter);
+    await h.refresh();
+    await expect(s.prepare({ assetKey: 'bitcoin:native', to: DEST, amount: '0.000001' })).rejects.toThrow('BTC_DUST');
+    await expect(s.prepare({ assetKey: 'bitcoin:native', to: 'bc1qnotanaddress', amount: '0.001' })).rejects.toThrow('Adresse invalide');
+  });
+
+  test('liste blanche : une adresse bc1 en majuscules est la même adresse', async () => {
+    expect(addressKey(DEST.toUpperCase())).toBe(addressKey(DEST));
   });
 });
 

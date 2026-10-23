@@ -16,7 +16,7 @@ export interface ContactView {
   id: string;
   name: string;
   address: string;
-  family: 'evm' | 'solana';
+  family: 'evm' | 'solana' | 'bitcoin';
   changedAt?: number;
   previous?: string;
   recentlyChanged: boolean;
@@ -40,7 +40,7 @@ function contactRow(c: ContactView, onClick: () => void, testid = 'contact') {
     'button',
     { class: 'row link-row', type: 'button', 'data-testid': testid, on: { click: onClick } },
     avatar(c.address, 36),
-    h('span', { class: 'grow' }, h('strong', {}, c.name, h('span', { class: 'tag' }, c.family === 'solana' ? 'Solana' : 'EVM')), h('p', { class: 'small muted mono' }, shortAddr(c.address)), changedNote(c)),
+    h('span', { class: 'grow' }, h('strong', {}, c.name, h('span', { class: 'tag' }, c.family === 'solana' ? 'Solana' : c.family === 'bitcoin' ? 'Bitcoin' : 'EVM')), h('p', { class: 'small muted mono' }, shortAddr(c.address)), changedNote(c)),
     glyph('chevron', 16),
   );
 }
@@ -51,7 +51,7 @@ function contactRow(c: ContactView, onClick: () => void, testid = 'contact') {
  */
 export function contactSheet(existing: ContactView | null, saved: () => void, prefill = '') {
   const name = h('input', { type: 'text', maxLength: 40, value: existing?.name ?? '', placeholder: t('ctNamePh'), 'aria-label': t('ctName'), 'data-testid': 'ct-name' });
-  const address = h('input', { class: 'mono-input', type: 'text', maxLength: 64, value: existing?.address ?? prefill, placeholder: t('ctAddressPh'), spellcheck: false, autocomplete: 'off', 'aria-label': t('ctAddress'), 'data-testid': 'ct-address' });
+  const address = h('input', { class: 'mono-input', type: 'text', maxLength: 64, value: existing?.address ?? prefill, placeholder: t('ctAddressPhAll'), spellcheck: false, autocomplete: 'off', 'aria-label': t('ctAddress'), 'data-testid': 'ct-address' });
   const warn = h('div', { class: 'stack', style: 'gap:8px' });
   const err = h('p', { class: 'error', role: 'alert' });
   const go = h('button', { class: 'btn', type: 'button', 'data-testid': 'ct-save' }, t('mgSave'));
@@ -154,18 +154,18 @@ export function contactsScreen(app: HTMLElement, back: () => void) {
 }
 
 /** Envoyer : choisir un contact du bon réseau. Ne fait que remplir l'adresse. */
-export async function pickContactSheet(family: 'evm' | 'solana' | undefined, pick: (address: string) => void) {
+export async function pickContactSheet(family: 'evm' | 'solana' | 'bitcoin' | undefined, pick: (address: string) => void) {
   const list = (await loadContacts()).filter((c) => !family || c.family === family);
   const sheet = openSheet(
     t('ctTitle'),
     list.length
       ? h('div', { class: 'list card' }, ...list.map((c) => contactRow(c, () => (sheet.close(), pick(c.address)), 'pick-contact')))
-      : h('p', { class: 'muted' }, t(family === 'solana' ? 'ctNoneSol' : 'ctNone')),
+      : h('p', { class: 'muted' }, t(family === 'solana' ? 'ctNoneSol' : family === 'bitcoin' ? 'ctNoneBtc' : 'ctNone')),
   );
 }
 
 /** Une adresse complète, avec son contact s'il existe. */
 export function addressWithContact(address: string, contacts: ContactView[]) {
-  const c = contacts.find((x) => (x.address.startsWith('0x') ? x.address.toLowerCase() === address.toLowerCase() : x.address === address));
+  const c = contacts.find((x) => (/^(0x|bc1)/i.test(x.address) ? x.address.toLowerCase() === address.toLowerCase() : x.address === address));
   return h('div', { class: 'stack', style: 'gap:2px' }, c ? h('strong', {}, c.name) : null, h('p', { class: 'addr' }, addressView(address, 'sm')), c ? changedNote(c) : null);
 }

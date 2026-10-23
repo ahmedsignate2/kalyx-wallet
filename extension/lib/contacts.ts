@@ -18,6 +18,7 @@ import { openSecret, sealSecret, type SealedSecret } from '../../src/domain/back
 import { detectPoisoning } from '../../src/domain/validation/poisoning';
 import { isValidEvmAddress, normalizeEvmAddress } from '../../src/domain/validation/address';
 import { isValidSolanaAddress } from '../../src/crypto/solana';
+import { isValidBtcAddress, normalizeBtcAddress } from '../../src/domain/validation/btcAddress';
 import { getRandomBytes } from '../../src/crypto/random';
 import { bytesToHex } from '@noble/hashes/utils';
 import { WalletError } from './wallets';
@@ -41,7 +42,7 @@ export interface Contact {
   id: string;
   name: string;
   address: string;
-  family: 'evm' | 'solana';
+  family: 'evm' | 'solana' | 'bitcoin';
   createdAt: number;
   /** Dernier changement d'adresse, et l'adresse d'avant. */
   changedAt?: number;
@@ -61,19 +62,21 @@ export function cleanName(v: unknown): string {
 }
 
 /** Adresse normalisée et sa famille ; EVM avec sa somme de contrôle. */
-export function parseAddress(v: unknown): { address: string; family: 'evm' | 'solana' } {
+export function parseAddress(v: unknown): { address: string; family: 'evm' | 'solana' | 'bitcoin' } {
   const s = typeof v === 'string' ? v.trim() : '';
   if (isValidEvmAddress(s)) return { address: normalizeEvmAddress(s), family: 'evm' };
+  // Bitcoin avant Solana : une adresse héritée (1…, 3…) est aussi du base58.
+  if (isValidBtcAddress(s)) return { address: normalizeBtcAddress(s), family: 'bitcoin' };
   if (isValidSolanaAddress(s)) return { address: s, family: 'solana' };
   throw new WalletError('INVALID_ADDRESS');
 }
 
-const same = (a: string, b: string) => (a.startsWith('0x') ? a.toLowerCase() === b.toLowerCase() : a === b);
+const same = (a: string, b: string) => (/^(0x|bc1)/i.test(a) ? a.toLowerCase() === b.toLowerCase() : a === b);
 
 function parse(json: string): Contact[] {
   const list = JSON.parse(json) as unknown;
   if (!Array.isArray(list)) return [];
-  return list.filter((c): c is Contact => !!c && typeof c.id === 'string' && typeof c.name === 'string' && typeof c.address === 'string' && (c.family === 'evm' || c.family === 'solana'));
+  return list.filter((c): c is Contact => !!c && typeof c.id === 'string' && typeof c.name === 'string' && typeof c.address === 'string' && (c.family === 'evm' || c.family === 'solana' || c.family === 'bitcoin'));
 }
 
 export function makeContacts(disk: Store, session: Session, now: () => number = Date.now) {

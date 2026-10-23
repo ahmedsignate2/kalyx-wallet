@@ -128,3 +128,12 @@ describe('carnet d’adresses', () => {
     expect(await handleInternal(session, wallets, { type: 'contacts:add', name: 'Faux', address: A_TWIN }, undefined, { contacts: c })).toEqual({ ok: false, error: 'CONTACT_LOOKALIKE', params: { name: 'Léa' } });
   });
 });
+
+describe('adresses Bitcoin', () => {
+  test('bc1 reconnue (casse ignorée), héritée reconnue comme Bitcoin et non Solana', async () => {
+    const { parseAddress } = await import('./contacts');
+    expect(parseAddress('BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ')).toEqual({ address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', family: 'bitcoin' });
+    expect(parseAddress('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2').family).toBe('bitcoin');
+    expect(parseAddress('HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk').family).toBe('solana');
+  });
+});
