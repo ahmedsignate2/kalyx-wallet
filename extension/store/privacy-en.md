@@ -15,7 +15,8 @@ your data.
   browser's memory (`storage.session`) and erased when the wallet locks or the
   browser closes.
 - **Your settings and local data**: lock delay, currency, whitelist, connected
-  sites, cache of balances and activity.
+  sites, cache of balances and activity, appearance (theme, Beginner or
+  Expert mode, sounds).
 
 - **Companion mode**: if you link your phone, the extension only keeps that
   account's public addresses and the linking session; no phrase or key for

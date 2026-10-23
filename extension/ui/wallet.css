@@ -54,7 +54,7 @@
 .act.rx .disc { color: var(--ink-receive); }
 .act.sites .disc { color: var(--ink-earn); }
 .act.buy .disc { color: var(--ink-buy); }
-@media (prefers-color-scheme: dark) { .act.primary .disc { color: #1A1420; } }
+:root:not([data-theme="light"]) .act.primary .disc { color: #1A1420; }
 
 /* ── La feuille ── */
 .sheet { position: relative; z-index: 2; flex: 1; margin-top: -28px; padding: 18px var(--pad, 16px) var(--pad, 16px); display: flex; flex-direction: column; gap: 14px; background: var(--bg); border-radius: 28px 28px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.12); }
@@ -348,3 +348,23 @@ details > summary::-webkit-details-marker { display: none; }
 .about-head strong { font-size: 17px; }
 .link.forgot { align-self: center; margin-top: 4px; font-size: 13px; color: var(--text-secondary); }
 .ob-lang { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+
+/* ── Vague Beauté & UX ── */
+/* Réussite (fin de parcours, signature partie) : la coche qui apparaît avec un anneau. */
+.success-badge { align-self: center; width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--up); color: #fff; animation: pop var(--d-slow) var(--ease-spring) both, ring 1.6s var(--ease-out) 0.3s; }
+@keyframes ring { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 50%, transparent); } to { box-shadow: 0 0 0 26px transparent; } }
+/* Réglages avancés (mode Débutant) : une ligne qui se déplie. */
+details.adv > summary { list-style: none; cursor: pointer; }
+details.adv > summary::-webkit-details-marker { display: none; }
+details.adv > summary > .glyph:last-child { transition: transform var(--d-fast) var(--ease-out); }
+details.adv[open] > summary > .glyph:last-child { transform: rotate(180deg); }
+details.adv[open] > summary { border-bottom: 1px solid var(--border); }
+/* Choix d'apparence dans le parcours d'accueil : trois pastilles, celle choisie cerclée. */
+.pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
+.pick button { appearance: none; border: 1.5px solid var(--border); background: var(--surface-1); color: var(--text); border-radius: 16px; padding: 12px 8px; font: 600 14px var(--font); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pick button[aria-pressed='true'] { border-color: var(--text); box-shadow: var(--depth); }
+.pick .swatch { width: 34px; height: 22px; border-radius: 8px; border: 1px solid var(--border); }
+.pick .swatch.dark { background: #0B0B10; }
+.pick .swatch.light { background: #F4EEE5; }
+.pick .swatch.system { background: linear-gradient(90deg, #F4EEE5 50%, #0B0B10 50%); }
+@media (prefers-reduced-motion: reduce) { .success-badge { animation: none; } details.adv > summary > .glyph:last-child { transition: none; } }

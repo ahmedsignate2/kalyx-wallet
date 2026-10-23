@@ -15,7 +15,8 @@ utilisateur, ni serveur qui garde tes données.
   mémoire par le navigateur (`storage.session`) et effacée au verrouillage ou à
   la fermeture du navigateur.
 - **Tes réglages et données locales** : délai de verrouillage, devise, liste
-  blanche, sites connectés, cache des soldes et de l'activité.
+  blanche, sites connectés, cache des soldes et de l'activité, apparence
+  (thème, mode Débutant ou Expert, sons).
 
 - **Mode compagnon** : si tu relies ton téléphone, l'extension ne garde que
   les adresses publiques de ce compte et la session de liaison ; aucune phrase

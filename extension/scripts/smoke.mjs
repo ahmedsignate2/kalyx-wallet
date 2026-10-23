@@ -44,15 +44,21 @@ const launch = async (lang = 'fr') => {
   for (const w of ctx.serviceWorkers()) w.on?.('console', (m) => watchCsp('service worker', m));
   return ctx;
 };
+/** Mode Débutant (défaut) : les réglages pointus sont sous « Réglages avancés », replié — on l'ouvre comme un utilisateur. */
+const openAdvanced = async (page) => {
+  const adv = page.locator('[data-testid=advanced]');
+  await adv.waitFor();
+  if (!(await adv.evaluate((d) => d.open))) await adv.locator('summary').click();
+};
 process.on('beforeExit', () => {
   if (cspViolations.length) {
     console.error('✗ violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
     process.exitCode = 1;
   }
 });
-// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors : une seule partie (plus rapide à relancer).
-if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors'].includes(process.env.ONLY)) {
-  await { onboarding, dapps, attacks, langs, help, hardening, factors }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors|beauty : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors', 'beauty'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs, help, hardening, factors, beauty }[process.env.ONLY]();
   if (cspViolations.length) fail('violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
@@ -126,6 +132,114 @@ await langs();
 await help();
 await hardening();
 await factors();
+await beauty();
+
+/**
+ * Beauté & UX (vague 5) : Nuit par défaut, Crème et Système, mode Débutant /
+ * Expert, noms accessibles de tous les boutons, focus gardé dans les feuilles.
+ */
+async function beauty() {
+  const PW = 'Plage-Orange-47!';
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const p = await ctx.newPage();
+    await p.emulateMedia({ colorScheme: 'light' });
+    await p.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => p.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+    await p.reload();
+    await p.locator('[data-testid=account]').waitFor();
+    const look = () => p.evaluate(() => ({ attr: document.documentElement.getAttribute('data-theme'), bg: getComputedStyle(document.body).backgroundColor }));
+    let l = await look();
+    // Système en clair, mais aucun choix : Nuit.
+    !l.attr && l.bg === 'rgb(11, 11, 16)' ? console.log('✓ thème : Nuit par défaut (même sur un système clair)') : fail(`thème par défaut ${JSON.stringify(l)}`);
+
+    await p.getByRole('button', { name: 'Réglages' }).click();
+    await p.locator('[data-testid=theme]').selectOption('light');
+    l = await look();
+    l.attr === 'light' && l.bg === 'rgb(244, 238, 229)' ? console.log('✓ thème Crème appliqué tout de suite') : fail(`Crème ${JSON.stringify(l)}`);
+    await p.reload();
+    await p.locator('[data-testid=account]').waitFor();
+    (await look()).attr === 'light' ? console.log('✓ Crème gardé après réouverture (posé avant le premier affichage)') : fail('Crème perdu');
+    await p.getByRole('button', { name: 'Réglages' }).click();
+    await p.locator('[data-testid=theme]').selectOption('system');
+    (await look()).attr === 'light' ? console.log('✓ Système sur un système clair : Crème') : fail('Système clair');
+    await p.emulateMedia({ colorScheme: 'dark' });
+    await p.waitForTimeout(150);
+    (await look()).attr === null ? console.log('✓ Système suit le passage en sombre, en direct') : fail('Système sombre');
+    await p.locator('[data-testid=theme]').selectOption('dark');
+
+    // Mode Débutant (défaut) : réglages pointus repliés ; Expert : tout à plat.
+    const adv = p.locator('[data-testid=advanced]');
+    (await adv.count()) === 1 && !(await adv.evaluate((d) => d.open)) && !(await p.locator('[data-testid=paranoid]').isVisible())
+      ? console.log('✓ Débutant : « Réglages avancés » replié (parano, sites, contrainte…)')
+      : fail('mode Débutant');
+    await adv.locator('summary').click();
+    await p.locator('[data-testid=paranoid]').click();
+    await p.waitForFunction(() => document.querySelector('[data-testid=paranoid]')?.getAttribute('aria-checked') === 'true');
+    (await p.locator('[data-testid=advanced]').evaluate((d) => d.open)) ? console.log('✓ réglages avancés restent ouverts après un interrupteur') : fail('avancés refermés');
+    await p.locator('[data-testid=paranoid]').click();
+    await p.locator('[data-testid=mode]').selectOption('expert');
+    await p.locator('[data-testid=paranoid]').waitFor();
+    (await p.locator('[data-testid=advanced]').count()) === 0 && (await p.locator('[data-testid=settings-networks]').isVisible())
+      ? console.log('✓ Expert : tous les réglages à plat')
+      : fail('mode Expert');
+
+    // Sons : coupés par défaut, interrupteur dans Apparence.
+    (await p.locator('[data-testid=sounds]').getAttribute('aria-checked')) === 'false' ? console.log('✓ sons coupés par défaut') : fail('sons actifs par défaut');
+
+    // Chaque bouton visible a un nom (texte, aria-label ou title) : rien de muet pour un lecteur d'écran.
+    const unnamed = async () =>
+      p.evaluate(() =>
+        [...document.querySelectorAll('button, [role=switch], a[href], select, input:not([type=hidden])')]
+          .filter((el) => el.offsetParent !== null)
+          .filter((el) => !((el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || el.getAttribute('placeholder') || (el.labels && el.labels[0]?.textContent) || '').trim()))
+          .map((el) => el.outerHTML.slice(0, 90)),
+      );
+    let u = await unnamed();
+    await p.getByRole('button', { name: /Retour/ }).click();
+    await p.locator('[data-testid=account]').waitFor();
+    u = u.concat(await unnamed());
+    !u.length ? console.log('✓ accueil et réglages : chaque contrôle a un nom accessible') : fail(`contrôles sans nom : ${u.join(' | ')}`);
+
+    // Feuille : Tab ne sort jamais de la feuille.
+    await p.locator('[data-testid=account]').click();
+    await p.locator('.modal').waitFor();
+    let inside = true;
+    for (let i = 0; i < 25; i++) {
+      await p.keyboard.press(i % 7 === 6 ? 'Shift+Tab' : 'Tab');
+      inside &&= await p.evaluate(() => !!document.activeElement?.closest('.modal'));
+    }
+    inside ? console.log('✓ feuille : le focus clavier reste dedans (Tab, Maj+Tab)') : fail('focus sorti de la feuille');
+    await p.keyboard.press('Escape');
+
+    // Contrastes WCAG AA des textes (4,5:1) sur les surfaces, dans les deux thèmes.
+    const contrast = () =>
+      p.evaluate(() => {
+        const rgb = (c) => c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+        const lum = (c) => rgb(c).map((x) => x / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)).reduce((s, x, i) => s + x * [0.2126, 0.7152, 0.0722][i], 0);
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+        const probe = document.createElement('i');
+        document.body.append(probe);
+        const v = (name) => ((probe.style.color = `var(--${name})`), getComputedStyle(probe).color);
+        const out = [];
+        for (const fg of ['text', 'text-secondary', 'text-tertiary', 'up', 'down', 'warning', 'danger']) for (const bg of ['bg', 'surface-1', 'surface-2']) { const r = ratio(v(fg), v(bg)); if (r < 4.5) out.push(`${fg}/${bg} ${r.toFixed(2)}`); }
+        probe.remove();
+        return out;
+      });
+    const lowDark = await contrast();
+    await p.evaluate(() => localStorage.setItem('kalyx.theme', 'light'));
+    await p.reload();
+    await p.locator('[data-testid=account]').waitFor();
+    const lowLight = await contrast();
+    !lowDark.length && !lowLight.length ? console.log('✓ contrastes AA (4,5:1) : textes et couleurs d’état, Nuit et Crème') : fail(`contrastes faibles : Nuit ${lowDark.join(', ')} · Crème ${lowLight.join(', ')}`);
+  } finally {
+    await ctx.close();
+  }
+}
 
 /**
  * Coffre (vague 2) : passkey réelle (authentificateur virtuel de Chrome avec
@@ -184,6 +298,7 @@ async function factors() {
 
     // Code de contrainte : réglé depuis les réglages (mot de passe redemandé, code ≠ mot de passe).
     await page.getByRole('button', { name: 'Réglages' }).click();
+    await openAdvanced(page);
     await page.locator('[data-testid=duress-open]').click();
     await page.locator('[data-testid=dr-password]').fill(PW);
     await page.locator('[data-testid=dr-code]').fill(PW);
@@ -295,6 +410,7 @@ async function hardening() {
 
     // Réglages : interrupteurs parano et sites, liste des sites autorisés.
     await ext.getByRole('button', { name: 'Réglages' }).click();
+    await openAdvanced(ext);
     await ext.locator('[data-testid=allowed-open]').waitFor();
     (await ext.locator('[data-testid=site-mode]').getAttribute('aria-checked')) === 'true' ? console.log('✓ réglage « sites autorisés seulement » affiché actif') : fail('interrupteur sites');
     await ext.locator('[data-testid=paranoid]').click();
@@ -584,6 +700,12 @@ async function onboarding() {
     }
     await page.getByText('Ton portefeuille est prêt').waitFor();
     (await page.locator('.banner').count()) === 0 ? console.log('✓ phrase vérifiée : pas de rappel') : fail('rappel affiché après vérification');
+    // Fin de parcours : apparence et mode au choix ; conseil d'épingler (Chrome dit que Kalyx n'est pas dans la barre).
+    (await page.locator('[data-testid=personalize]').isVisible()) && (await page.locator('[data-testid=pin-tip]').isVisible()) ? console.log('✓ fin de parcours : « À ton goût » (thème, mode) et conseil « Épingle Kalyx »') : fail('personnalisation / épingle');
+    await page.locator('[data-testid=ob-theme-light]').click();
+    (await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) === 'light' && (await page.locator('[data-testid=ob-theme-light]').getAttribute('aria-pressed')) === 'true' ? console.log('✓ thème essayé en direct depuis l’accueil') : fail('thème du parcours');
+    await shot('9-personalize');
+    await page.locator('[data-testid=ob-theme-dark]').click();
     await shot('6-done');
     const sess = await page.evaluate(() => chrome.storage.local.get(null));
     const disk = JSON.stringify(sess);
@@ -952,6 +1074,7 @@ async function onboarding() {
     // Liste blanche : activée, un inconnu est bloqué AVANT tout réseau.
     await popup.getByRole('button', { name: /Retour/ }).click();
     await popup.getByRole('button', { name: 'Réglages' }).click();
+    await openAdvanced(popup);
     await popup.getByRole('button', { name: 'Liste blanche' }).click();
     await popup.getByRole('button', { name: 'Activer' }).click();
     await popup.waitForFunction(() => document.querySelector('[data-testid=wl-state]')?.textContent === 'Activée');
@@ -1111,6 +1234,27 @@ async function dapps() {
     await sw1.mouse.up().catch(() => {});
     r = await page.evaluate(() => window.kx.p);
     r.r && verifyMessage(siwe, r.r) === EVM0 ? console.log('✓ danger : signé après 2 s de maintien') : fail(`maintien ${JSON.stringify(r)}`);
+
+    // Clavier (accessibilité) : Espace maintenu 2 s signe aussi ; un appui bref, non.
+    await page.evaluate(([m, a]) => {
+      window.kx.p = window.kx.call('personal_sign', ['0x' + Array.from(new TextEncoder().encode(m)).map((b) => b.toString(16).padStart(2, '0')).join(''), a]);
+    }, [siwe, EVM0]);
+    sw1 = await nextWindow();
+    const holdKey = sw1.getByRole('button', { name: 'Maintenir pour signer' });
+    await holdKey.waitFor();
+    await sw1.waitForTimeout(900);
+    await holdKey.focus();
+    await sw1.keyboard.down(' ');
+    await sw1.waitForTimeout(300);
+    await sw1.keyboard.up(' ');
+    await sw1.waitForTimeout(2100);
+    !sw1.isClosed() ? console.log('✓ clavier : un appui bref sur Espace ne signe pas') : fail('appui bref a signé');
+    const signedNow = sw1.locator('[data-testid=approved]').waitFor({ timeout: 6000 }).then(() => true, () => false);
+    await sw1.keyboard.down(' ');
+    const sawDone = await signedNow;
+    await sw1.keyboard.up(' ').catch(() => {});
+    r = await page.evaluate(() => window.kx.p);
+    sawDone && r.r && verifyMessage(siwe, r.r) === EVM0 ? console.log('✓ clavier : Espace maintenu 2 s → signé, coche de réussite affichée') : fail(`maintien clavier ${sawDone} ${JSON.stringify(r)}`);
 
     // Transaction : sans réseau, l'échec s'affiche DANS la fenêtre ; refuser → 4001.
     await page.evaluate((a) => {

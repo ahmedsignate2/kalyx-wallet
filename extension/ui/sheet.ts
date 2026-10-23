@@ -1,6 +1,7 @@
 /**
  * Feuille modale : monte du bas, fond flouté, se ferme par le fond, Échap ou
- * le bouton. Le focus va dans la feuille et revient d'où il venait.
+ * le bouton. Le focus va dans la feuille, y reste (Tab boucle), et revient
+ * d'où il venait.
  */
 import { h } from './dom';
 import { glyph } from './glyph';
@@ -17,7 +18,18 @@ export function openSheet(title: string, ...content: (Node | false | null | unde
     body,
   );
   const veil = h('div', { class: 'veil', on: { click: (e) => e.target === veil && close() } }, panel);
-  const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') return close();
+    // Tab reste DANS la feuille (lecteur d'écran, clavier) : on ne tombe pas sur la page derrière le voile.
+    if (e.key !== 'Tab') return;
+    const items = [...panel.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')].filter((el) => !(el as HTMLButtonElement).disabled && !el.hidden && el.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const at = document.activeElement;
+    if (e.shiftKey && (at === first || at === panel)) (e.preventDefault(), last.focus());
+    else if (!e.shiftKey && at === last) (e.preventDefault(), first.focus());
+  };
   let closed = false;
   function close() {
     if (closed) return;

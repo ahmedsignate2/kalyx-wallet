@@ -7,6 +7,7 @@
  */
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
+import { play } from './sound';
 import { errorText, t } from './i18n';
 import { qrSvg } from './qr';
 import { pulse } from './motion';
@@ -87,6 +88,7 @@ function show(app: HTMLElement, info: Info, back: () => void) {
           click: async () => {
             await navigator.clipboard.writeText(current.address);
             label.textContent = t('copied');
+            play('tap');
             copy.classList.add('done');
             pulse(copy);
             setTimeout(() => (copy.classList.remove('done'), (label.textContent = t('copyAddress'))), 1400);
