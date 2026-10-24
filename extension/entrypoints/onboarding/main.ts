@@ -388,6 +388,7 @@ async function companionScreen() {
 
 interface Candidate {
   topic: string;
+  wallets: { key: string; label: string; accounts: { index: number; label: string; evm?: string; solana?: string; bitcoin?: string }[] }[];
   evm?: string;
   solana?: string;
   bitcoin?: string;
@@ -401,7 +402,6 @@ interface Candidate {
  */
 function confirmPhoneScreen(c: Candidate) {
   const err = errorLine();
-  const row = (tag: string, addr?: string) => !!addr && h('div', { class: 'card acct-card static' }, avatar(addr, 36), h('span', { class: 'grow' }, h('strong', {}, tag), h('p', { class: 'small' }, addressView(addr, 'sm'))));
   const decide = async (accept: boolean, btn: HTMLButtonElement) => {
     btn.disabled = true;
     const r = await send<{ wallet: WalletMeta | null }>({ type: 'companion:confirm', topic: c.topic, accept });
@@ -421,9 +421,17 @@ function confirmPhoneScreen(c: Candidate) {
     h('h1', {}, t('compConfirmTitle')),
     h('p', { class: 'muted' }, t('compConfirmBody')),
     !!c.peer.name && h('p', { class: 'small muted' }, `${t('compDevice')} : `, h('strong', {}, c.peer.name)),
-    row('EVM', c.evm),
-    row('Solana', c.solana),
-    row('Bitcoin', c.bitcoin),
+    h('p', { class: 'small', 'data-testid': 'comp-count' }, t('compWallets', { w: c.wallets.length, a: c.wallets.reduce((n, w) => n + w.accounts.length, 0) })),
+    // Chaque portefeuille du téléphone : son nom, son nombre de comptes, les adresses du premier.
+    ...c.wallets.map((w) => {
+      const a = w.accounts[0];
+      return h(
+        'div',
+        { class: 'card stack', style: 'gap:6px', 'data-testid': 'comp-wallet' },
+        h('strong', {}, `${w.label || t('phoneBadge')} · ${t('compAccounts', { n: w.accounts.length })}`),
+        h('div', { class: 'acct-addrs' }, ...([a?.evm && ['EVM', a.evm], a?.solana && ['SOL', a.solana], a?.bitcoin && ['BTC', a.bitcoin]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
+      );
+    }),
     err,
     yes,
     no,

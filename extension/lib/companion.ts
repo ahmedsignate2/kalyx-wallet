@@ -11,7 +11,7 @@
  * appel léger toutes les 20 s le garde éveillé tant que la demande court.
  */
 import type { WalletMeta, Wallets } from './wallets';
-import { proposal, sessionAccounts } from './companionCore';
+import { companionWallets, proposal, type PhoneWallet } from './companionCore';
 import { RpcError } from './rpcError';
 import { listChains } from '../../src/domain/chains/registry';
 
@@ -31,7 +31,7 @@ const RELAY_TIMEOUT_MS = 20_000;
 
 /** Le strict nécessaire du client WalletConnect (remplaçable dans les tests). */
 export interface WcClient {
-  connect(p: ReturnType<typeof proposal>): Promise<{ uri?: string; approval: () => Promise<{ topic: string; namespaces: Record<string, { accounts?: string[] }>; peer?: { metadata?: { name?: string; url?: string } } }> }>;
+  connect(p: ReturnType<typeof proposal>): Promise<{ uri?: string; approval: () => Promise<{ topic: string; namespaces: Record<string, { accounts?: string[] }>; sessionProperties?: Record<string, unknown>; peer?: { metadata?: { name?: string; url?: string } } }> }>;
   /** `kalyxSite` : champ en plus, transmis tel quel par WalletConnect, lu par l'app Kalyx. */
   request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; expiryTimestamp?: number; kalyxSite?: string } }): Promise<T>;
   disconnect(a: { topic: string; reason: { code: number; message: string } }): Promise<void>;
@@ -63,6 +63,9 @@ const withTimeout = <T>(p: Promise<T>, ms: number, code: string) =>
  */
 export interface CompanionCandidate {
   topic: string;
+  /** Tous les portefeuilles du téléphone, avec leurs comptes. */
+  wallets: PhoneWallet[];
+  /** Premier compte (aperçu à l'écran de confirmation). */
   evm?: string;
   solana?: string;
   bitcoin?: string;
@@ -97,20 +100,21 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     if (!uri) throw new RpcError(-32603, 'COMPANION_NO_URI');
     if (pending) void drop(pending.c.topic);
     pairing = withTimeout(approval(), PAIRING_TIMEOUT_MS, 'COMPANION_PAIRING_TIMEOUT').then(async (s) => {
-      let acc: ReturnType<typeof sessionAccounts>;
+      let acc: ReturnType<typeof companionWallets>;
       try {
-        acc = sessionAccounts(s.namespaces);
+        acc = companionWallets(s.namespaces, s.sessionProperties);
       } catch (e) {
         await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Comptes illisibles' } }).catch(() => {});
         throw e;
       }
-      if (!acc.evm && !acc.solana && !acc.bitcoin) {
+      if (!acc.wallets.length) {
         await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Aucun compte partagé' } }).catch(() => {});
         throw new RpcError(4100, 'COMPANION_NO_ACCOUNT');
       }
       const meta = s.peer?.metadata ?? {};
       const peer = { name: String(meta.name ?? '').slice(0, 60), url: String(meta.url ?? '').slice(0, 120) };
-      const cand: CompanionCandidate = { topic: s.topic, evm: acc.evm, solana: acc.solana, bitcoin: acc.bitcoin, evmChains: acc.evmChains, peer };
+      const first = acc.wallets[0].accounts[0];
+      const cand: CompanionCandidate = { topic: s.topic, wallets: acc.wallets, evm: first?.evm, solana: first?.solana, bitcoin: first?.bitcoin, evmChains: acc.evmChains, peer };
       pending = { c: cand, label, timer: setTimeout(() => void drop(cand.topic), CONFIRM_TIMEOUT_MS) };
       return cand;
     });
@@ -128,7 +132,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
   }
 
   /** L'utilisateur a vu l'appareil et les adresses : enregistrer (c'est le sien), ou couper. */
-  async function confirm(topic: string, accept: boolean): Promise<WalletMeta | null> {
+  async function confirm(topic: string, accept: boolean): Promise<WalletMeta[] | null> {
     if (!pending || pending.c.topic !== topic) throw new RpcError(4100, 'COMPANION_PAIRING_TIMEOUT');
     const { c, label, timer } = pending;
     clearTimeout(timer);
@@ -137,7 +141,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
       await drop(topic);
       return null;
     }
-    return wallets.addCompanion({ topic: c.topic, evm: c.evm, solana: c.solana, bitcoin: c.bitcoin, evmChains: c.evmChains, label });
+    return wallets.addCompanion({ topic: c.topic, wallets: c.wallets, evmChains: c.evmChains, label });
   }
 
   /** Attend l'accord du téléphone (ou son refus, ou l'expiration du QR). Rien n'est enregistré avant `confirm`. */

@@ -421,7 +421,7 @@ export function makeSend(deps: SendDeps) {
         txid = checkTxHash(await deps.companion.request(meta, `eip155:${id}`, 'eth_sendTransaction', [tx]));
       } else {
         const p = held.draft.payload as SolanaPayload;
-        txid = checkSolSignature(await deps.companion.request(meta, SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: unsignedSolanaTx(p.message) }));
+        txid = checkSolSignature(await deps.companion.request(meta, SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: unsignedSolanaTx(p.message), pubkey: held.draft.from }));
         opaque = p.lastValidBlockHeight;
       }
       sent.set(txid, { chainId: chain.id, opaque, expiresAt: held.draft.expiresAt });

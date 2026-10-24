@@ -228,7 +228,7 @@ describe('gérer les portefeuilles', () => {
     const w = await wallets.importPhrase(ABOUT, 'Principal');
     await wallets.addAccounts(w.id, [1]);
     await wallets.renameAccount(w.id, 1, 'Épargne');
-    await wallets.addCompanion({ topic: 't', evm: '0x' + '1'.repeat(40), evmChains: [1], label: 'Téléphone' });
+    await wallets.addCompanion({ topic: 't', wallets: [{ key: 'phone', label: '', accounts: [{ index: 0, label: 'Compte 1', evm: '0x' + '1'.repeat(40) }] }], evmChains: [1], label: 'Téléphone' });
     const { file, count } = await wallets.exportBackup('Sauvegarde-Solide-93!');
     expect(count).toBe(1);
     expect(file).not.toContain('abandon');

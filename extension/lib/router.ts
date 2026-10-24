@@ -553,9 +553,9 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const w = (await wallets.list()).find((x) => x.id === m.id && x.kind === 'companion');
         if (!w) return { ok: false, error: 'BAD_REQUEST' };
         await companion?.unlink(w).catch(() => {});
-        await wallets.removeCompanion(w.id);
-        // Les sites qui voyaient ce compte le perdent aussi.
-        if (sites) await sites.forgetWallet(w.id);
+        const gone = await wallets.removeCompanion(w.id);
+        // Les sites qui voyaient ces comptes les perdent aussi (tous les portefeuilles de ce téléphone).
+        if (sites) for (const id of gone) await sites.forgetWallet(id);
         if (home) {
           const rest = await wallets.list();
           if (rest[0]) await home.select(rest[0].id, rest[0].accounts[0]?.index ?? 0).catch(() => {});
@@ -593,9 +593,10 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'companion:confirm': {
         if (!companion || !str(m.topic, 128) || typeof m.accept !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
         await unlocked();
-        const w = await companion.confirm(m.topic, m.accept);
-        if (w && home) await home.select(w.id, 0).catch(() => {});
-        return { ok: true, wallet: w };
+        const list = await companion.confirm(m.topic, m.accept);
+        const w = list?.[0] ?? null;
+        if (w && home) await home.select(w.id, w.accounts[0]?.index ?? 0).catch(() => {});
+        return { ok: true, wallet: w, wallets: list ?? [] };
       }
       case 'settings:get-ask-password':
         if (!disk) break;

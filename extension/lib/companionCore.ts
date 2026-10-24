@@ -35,7 +35,85 @@ export function proposal(evmChainIds: number[]) {
       solana: { chains: [SOLANA_CAIP], methods: SOL_METHODS, events: [] as string[] },
       bip122: { chains: [BTC_CAIP], methods: BTC_METHODS, events: [] as string[] },
     },
+    // Marque « c'est l'extension Kalyx » : l'app partage alors TOUS ses portefeuilles et comptes, avec leur carte.
+    sessionProperties: { kalyx_companion: '2' },
   };
+}
+
+/** Un compte d'un portefeuille du téléphone (adresses publiques). */
+export interface PhoneAccount {
+  index: number;
+  label: string;
+  evm?: string;
+  solana?: string;
+  bitcoin?: string;
+  tonPub?: string;
+}
+export interface PhoneWallet {
+  /** Identifiant opaque du portefeuille sur le téléphone (pour le reconnaître à la prochaine liaison). */
+  key: string;
+  label: string;
+  accounts: PhoneAccount[];
+}
+
+/**
+ * Les portefeuilles du téléphone, rangés comme dans l'app. La carte vient de
+ * `sessionProperties.kalyx_accounts` ; on n'y croit QUE pour des adresses que
+ * la session partage vraiment (une carte ne peut rien ajouter, seulement
+ * ranger). Sans carte (app plus ancienne) : un seul compte, comme avant.
+ */
+export function companionWallets(ns: Namespaces, props?: Record<string, unknown> | null): { wallets: PhoneWallet[]; evmChains: number[] } {
+  const raw = typeof props?.kalyx_accounts === 'string' && props.kalyx_accounts.length <= 60_000 ? props.kalyx_accounts : null;
+  let entries: unknown = null;
+  try {
+    entries = raw ? JSON.parse(raw) : null;
+  } catch {
+    entries = null;
+  }
+  if (!Array.isArray(entries)) {
+    const one = sessionAccounts(ns);
+    const accounts = one.evm || one.solana || one.bitcoin ? [{ index: 0, label: 'Compte 1', evm: one.evm, solana: one.solana, bitcoin: one.bitcoin }] : [];
+    return { wallets: accounts.length ? [{ key: 'phone', label: '', accounts }] : [], evmChains: one.evmChains };
+  }
+  const evm = new Map<string, string>();
+  const evmChains = new Set<number>();
+  for (const acc of ns.eip155?.accounts ?? []) {
+    const m = /^eip155:(\d{1,12}):(0x[0-9a-fA-F]{40})$/.exec(acc);
+    if (!m) continue;
+    evm.set(m[2].toLowerCase(), m[2]);
+    evmChains.add(Number(m[1]));
+  }
+  const sol = new Set<string>();
+  for (const acc of ns.solana?.accounts ?? []) {
+    const m = /^solana:([1-9A-HJ-NP-Za-km-z]{32}):([1-9A-HJ-NP-Za-km-z]{32,44})$/.exec(acc);
+    if (m && `solana:${m[1]}` === SOLANA_CAIP) sol.add(m[2]);
+  }
+  const btc = new Set<string>();
+  for (const acc of ns.bip122?.accounts ?? []) {
+    const m = /^(bip122:[0-9a-f]{32}):([0-9A-Za-z]{25,90})$/.exec(acc);
+    if (m && m[1] === BTC_CAIP && isValidBtcAddress(m[2])) btc.add(/^bc1/i.test(m[2]) ? m[2].toLowerCase() : m[2]);
+  }
+  const text = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u202a-\u202e\u2066-\u2069]/g, '').trim().slice(0, n) : '');
+  const byKey = new Map<string, PhoneWallet>();
+  for (const e of entries.slice(0, 100) as Record<string, unknown>[]) {
+    if (!e || typeof e !== 'object') continue;
+    const key = text(e.w, 64);
+    const index = Number(e.i);
+    if (!key || !Number.isInteger(index) || index < 0 || index > 99) continue;
+    const ev = typeof e.e === 'string' ? evm.get(e.e.toLowerCase()) : undefined;
+    const so = typeof e.s === 'string' && sol.has(e.s) ? e.s : undefined;
+    const bRaw = typeof e.b === 'string' ? (/^bc1/i.test(e.b) ? e.b.toLowerCase() : e.b) : undefined;
+    const bi = bRaw && btc.has(bRaw) ? bRaw : undefined;
+    const tonPub = typeof e.t === 'string' && /^[0-9a-f]{64}$/.test(e.t) && index === 0 ? e.t : undefined;
+    // Aucune adresse partagée pour ce compte : rien à montrer ni à signer.
+    if (!ev && !so && !bi) continue;
+    const w = byKey.get(key) ?? { key, label: text(e.wl, 40), accounts: [] };
+    if (w.accounts.some((a) => a.index === index)) continue;
+    w.accounts.push({ index, label: text(e.l, 40) || `Compte ${index + 1}`, evm: ev, solana: so, bitcoin: bi, ...(tonPub ? { tonPub } : {}) });
+    byKey.set(key, w);
+  }
+  const wallets = [...byKey.values()].map((w) => ({ ...w, accounts: w.accounts.sort((a, b) => a.index - b.index) }));
+  return { wallets, evmChains: [...evmChains] };
 }
 
 type Namespaces = Record<string, { accounts?: string[]; chains?: string[]; methods?: string[] } | undefined>;

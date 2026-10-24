@@ -29,6 +29,7 @@ import { createWalletsBackup, restoreBackup, normalizeBackupSecret, type BackupW
 import { getRandomBytes } from '../../src/crypto/random';
 import { addSecret, readSecret, removeSecret } from './vault';
 import type { Store } from './storage';
+import type { PhoneWallet } from './companionCore';
 import type { Session } from './session';
 
 export type Family = 'evm' | 'solana' | 'bitcoin';
@@ -61,6 +62,8 @@ export interface WalletMeta {
   phrase?: 'ton';
   /** Mode compagnon : session WalletConnect avec le téléphone, réseaux EVM partagés, lien perdu. */
   topic?: string;
+  /** Mode compagnon : identifiant du portefeuille sur le téléphone (une liaison en partage plusieurs). */
+  phoneWallet?: string;
   evmChains?: number[];
   lost?: boolean;
   createdAt: number;
@@ -245,46 +248,70 @@ export function makeWallets(disk: Store, session: Session) {
     for (let n = 2; ; n++) if (!taken.includes(`${base} ${n}`)) return `${base} ${n}`;
   }
 
-  async function addCompanion(p: { topic: string; evm?: string; solana?: string; bitcoin?: string; evmChains: number[]; label: string }): Promise<WalletMeta> {
+  /**
+   * Liaison avec le téléphone : UN portefeuille compagnon par portefeuille du
+   * téléphone, avec tous ses comptes (même session). Un portefeuille déjà relié
+   * (même identifiant sur le téléphone, ou même adresse) est mis à jour à sa
+   * place ; celui qui existe ici avec ses clés n'est pas doublé.
+   */
+  async function addCompanion(p: { topic: string; evmChains: number[]; label: string; wallets: PhoneWallet[] }): Promise<WalletMeta[]> {
     return session.withVault(async () => {
-      const all = await list();
-      const fp = (p.evm ?? p.solana ?? p.bitcoin ?? '').toLowerCase();
-      const prev = all.find((w) => w.kind === 'companion' && fingerprint(w) === fp);
-      if (!prev && fp && all.some((w) => fingerprint(w) === fp)) throw new WalletError('DUPLICATE');
-      if (!prev && all.length >= MAX_WALLETS) throw new WalletError('TOO_MANY_WALLETS');
-      const meta: WalletMeta = {
-        id: prev?.id ?? newId(),
-        // Plusieurs comptes du téléphone peuvent être reliés : « Téléphone », « Téléphone 2 »…
-        label: prev?.label ?? uniqueLabel(p.label, all.map((w) => w.label)),
-        kind: 'companion',
-        topic: p.topic,
-        evmChains: p.evmChains,
-        createdAt: prev?.createdAt ?? Date.now(),
-        // Rien à sauvegarder ici : la phrase est sur le téléphone.
-        backedUp: true,
-        accounts: [{ index: 0, label: 'Compte 1', evm: p.evm, solana: p.solana, bitcoin: p.bitcoin }],
-      };
-      const next = prev ? all.map((w) => (w.id === prev.id ? meta : w)) : [...all, meta];
-      return { result: meta, commit: () => save(next) };
+      let all = await list();
+      const out: WalletMeta[] = [];
+      for (const pw of p.wallets) {
+        const accounts: AccountMeta[] = pw.accounts.map((a) => ({
+          index: a.index,
+          label: a.label,
+          ...(a.evm ? { evm: a.evm } : {}),
+          ...(a.solana ? { solana: a.solana } : {}),
+          ...(a.bitcoin ? { bitcoin: a.bitcoin } : {}),
+          ...(a.tonPub ? { tonPub: a.tonPub, ton: addressForChain({ evmAddress: '', tonPublicKey: a.tonPub }, TON) } : {}),
+        }));
+        if (!accounts.length) continue;
+        const fp = fingerprint({ accounts });
+        const prev = all.find((w) => w.kind === 'companion' && ((pw.key !== 'phone' && w.phoneWallet === pw.key) || fingerprint(w) === fp));
+        // Le même portefeuille existe ici avec ses clés : pas de doublon.
+        if (!prev && fp && all.some((w) => w.kind !== 'companion' && fingerprint(w) === fp)) continue;
+        if (!prev && all.length >= MAX_WALLETS) throw new WalletError('TOO_MANY_WALLETS');
+        const meta: WalletMeta = {
+          id: prev?.id ?? newId(),
+          label: prev?.label ?? uniqueLabel(pw.label || p.label, all.map((w) => w.label)),
+          kind: 'companion',
+          topic: p.topic,
+          ...(pw.key !== 'phone' ? { phoneWallet: pw.key } : {}),
+          evmChains: p.evmChains,
+          createdAt: prev?.createdAt ?? Date.now(),
+          // Rien à sauvegarder ici : la phrase est sur le téléphone.
+          backedUp: true,
+          accounts,
+        };
+        all = prev ? all.map((w) => (w.id === prev.id ? meta : w)) : [...all, meta];
+        out.push(meta);
+      }
+      if (!out.length) throw new WalletError('DUPLICATE');
+      const next = all;
+      return { result: out, commit: () => save(next) };
     });
   }
 
   /** Délier un téléphone : son portefeuille (aucun secret ici) disparaît de l'extension. */
-  async function removeCompanion(id: string): Promise<boolean> {
+  /** Délier : la session est commune à tous les portefeuilles du téléphone, ils partent ensemble. Rend leurs identifiants. */
+  async function removeCompanion(id: string): Promise<string[]> {
     return session.withVault(async () => {
       const all = await list();
       const w = all.find((x) => x.id === id && x.kind === 'companion');
-      if (!w) return { result: false };
-      return { result: true, commit: () => save(all.filter((x) => x.id !== id)) };
+      if (!w) return { result: [] };
+      const gone = all.filter((x) => x.kind === 'companion' && (x.id === id || (!!w.topic && x.topic === w.topic))).map((x) => x.id);
+      return { result: gone, commit: () => save(all.filter((x) => !gone.includes(x.id))) };
     });
   }
 
   /** Session coupée (depuis le téléphone, ou expirée) : le portefeuille reste, marqué « à relier ». */
   async function markCompanionLost(topic: string): Promise<void> {
     const all = await list();
-    const w = all.find((x) => x.kind === 'companion' && x.topic === topic);
-    if (!w || w.lost) return;
-    w.lost = true;
+    const hit = all.filter((x) => x.kind === 'companion' && x.topic === topic && !x.lost);
+    if (!hit.length) return;
+    for (const w of hit) w.lost = true;
     await save(all);
   }
 

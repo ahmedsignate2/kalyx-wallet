@@ -2,7 +2,7 @@ import { base58, base64, hex } from '@scure/base';
 import { isDecoySession } from './sessionMode';
 import { solanaTxDecode } from '../src/domain/wc/solanaTx';
 import { signMessageParam } from './dappProvider';
-import { checkSigner } from '../src/domain/wc/signerAccount';
+import { checkSigner, type SignerAccount } from '../src/domain/wc/signerAccount';
 import { utf8ToBytes } from '@noble/hashes/utils';
 /**
  * WalletConnect (Reown) — Kalyx est le WALLET auquel les dApps se connectent.
@@ -414,16 +414,40 @@ function activeAccount() {
  * quand ce compte est dans le portefeuille, son indice (`switchIndex`) pour
  * que la fenêtre propose « Signer avec ce compte ».
  */
+/**
+ * Comptes de TOUS les portefeuilles (hors suivi en lecture seule), adresses
+ * publiques seulement. Relus à chaque demande signable : une session du mode
+ * compagnon partage tous les comptes, et la demande peut viser n'importe lequel.
+ */
+let allSignerAccounts: SignerAccount[] | null = null;
+
+export async function loadAllSignerAccounts(): Promise<SignerAccount[]> {
+  const st = useWallet.getState();
+  const out: SignerAccount[] = [];
+  // Chargé à la demande : le magasin sécurisé n'est utile qu'ici.
+  const { loadAccounts } = await import('./secureStore');
+  for (const w of st.wallets) {
+    if (w.type === 'watch') continue;
+    const accounts = w.id === st.activeWalletId ? st.accounts : ((await loadAccounts(w.id).catch(() => null)) ?? []);
+    for (const a of accounts) out.push({ index: a.index, label: a.label, walletId: w.id, walletLabel: w.label, evmAddress: a.evmAddress || undefined, solAddress: a.solAddress || undefined, btcAddress: a.btcAddress || undefined, tonPub: a.tonPublicKey && (!a.tonVersion || a.tonVersion === 'v5r1') ? a.tonPublicKey : undefined });
+  }
+  return out;
+}
+
 export function assertSessionAccount(wallet: any, topic: string, chainId: unknown, method = '', params: unknown = []): void {
   const ns = typeof chainId === 'string' ? chainId.split(':')[0] : '';
   const session = wallet?.getActiveSessions?.()[topic];
   const shared: string[] = ((session?.namespaces?.[ns]?.accounts ?? []) as string[]).map((a) => String(a).split(':').pop() ?? '');
   const w = useWallet.getState();
-  const r = checkSigner({ ns, shared, method, params, accounts: w.accounts, activeIndex: w.activeAccountIndex });
+  // Tous les portefeuilles quand on les connaît ; sinon ceux du portefeuille actif (comme avant).
+  const accounts = allSignerAccounts ?? w.accounts.map((a) => ({ ...a, walletId: w.activeWalletId }));
+  const r = checkSigner({ ns, shared, method, params, accounts, activeIndex: w.activeAccountIndex, activeWalletId: w.activeWalletId });
   if (r.ok) return;
+  const other = r.switchTo?.walletId && r.switchTo.walletId !== w.activeWalletId;
   throw new WalletError('WRONG_ACCOUNT', 'compte demandé ≠ compte actif', {
     address: shortAddress(r.address),
     ...(r.switchTo ? { switchIndex: String(r.switchTo.index), switchLabel: r.switchTo.label ?? '' } : {}),
+    ...(r.switchTo && other ? { switchWalletId: r.switchTo.walletId!, switchWalletLabel: r.switchTo.walletLabel ?? '' } : {}),
   });
 }
 
@@ -587,6 +611,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         await w.respondSessionRequest({ topic: request.topic, response }).catch(() => {});
         return;
       }
+      // Comptes de tous les portefeuilles, relus avant l'écran : la demande peut viser l'un d'eux.
+      allSignerAccounts = await loadAllSignerAccounts().catch(() => allSignerAccounts);
+      if (get().requestQueue.some((r: any) => r?.id === request?.id)) return; // arrivée deux fois pendant la lecture
       const q = [...get().requestQueue, request];
       set({ requestQueue: q, request: q[0] });
       const topic: string | undefined = request?.topic;
@@ -688,6 +715,14 @@ export const useWalletConnect = create<WcState>((set, get) => ({
      * Solana ; désormais il se connecte en Solana seulement.
      */
     if (!acct?.evmAddress && !acct?.solAddress && !acct?.btcAddress) throw new WcConnectError('NO_ACCOUNT');
+    /*
+     * MODE COMPAGNON (l'extension Kalyx de l'utilisateur) : TOUS les portefeuilles
+     * et TOUS leurs comptes sont partagés en une seule liaison — l'extension
+     * reçoit aussi leur liste (portefeuille, compte, nom), pour les ranger comme
+     * ici. Les portefeuilles suivis en lecture seule n'y sont pas (aucune clé).
+     */
+    const companion = proposal.params?.sessionProperties?.kalyx_companion === '2';
+    const everyone = companion ? (await loadAllSignerAccounts()).filter((a) => a.evmAddress || a.solAddress || a.btcAddress) : [];
     // Exige l'identité dès la connexion (parité avec le navigateur dApps intégré).
     // Biométrie ou PIN ; lève si refusée → l'UI affiche l'erreur, aucune session.
     // Lecture seule : l'adresse suivie n'est PAS celle de l'utilisateur, on ne la présente pas comme telle.
@@ -696,34 +731,48 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     const testnets = useSettings.getState().showTestnets === true;
     const chains = evmChains(testnets);
     const solCaips = testnets ? [SOLANA_CAIP, SOLANA_DEVNET_CAIP] : [SOLANA_CAIP];
-    const evmAddress = acct.evmAddress;
+    const uniq = (xs: (string | undefined)[]) => [...new Set(xs.filter((x): x is string => !!x))];
+    const evmAddrs = companion ? uniq(everyone.map((a) => a.evmAddress)) : uniq([acct.evmAddress]);
+    const solAddrs = companion ? uniq(everyone.map((a) => a.solAddress)) : uniq([acct.solAddress]);
+    const btcAddrs = companion ? uniq(everyone.map((a) => a.btcAddress)) : uniq([acct.btcAddress]);
+    // L'extension propose ses réseaux EVM : on ne répète chaque adresse que sur ceux-là (session plus légère).
+    const asked = new Set<string>([...(proposal.params?.requiredNamespaces?.eip155?.chains ?? []), ...(proposal.params?.optionalNamespaces?.eip155?.chains ?? [])]);
+    const evmCaips = companion ? chains.map((c) => c.caip).filter((c) => asked.has(c)) : chains.map((c) => c.caip);
     const supportedNamespaces: Record<string, unknown> = {};
-    if (evmAddress) {
+    if (evmAddrs.length) {
       supportedNamespaces.eip155 = {
-        chains: chains.map((c) => c.caip),
+        chains: evmCaips,
         methods: evmMethods,
         events: ['chainChanged', 'accountsChanged'],
-        accounts: chains.map((c) => `${c.caip}:${evmAddress}`),
+        accounts: evmCaips.flatMap((c) => evmAddrs.map((a) => `${c}:${a}`)),
       };
     }
     // Solana (namespace WalletConnect « solana »).
-    if (acct.solAddress) {
+    if (solAddrs.length) {
       supportedNamespaces.solana = {
         chains: solCaips,
         methods: solMethods,
         events: ['accountsChanged'],
-        accounts: solCaips.map((c) => `${c}:${acct.solAddress}`),
+        accounts: solCaips.flatMap((c) => solAddrs.map((a) => `${c}:${a}`)),
       };
     }
     // Bitcoin (namespace « bip122 »).
-    if (acct.btcAddress) {
+    if (btcAddrs.length) {
       supportedNamespaces.bip122 = {
         chains: [BTC_CAIP],
         methods: btcMethods,
         events: [],
-        accounts: [`${BTC_CAIP}:${acct.btcAddress}`],
+        accounts: btcAddrs.map((a) => `${BTC_CAIP}:${a}`),
       };
     }
+    // La carte des comptes pour l'extension : adresses publiques, noms ; aucun secret.
+    const sessionProperties = companion
+      ? {
+          kalyx_accounts: JSON.stringify(
+            everyone.slice(0, 60).map((a) => ({ w: a.walletId, wl: (a.walletLabel ?? '').slice(0, 40), i: a.index, l: (a.label ?? '').slice(0, 40), e: a.evmAddress, s: a.solAddress, b: a.btcAddress, t: a.tonPub })),
+          ),
+        }
+      : undefined;
     let namespaces: Record<string, unknown>;
     try {
       namespaces = sdkUtils.buildApprovedNamespaces({
@@ -744,7 +793,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       throw new WcConnectError('NO_COMPATIBLE_CHAIN');
     }
     try {
-      await wallet.approveSession({ id: proposal.id, namespaces: namespaces as any });
+      await wallet.approveSession({ id: proposal.id, namespaces: namespaces as any, ...(sessionProperties ? { sessionProperties } : {}) });
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       if (/expired|deleted|record/i.test(detail)) {

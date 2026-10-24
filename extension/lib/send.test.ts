@@ -358,7 +358,7 @@ describe('mode compagnon', () => {
     const companion = {
       request: async (_m: unknown, chainId: string, method: string, params: unknown) => (calls.push({ chainId, method, params }), `0x${'cd'.repeat(32)}`),
     } as unknown as Companion;
-    const w = await wallets.addCompanion({ topic: 't1', evm: phone, evmChains: [1, 8453], label: 'Téléphone' });
+    const [w] = await wallets.addCompanion({ topic: 't1', wallets: [{ key: 'phone', label: '', accounts: [{ index: 0, label: 'Compte 1', evm: phone }] }], evmChains: [1, 8453], label: 'Téléphone' });
     await home.select(w.id, 0);
     const s2 = makeSend({ session, wallets, home, portfolio, whitelist, now: () => clock, adapterFor: (c) => fakeAdapter(c, log), resolveEns: async () => null, companion });
     const d = await s2.prepare({ assetKey: 'ethereum:native', to: STRANGER, amount: '0.1' });
@@ -380,7 +380,7 @@ describe('mode compagnon', () => {
     Object.assign(v1, { getFeeRates: async () => ({ slow: 2, normal: 5, fast: 10 }), confirmedUtxos: async () => [{ txid: 'a'.repeat(64), vout: 0, value: 200_000 }], broadcastHex: async () => { throw new Error('jamais diffusé ici'); } });
     const pf = makePortfolio({ disk: makeStore(disk), t: activityT, locale: 'fr-FR', now: () => clock, load: async () => [holding('bitcoin', 'BTC', 200_000n, 8)], history: async () => [] });
     const h = makeHome(makeStore(disk), session, wallets, pf, 'eur');
-    const w = await wallets.addCompanion({ topic: 't-btc', bitcoin: phoneBtc, evmChains: [], label: 'Téléphone' });
+    const [w] = await wallets.addCompanion({ topic: 't-btc', wallets: [{ key: 'phone', label: '', accounts: [{ index: 0, label: 'Compte 1', bitcoin: phoneBtc }] }], evmChains: [], label: 'Téléphone' });
     await h.select(w.id, 0);
     await h.refresh();
     const s2 = makeSend({ session, wallets, home: h, portfolio: pf, whitelist, now: () => clock, adapterFor: (c) => (c.family === 'bitcoin' ? new BitcoinAdapterV2(BITCOIN, v1) : fakeAdapter(c, log)), companion });

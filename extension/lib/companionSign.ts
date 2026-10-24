@@ -99,12 +99,12 @@ export async function executeOnPhone(
   // Transactions Solana.
   if (req.send) {
     if (req.txs.length !== 1) throw new RpcError(-32602, 'Une seule transaction à envoyer à la fois');
-    const sig = checkSolSignature(await ask(SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: req.txs[0] }));
+    const sig = checkSolSignature(await ask(SOLANA_CAIP, 'solana_signAndSendTransaction', { transaction: req.txs[0], pubkey: req.from }));
     return [{ signature: base64.encode(base58.decode(sig)) }];
   }
   const signed =
     req.txs.length === 1
-      ? checkSolSigned(await ask(SOLANA_CAIP, 'solana_signTransaction', { transaction: req.txs[0] }), 1)
-      : checkSolSigned(await ask(SOLANA_CAIP, 'solana_signAllTransactions', { transactions: req.txs }), req.txs.length);
+      ? checkSolSigned(await ask(SOLANA_CAIP, 'solana_signTransaction', { transaction: req.txs[0], pubkey: req.from }), 1)
+      : checkSolSigned(await ask(SOLANA_CAIP, 'solana_signAllTransactions', { transactions: req.txs, pubkey: req.from }), req.txs.length);
   return signed.map((s, k) => ({ signedTransaction: checkSolSignedTx(req.txs[k], s, req.from) }));
 }

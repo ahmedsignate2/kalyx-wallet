@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { Wallet, hexlify, toUtf8Bytes } from 'ethers';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
-import { BTC_CAIP, checkBtcTxid, checkPersonal, checkSolMessage, checkSolSigned, checkTxHash, checkTyped, evmChainFor, evmTxParam, proposal, sessionAccounts, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
+import { BTC_CAIP, companionWallets, checkBtcTxid, checkPersonal, checkSolMessage, checkSolSigned, checkTxHash, checkTyped, evmChainFor, evmTxParam, proposal, sessionAccounts, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
 import { checkSolSignedTx, executeOnPhone, splitSolanaTx } from './companionSign';
 import { makeCompanion, type WcClient } from './companion';
 import { makeSession } from './session';
@@ -144,7 +144,7 @@ function fakeClient(answer: (method: string, params: unknown) => Promise<unknown
   const handlers: Record<string, ((e: { topic: string }) => void)[]> = {};
   const sessions = new Set<string>();
   const calls: { chainId: string; method: string; params: unknown; site?: string }[] = [];
-  let approve: (s: { topic: string; namespaces: Record<string, { accounts?: string[] }> }) => void = () => {};
+  let approve: (s: { topic: string; namespaces: Record<string, { accounts?: string[] }>; sessionProperties?: Record<string, unknown> }) => void = () => {};
   const client: WcClient = {
     async connect() {
       return { uri: 'wc:abc@2?relay-protocol=irn&symKey=00', approval: () => new Promise((r) => (approve = r)) };
@@ -164,9 +164,9 @@ function fakeClient(answer: (method: string, params: unknown) => Promise<unknown
   return {
     client,
     calls,
-    accept(topic: string, namespaces: Record<string, { accounts?: string[] }>) {
+    accept(topic: string, namespaces: Record<string, { accounts?: string[] }>, sessionProperties?: Record<string, unknown>) {
       sessions.add(topic);
-      approve({ topic, namespaces });
+      approve({ topic, namespaces, ...(sessionProperties ? { sessionProperties } : {}) });
     },
     drop(topic: string) {
       sessions.delete(topic);
@@ -198,7 +198,7 @@ describe('mode compagnon : lien avec le téléphone', () => {
     // Rien n'est enregistré avant la confirmation (appareil et adresses vus par l'utilisateur).
     expect(await wallets.list()).toHaveLength(before);
     expect(cand).toMatchObject({ topic: 'topic-1', evm: PHONE.address, solana: SOL_PK });
-    const meta = (await companion.confirm('topic-1', true))!;
+    const meta = (await companion.confirm('topic-1', true))![0];
     return { fake, companion, meta };
   };
 
@@ -244,11 +244,11 @@ describe('mode compagnon : lien avec le téléphone', () => {
   test('délier : le portefeuille du téléphone disparaît (et rien d’autre)', async () => {
     const { meta } = await link(async () => null);
     await wallets.importKey(`0x${'22'.repeat(32)}`, 'evm');
-    expect(await wallets.removeCompanion(meta.id)).toBe(true);
+    expect(await wallets.removeCompanion(meta.id)).toEqual([meta.id]);
     expect((await wallets.list()).map((w: WalletMeta) => w.kind)).toEqual(['privateKey']);
     // Un portefeuille à clé locale ne se « délie » pas.
     const other = (await wallets.list())[0];
-    expect(await wallets.removeCompanion(other.id)).toBe(false);
+    expect(await wallets.removeCompanion(other.id)).toEqual([]);
   });
 
   test('relier à nouveau le même compte : le portefeuille est remplacé, pas doublé', async () => {
@@ -354,6 +354,62 @@ describe('mode compagnon : lien avec le téléphone', () => {
     await waiting;
     await expect(companion.confirm('t', true)).rejects.toThrow();
     expect((await wallets.list()).map((w: WalletMeta) => w.kind)).toEqual(['privateKey']);
+  });
+});
+
+describe('compagnon : tous les portefeuilles du téléphone en une liaison', () => {
+  const E1 = '0x1111111111111111111111111111111111111111';
+  const E2 = '0x2222222222222222222222222222222222222222';
+  const E3 = '0x3333333333333333333333333333333333333333';
+  const BTC = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+  const nsAll = { eip155: { accounts: [`eip155:1:${E1}`, `eip155:1:${E2}`, `eip155:8453:${E1}`] }, bip122: { accounts: [`${BTC_CAIP}:${BTC}`] } };
+  const map = JSON.stringify([
+    { w: 'w1', wl: 'Portefeuille', i: 0, l: 'Compte 1', e: E1 },
+    { w: 'w1', wl: 'Portefeuille', i: 1, l: 'Épargne', e: E2 },
+    { w: 'w2', wl: 'Don btc', i: 0, l: 'Compte 1', b: BTC.toUpperCase() },
+    // Adresse que la session ne partage pas : la carte ne peut rien ajouter.
+    { w: 'w3', wl: 'Intrus', i: 0, l: 'X', e: E3 },
+  ]);
+
+  test('la carte range les comptes par portefeuille, sans rien ajouter que la session ne partage', () => {
+    const r = companionWallets(nsAll, { kalyx_accounts: map });
+    expect(r.wallets).toEqual([
+      { key: 'w1', label: 'Portefeuille', accounts: [{ index: 0, label: 'Compte 1', evm: E1, solana: undefined, bitcoin: undefined }, { index: 1, label: 'Épargne', evm: E2, solana: undefined, bitcoin: undefined }] },
+      { key: 'w2', label: 'Don btc', accounts: [{ index: 0, label: 'Compte 1', evm: undefined, solana: undefined, bitcoin: BTC }] },
+    ]);
+    expect(r.evmChains.sort()).toEqual([1, 8453]);
+  });
+
+  test('sans carte (app plus ancienne) : un seul compte, comme avant ; plusieurs adresses sans carte : refus', () => {
+    expect(companionWallets({ eip155: { accounts: [`eip155:1:${E1}`] } }, undefined).wallets).toEqual([{ key: 'phone', label: '', accounts: [{ index: 0, label: 'Compte 1', evm: E1, solana: undefined, bitcoin: undefined }] }]);
+    expect(() => companionWallets({ eip155: { accounts: [`eip155:1:${E1}`, `eip155:1:${E2}`] } }, {})).toThrow('COMPANION_AMBIGUOUS');
+  });
+
+  test('relier, perdre, délier : tous les portefeuilles du téléphone ensemble', async () => {
+    const disk = makeStore(area());
+    const session = makeSession({ disk, session: makeStore(area()), alarms: { create() {}, clear() {} }, kdf: { N: 1 << 10, r: 8, p: 1 } });
+    const wallets = makeWallets(disk, session);
+    await session.create('Plage-Orange-47!');
+    const fake = fakeClient(async () => null);
+    const companion = makeCompanion(wallets, { client: async () => fake.client });
+    await companion.start('Téléphone');
+    const waiting = companion.wait();
+    fake.accept('t-all', nsAll, { kalyx_accounts: map });
+    expect((await waiting).wallets).toHaveLength(2);
+    const added = (await companion.confirm('t-all', true))!;
+    expect(added.map((w) => [w.label, w.kind, w.accounts.length])).toEqual([['Portefeuille', 'companion', 2], ['Don btc', 'companion', 1]]);
+    // Relier à nouveau : mis à jour à leur place, pas doublés.
+    await companion.start('Téléphone');
+    const again = companion.wait();
+    fake.accept('t-all-2', nsAll, { kalyx_accounts: map });
+    await again;
+    await companion.confirm('t-all-2', true);
+    expect((await wallets.list()).filter((w) => w.kind === 'companion').map((w) => [w.label, w.topic])).toEqual([['Portefeuille', 't-all-2'], ['Don btc', 't-all-2']]);
+    await wallets.markCompanionLost('t-all-2');
+    expect((await wallets.list()).every((w) => w.lost)).toBe(true);
+    const gone = await wallets.removeCompanion(added[0].id);
+    expect(gone).toHaveLength(2);
+    expect(await wallets.list()).toHaveLength(0);
   });
 });
 

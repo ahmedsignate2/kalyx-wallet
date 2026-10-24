@@ -442,7 +442,7 @@ export function WalletConnectHost() {
      */
     let accountMismatch: string | null = null;
     /** Le compte demandé est dans ce portefeuille : « Signer avec Compte 2 » y passe, puis signe. */
-    let switchTo: { index: number; name: string; address: string } | null = null;
+    let switchTo: { index: number; name: string; address: string; walletId?: string } | null = null;
     try {
       assertSessionAccount(useWalletConnect.getState().wallet, request.topic, request.params?.chainId, info.method, request.params?.request?.params);
     } catch (e) {
@@ -451,7 +451,10 @@ export function WalletConnectHost() {
       const address = meta?.address;
       if (address && meta?.switchIndex != null && Number.isInteger(Number(meta.switchIndex))) {
         const index = Number(meta.switchIndex);
-        switchTo = { index, name: accountDisplayName({ index, label: meta.switchLabel ?? '' }, t), address: String(address) };
+        const acctName = accountDisplayName({ index, label: meta.switchLabel ?? '' }, t);
+        // Compte d'un AUTRE portefeuille (mode compagnon) : le nom du portefeuille d'abord.
+        const walletId = typeof meta.switchWalletId === 'string' && meta.switchWalletId ? meta.switchWalletId : undefined;
+        switchTo = { index, name: walletId && meta.switchWalletLabel ? `${meta.switchWalletLabel} · ${acctName}` : acctName, address: String(address), ...(walletId ? { walletId } : {}) };
       } else {
         accountMismatch = address ? t('errWrongAccountAddr').replace('{address}', String(address)) : t('errWrongAccount');
       }
@@ -543,6 +546,15 @@ export function WalletConnectHost() {
           onSign={() => {
             if (accountMismatch) return;
             // Passe sur le compte que la demande nomme ; la fiche se recalcule, puis le PIN.
+            if (switchTo?.walletId) {
+              // Autre portefeuille : on y passe, puis sur le compte ; la fiche se recalcule, puis le PIN.
+              const target = switchTo;
+              void useWallet.getState().setActiveWallet(target.walletId!).then(() => {
+                useWallet.getState().setActiveAccount(target.index);
+                setConfirming(true);
+              });
+              return;
+            }
             if (switchTo) useWallet.getState().setActiveAccount(switchTo.index);
             setConfirming(true);
           }}
