@@ -130,4 +130,5 @@ export default {
   stTitle: 'Twój portfel jest gotowy', stBody: 'Dodaj środki, aby zacząć: kartą albo z innego portfela lub giełdy.',
   modeNowBeginner: 'Tryb początkujący: to, co najważniejsze, bez szczegółów technicznych.', modeNowExpert: 'Tryb eksperta: wszystko widoczne i do ustawienia.',
   obV1: 'Każdy podpis wyjaśniony i oceniony, zanim go zaakceptujesz', obV2: 'EVM, Solana, Bitcoin i TON w jednym miejscu', obV3: 'Twoje klucze zostają tutaj, zaszyfrowane: nikt inny nie ma do nich dostępu', obLockLater: 'Automatyczna blokada: 15 min, do zmiany w Ustawieniach.',
+  esNftBody: 'NFT otrzymane przez to konto pojawią się tutaj, według kolekcji.', esActBody: 'Twoje wysyłki, wpływy i wymiany pojawią się tutaj, dzień po dniu.', esCtBody: 'Zapisz adresy, których często używasz: Kalyx ostrzeże, gdy wpisany adres będzie podobny do któregoś z nich.', esSitesBody: 'Gdy połączysz Kalyx ze stroną, pojawi się tutaj i odłączysz ją jednym dotknięciem.', esApprBody: 'Żaden kontrakt nie może tu wydawać twoich tokenów: nie ma czego odwoływać.', esWlBody: 'Dodaj adresy, na które pozwalasz: każdy inny odbiorca zostanie zablokowany.',
 };

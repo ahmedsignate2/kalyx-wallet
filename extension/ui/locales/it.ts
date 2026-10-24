@@ -130,4 +130,5 @@ export default {
   stTitle: 'Il tuo wallet è pronto', stBody: 'Aggiungi fondi per iniziare: con carta, oppure da un altro wallet o da un exchange.',
   modeNowBeginner: 'Modalità Principiante: l’essenziale, senza dettagli tecnici.', modeNowExpert: 'Modalità Esperto: tutto visibile e regolabile.',
   obV1: 'Ogni firma spiegata e valutata prima che tu accetti', obV2: 'EVM, Solana, Bitcoin e TON in un unico posto', obV3: 'Le tue chiavi restano qui, cifrate: nessun altro può accedervi', obLockLater: 'Blocco automatico: 15 min, modificabile in Impostazioni.',
+  esNftBody: 'Quelli che questo account riceve appariranno qui, per collezione.', esActBody: 'I tuoi invii, ricezioni e swap appariranno qui, giorno per giorno.', esCtBody: 'Salva gli indirizzi che usi spesso: Kalyx ti avvisa se un indirizzo digitato somiglia a uno di essi.', esSitesBody: 'Quando colleghi Kalyx a un sito, appare qui e puoi scollegarlo con un tocco.', esApprBody: 'Nessun contratto può spendere i tuoi token qui: niente da revocare.', esWlBody: 'Aggiungi gli indirizzi che autorizzi: ogni altro destinatario sarà bloccato.',
 };

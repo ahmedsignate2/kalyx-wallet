@@ -130,4 +130,5 @@ export default {
   stTitle: 'Deine Wallet ist bereit', stBody: 'Füge Guthaben hinzu, um loszulegen: per Karte oder von einer anderen Wallet bzw. Börse.',
   modeNowBeginner: 'Einsteiger-Modus: das Wesentliche, ohne technische Details.', modeNowExpert: 'Experten-Modus: alles sichtbar und einstellbar.',
   obV1: 'Jede Signatur erklärt und bewertet, bevor du zustimmst', obV2: 'EVM, Solana, Bitcoin und TON an einem Ort', obV3: 'Deine Schlüssel bleiben hier, verschlüsselt: niemand sonst kommt heran', obLockLater: 'Automatische Sperre: 15 Min., änderbar in den Einstellungen.',
+  esNftBody: 'NFTs, die dieses Konto erhält, erscheinen hier, nach Sammlung geordnet.', esActBody: 'Deine Überweisungen, Eingänge und Swaps erscheinen hier, Tag für Tag.', esCtBody: 'Speichere Adressen, die du oft nutzt: Kalyx warnt dich, wenn eine eingegebene Adresse einer davon ähnelt.', esSitesBody: 'Wenn du Kalyx mit einer Seite verbindest, erscheint sie hier und lässt sich mit einem Tipp trennen.', esApprBody: 'Kein Vertrag kann hier deine Tokens ausgeben: nichts zu widerrufen.', esWlBody: 'Füge die erlaubten Adressen hinzu: jeder andere Empfänger wird blockiert.',
 };

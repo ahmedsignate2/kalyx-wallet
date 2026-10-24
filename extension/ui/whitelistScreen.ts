@@ -3,6 +3,7 @@
  * de chaîne si la protection est active), retirer (immédiat), désactiver
  * (effectif après 24 h, annulable).
  */
+import { emptyState } from './feedback';
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
@@ -48,7 +49,7 @@ export function whitelistScreen(app: HTMLElement, back: () => void) {
                   h('button', { class: 'chip', type: 'button', on: { click: () => void act({ type: 'whitelist:remove', address: e.address }) } }, t('wlRemove')),
                 ),
               )
-            : [h('p', { class: 'muted empty' }, t('wlEmpty'))]),
+            : [emptyState(glyph('check', 26), t('wlEmpty'), t('esWlBody'))]),
         ),
         h(
           'form',

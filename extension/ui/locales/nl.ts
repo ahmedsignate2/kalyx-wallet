@@ -130,4 +130,5 @@ export default {
   stTitle: 'Je wallet is klaar', stBody: 'Voeg geld toe om te beginnen: met een kaart, of vanuit een andere wallet of exchange.',
   modeNowBeginner: 'Beginnersmodus: het essentiële, zonder technische details.', modeNowExpert: 'Expertmodus: alles zichtbaar en instelbaar.',
   obV1: 'Elke handtekening uitgelegd en beoordeeld voordat je akkoord gaat', obV2: 'EVM, Solana, Bitcoin en TON op één plek', obV3: 'Je sleutels blijven hier, versleuteld: niemand anders kan erbij', obLockLater: 'Automatisch vergrendelen: 15 min, aan te passen in Instellingen.',
+  esNftBody: 'NFT’s die dit account ontvangt verschijnen hier, per collectie.', esActBody: 'Je verzendingen, ontvangsten en swaps verschijnen hier, dag na dag.', esCtBody: 'Bewaar adressen die je vaak gebruikt: Kalyx waarschuwt als een ingetypt adres op een ervan lijkt.', esSitesBody: 'Als je Kalyx met een site verbindt, verschijnt die hier en kun je hem met één tik loskoppelen.', esApprBody: 'Geen enkel contract kan hier je tokens uitgeven: niets in te trekken.', esWlBody: 'Voeg de adressen toe die je toestaat: elke andere ontvanger wordt geblokkeerd.',
 };

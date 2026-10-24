@@ -4,7 +4,7 @@
  * les contrats signalés passent en tête. Révoquer est une transaction
  * (frais réseau), confirmée explicitement, et suivie jusqu'à son issue.
  */
-import { skeletonList } from './feedback';
+import { emptyState, skeletonList } from './feedback';
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
@@ -156,7 +156,7 @@ export function allowancesScreen(app: HTMLElement, back: () => void, chain = 'et
         revoke,
       );
     };
-    const list = r.items.length ? h('div', { class: 'list card' }, ...r.items.map(row)) : h('p', { class: 'muted center-text' }, t('apprEmpty'));
+    const list = r.items.length ? h('div', { class: 'list card' }, ...r.items.map(row)) : emptyState(glyph('security', 26), t('apprEmpty'), t('esApprBody'));
     const partial = r.incomplete || r.unavailable ? [h('div', { class: 'banner warn' }, glyph('alert', 16), h('span', {}, t('apprPartial')))] : [];
     body.replaceChildren(...partial, list);
     cascade(list.querySelectorAll('.row'));
