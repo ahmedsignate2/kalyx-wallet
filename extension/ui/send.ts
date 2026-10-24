@@ -10,6 +10,7 @@
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { play } from './sound';
+import { isExpert } from './prefs';
 import { activityT, errorText, LOCALE, t } from './i18n';
 import type { AssetView, DraftView, QuoteView } from '../lib/send';
 import { addressView } from './address';
@@ -70,7 +71,8 @@ export function sendScreen(app: HTMLElement, back: () => void) {
         ),
       );
     }
-    if (quote.manual && a?.family === 'evm') {
+    // Frais au gwei près : réglage d'Expert.
+    if (quote.manual && a?.family === 'evm' && isExpert()) {
       chips.push(h('button', { class: `fee${speed === 'manual' ? ' on' : ''}`, type: 'button', on: { click: () => ((speed = 'manual'), renderFees()) } }, h('strong', {}, t('feeManual')), h('span', { class: 'small muted' }, 'gwei')));
     }
     feeBox.replaceChildren(...nodes(

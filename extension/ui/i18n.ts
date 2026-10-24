@@ -296,6 +296,7 @@ const fr = {
   ctNoneTon: 'Aucun contact TON. Ajoute-en depuis Réglages, Carnet d’adresses.', recipientPhTon: 'Adresse TON (UQ… ou EQ…)', memoLabel: 'Commentaire (facultatif)', memoPh: 'Exigé par certaines plateformes d’échange', feeTon: 'Frais calculés à l’étape suivante, avant toute signature.',
   vdLow: 'Rien d’inquiétant repéré', vdMedium: 'Prudence : lis ces points avant de signer', vdHigh: 'Danger : refuse, sauf si tu es absolument sûr', pvUnavailableTitle: 'Aperçu indisponible', pvUnavailableBody: 'Kalyx n’a pas pu prévoir le résultat exact : ça arrive avec certains réseaux et contrats. Rien ne part tant que tu ne confirmes pas. Si tu ne connais pas ce site, refuse.', pvFailedTitle: 'Cette transaction risque d’échouer', pvFailedBody: 'D’après l’aperçu, le réseau la refuserait, et des frais seraient quand même prélevés. Le plus sûr : refuser, puis réessayer depuis le site en vérifiant le montant et ton solde.', pvErrorLabel: 'Raison technique', holdKeep: 'Continue d’appuyer…', vdWhy: 'Pourquoi',
   stTitle: 'Ton portefeuille est prêt', stBody: 'Ajoute des fonds pour commencer : par carte, ou depuis un autre portefeuille ou une plateforme d’échange.',
+  modeNowBeginner: 'Mode Débutant : l’essentiel, sans détails techniques.', modeNowExpert: 'Mode Expert : tout est visible et réglable.',
 };
 
 type Dict = typeof fr;
@@ -576,6 +577,7 @@ const en: Dict = {
   ctNoneTon: 'No TON contacts. Add some from Settings, Address book.', recipientPhTon: 'TON address (UQ… or EQ…)', memoLabel: 'Comment (optional)', memoPh: 'Required by some exchanges', feeTon: 'Fees are calculated in the next step, before anything is signed.',
   vdLow: 'Nothing worrying found', vdMedium: 'Careful: read these points before signing', vdHigh: 'Danger: refuse unless you are absolutely sure', pvUnavailableTitle: 'Preview unavailable', pvUnavailableBody: 'Kalyx couldn’t predict the exact result: this happens with some networks and contracts. Nothing leaves until you confirm. If you don’t know this site, refuse.', pvFailedTitle: 'This transaction will probably fail', pvFailedBody: 'According to the preview, the network would reject it and fees would still be charged. Safest: refuse, then try again from the site after checking the amount and your balance.', pvErrorLabel: 'Technical reason', holdKeep: 'Keep holding…', vdWhy: 'Why',
   stTitle: 'Your wallet is ready', stBody: 'Add funds to get started: by card, or from another wallet or an exchange.',
+  modeNowBeginner: 'Beginner mode: the essentials, no technical details.', modeNowExpert: 'Expert mode: everything visible and adjustable.',
 };
 
 export type Key = keyof Dict;

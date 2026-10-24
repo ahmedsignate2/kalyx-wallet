@@ -388,3 +388,19 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 .grip, .modal-head { cursor: grab; touch-action: none; user-select: none; }
 .modal.dragging .grip, .modal.dragging .modal-head { cursor: grabbing; }
 @media (prefers-reduced-motion: reduce) { .pane-in { animation: none !important; } .modal { transition: none; } }
+/* Débutant / Expert : deux cartes, l'une allumée. */
+.mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+.mode-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: start; padding: 12px 12px 14px; border-radius: 18px; border: 1.5px solid var(--border); background: var(--surface-1); color: var(--text); font: inherit; cursor: pointer; transition: border-color var(--d-fast), background-color var(--d-fast), transform var(--d-fast) var(--ease-spring); }
+.mode-opt strong { font-size: 15px; line-height: 20px; }
+.mode-opt .small { font-size: 12px; line-height: 16px; }
+.mode-opt .mode-ico { width: 30px; height: 30px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text-secondary); margin-bottom: 2px; }
+.mode-opt.on { border-color: var(--ink-send); background: color-mix(in srgb, var(--ink-send) 9%, var(--surface-1)); box-shadow: var(--depth); }
+.mode-opt.on .mode-ico { background: var(--ink-send); color: #fff; }
+:root:not([data-theme="light"]) .mode-opt.on .mode-ico { color: #1A1420; }
+.mode-opt:active { transform: scale(0.98); }
+.mode-switch.flip .mode-opt.on { animation: pop var(--d-slow) var(--ease-spring); }
+/* Message bref en bas de l'écran. */
+.toast { position: fixed; left: 50%; bottom: 18px; z-index: 80; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 14px; background: var(--text); color: var(--bg); font-size: 13.5px; line-height: 18px; font-weight: 600; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3); animation: toast-in var(--d-base) var(--ease-spring); }
+.toast.out { opacity: 0; transform: translate(-50%, 8px); transition: opacity 0.2s, transform 0.2s; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px); } }
+@media (prefers-reduced-motion: reduce) { .toast, .mode-switch.flip .mode-opt.on { animation: none; } }

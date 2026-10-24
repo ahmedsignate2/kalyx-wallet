@@ -47,6 +47,9 @@ const launch = async (lang = 'fr') => {
 /** Mode Débutant (défaut) : les réglages pointus sont sous « Réglages avancés », replié — on l'ouvre comme un utilisateur. */
 const openAdvanced = async (page) => {
   const adv = page.locator('[data-testid=advanced]');
+  await page.locator('.settings').waitFor();
+  // Expert : pas de section repliée, tout est déjà à plat.
+  if (await page.evaluate(() => localStorage.getItem('kalyx.mode') === 'expert')) return;
   await adv.waitFor();
   if (!(await adv.evaluate((d) => d.open))) await adv.locator('summary').click();
 };
@@ -321,7 +324,9 @@ async function beauty() {
     await p.waitForFunction(() => document.querySelector('[data-testid=paranoid]')?.getAttribute('aria-checked') === 'true');
     (await p.locator('[data-testid=advanced]').evaluate((d) => d.open)) ? console.log('✓ réglages avancés restent ouverts après un interrupteur') : fail('avancés refermés');
     await p.locator('[data-testid=paranoid]').click();
-    await p.locator('[data-testid=mode]').selectOption('expert');
+    (await p.locator('[data-testid=mode-beginner]').getAttribute('aria-checked')) === 'true' ? console.log('✓ mode : Débutant par défaut, sélecteur en tête des réglages') : fail('mode par défaut');
+    await p.locator('[data-testid=mode-expert]').click();
+    (await p.locator('.toast').textContent().catch(() => '')).startsWith('Mode Expert') ? console.log('✓ passage en Expert confirmé par un message') : fail('message de mode');
     await p.locator('[data-testid=paranoid]').waitFor();
     (await p.locator('[data-testid=advanced]').count()) === 0 && (await p.locator('[data-testid=settings-networks]').isVisible())
       ? console.log('✓ Expert : tous les réglages à plat')
@@ -973,6 +978,11 @@ async function onboarding() {
       await popup.locator('header .link').click();
     }
     await popup.getByRole('tab', { name: 'Tokens' }).click();
+    // Débutant : ni ajout de contrat ni choix des réseaux sur l'accueil ; Expert : les deux.
+    (await popup.locator('[data-testid=add-token]').count()) === 0 && (await popup.locator('[data-testid=manage-networks]').count()) === 0 ? console.log('✓ Débutant : accueil sans gestes techniques (ajout de token, réseaux)') : fail('gestes techniques visibles en Débutant');
+    await popup.evaluate(() => localStorage.setItem('kalyx.mode', 'expert'));
+    await popup.reload();
+    await popup.locator('[data-testid=account]').waitFor();
     await popup.locator('[data-testid=manage-networks]').click();
     await popup.locator('[data-testid=net-polygon]').waitFor();
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `networks-${scheme}.png`) });
