@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'Tylko bitcoiny, w sieci Bitcoin. Adres bc1 nie przyjmuje niczego innego.',
   recipientPhBtc: 'Adres Bitcoin (bc1…)', ctNoneBtc: 'Brak kontaktów Bitcoin. Dodaj je w Ustawienia, Książka adresowa.', ctAddressPhAll: 'Adres EVM (0x…), Solana lub Bitcoin', e_BTC_DUST: 'Za mało dla tego adresu Bitcoin: co najmniej {min} {symbol}, inaczej sieć odrzuci transakcję.', e_BTC_TOO_MANY_INPUTS: 'Zbyt wiele drobnych monet do zebrania w jednej transakcji. Wyślij mniejszą kwotę.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Strony Bitcoin nie są jeszcze obsługiwane dla konta z telefonu: użyj konta z tego rozszerzenia.',
+  receiveTonNote: 'Tylko aktywa w sieci TON (TON i jettony). Do odbioru tutaj komentarz nie jest potrzebny.',
 };

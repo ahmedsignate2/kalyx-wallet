@@ -53,6 +53,11 @@ describe('portefeuilles de l’extension', () => {
   test('importer une phrase : MÊMES adresses que le mobile, phrase normalisée, doublon refusé', async () => {
     const w = await wallets.importPhrase(`  ${ABOUT.toUpperCase().replace(/ /g, '   ')}  `);
     expect(w.accounts[0]).toMatchObject({ index: 0, evm: EVM0, solana: SOL0, bitcoin: BTC0 });
+    // TON : compte 1 seulement, adresse v5r1 non rebondissante, identique à l'app (lib/accountAddress).
+    expect(w.accounts[0].ton).toMatch(/^UQ[A-Za-z0-9_-]{46}$/);
+    // Clé de Tonkeeper pour cette phrase (src/domain/chains/ton/tonkeeper-vectors.json).
+    expect(w.accounts[0].tonPub).toBe('7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf');
+    expect(w.accounts[1]?.ton).toBeUndefined();
     await expect(wallets.importPhrase(ABOUT)).rejects.toThrow('DUPLICATE');
     const vault = (await session.readVault())!;
     expect(readSecret(vault, await session.vaultKey(), w.id).secret).toBe(ABOUT);

@@ -34,7 +34,7 @@ export function makeHome(disk: Store, session: Session, wallets: Wallets, portfo
     if (!wallet) return null;
     const account = wallet.accounts.find((a) => a.index === sel?.index) ?? wallet.accounts[0];
     if (!account) return null;
-    return { wallet, index: account.index, acct: { evm: account.evm, solana: account.solana, bitcoin: account.bitcoin } };
+    return { wallet, index: account.index, acct: { evm: account.evm, solana: account.solana, bitcoin: account.bitcoin, ton: account.ton, tonPub: account.tonPub } };
   }
 
   const needUnlocked = async () => {

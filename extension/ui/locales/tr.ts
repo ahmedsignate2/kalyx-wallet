@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'Yalnızca bitcoin, Bitcoin ağında. bc1 adresi başka hiçbir şey kabul etmez.',
   recipientPhBtc: 'Bitcoin adresi (bc1…)', ctNoneBtc: 'Bitcoin kişisi yok. Ayarlar, Adres defteri’nden ekle.', ctAddressPhAll: 'EVM (0x…), Solana veya Bitcoin adresi', e_BTC_DUST: 'Bu Bitcoin adresi için çok az: en az {min} {symbol}, yoksa ağ işlemi reddeder.', e_BTC_TOO_MANY_INPUTS: 'Tek bir işlemde toplanacak çok fazla küçük coin var. Daha küçük bir tutar gönder.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Bitcoin siteleri telefon hesabı için henüz desteklenmiyor: bu eklentideki bir hesabı kullan.',
+  receiveTonNote: 'Yalnızca TON ağındaki varlıklar (TON ve jettonlar). Burada almak için yorum gerekmez.',
 };

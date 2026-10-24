@@ -19,6 +19,7 @@ interface Info {
   evm?: string;
   solana?: string;
   bitcoin?: string;
+  ton?: string;
   backedUp: boolean;
   warned: boolean;
 }
@@ -72,7 +73,7 @@ function warnScreen(app: HTMLElement, info: Info, back: () => void, opts: { clos
 }
 
 function show(app: HTMLElement, info: Info, back: () => void) {
-  const fams = [info.evm && { id: 'evm', label: 'EVM', address: info.evm, note: t('receiveEvmNote') }, info.solana && { id: 'sol', label: 'Solana', address: info.solana, note: t('receiveSolNote') }, info.bitcoin && { id: 'btc', label: 'Bitcoin', address: info.bitcoin, note: t('receiveBtcNote') }].filter(
+  const fams = [info.evm && { id: 'evm', label: 'EVM', address: info.evm, note: t('receiveEvmNote') }, info.solana && { id: 'sol', label: 'Solana', address: info.solana, note: t('receiveSolNote') }, info.bitcoin && { id: 'btc', label: 'Bitcoin', address: info.bitcoin, note: t('receiveBtcNote') }, info.ton && { id: 'ton', label: 'TON', address: info.ton, note: t('receiveTonNote') }].filter(
     (x): x is { id: string; label: string; address: string; note: string } => !!x,
   );
   let current = fams[0];

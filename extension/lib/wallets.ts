@@ -19,6 +19,9 @@ import { generateMnemonic, mnemonicToSeed, validateMnemonic } from '../../src/cr
 import { deriveEvmAccount, evmAccountFromPrivateKey } from '../../src/crypto/hd';
 import { deriveSolanaAccount, deriveSolanaSigner } from '../../src/crypto/solana';
 import { deriveBtcAccount } from '../../src/crypto/btc';
+import { tonPublicKeyFromPhraseAsync } from '../../src/domain/chains/ton/tonKeys';
+import { addressForChain } from '../../lib/accountAddress';
+import { TON } from '../../src/domain/chains/configs';
 import { parseImportedKey } from '../../src/domain/keys/importKey';
 import { classifyRecoveryPhrase } from '../../src/domain/keys/recoveryPhrase';
 import { createWalletsBackup, restoreBackup, normalizeBackupSecret, type BackupWallet } from '../../src/domain/backup/cloudBackup';
@@ -38,6 +41,12 @@ export interface AccountMeta {
   bitcoin?: string;
   /** Sa clé publique compressée (hex) : les sites Bitcoin la demandent avec l'adresse. */
   bitcoinPub?: string;
+  /**
+   * TON : une clé par phrase (compte 1 seulement), dérivée comme Tonkeeper et
+   * l'app ; l'adresse est celle du contrat portefeuille v5r1, non rebondissante (UQ…).
+   */
+  ton?: string;
+  tonPub?: string;
 }
 
 export interface WalletMeta {
@@ -80,11 +89,22 @@ const btcOf = (seed: Uint8Array, index: number) => {
   return { bitcoin: b.address, bitcoinPub: b.publicKey.replace(/^0x/, '') };
 };
 
+/** TON du compte 1 d'une phrase : clé publique (hex) et adresse ; rien si la dérivation échoue (jamais bloquant). */
+export async function tonOf(phrase: string, seed?: Uint8Array): Promise<{ ton?: string; tonPub?: string }> {
+  try {
+    const pub = bytesToHex(await tonPublicKeyFromPhraseAsync(phrase, seed));
+    return { tonPub: pub, ton: addressForChain({ evmAddress: '', tonPublicKey: pub }, TON) };
+  } catch {
+    return {};
+  }
+}
+
 /** Adresses d'un compte d'une phrase (mêmes chemins que le mobile). */
 export async function accountsFromPhrase(phrase: string, indexes: number[]): Promise<AccountMeta[]> {
   const seed = await mnemonicToSeed(phrase);
   try {
-    return indexes.map((index) => ({ index, label: `Compte ${index + 1}`, evm: deriveEvmAccount(seed, index).address, solana: deriveSolanaAccount(seed, index).address, ...btcOf(seed, index) }));
+    const ton = indexes.includes(0) ? await tonOf(phrase, seed) : {};
+    return indexes.map((index) => ({ index, label: `Compte ${index + 1}`, evm: deriveEvmAccount(seed, index).address, solana: deriveSolanaAccount(seed, index).address, ...btcOf(seed, index), ...(index === 0 ? ton : {}) }));
   } finally {
     seed.fill(0);
   }
@@ -274,19 +294,19 @@ export function makeWallets(disk: Store, session: Session) {
    * ne fait rien s'il n'y a rien à compléter.
    */
   async function backfillBitcoin(): Promise<boolean> {
-    const missing = (await list()).filter((w) => w.kind === 'seed' && w.accounts.some((a) => !a.bitcoin || !a.bitcoinPub));
+    const missing = (await list()).filter((w) => w.kind === 'seed' && w.accounts.some((a) => !a.bitcoin || !a.bitcoinPub || (a.index === 0 && !a.tonPub)));
     if (!missing.length) return false;
     const filled = await session.withVault(async (vault, key) => {
-      const out = new Map<string, Map<number, { bitcoin?: string; bitcoinPub?: string }>>();
+      const out = new Map<string, Map<number, { bitcoin?: string; bitcoinPub?: string; ton?: string; tonPub?: string }>>();
       for (const w of missing) {
         const { secret } = readSecret(vault, key, w.id);
         const derived = await accountsFromPhrase(secret, w.accounts.map((a) => a.index));
-        out.set(w.id, new Map(derived.map((a) => [a.index, { bitcoin: a.bitcoin, bitcoinPub: a.bitcoinPub }])));
+        out.set(w.id, new Map(derived.map((a) => [a.index, { bitcoin: a.bitcoin, bitcoinPub: a.bitcoinPub, ...(a.tonPub ? { ton: a.ton, tonPub: a.tonPub } : {}) }])));
       }
       return { result: out };
     });
     // Relu juste avant d'écrire : un compte ajouté entre-temps n'est pas perdu.
-    await save((await list()).map((w) => (filled.has(w.id) ? { ...w, accounts: w.accounts.map((a) => (a.bitcoin && a.bitcoinPub ? a : { ...a, ...filled.get(w.id)!.get(a.index) })) } : w)));
+    await save((await list()).map((w) => (filled.has(w.id) ? { ...w, accounts: w.accounts.map((a) => (a.bitcoin && a.bitcoinPub && (a.index !== 0 || a.tonPub) ? a : { ...a, ...filled.get(w.id)!.get(a.index) })) } : w)));
     return true;
   }
 

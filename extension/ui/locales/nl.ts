@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'Alleen bitcoin, op het Bitcoin-netwerk. Een bc1-adres accepteert niets anders.',
   recipientPhBtc: 'Bitcoin-adres (bc1…)', ctNoneBtc: 'Geen Bitcoin-contacten. Voeg ze toe via Instellingen, Adresboek.', ctAddressPhAll: 'EVM- (0x…), Solana- of Bitcoin-adres', e_BTC_DUST: 'Te weinig voor dit Bitcoin-adres: minstens {min} {symbol}, anders weigert het netwerk de transactie.', e_BTC_TOO_MANY_INPUTS: 'Te veel kleine munten om in één transactie te bundelen. Stuur een kleiner bedrag.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Bitcoin-sites worden nog niet ondersteund voor een telefoonaccount: gebruik een account van deze extensie.',
+  receiveTonNote: 'Alleen assets op het TON-netwerk (TON en jettons). Er is geen opmerking nodig om hier te ontvangen.',
 };

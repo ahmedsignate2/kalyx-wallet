@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'بيتكوين فقط، على شبكة Bitcoin. عنوان bc1 لا يقبل أي شيء آخر.',
   recipientPhBtc: 'عنوان Bitcoin (bc1…)', ctNoneBtc: 'لا توجد جهات اتصال Bitcoin. أضِف من الإعدادات، دفتر العناوين.', ctAddressPhAll: 'عنوان EVM (0x…) أو Solana أو Bitcoin', e_BTC_DUST: 'المبلغ صغير جدًا لعنوان Bitcoin هذا: على الأقل {min} {symbol}، وإلا ترفض الشبكة المعاملة.', e_BTC_TOO_MANY_INPUTS: 'عملات صغيرة كثيرة جدًا لجمعها في معاملة واحدة. أرسل مبلغًا أقل.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'مواقع Bitcoin غير مدعومة بعد لحساب الهاتف: استخدم حسابًا من هذه الإضافة.',
+  receiveTonNote: 'أصول شبكة TON فقط (TON والجيتونات). لا حاجة إلى تعليق للاستلام هنا.',
 };

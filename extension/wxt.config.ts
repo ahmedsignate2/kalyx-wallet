@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'wxt';
 import { extensionRegistry } from './scripts/registryPlugin';
 import { readFileSync } from 'node:fs';
@@ -21,13 +22,16 @@ const PKG = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
  * sites (http/https) sert UNIQUEMENT au pont vers les dApps (lot 5) : un
  * script de page inerte et un relais, en page principale seulement.
  */
+const TON_CRYPTO = fileURLToPath(new URL('../src/crypto/tonCoreCrypto.ts', import.meta.url));
+
 export default defineConfig({
   /*
    * Le cœur (src/domain/chains/configs) lit des clés d'API via process.env,
    * inexistant dans un service worker. Aucune clé n'est embarquée dans
    * l'extension : elles passeront par un relais (cahier des charges, §8).
    */
-  vite: () => ({ define: { 'process.env': JSON.stringify({ EXPO_PUBLIC_KALYX_RELAY_URL: RELAY_URL, EXPO_PUBLIC_WALLETCONNECT_ID: WALLETCONNECT_ID }) }, plugins: [extensionRegistry()] }),
+  // `@ton/crypto` → la version allégée de l'app (comme metro.config.js et jest.config.js).
+  vite: () => ({ resolve: { alias: { '@ton/crypto': TON_CRYPTO } }, define: { 'process.env': JSON.stringify({ EXPO_PUBLIC_KALYX_RELAY_URL: RELAY_URL, EXPO_PUBLIC_WALLETCONNECT_ID: WALLETCONNECT_ID }) }, plugins: [extensionRegistry()] }),
   manifest: {
     // Nom et description dans la langue du navigateur : public/_locales.
     name: '__MSG_extName__',
