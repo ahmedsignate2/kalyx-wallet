@@ -36,6 +36,10 @@ export interface ApprovalItem {
   spenderName?: string;
   /** Contrat autorisé signalé comme malveillant ou douteux (GoPlus). */
   risky?: boolean;
+  /** Dernière autorisation (secondes Unix), code du contrat publié, contrat sur la liste de confiance (GoPlus). */
+  approvedAt?: number;
+  openSource?: boolean;
+  trusted?: boolean;
 }
 
 /** Autorisation annoncée par GoPlus, à VÉRIFIER sur la chaîne avant affichage. */
@@ -46,6 +50,9 @@ export interface ApprovalCandidate {
   spender: string;
   spenderName?: string;
   risky: boolean;
+  approvedAt?: number;
+  openSource?: boolean;
+  trusted?: boolean;
 }
 
 /**
@@ -68,7 +75,8 @@ export function parseGoPlusApprovals(json: unknown): ApprovalCandidate[] {
     for (const a of (Array.isArray(t.approved_list) ? t.approved_list : []) as Record<string, unknown>[]) {
       const spender = typeof a?.approved_contract === 'string' ? a.approved_contract : '';
       if (!/^0x[0-9a-fA-F]{40}$/.test(spender)) continue;
-      const info = (a.address_info ?? {}) as { contract_name?: unknown; malicious_behavior?: unknown; doubt_list?: unknown };
+      const info = (a.address_info ?? {}) as { contract_name?: unknown; malicious_behavior?: unknown; doubt_list?: unknown; is_open_source?: unknown; trust_list?: unknown };
+      const at = Number(a.approved_time);
       const bad = (Array.isArray(info.malicious_behavior) && info.malicious_behavior.length > 0) || info.doubt_list === 1 || t.malicious_address === 1;
       out.push({
         token: getAddress(token),
@@ -77,6 +85,9 @@ export function parseGoPlusApprovals(json: unknown): ApprovalCandidate[] {
         spender: getAddress(spender),
         ...(typeof info.contract_name === 'string' && info.contract_name ? { spenderName: info.contract_name.slice(0, 40) } : {}),
         risky: bad,
+        ...(Number.isSafeInteger(at) && at > 1_400_000_000 ? { approvedAt: at } : {}),
+        ...(info.is_open_source === 1 ? { openSource: true } : info.is_open_source === 0 ? { openSource: false } : {}),
+        ...(info.trust_list === 1 ? { trusted: true } : {}),
       });
     }
   }

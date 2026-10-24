@@ -74,7 +74,7 @@ export default defineBackground(() => {
   // Mode compagnon : un appel léger toutes les 20 s garde le worker éveillé pendant une validation sur le téléphone.
   const companion = makeCompanion(wallets, { keepAlive: () => void browser.runtime.getPlatformInfo().catch(() => {}) });
   const buy = makeBuy(home);
-  const allowances = makeAllowances({ home, execute: { session, wallets, companion } });
+  const allowances = makeAllowances({ home, execute: { session, wallets, companion }, holdings: async (acct) => portfolio.holdings(acct, await home.fiat()), fiat: () => home.fiat() });
   /** Icône d'un site : celle que Chrome a lue dans un onglet ouvert sur cette origine. */
   const siteIcon = async (origin: string) => {
     const tabs = await browser.tabs.query({});

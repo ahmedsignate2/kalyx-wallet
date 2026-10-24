@@ -20,6 +20,7 @@ import { getAdapter, listChains } from './chainRegistry';
 import { execute, type ExecuteDeps } from './dappSign';
 import { RpcError } from './rpcError';
 import type { Home } from './home';
+import type { Holding } from '../../lib/portfolio/holdings';
 
 /** Réseaux couverts (GoPlus les connaît, ce sont ceux où les autorisations s'accumulent). */
 export const ALLOWANCE_CHAINS = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb', 'avalanche'];
@@ -34,11 +35,50 @@ export interface AllowanceView {
   amount: string;
   unlimited: boolean;
   risky: boolean;
+  /** Valeur que le contrat peut prendre AUJOURD'HUI : min(autorisation, solde) × prix ; null si le prix est inconnu. */
+  exposed: number | null;
+  /** Solde nul de ce token : l'autorisation ne touche rien aujourd'hui. */
+  dormant: boolean;
+  /** Âge de l'autorisation en jours (GoPlus), si connu. */
+  ageDays: number | null;
+  openSource?: boolean;
+  level: AllowanceLevel;
+  reasons: AllowanceReason[];
+}
+
+export type AllowanceLevel = 'high' | 'medium' | 'low';
+export type AllowanceReason = 'risky' | 'unlimited' | 'unknown' | 'old' | 'dormant';
+
+/** Au-delà, une autorisation a sans doute servi et n'est plus utile. */
+const OLD_DAYS = 180;
+
+/**
+ * Pur : à quel point une autorisation mérite d'être révoquée, et pourquoi.
+ * Un contrat signalé : toujours « à révoquer ». Sinon tout dépend de ce qui
+ * est réellement exposé : une autorisation illimitée sur un solde réel, vers
+ * un contrat anonyme ou ancien, est « à révoquer » ; la même sur un solde nul
+ * reste « raisonnable » (elle ne prend rien aujourd'hui, on le dit).
+ */
+export function assessAllowance(a: { risky: boolean; unlimited: boolean; dormant: boolean; ageDays: number | null; spenderName?: string; openSource?: boolean; trusted?: boolean }): { level: AllowanceLevel; reasons: AllowanceReason[] } {
+  const reasons: AllowanceReason[] = [];
+  if (a.risky) reasons.push('risky');
+  if (a.unlimited) reasons.push('unlimited');
+  const unknown = !a.trusted && !a.spenderName && a.openSource !== true;
+  if (unknown) reasons.push('unknown');
+  const old = a.ageDays != null && a.ageDays > OLD_DAYS;
+  if (old) reasons.push('old');
+  if (a.dormant) reasons.push('dormant');
+  if (a.risky) return { level: 'high', reasons };
+  if (a.dormant) return { level: 'low', reasons };
+  if (a.unlimited && (unknown || old)) return { level: 'high', reasons };
+  if (a.unlimited || unknown || old) return { level: 'medium', reasons };
+  return { level: 'low', reasons };
 }
 
 const EVM = /^0x[0-9a-fA-F]{40}$/;
 
-export function makeAllowances(deps: { home: Pick<Home, 'current'>; execute: Omit<ExecuteDeps, 'tokenMeta'> }) {
+export function makeAllowances(deps: { home: Pick<Home, 'current'>; execute: Omit<ExecuteDeps, 'tokenMeta'>; holdings?: (acct: NonNullable<Awaited<ReturnType<Home['current']>>>['acct']) => Promise<Holding[]>; fiat?: () => Promise<string>; now?: () => number }) {
+  const now = deps.now ?? (() => Date.now());
   const chainOf = (id: unknown) => {
     const c = listChains({ includeTestnets: false }).find((x) => x.id === id && x.family === 'evm' && ALLOWANCE_CHAINS.includes(x.id));
     if (!c?.evmChainId) throw new RpcError(-32602, 'BAD_REQUEST');
@@ -52,27 +92,60 @@ export function makeAllowances(deps: { home: Pick<Home, 'current'>; execute: Omi
     return { cur, evm };
   }
 
-  async function list(chainId: unknown): Promise<{ items: AllowanceView[]; incomplete: boolean; unavailable: boolean }> {
+  async function list(chainId: unknown): Promise<{ items: AllowanceView[]; incomplete: boolean; unavailable: boolean; exposedTotal: number | null; fiat: string }> {
     const chain = chainOf(chainId);
-    const { evm } = await owner();
+    const { cur, evm } = await owner();
     const adapter = getAdapter(chain.id);
     if (!(adapter instanceof EvmChainAdapter)) throw new RpcError(-32602, 'BAD_REQUEST');
-    const [tokens, candidates] = await Promise.all([getErc20Tokens(chain, evm).catch(() => []), fetchApprovalCandidates(chain.evmChainId!, evm)]);
+    const [tokens, candidates, held] = await Promise.all([
+      getErc20Tokens(chain, evm).catch(() => []),
+      fetchApprovalCandidates(chain.evmChainId!, evm),
+      deps.holdings ? deps.holdings(cur.acct).catch(() => [] as Holding[]) : Promise.resolve([] as Holding[]),
+    ]);
     const report = await adapter.getApprovalsReport(evm, tokens, candidates);
-    const rank = (x: ApprovalItem) => (x.risky ? 0 : isUnlimited(x.allowance) ? 1 : 2);
-    const items = [...report.items]
-      .sort((a, b) => rank(a) - rank(b))
-      .map((x) => ({
-        token: x.token,
-        symbol: x.symbol,
-        logo: x.logo && /^https:\/\//i.test(x.logo) ? x.logo : undefined,
-        spender: x.spender,
-        spenderName: x.spenderName,
-        amount: isUnlimited(x.allowance) ? '∞' : formatTokenAmount(x.allowance, x.decimals),
-        unlimited: isUnlimited(x.allowance),
-        risky: !!x.risky,
-      }));
-    return { items, incomplete: report.incomplete, unavailable: candidates === null };
+    // Soldes : ceux lus à l'instant (Alchemy), sinon ceux du portefeuille ; prix : seulement ceux des tokens vérifiés.
+    const balance = new Map(tokens.map((t) => [t.contract.toLowerCase(), t.raw]));
+    const price = new Map<string, number>();
+    for (const h of held) {
+      if (h.chainId !== chain.id || !h.contract) continue;
+      const k = h.contract.toLowerCase();
+      if (!balance.has(k)) balance.set(k, h.raw);
+      if (h.verified && h.price > 0) price.set(k, h.price);
+    }
+    const order: Record<AllowanceLevel, number> = { high: 0, medium: 1, low: 2 };
+    const items = report.items
+      .map((x: ApprovalItem): AllowanceView => {
+        const k = x.token.toLowerCase();
+        const bal = balance.get(k);
+        const unlimited = isUnlimited(x.allowance);
+        const reach = bal == null ? null : x.allowance < bal ? x.allowance : bal;
+        const p = price.get(k);
+        const exposed = reach == null || p == null ? null : (Number(reach) / 10 ** x.decimals) * p;
+        const dormant = bal === 0n;
+        const ageDays = x.approvedAt ? Math.max(0, Math.floor((now() / 1000 - x.approvedAt) / 86_400)) : null;
+        const { level, reasons } = assessAllowance({ risky: !!x.risky, unlimited, dormant, ageDays, spenderName: x.spenderName, openSource: x.openSource, trusted: x.trusted });
+        return {
+          token: x.token,
+          symbol: x.symbol,
+          logo: x.logo && /^https:\/\//i.test(x.logo) ? x.logo : undefined,
+          spender: x.spender,
+          spenderName: x.spenderName,
+          amount: unlimited ? '∞' : formatTokenAmount(x.allowance, x.decimals),
+          unlimited,
+          risky: !!x.risky,
+          exposed: exposed != null && Number.isFinite(exposed) ? exposed : null,
+          dormant,
+          ageDays,
+          ...(x.openSource !== undefined ? { openSource: x.openSource } : {}),
+          level,
+          reasons,
+        };
+      })
+      .sort((a, b) => order[a.level] - order[b.level] || (b.exposed ?? -1) - (a.exposed ?? -1));
+    // Ce qui est réellement exposé, au total (null si un seul montant non nul est sans prix : on ne sous-estime pas).
+    const unknownValue = items.some((x) => x.exposed == null && !x.dormant);
+    const exposedTotal = unknownValue ? null : items.reduce((s, x) => s + (x.exposed ?? 0), 0);
+    return { items, incomplete: report.incomplete, unavailable: candidates === null, exposedTotal, fiat: deps.fiat ? await deps.fiat().catch(() => 'usd') : 'usd' };
   }
 
   /** `approve(spender, 0)` sur le token, depuis le compte actif ; rend le hachage de la transaction. */

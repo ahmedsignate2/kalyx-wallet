@@ -412,3 +412,21 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 .empty-state p { margin: 0; max-width: 280px; }
 .empty-state .chip { margin-top: 8px; }
 .pane { touch-action: pan-y; }
+/* Autorisations : ce qui est en jeu d'abord, puis chaque droit avec son niveau et ses raisons. */
+.allow-summary { --tone: var(--up); display: flex; flex-direction: column; gap: 4px; background: color-mix(in srgb, var(--tone) 7%, var(--surface-1)); border-color: color-mix(in srgb, var(--tone) 25%, var(--border)); }
+.allow-summary.medium { --tone: var(--warning); }
+.allow-summary.high { --tone: var(--danger); }
+.allow-total { font-size: 34px; line-height: 40px; font-weight: 650; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.allow-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
+.allow-summary .btn { min-height: 48px; border-radius: 16px; font-size: 15px; }
+.lvl-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; line-height: 16px; font-weight: 650; background: var(--surface-2); color: var(--text-secondary); }
+.lvl-badge.high { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.lvl-badge.medium { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+.lvl-badge.low { background: color-mix(in srgb, var(--up) 14%, transparent); color: var(--up); }
+.allow-head { display: flex; align-items: center; gap: 8px; }
+.allow-row { align-items: flex-start; }
+.allow-row.lvl-high { box-shadow: inset 3px 0 0 var(--danger); }
+.allow-row.lvl-medium { box-shadow: inset 3px 0 0 var(--warning); }
+.allow-row .exposed { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.allow-why { margin: 6px 0 0; padding-inline-start: 16px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; line-height: 17px; color: var(--text-secondary); }
+.allow-row .grow p { white-space: normal; overflow: visible; text-overflow: clip; }

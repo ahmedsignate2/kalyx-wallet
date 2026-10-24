@@ -8,6 +8,11 @@ describe('GoPlus : autorisations d’un vrai compte (Base)', () => {
     const usdc = c.find((x) => x.symbol === 'USDC')!;
     expect(usdc).toMatchObject({ decimals: 6, spenderName: 'LiFiDiamond', risky: false, spender: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE' });
   });
+  it('date de l’autorisation et code publié, tels que GoPlus les donne ; liste de confiance absente', () => {
+    const usdc = c.find((x) => x.symbol === 'USDC')!;
+    expect(usdc).toMatchObject({ approvedAt: 1787336275, openSource: true });
+    expect(usdc.trusted).toBeUndefined();
+  });
   it('réponse absurde : liste vide, jamais d’exception', () => {
     expect(parseGoPlusApprovals(null)).toEqual([]);
     expect(parseGoPlusApprovals({ result: [{ token_address: 'x', approved_list: [{ approved_contract: 'y' }] }] })).toEqual([]);

@@ -737,7 +737,7 @@ export class EvmChainAdapter implements ChainAdapter {
   ): Promise<{ items: ApprovalItem[]; incomplete: boolean }> {
     const addr = normalizeEvmAddress(owner);
     let incomplete = false;
-    type Pair = { token: string; symbol: string; decimals: number; logo?: string; spender: string; spenderName?: string; risky?: boolean };
+    type Pair = { token: string; symbol: string; decimals: number; logo?: string; spender: string; spenderName?: string; risky?: boolean; approvedAt?: number; openSource?: boolean; trusted?: boolean };
     const pairs: Pair[] = [];
     const logoOf = new Map(tokens.map((t) => [t.contract.toLowerCase(), t.logo]));
     if (candidates) {
@@ -776,6 +776,9 @@ export class EvmChainAdapter implements ChainAdapter {
               allowance,
               ...(pr.spenderName ? { spenderName: pr.spenderName } : {}),
               ...(pr.risky ? { risky: true } : {}),
+              ...(pr.approvedAt ? { approvedAt: pr.approvedAt } : {}),
+              ...(pr.openSource !== undefined ? { openSource: pr.openSource } : {}),
+              ...(pr.trusted ? { trusted: true } : {}),
             });
           }
         } catch {
