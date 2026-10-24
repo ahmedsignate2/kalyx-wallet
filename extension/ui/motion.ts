@@ -31,9 +31,10 @@ export function cascade(els: Iterable<Element>): void {
 }
 
 /** Une valeur qui compte vers sa cible (solde) au lieu de sauter ; le texte final est exact. */
-export function countUp(el: HTMLElement, from: number, to: number, format: (n: number) => string, duration = 700): void {
+export function countUp(el: HTMLElement, from: number, to: number, format: (n: number) => string, duration = 700, render?: (el: HTMLElement, n: number) => void): void {
+  const put = (n: number) => (render ? render(el, n) : (el.textContent = format(n)));
   if (reducedMotion() || from === to || !Number.isFinite(from) || !Number.isFinite(to)) {
-    el.textContent = format(to);
+    put(to);
     return;
   }
   const start = performance.now();
@@ -42,9 +43,9 @@ export function countUp(el: HTMLElement, from: number, to: number, format: (n: n
   const step = (now: number) => {
     if (!el.isConnected) return;
     const p = Math.min(1, (now - start) / duration);
-    el.textContent = format(from + (to - from) * ease(p));
+    put(from + (to - from) * ease(p));
     if (p < 1) requestAnimationFrame(step);
-    else el.textContent = format(to);
+    else put(to);
   };
   requestAnimationFrame(step);
 }
