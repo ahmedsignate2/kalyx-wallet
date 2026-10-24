@@ -221,9 +221,39 @@ const STRANGER_CONTRACT = '0x1111111111111111111111111111111111111111';
 describe('explication (fenêtre)', () => {
   test('plusieurs transactions Solana : le risque monte, et la fenêtre le dit', async () => {
     const one = base64.encode(solTransfer('HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk', '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'));
-    const r = await review({ kind: 'solTx', from: 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk', txs: [one, one, one], send: false }, SITE, { t: explainT, phishing: async () => false });
+    const r = await review({ kind: 'solTx', from: 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk', txs: [one, one, one], send: false }, SITE, { t: explainT, phishing: async () => false, simulateSolana: async () => { throw new Error('hors ligne'); } });
     expect(r.explanation.risk).not.toBe('none');
     expect(r.explanation.reasons.join(' ')).toMatch(/3 transactions/);
+  });
+
+  test('Solana simulée : ce qui part et ce qui arrive, valeur estimée, pas d’alarme « programme inconnu »', async () => {
+    const OWN = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
+    const tx = base64.encode(solTransfer(OWN, '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'));
+    const r = await review({ kind: 'solTx', from: OWN, txs: [tx], send: false }, SITE, {
+      t: explainT,
+      phishing: async () => false,
+      priceOf: async (_c, contract) => (contract ? 1 : 150),
+      simulateSolana: async () => ({ source: 'node', approvals: [], changes: [
+        { direction: 'out', assetType: 'NATIVE', symbol: 'SOL', rawAmount: '500000000', decimals: 9 },
+        { direction: 'in', assetType: 'ERC20', symbol: 'USDC', rawAmount: '75000000', decimals: 6, contract: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
+      ] }),
+    });
+    expect(r.explanation.lose).toEqual(['0.5 SOL']);
+    expect(r.explanation.receive).toEqual(['75 USDC']);
+    expect(r.outFiat).toBe(75);
+    expect(r.preview).toBeUndefined();
+  });
+
+  test('Solana : délégation illimitée = danger ; échec = aperçu « échouerait » ; nœud muet = aperçu indisponible', async () => {
+    const OWN = 'HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk';
+    const tx = base64.encode(solTransfer(OWN, '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'));
+    const base = { t: explainT, phishing: async () => false };
+    const drain = await review({ kind: 'solTx', from: OWN, txs: [tx], send: false }, SITE, { ...base, simulateSolana: async () => ({ source: 'node', changes: [], approvals: [{ spender: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', unlimited: true }] }) });
+    expect(drain.explanation.risk).toBe('danger');
+    const fail = await review({ kind: 'solTx', from: OWN, txs: [tx], send: false }, SITE, { ...base, simulateSolana: async () => ({ source: 'node', changes: [], approvals: [], error: 'Error: insufficient funds' }) });
+    expect(fail.preview).toMatchObject({ status: 'failed', hint: 'balance' });
+    const off = await review({ kind: 'solTx', from: OWN, txs: [tx], send: false }, SITE, { ...base, simulateSolana: async () => { throw new Error('hors ligne'); } });
+    expect(off.preview).toEqual({ status: 'unavailable' });
   });
 
   const quiet = { t: explainT, phishing: async () => false, assess: async () => null as never, simulate: async () => ({ source: 'static', changes: [], approvals: [] }) as never, tokenMeta: async () => ({ symbol: 'USDC', decimals: 6 }) };

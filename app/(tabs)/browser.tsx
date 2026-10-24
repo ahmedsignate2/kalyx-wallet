@@ -18,6 +18,9 @@
 import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { randomBytes } from '@noble/hashes/utils';
 import { signMessageParam } from '../../lib/dappProvider';
+import { base64 } from '@scure/base';
+import { solanaTxDecode } from '../../src/domain/wc/solanaTx';
+import type { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
 import { shouldClosePending } from '../../lib/dappPending';
 import { journal } from '../../lib/debugJournal';
 import { buildTonJsBridge, parseTcJsMessage } from '../../src/domain/tonconnect/jsBridge';
@@ -74,6 +77,7 @@ import {
   isPhishingSite,
   decodeTx,
   simulateTx,
+  simulateSolanaTx,
   explainRequest,
   getTokenMetadata,
   chainIconUrl,
@@ -783,6 +787,17 @@ export default function Browser() {
       else if (pending.kind === 'typedData' && pending.summary?.verifyingContract) { setRisk('loading'); assessAddress(cid, pending.summary.verifyingContract).then((r) => { setRisk(r); if (r?.level === 'danger') haptic.warning(); }).catch(() => setRisk(null)); }
       else if (pending.kind === 'connect') { isPhishingSite(`https://${pending.origin}`).then((r) => { setPhishSite(r); if (r) haptic.warning(); }).catch(() => {}); }
     }
+    // Solana : soldes avant / après du compte, lus par le nœud (première transaction, celle décrite).
+    if (pending.kind === 'solTx' && solAddress && pending.desc && pending.txs[0]) {
+      const decoded = solanaTxDecode(pending.txs[0]);
+      if (decoded) {
+        setSim('loading');
+        const adapter = getAdapter(pending.chainId) as SolanaChainAdapter;
+        simulateSolanaTx((m, p) => adapter.rpc(m, p), base64.encode(decoded.bytes), solAddress)
+          .then((r) => { if (isAlive()) setSim(r); })
+          .catch(() => { if (isAlive()) setSim(null); });
+      }
+    }
     if (pending.kind === 'tx' && evmAddress) {
       setSim('loading');
       (async () => {
@@ -803,7 +818,7 @@ export default function Browser() {
   const explanation = useMemo(() => {
     if (!pending || pending.kind === 'connect') return null;
     if (pending.kind === 'solMessage') return explainRequest({ kind: 'message', domain: pending.origin, messageText: pending.text, phishingSite: phishSite, t: exT });
-    if (pending.kind === 'solTx') return explainRequest({ kind: 'solanaTx', domain: pending.origin, solana: pending.desc, phishingSite: phishSite, t: exT });
+    if (pending.kind === 'solTx') return explainRequest({ kind: 'solanaTx', domain: pending.origin, solana: pending.desc, simulation: sim && sim !== 'loading' ? sim : null, phishingSite: phishSite, t: exT });
     const addressRisk = risk && risk !== 'loading' ? risk : null;
     if (pending.kind === 'sign') return explainRequest({ kind: pending.siwe ? 'siwe' : 'message', domain: pending.origin, siwe: pending.siwe, siweMismatch: !!pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`), messageText: pending.text, addressRisk, phishingSite: phishSite, t: exT });
     if (pending.kind === 'typedData') return explainRequest({ kind: 'typedData', domain: pending.origin, typed: pending.summary, tokenSymbol: permitToken?.symbol ?? null, tokenDecimals: permitToken?.decimals ?? null, addressRisk, phishingSite: phishSite, connectedChainId: chain.evmChainId, t: exT });

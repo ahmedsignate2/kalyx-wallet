@@ -104,6 +104,7 @@ export type ExplainKey =
   | 'exTitleSolTx' | 'exSolUnreadableHeadline' | 'exSolUnreadableDetail' | 'exSolUnreadable' | 'exSolSponsored'
   | 'exSolSwap' | 'exSolStaking' | 'exSolNft' | 'exSolTransfer' | 'exSolProgram' | 'exSolProgramKnown'
   | 'exSolInstructions' | 'exSolSwapDetail' | 'exSolUnknownProgram' | 'exTitleSwap'
+  | 'exSolDelegate' | 'exSolDelegateUnlimited' | 'exSolOwnerChange' | 'exSolWillFail'
   | 'exTitleRequest' | 'exOtherHeadline' | 'exOtherDetail' | 'exUnknownMethod' | 'exTypedChainMismatch'
   | 'exTypedNftOrder' | 'exTxNoSimulationValue';
 
@@ -346,8 +347,36 @@ export function explainRequest(input: ExplainInput): SignExplanation {
       : s.action === 'contract'
         ? `${tr('exSolUnknownProgram')}${sponsored}`
         : `${ins}${sponsored}`;
-    if (s.action === 'contract') risk = worst(risk, 'warning');
-    return { title: s.action === 'swap' ? tr('exTitleSwap') : tr('exTitleSolTx'), headline, detail, lose: [], receive: [], risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false };
+    /*
+     * Simulation : ce qui bouge VRAIMENT sur ce compte. Un programme inconnu
+     * dont l'effet est lu n'alarme plus ; une délégation ou un changement de
+     * titulaire, eux, oui — c'est la façon de vider un compte Solana.
+     */
+    const sim = input.simulation;
+    const simulated = simulatedChanges(sim);
+    if (s.action === 'contract' && !simulated) risk = worst(risk, 'warning');
+    if (sim?.error) { risk = worst(risk, 'warning'); reasons.push(tr('exSolWillFail')); }
+    for (const a of sim?.approvals ?? []) {
+      const token = sim?.changes.find((c) => c.contract === a.token)?.symbol ?? short(a.token);
+      risk = worst(risk, a.unlimited ? 'danger' : 'warning');
+      reasons.push(tr(a.unlimited ? 'exSolDelegateUnlimited' : 'exSolDelegate', { spender: short(a.spender), token }));
+    }
+    for (const c of sim?.changes ?? []) {
+      if (c.direction === 'out' && c.contract && c.counterparty) { risk = 'danger'; reasons.push(tr('exSolOwnerChange', { token: c.symbol, to: short(c.counterparty) })); }
+    }
+    const lose = (sim?.changes ?? []).filter((c) => c.direction === 'out').map(fmtChange);
+    const receive = (sim?.changes ?? []).filter((c) => c.direction === 'in').map(fmtChange);
+    const simHeadline = lose.length && receive.length
+      ? tr('exSwapHeadline', { lose: lose.join(' + '), receive: receive.join(' + ') })
+      : lose.length ? tr('exSendHeadline', { lose: lose.join(' + ') })
+      : receive.length ? tr('exReceiveHeadline', { receive: receive.join(' + ') })
+      : null;
+    return {
+      title: s.action === 'swap' ? tr('exTitleSwap') : tr('exTitleSolTx'),
+      headline: simHeadline ?? headline,
+      detail: sim?.error ? tr('exContractDetailErr', { error: sim.error }) : detail,
+      lose, receive, risk, reasons, holdToSign: risk === 'danger', canReduceApproval: false,
+    };
   }
 
   return { title: tr('exTitleRequest'), headline: tr('exOtherHeadline', { site, method: input.method ?? '?' }), detail: tr('exOtherDetail'), lose: [], receive: [], risk: worst(risk, 'warning'), reasons: [...reasons, tr('exUnknownMethod')], holdToSign: risk === 'danger', canReduceApproval: false };

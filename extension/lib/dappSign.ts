@@ -25,6 +25,7 @@ import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import type { ChainConfig } from '../../src/domain/chains/types';
 import { EvmChainAdapter, type RawTxRequest } from '../../src/domain/chains/EvmChainAdapter';
 import { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
+import { simulateSolanaTx } from '../../src/domain/tx/solanaSimulate';
 import { decodeTx } from '../../src/domain/tx/decodeTx';
 import { simulateTx, type Simulation } from '../../src/domain/tx/simulate';
 import { explainRequest, type ExplainT, type SignExplanation } from '../../src/domain/wc/explain';
@@ -266,6 +267,8 @@ export interface ReviewDeps {
   site?: (origin: string) => Promise<{ known: boolean; tampered: string[] }>;
   /** Prix d'un actif dans la devise affichée (natif si pas de contrat), null s'il est inconnu. */
   priceOf?: (chainId: string, contract?: string) => Promise<number | null>;
+  /** Injectable (tests) : simulation d'une transaction Solana pour ce compte. */
+  simulateSolana?: (txB64: string, owner: string) => Promise<Simulation>;
 }
 
 const withTimeoutOrNull = <T>(p: Promise<T>): Promise<T | null> => Promise.race([p.catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), ANALYSIS_MS))]);
@@ -445,7 +448,15 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     return { explanation, method: 'solana:signMessage', messageText: clip(req.text ?? `0x${bytesToHex(base64.decode(req.message))}`), details: [{ label: 'Compte', value: req.from }], outFiat: 0 };
   }
   const desc: SolanaTxDescription | null = describeSolanaTransaction(base64.decode(req.txs[0]), req.from);
-  const explanation = explainRequest({ kind: 'solanaTx', domain: host, solana: desc, phishingSite, t });
+  // Aperçu réel : soldes avant / après de CE compte (la première transaction, celle qui est décrite).
+  const simSol = deps.simulateSolana ?? ((tx: string, owner: string) => simulateSolanaTx((m, p) => (getAdapter('solana') as SolanaChainAdapter).rpc(m, p), tx, owner));
+  const sim: Simulation | null = desc ? await withTimeoutOrNull(simSol(req.txs[0], req.from)) : null;
+  const explanation = explainRequest({ kind: 'solanaTx', domain: host, solana: desc, simulation: sim, phishingSite, t });
+  if (!sim) sig.noSimulation = true;
+  if (sim && desc?.action !== 'transfer' && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
+  const solHint = sim?.error ? revertHint(sim.error) : null;
+  const solPreview: Review['preview'] = sim?.error ? { status: 'failed', error: clip(sim.error, 200), ...(solHint ? { hint: solHint } : {}) } : !sim ? { status: 'unavailable' } : undefined;
+  if (solPreview) humanizePreview(explanation, solPreview, t);
   // Plusieurs transactions : seule la première est décrite — on le dit, et le risque monte d'un cran.
   if (req.txs.length > 1) {
     sig.manyTxs = { n: String(req.txs.length) };
@@ -456,13 +467,29 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     explanation,
     method: req.send ? 'solana:signAndSendTransaction' : 'solana:signTransaction',
     chainName: 'Solana',
-    // Valeur d'une transaction Solana : non estimée ici (plafond : mot de passe redemandé).
-    outFiat: null,
+    // Valeur de ce qui part (prix connus seulement) ; inconnue → plafond : mot de passe redemandé.
+    outFiat: await solOutFiat(sim, deps.priceOf),
     details: [
       ...(req.txs.length > 1 ? [{ label: 'Transactions', value: String(req.txs.length) }] : []),
       ...(desc?.programs ?? []).slice(0, 8).map((p) => ({ label: 'Programme', value: typeof p === 'string' ? p : JSON.stringify(p) })),
     ],
+    ...(solPreview ? { preview: solPreview } : {}),
   };
+}
+
+/** Valeur (devise affichée) des SOL et tokens qui partent ; null si un prix manque ou sans simulation. */
+async function solOutFiat(sim: Simulation | null, priceOf: ReviewDeps['priceOf']): Promise<number | null> {
+  if (!sim || sim.error) return null;
+  const outs = sim.changes.filter((c) => c.direction === 'out');
+  if (!outs.length) return 0;
+  if (!priceOf || outs.some((c) => c.rawAmount === '?' || c.assetType === 'ERC721')) return null;
+  let total = 0;
+  for (const c of outs) {
+    const p = await withTimeoutOrNull(priceOf('solana', c.assetType === 'NATIVE' ? undefined : c.contract));
+    if (p == null) return null;
+    total += (Number(c.rawAmount) / 10 ** c.decimals) * p;
+  }
+  return total;
 }
 
 export type RevertHint = 'balance' | 'allowance' | 'slippage' | 'deadline' | 'gas' | 'denied';

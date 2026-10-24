@@ -13,6 +13,9 @@ import { Pressable as KPressable, Avatar, Button, Card, RemoteIcon } from './kit
 import { SafeModal } from './kit/SafeModal';
 import { signMessageParam } from '../lib/dappProvider';
 import { solanaMessageBytes } from '../lib/solanaMessage';
+import { solanaTxDecode } from '../src/domain/wc/solanaTx';
+import { base64 } from '@scure/base';
+import type { SolanaChainAdapter } from '../src/domain/chains/SolanaChainAdapter';
 import { dappHost } from '../src/domain/web/dappHost';
 import { bitcoinMessageParam, btcTransferParams, solanaMessageParam } from '../lib/messageParams';
 import { bytesToHex } from '@noble/hashes/utils';
@@ -39,6 +42,8 @@ import {
   isPhishingSite,
   decodeTx,
   simulateTx,
+  simulateSolanaTx,
+  getAdapter,
   explainRequest,
   describeSolanaTransaction,
   getTokenMetadata,
@@ -197,6 +202,7 @@ export function WalletConnectHost() {
     // Les dApps envoient les paramètres soit en tableau ([{…}]), soit en objet ({…}).
     const p0: any = Array.isArray(p) ? p[0] : p; // eslint-disable-line @typescript-eslint/no-explicit-any
     let solana: ReturnType<typeof describeSolanaTransaction> = null;
+    let solanaRaw: string | null = null;
     let text: string | null = null;
     let siwe = null;
     let typed = null;
@@ -256,6 +262,7 @@ export function WalletConnectHost() {
       const w = useWallet.getState();
       const mine = new Set<string>([...w.accounts.map((a) => a.solAddress), p0?.pubkey].filter((x): x is string => typeof x === 'string' && x.length > 0));
       solana = typeof raw === 'string' ? describeSolanaTransaction(raw) : null;
+      solanaRaw = typeof raw === 'string' ? raw : null;
       // Payeur des frais ≠ un de nos comptes : sponsorisé par la dApp ou compte tiers → simple avertissement.
       if (solana && mine.size > 0) solana = { ...solana, feePayerMismatch: !mine.has(solana.feePayer) };
       kind = 'solanaTx';
@@ -283,12 +290,25 @@ export function WalletConnectHost() {
      */
     const rawSite = request.params?.request?.kalyxSite;
     const originSite = typeof rawSite === 'string' && /^(https:\/\/[a-z0-9.-]+|http:\/\/(localhost|127\.0\.0\.1))(:\d{1,5})?$/i.test(rawSite) ? rawSite.toLowerCase() : null;
-    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana, btc, messageText, originSite };
+    return { method, kind, text, siwe, typed, tx, chain, peer, action, phishing, decoded, verify, solana, solanaRaw, btc, messageText, originSite };
   }, [request, sessions, t]);
 
   // Simulation (transactions uniquement).
   const simulate = useEffectEvent((isAlive: () => boolean) => {
     setSim(null);
+    // Solana : soldes avant / après du compte actif, lus par le nœud (rien n'est signé).
+    if (info?.kind === 'solanaTx' && info.solanaRaw && info.solana && info.chain?.family === 'solana') {
+      const w = useWallet.getState();
+      const owner = w.accounts.find((a) => a.index === w.activeAccountIndex)?.solAddress;
+      const decoded = solanaTxDecode(info.solanaRaw);
+      if (!owner || !decoded) return;
+      setSim('loading');
+      const adapter = getAdapter(info.chain.id) as SolanaChainAdapter;
+      simulateSolanaTx((m, p) => adapter.rpc(m, p), base64.encode(decoded.bytes), owner)
+        .then((s) => { if (isAlive()) setSim(s); })
+        .catch(() => { if (isAlive()) setSim(null); });
+      return;
+    }
     if (!info || info.kind !== 'tx' || !info.tx || !info.chain || !account) return;
     setSim('loading');
     (async () => {

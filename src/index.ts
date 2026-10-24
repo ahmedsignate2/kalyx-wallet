@@ -328,6 +328,7 @@ export { detectPoisoning, groupAddress, shortAddress, addressFamilies, type Pois
 
 // Signature expliquée (§4.7) : simulation + explication humaine + niveau de risque
 export { simulateTx, staticSimulation, parseAlchemySimulation, type Simulation, type AssetChange } from './domain/tx/simulate';
+export { simulateSolanaTx } from './domain/tx/solanaSimulate';
 export { explainRequest, type SignExplanation, type SignRisk, type ExplainInput, type ExplainT, type ExplainKey } from './domain/wc/explain';
 export { summarizePsbt, type PsbtSummary } from './domain/wc/psbtSummary';
 export { describeSolanaTransaction, KNOWN_SOLANA_PROGRAMS, type SolanaTxDescription } from './domain/wc/solanaTx';

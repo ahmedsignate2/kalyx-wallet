@@ -135,6 +135,11 @@ export function parseSolanaMessage(bytes: Uint8Array): {
   lookupTables: number;
   /** Premier octet de l'en-tête : nombre de signatures requises. */
   signerCount: number;
+  /** En-tête : signataires en lecture seule, non-signataires en lecture seule. */
+  readonlySigned: number;
+  readonlyUnsigned: number;
+  /** Tables de correspondance (v0) : adresse de la table, index écrits puis lus. */
+  lookups: { table: string; writable: number[]; readonly: number[] }[];
 } {
   const r = new Reader(bytes);
   let version: 'legacy' | 0 = 'legacy';
@@ -160,15 +165,17 @@ export function parseSolanaMessage(bytes: Uint8Array): {
     r.bytes(nData);
   }
   let lookupTables = 0;
+  const lookups: { table: string; writable: number[]; readonly: number[] }[] = [];
   if (version === 0) {
     lookupTables = r.compact();
     for (let i = 0; i < lookupTables; i++) {
-      r.bytes(32);
-      r.bytes(r.compact());
-      r.bytes(r.compact());
+      const table = base58.encode(r.bytes(32));
+      const writable = [...r.bytes(r.compact())];
+      const readonly = [...r.bytes(r.compact())];
+      lookups.push({ table, writable, readonly });
     }
   }
-  return { version, keys, programIndexes, lookupTables, signerCount };
+  return { version, keys, programIndexes, lookupTables, signerCount, readonlySigned: header[1], readonlyUnsigned: header[2], lookups };
 }
 
 /** Décrit une transaction sérialisée (signatures + message). Jamais ne lève : null si illisible. */
