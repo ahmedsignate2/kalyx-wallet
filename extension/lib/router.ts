@@ -96,8 +96,9 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
    * signer », ou plafond journalier dépassé / valeur inconnue). Rend une
    * réponse d'erreur, ou null si l'on peut continuer.
    */
+  // « Redemander le mot de passe pour signer » : ACTIF par défaut, seul un refus explicite le coupe.
   const passwordGate = async (value: number | null | undefined, password: unknown): Promise<Reply | null> => {
-    const ask = !!disk && (await disk.get<boolean>('askPasswordToSign')) === true;
+    const ask = !!disk && (await disk.get<boolean>('askPasswordToSign')) !== false;
     const capped = !!cap && value !== undefined && (await cap.needsPassword(value));
     if (!ask && !capped) return null;
     if (!pw(password)) return { ok: false, error: capped ? 'CAP_PASSWORD' : 'PASSWORD_REQUIRED', ...(capped && cap ? { params: { remaining: String(Math.floor((await cap.status()).remaining ?? 0)) } } : {}) };
@@ -261,6 +262,8 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       case 'swap:confirm': {
         if (!swap) break;
         await unlocked();
+        // Devis inconnu ou expiré : dit tel quel, avant de demander un mot de passe pour rien.
+        if (swap.known && !swap.known(m.id)) return { ok: false, error: 'SWAP_QUOTE_GONE' };
         // « Redemander le mot de passe pour signer » et plafond journalier valent aussi pour un échange.
         const value = swap.valueOf(m.id);
         const gate = await passwordGate(value, m.password);
@@ -481,7 +484,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const onPhone = !!g && (await wallets.list()).some((w) => w.id === g.walletId && w.kind === 'companion');
         const rv = await p;
         const capPassword = !!cap && (await cap.needsPassword(rv.outFiat));
-        return { ok: true, review: rv, askPassword: (disk ? (await disk.get<boolean>('askPasswordToSign')) === true : false) || capPassword, capPassword, capRemaining: cap ? (await cap.status()).remaining : null, onPhone };
+        return { ok: true, review: rv, askPassword: (disk ? (await disk.get<boolean>('askPasswordToSign')) !== false : false) || capPassword, capPassword, capRemaining: cap ? (await cap.status()).remaining : null, onPhone };
       }
       /* ── Autorisations de tokens ── */
       case 'allowances:list':
@@ -600,7 +603,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
       }
       case 'settings:get-ask-password':
         if (!disk) break;
-        return { ok: true, on: (await disk.get<boolean>('askPasswordToSign')) === true };
+        return { ok: true, on: (await disk.get<boolean>('askPasswordToSign')) !== false };
       case 'settings:set-ask-password':
         if (!disk || typeof m.on !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
         await unlocked();

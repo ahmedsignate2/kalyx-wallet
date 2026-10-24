@@ -384,7 +384,7 @@ export function makeSwap(deps: SwapDeps) {
     }
   }
 
-  return { sources, targets, quote, confirm, stage: (id: unknown) => (typeof id === 'string' ? stages.get(id) ?? null : null), slippages: SLIPPAGES, valueOf: (id: unknown) => (typeof id === 'string' ? held.get(id)?.fiat : undefined) };
+  return { sources, targets, quote, confirm, stage: (id: unknown) => (typeof id === 'string' ? stages.get(id) ?? null : null), slippages: SLIPPAGES, valueOf: (id: unknown) => (typeof id === 'string' ? held.get(id)?.fiat : undefined), known: (id: unknown) => typeof id === 'string' && held.has(id) };
 }
 
 export type Swap = ReturnType<typeof makeSwap>;

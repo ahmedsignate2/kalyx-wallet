@@ -153,6 +153,7 @@ async function ton() {
     await p.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => p.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
     const a = (await bg({ type: 'home:get' })).wallets[0].accounts[0];
     a.tonPub === '7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf' && a.ton?.startsWith(TON0) ? console.log(`✓ TON : clé de Tonkeeper pour cette phrase, adresse ${a.ton.slice(0, 8)}…`) : fail(`TON ${JSON.stringify(a).slice(0, 160)}`);
@@ -203,6 +204,7 @@ async function bitcoin() {
     await p.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => p.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    await bg({ type: 'settings:set-ask-password', on: false });
     const w = await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
     const acct = (await bg({ type: 'home:get' })).wallets[0].accounts[0];
     acct.bitcoin === BTC0 ? console.log('✓ Bitcoin : même adresse bc1 que l’app (BIP-84, vecteur officiel)') : fail(`adresse BTC ${acct.bitcoin} ${JSON.stringify(w).slice(0, 80)}`);
@@ -292,6 +294,7 @@ async function beauty() {
     await p.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => p.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
     await p.reload();
     await p.locator('[data-testid=account]').waitFor();
@@ -420,6 +423,7 @@ async function factors() {
     await page.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => page.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
 
     // Authentificateur virtuel (comme Touch ID), attaché à CET onglet : toutes les cérémonies s'y font.
@@ -537,6 +541,7 @@ async function hardening() {
     await ext.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => ext.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
     const kalyxOn = async (page) => (await page.waitForTimeout(400), page.evaluate(() => window.kx.providers.includes('com.kalyxwallet')));
 
@@ -681,6 +686,7 @@ async function help() {
     await popup.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => popup.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
     await popup.reload();
     await popup.locator('[data-testid=account]').waitFor();
@@ -1300,6 +1306,9 @@ async function dapps() {
     await ext.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => ext.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: PW });
+    // « Redemander le mot de passe pour signer » : actif par défaut ; coupé ensuite, les fenêtres testées ici portent sur autre chose.
+    (await bg({ type: 'settings:get-ask-password' })).on === true ? console.log('✓ « redemander le mot de passe pour signer » actif par défaut') : fail('mot de passe pour signer pas actif par défaut');
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: ABOUT });
     await bg({ type: 'vault:lock' });
 
@@ -1560,6 +1569,7 @@ async function attacks() {
     await ext.goto(`chrome-extension://${id}/popup.html`);
     const bg = (m) => ext.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
     await bg({ type: 'vault:create', password: PW });
+    await bg({ type: 'settings:set-ask-password', on: false });
     await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
 
     const page = await ctx.newPage();

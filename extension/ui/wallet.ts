@@ -835,8 +835,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { class: 'inline', 'aria-label': t('autoLock'), on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(lock.value) }) } },
       ...AUTO_LOCK_CHOICES.map((m) => h('option', { value: String(m), selected: m === data?.status.autoLockMin }, t('minutes', { n: m }))),
     );
-    // Redemander le mot de passe pour signer (désactivé par défaut) : un interrupteur.
-    const askPw = h('button', { class: 'row link-row', type: 'button', role: 'switch', 'aria-checked': 'false', 'data-testid': 'ask-password' }, h('span', { class: 'set-ico' }, glyph('security', 18)), h('span', { class: 'grow' }, h('strong', {}, t('askPwTitle')), h('p', { class: 'small muted' }, t('askPwBody'))), h('span', { class: 'switch', 'aria-hidden': 'true' }));
+    // Redemander le mot de passe pour signer (activé par défaut) : un interrupteur.
+    const askPw = h('button', { class: 'row link-row', type: 'button', role: 'switch', 'aria-checked': 'true', 'data-testid': 'ask-password' }, h('span', { class: 'set-ico' }, glyph('security', 18)), h('span', { class: 'grow' }, h('strong', {}, t('askPwTitle')), h('p', { class: 'small muted' }, t('askPwBody'))), h('span', { class: 'switch', 'aria-hidden': 'true' }));
     void send<{ on: boolean }>({ type: 'settings:get-ask-password' }).then((r) => {
       const on = !!(r.ok && r.on);
       askPw.setAttribute('aria-checked', String(on));

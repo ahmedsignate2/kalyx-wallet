@@ -144,6 +144,22 @@ describe('routeur interne', () => {
   });
 
 
+  test('« redemander le mot de passe pour signer » : actif par défaut, coupé seulement sur demande', async () => {
+    const s = fresh();
+    const disk = makeStore(area());
+    let confirmed = 0;
+    const swap = { valueOf: () => 1, confirm: async () => (confirmed++, { txid: '0x1' }) } as never;
+    const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { disk, swap });
+    await go({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    expect(await go({ type: 'settings:get-ask-password' })).toEqual({ ok: true, on: true });
+    expect(await go({ type: 'swap:confirm', id: 'q1' })).toEqual({ ok: false, error: 'PASSWORD_REQUIRED' });
+    expect(confirmed).toBe(0);
+    expect(await go({ type: 'swap:confirm', id: 'q1', password: 'Plage-Orange-47!' })).toMatchObject({ ok: true });
+    expect(await go({ type: 'settings:set-ask-password', on: false })).toEqual({ ok: true });
+    expect(await go({ type: 'settings:get-ask-password' })).toEqual({ ok: true, on: false });
+    expect(await go({ type: 'swap:confirm', id: 'q2' })).toMatchObject({ ok: true });
+  });
+
   test('plafond journalier : au-delà, mot de passe exigé (rien n’est signé) ; ensuite le cumul compte', async () => {
     const s = fresh();
     const disk = makeStore(area());
@@ -152,6 +168,8 @@ describe('routeur interne', () => {
     const swap = { valueOf: () => 400, confirm: async () => (confirmed++, { txid: '0x1' }) } as never;
     const go = (m: unknown) => handleInternal(s, s.wallets, m, undefined, { disk, cap, swap });
     await go({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    // Plafond seul : l'utilisateur a coupé « redemander le mot de passe ».
+    await disk.set('askPasswordToSign', false);
     expect(await go({ type: 'cap:set', limit: 500 })).toEqual({ ok: true });
     expect(await go({ type: 'swap:confirm', id: 'q1' })).toMatchObject({ ok: true });
     expect(await go({ type: 'swap:confirm', id: 'q2' })).toEqual({ ok: false, error: 'CAP_PASSWORD', params: { remaining: '100' } });
