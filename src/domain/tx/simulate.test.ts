@@ -142,6 +142,31 @@ describe('simulation', () => {
       ]);
     });
 
+    it('relais Alchemy rangé en dernier : essayé en tête pour eth_simulateV1 ; un refus du relais est mémorisé', async () => {
+      const RELAY = 'https://relay.example/rpc/alchemy/base-mainnet';
+      const urls = ['https://a.example', 'https://b.example', 'https://c.example', RELAY];
+      const v1Calls: string[] = [];
+      let relayAllows = true;
+      global.fetch = jest.fn(async (url: string, init: { body: string }) => {
+        const r = JSON.parse(init.body);
+        if (r.method === 'eth_simulateV1') v1Calls.push(url);
+        if (url === RELAY && r.method === 'eth_simulateV1' && !relayAllows) return { ok: false, status: 400, headers: { get: () => null }, json: async () => ({ error: 'method not allowed' }) };
+        if (url === RELAY && r.method === 'eth_simulateV1') return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ jsonrpc: '2.0', id: r.id, result: [{ calls: [{ status: '0x1', logs: [] }] }] }) };
+        return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ jsonrpc: '2.0', id: r.id, error: UNSUPPORTED }) };
+      }) as unknown as typeof fetch;
+      const chain = { ...base, rpcUrls: urls };
+      const s = await simulateTx(chain, tx);
+      expect(v1Calls[0]).toBe(RELAY);
+      expect(s.source).toBe('node');
+      // Relais pas encore à jour (méthode refusée) : plus redemandé ensuite.
+      resetSimulators();
+      relayAllows = false;
+      v1Calls.length = 0;
+      await simulateTx(chain, tx);
+      await simulateTx(chain, tx);
+      expect(v1Calls.filter((u) => u === RELAY)).toHaveLength(1);
+    });
+
     it('jeton illisible : montant inconnu (« ? »), jamais un nombre brut', async () => {
       const T = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       const pad = (a: string) => '0x' + a.slice(2).toLowerCase().padStart(64, '0');

@@ -195,7 +195,11 @@ const ATTEMPT_MS = 4000;
 async function rpc(url: string, body: unknown, ms = ATTEMPT_MS): Promise<{ result?: unknown; error?: { code?: number; message?: string } } | null> {
   const res = await withTimeout(fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), ms, () => new Error('timeout'));
   noteRelayResponse(url, res);
-  if (!res.ok) return null;
+  if (!res.ok) {
+    // Le relais refuse une méthode hors de sa liste (`{ error: "method not allowed" }`) : « non prise en charge », mémorisé.
+    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    return typeof body?.error === 'string' && /method not allowed|not supported/i.test(body.error) ? { error: { code: -32601, message: body.error } } : null;
+  }
   return (await res.json()) as { result?: unknown; error?: { code?: number; message?: string } };
 }
 
@@ -293,7 +297,14 @@ export async function simulateTx(
   if (chain.family !== 'evm') return fallback;
   const urls = chain.rpcUrls.filter(usable);
   const alchemy = urls.find((u) => isAlchemyRpc(u) && !noSimulator.has(u));
-  const v1 = urls.filter((u) => !noSimulateV1.has(u)).slice(0, 2);
+  /*
+   * eth_simulateV1 : Alchemy (clé ou relais) le sert sur la plupart des réseaux,
+   * beaucoup de nœuds publics non. Le relais est rangé EN DERNIER dans
+   * `rpcUrls` (dernier recours pour les soldes) : il passe ici en tête, sinon
+   * il n'était jamais essayé. Trois nœuds à la fois : le service worker oublie
+   * en redémarrant ceux qui ne savent pas simuler.
+   */
+  const v1 = [...urls.filter(isAlchemyRpc), ...urls.filter((u) => !isAlchemyRpc(u))].filter((u) => !noSimulateV1.has(u)).slice(0, 3);
   const safe = (p: Promise<Simulation | null>) => p.catch(() => null);
   // Ensemble ; la réponse retenue suit l'ordre de confiance (Alchemy, puis les nœuds dans l'ordre), verdict d'échec compris.
   const results = await Promise.all([alchemy ? safe(viaAlchemy(alchemy, tx, fallback)) : Promise.resolve(null), ...v1.map((u) => safe(viaSimulateV1(u, chain, tx, fallback, tokenMeta)))]);
