@@ -430,3 +430,20 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 .allow-row .exposed { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .allow-why { margin: 6px 0 0; padding-inline-start: 16px; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; line-height: 17px; color: var(--text-secondary); }
 .allow-row .grow p { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* ── Beauté, passe 2 : accueil ── */
+.row .grow > strong { font-size: var(--fs-body); line-height: 20px; font-weight: 600; letter-spacing: -0.1px; }
+.row .right strong { font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
+.logo { box-shadow: 0 0 0 1px var(--border), 0 2px 6px rgba(0, 0, 0, 0.12); }
+.group-title { letter-spacing: 0.07em; }
+/* Gestes : un halo à la couleur du geste au survol, le disque principal légèrement plus grand. */
+.act .disc { position: relative; }
+.act:hover .disc::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--a-ink, var(--ink-receive)) 45%, transparent); }
+.act.primary .disc::before { content: ''; position: absolute; inset: -3px; border-radius: 50%; box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink-send) 40%, transparent), 0 0 18px color-mix(in srgb, var(--ink-send) 35%, transparent); pointer-events: none; }
+.act.buy { --a-ink: var(--ink-buy); } .act.send { --a-ink: var(--ink-send); } .act.swap { --a-ink: var(--ink-swap); } .act.sites { --a-ink: var(--ink-earn); }
+.act-label { letter-spacing: 0.01em; }
+/* La feuille de contenu : une arête lumineuse au bord supérieur, comme une carte posée sur le ciel. */
+.sheet { box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.16), inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent); }
+.tabs { box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }
+.list.card .link-row:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } a.card:hover, button.card:hover { transform: none; } }

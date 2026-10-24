@@ -107,3 +107,18 @@ details.tech .kv { margin-top: 8px; }
 
 @media (prefers-reduced-motion: reduce) { .gauge .fill, .btn.hold .hold-fill { transition: none; } .sk::after { animation: none; } }
 .row-inline { display: flex; align-items: center; gap: 10px; }
+
+/* ── Beauté, passe 2 : fenêtre de signature ── */
+.site-bar { padding: 8px 12px; border-radius: 16px; background: color-mix(in srgb, var(--surface-1) 70%, transparent); box-shadow: var(--depth); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.verdict { box-shadow: var(--lift); }
+/* Danger : une respiration lente du halo, pour que l'œil y revienne (coupée si « réduire les animations »). */
+.verdict.high { animation: danger-breath 2.6s ease-in-out infinite; }
+@keyframes danger-breath { 50% { box-shadow: var(--lift), 0 0 0 7px color-mix(in srgb, var(--danger) 14%, transparent); } }
+.verdict-text strong { font-size: var(--fs-title-s); line-height: 22px; letter-spacing: -0.2px; }
+.what h1 { font-size: var(--fs-title); line-height: 26px; letter-spacing: -0.4px; }
+.flow strong { font-size: 19px; line-height: 24px; letter-spacing: -0.3px; }
+.flows { box-shadow: var(--depth); }
+/* La barre d'action flotte au-dessus du contenu, floutée. */
+.dock { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 82%, transparent); }
+.dock.high { background: color-mix(in srgb, color-mix(in srgb, var(--danger) 7%, var(--bg)) 85%, transparent); }
+@media (prefers-reduced-motion: reduce) { .verdict.high { animation: none; } }
