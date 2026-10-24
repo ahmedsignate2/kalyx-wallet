@@ -71,6 +71,8 @@ const EVM_METHODS = new Set([
   'alchemy_getTokenMetadata',
   'alchemy_getAssetTransfers',
   'alchemy_simulateAssetChanges',
+  // Simulation standard (lecture seule) : mouvements d'actifs sur les réseaux où l'API Alchemy n'existe pas.
+  'eth_simulateV1',
   'eth_call',
   'eth_getBalance',
   'eth_blockNumber',

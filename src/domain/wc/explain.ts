@@ -11,7 +11,7 @@
 import { formatDecimalString } from '../validation/format';
 import { formatUnits } from 'ethers';
 import type { SiweMessage, TypedDataSummary } from './message';
-import type { Simulation, AssetChange } from '../tx/simulate';
+import { simulatedChanges, type Simulation, type AssetChange } from '../tx/simulate';
 import type { DecodedTx } from '../tx/decodeTx';
 import type { SolanaTxDescription } from './solanaTx';
 import type { PsbtSummary } from './psbtSummary';
@@ -96,7 +96,7 @@ export type ExplainKey =
   | 'exApproveAllReason' | 'exApproveAllHeadline' | 'exApproveAllDetail'
   | 'exApproveUnlimitedReason' | 'exApproveHeadlineUnlimited' | 'exApproveHeadline' | 'exApproveDetailUnlimited' | 'exApproveDetailLimited'
   | 'exTitleTx' | 'exSwapHeadline' | 'exSendHeadline' | 'exSendHeadlineTo' | 'exReceiveHeadline' | 'exApprovalsHeadline'
-  | 'exContractHeadline' | 'exContractHeadlineTo' | 'exContractDetail' | 'exContractDetailErr' | 'exContractDetailNoSim'
+  | 'exContractHeadline' | 'exContractHeadlineTo' | 'exContractDetail' | 'exContractDetailErr' | 'exContractDetailNoSim' | 'exContractDetailCall'
   | 'exTitleRead' | 'exBtcAccountsHeadline' | 'exBtcAccountsDetail'
   | 'exBtcIrreversible' | 'exTitleBtcSend' | 'exBtcSendHeadline' | 'exBtcSendHeadlineTo' | 'exBtcSendAsk' | 'exBtcSendDetail'
   | 'exTitleBtcTx' | 'exPsbtBroadcastNow' | 'exPsbtLater' | 'exPsbtHeadlineTo' | 'exPsbtHeadlineMany' | 'exPsbtHeadline'
@@ -234,7 +234,7 @@ export function explainRequest(input: ExplainInput): SignExplanation {
      * signaler alarmait à chaque envoi, en particulier sur les réseaux où le
      * simulateur n'existe pas (Sepolia, Base Sepolia…).
      */
-    if (!input.simulating && (!sim || sim.error || sim.source === 'static') && (input.txValue ?? 0n) > 0n) {
+    if (!input.simulating && !simulatedChanges(sim) && (input.txValue ?? 0n) > 0n) {
       const amount = `${formatDecimalString(formatUnits(input.txValue!, input.nativeDecimals ?? 18))} ${input.nativeSymbol ?? ''}`.trim();
       if (!lose.length) lose.push(amount);
       if (d?.kind !== 'empty') {
@@ -276,7 +276,7 @@ export function explainRequest(input: ExplainInput): SignExplanation {
       title: tr('exTitleTx'),
       headline: d?.kind === 'contract' && d.to ? tr('exContractHeadlineTo', { site, to: short(d.to) }) : tr('exContractHeadline', { site }),
       // Lecture statique (pas de simulateur sur ce réseau) : on ne prétend pas avoir simulé.
-      detail: sim?.error ? tr('exContractDetailErr', { error: sim.error }) : sim?.source === 'static' ? tr('exContractDetailNoSim') : tr('exContractDetail'),
+      detail: sim?.error ? tr('exContractDetailErr', { error: sim.error }) : sim?.source === 'call' ? tr('exContractDetailCall') : !input.simulating && !simulatedChanges(sim) ? tr('exContractDetailNoSim') : tr('exContractDetail'),
       lose, receive, risk, reasons, holdToSign: risk === 'danger', canReduceApproval,
     };
   }

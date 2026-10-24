@@ -264,9 +264,31 @@ describe('explication (fenêtre)', () => {
   test('aperçu : simulation en échec → statut « failed », aucune erreur brute dans le texte affiché', async () => {
     const tx = { kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: STRANGER_CONTRACT, data: '0xa9059cbb' + '0'.repeat(128), value: '0x0' } } as const;
     const r = await review(tx, SITE, { ...quiet, simulate: async () => ({ source: 'node', changes: [], approvals: [], error: 'execution reverted: ERC20: transfer amount exceeds balance' }) as never });
-    expect(r.preview).toEqual({ status: 'failed', error: 'execution reverted: ERC20: transfer amount exceeds balance' });
+    expect(r.preview).toEqual({ status: 'failed', error: 'execution reverted: ERC20: transfer amount exceeds balance', hint: 'balance' });
     const shown = [r.explanation.headline, r.explanation.detail ?? '', ...r.explanation.reasons].join(' ');
     expect(shown).not.toMatch(/execution reverted/);
+  });
+
+  test('aperçu : échec avec cause reconnue → raison probable en clair ; vérifié sans montants → « partial »', async () => {
+    const tx = { kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: STRANGER_CONTRACT, data: '0x12345678', value: '0x0' } } as const;
+    const failed = await review(tx, SITE, { ...quiet, simulate: async () => ({ source: 'node', changes: [], approvals: [], error: 'execution reverted: UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT' }) as never });
+    expect(failed.preview).toMatchObject({ status: 'failed', hint: 'slippage' });
+    const partial = await review(tx, SITE, { ...quiet, simulate: async () => ({ source: 'call', changes: [], approvals: [] }) as never });
+    expect(partial.preview).toEqual({ status: 'partial' });
+    expect(partial.explanation.detail ?? '').not.toMatch(/Checked|Vérifié/);
+  });
+
+  test('revertHint : causes courantes reconnues, le reste non deviné', async () => {
+    const { revertHint } = await import('./dappSign');
+    expect(revertHint('execution reverted: ERC20: transfer amount exceeds balance')).toBe('balance');
+    expect(revertHint('insufficient funds for gas * price + value')).toBe('balance');
+    expect(revertHint('execution reverted: ERC20: insufficient allowance')).toBe('allowance');
+    expect(revertHint('execution reverted: STF')).toBe('allowance');
+    expect(revertHint('execution reverted: Too little received')).toBe('slippage');
+    expect(revertHint('execution reverted: Transaction too old')).toBe('deadline');
+    expect(revertHint('out of gas')).toBe('gas');
+    expect(revertHint('execution reverted: Pausable: paused')).toBe('denied');
+    expect(revertHint('execution reverted: 0x4e487b71')).toBeNull();
   });
 
   test('aperçu : pas de simulateur (lecture statique) sur un appel de contrat → « unavailable » ; simple envoi → rien', async () => {

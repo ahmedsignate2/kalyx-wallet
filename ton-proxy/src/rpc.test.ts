@@ -136,3 +136,13 @@ test('Solana : Alchemy en secours seulement avec une clé', async () => {
   assert.equal(solanaFallbackUrl(undefined), null);
   assert.equal(solanaFallbackUrl('K'), 'https://solana-mainnet.g.alchemy.com/v2/K');
 });
+
+test('eth_simulateV1 accepté (lecture seule), jamais mis en cache', () => {
+  const r = sanitizeRpc('alchemy', JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_simulateV1', params: [{ blockStateCalls: [{ calls: [{ from: ADDR, to: ADDR, input: '0x' }] }], traceTransfers: true }, 'latest'] }));
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.equal(r.write, false);
+    assert.equal(r.cacheSeconds, 0);
+  }
+});
+

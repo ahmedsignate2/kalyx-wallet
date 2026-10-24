@@ -78,6 +78,8 @@
 .preview-icon { flex: none; width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-1); color: var(--text-secondary); }
 .preview-note.failed { background: color-mix(in srgb, var(--warning) 10%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); }
 .preview-note.failed .preview-icon { color: var(--warning); }
+.preview-note.partial .preview-icon { color: var(--up); }
+.preview-note .hint { color: var(--text); }
 
 /* Détails techniques : discrets. */
 details.tech { border-radius: 16px; background: var(--surface-2); padding: 10px 14px; }

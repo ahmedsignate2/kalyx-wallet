@@ -49,7 +49,8 @@ import type { Session } from './session';
 import type { Wallets } from './wallets';
 
 const MAX_SOL_TXS = 10;
-const ANALYSIS_MS = 6000;
+// Simulation à plusieurs niveaux (≤ 4 s ensemble, + lecture des symboles) : la fenêtre montre un squelette pendant ce temps.
+const ANALYSIS_MS = 8000;
 
 export type SignRequest =
   | { kind: 'evmTx'; from: string; chainId: string; tx: { to: string; data: string; value: string; gas?: string; maxFeePerGas?: string; maxPriorityFeePerGas?: string; gasPrice?: string } }
@@ -80,7 +81,7 @@ export interface Review {
    * réponse ; 'failed' : la simulation dit que ça échouerait). La fenêtre en
    * fait un message humain ; `error` (brut, borné) n'apparaît qu'en Expert.
    */
-  preview?: { status: 'unavailable' | 'failed'; error?: string };
+  preview?: { status: 'unavailable' | 'partial' | 'failed'; error?: string; hint?: RevertHint };
   /** Autorisation de token accordée par cette transaction (rappel d'expiration). */
   approval?: { chainId: string; chainName: string; token: string; symbol: string; spender: string };
 }
@@ -384,11 +385,14 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     if (req.tx.data.length > 2 && sim && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
     if (!sim && (value > 0n || req.tx.data.length > 2)) sig.noSimulation = true;
     // Un simple envoi (sans données) n'a pas besoin d'aperçu : son effet est connu.
+    const hint = sim?.error ? revertHint(sim.error) : null;
     const preview: Review['preview'] = sim?.error
-      ? { status: 'failed', error: clip(sim.error, 200) }
+      ? { status: 'failed', error: clip(sim.error, 200), ...(hint ? { hint } : {}) }
       : req.tx.data.length > 2 && (!sim || sim.source === 'static')
         ? { status: 'unavailable' }
-        : undefined;
+        : req.tx.data.length > 2 && sim?.source === 'call'
+          ? { status: 'partial' }
+          : undefined;
     if (preview) humanizePreview(explanation, preview, t);
     const suggested =
       decoded.kind === 'approve' ? sim?.changes.find((c) => c.direction === 'out' && c.contract && same(c.contract, decoded.token))?.rawAmount : undefined;
@@ -460,13 +464,30 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
   };
 }
 
+export type RevertHint = 'balance' | 'allowance' | 'slippage' | 'deadline' | 'gas' | 'denied';
+
+/**
+ * Pur : le message d'échec d'un nœud (anglais, technique) → sa cause probable,
+ * dite en clair par la fenêtre. null : rien de reconnaissable (on ne devine pas).
+ */
+export function revertHint(message: string): RevertHint | null {
+  const m = message.toLowerCase();
+  if (/allowance|not approved|transfer_from_failed|stf\b|insufficient approval/.test(m)) return 'allowance';
+  if (/insufficient (funds|balance)|exceeds balance|amount exceeds|balance too low|not enough balance/.test(m)) return 'balance';
+  if (/slippage|too little received|insufficient_output_amount|insufficient output|price impact|min(imum)? ?(amount|return|out)|too much requested|excessive_input/.test(m)) return 'slippage';
+  if (/deadline|expired|transaction too old/.test(m)) return 'deadline';
+  if (/out of gas|intrinsic gas|gas required exceeds/.test(m)) return 'gas';
+  if (/paused|unauthori[sz]ed|not (the )?owner|not allowed|access ?control|forbidden|caller is not/.test(m)) return 'denied';
+  return null;
+}
+
 /**
  * L'aperçu manque : la fenêtre le dit avec ses propres mots (rassurants,
  * actionnables). On retire donc de l'explication les phrases techniques qui
  * disaient la même chose — l'erreur brute du simulateur surtout.
  */
 function humanizePreview(ex: SignExplanation, preview: NonNullable<Review['preview']>, t: ExplainT): void {
-  const technical = new Set([t('exContractDetailNoSim'), ...(preview.error ? [t('exContractDetailErr', { error: preview.error })] : [])]);
+  const technical = new Set([t('exContractDetailNoSim'), t('exContractDetailCall'), ...(preview.error ? [t('exContractDetailErr', { error: preview.error })] : [])]);
   if (ex.detail && technical.has(ex.detail)) delete ex.detail;
   const noSimPrefix = t('exTxNoSimulationValue', { amount: '\u0000' }).split('\u0000')[0];
   ex.reasons = ex.reasons.filter((r) => !(noSimPrefix && r.startsWith(noSimPrefix)));

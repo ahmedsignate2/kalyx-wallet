@@ -38,7 +38,7 @@ interface Review {
   reduce?: { symbol: string; decimals: number; suggested?: string };
   score: { score: number; level: 'low' | 'medium' | 'high'; factors: { code: string; points: number; params?: Record<string, string> }[] };
   outFiat: number | null;
-  preview?: { status: 'unavailable' | 'failed'; error?: string };
+  preview?: { status: 'unavailable' | 'partial' | 'failed'; error?: string; hint?: string };
   approval?: { chainId: string; chainName: string; token: string; symbol: string; spender: string };
 }
 interface WalletMeta {
@@ -201,15 +201,18 @@ function verdictCard(rv: Review) {
 /** L'aperçu du résultat manque : le dire calmement, et quoi faire. */
 function previewCard(p: NonNullable<Review['preview']>) {
   const failed = p.status === 'failed';
+  const partial = p.status === 'partial';
   return h(
     'section',
-    { class: `preview-note ${failed ? 'failed' : ''}`, role: failed ? 'alert' : 'note', 'data-testid': 'preview' },
-    h('span', { class: 'preview-icon', 'aria-hidden': 'true' }, glyph(failed ? 'warning' : 'about', 18)),
+    { class: `preview-note ${failed ? 'failed' : partial ? 'partial' : ''}`, role: failed ? 'alert' : 'note', 'data-testid': 'preview' },
+    h('span', { class: 'preview-icon', 'aria-hidden': 'true' }, glyph(failed ? 'warning' : partial ? 'check' : 'about', 18)),
     h(
       'div',
       { class: 'grow' },
-      h('strong', {}, t(failed ? 'pvFailedTitle' : 'pvUnavailableTitle')),
-      h('p', {}, t(failed ? 'pvFailedBody' : 'pvUnavailableBody')),
+      h('strong', {}, t(failed ? 'pvFailedTitle' : partial ? 'pvPartialTitle' : 'pvUnavailableTitle')),
+      // Cause reconnue : en premier, en clair ; le conseil général ensuite.
+      failed && p.hint && h('p', { class: 'hint', 'data-testid': 'preview-hint' }, h('b', {}, `${t('rvLabel')} : `), t(`rv_${p.hint}` as 'rv_balance')),
+      h('p', {}, t(failed ? 'pvFailedBody' : partial ? 'pvPartialBody' : 'pvUnavailableBody')),
       failed && p.error && isExpert() && h('p', { class: 'mono tiny muted' }, `${t('pvErrorLabel')} : ${p.error}`),
     ),
   );

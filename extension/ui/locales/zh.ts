@@ -145,4 +145,5 @@ export default {
   modeNowBeginner: '新手模式：只显示要点，不含技术细节。', modeNowExpert: '专家模式：所有内容可见、可调整。',
   obV1: '每次签名都会在你同意前得到解释和评分', obV2: 'EVM、Solana、Bitcoin 和 TON 集于一处', obV3: '密钥加密保存在这里：其他人无法访问', obLockLater: '自动锁定：15 分钟，可在设置中修改。',
   esNftBody: '此账户收到的 NFT 会按合集显示在这里。', esActBody: '你的转出、收款和兑换会按天显示在这里。', esCtBody: '保存常用地址：输入的地址与其中某个相似时，Kalyx 会提醒你。', esSitesBody: '当你将 Kalyx 连接到网站后，它会显示在这里，一点即可断开。', esApprBody: '这里没有任何合约可以花费你的代币：无需撤销。', esWlBody: '添加你允许的地址：其他收款方都会被阻止。',
+  pvPartialTitle: '部分预览', pvPartialBody: '已在网络上检查：交易可以执行。Kalyx 无法读取确切金额；如果你不认识这个网站，请拒绝。', rvLabel: '可能原因', rv_balance: '余额不足以完成此操作（含手续费）。', rv_allowance: '授权额度不足：网站需要先向你申请授权。', rv_slippage: '价格已变动：无法达到承诺的最低数量。请在网站上重试。', rv_deadline: '已超过期限：请求已过期。请在网站上重新发起。', rv_gas: '设置的 gas 不足以执行该交易。', rv_denied: '合约拒绝你的账户执行此操作（访问受限或合约已暂停）。',
 };
