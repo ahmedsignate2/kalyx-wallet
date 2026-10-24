@@ -8,6 +8,7 @@
  * La phrase créée n'existe dans cette page que le temps de la noter et de la
  * vérifier ; elle est oubliée dès la fin du parcours.
  */
+import { installFeedback } from '../../ui/feedback';
 import { landscape } from '../../ui/landscape';
 import { qrSvg } from '../../ui/qr';
 import { avatar } from '../../ui/avatar';
@@ -33,6 +34,7 @@ interface WalletMeta {
 
 // Pas de rechargement en plein parcours (la phrase en cours serait perdue) : la langue se choisit sur l'accueil.
 applyLang(document, false);
+installFeedback();
 const app = document.getElementById('app')!;
 let afterAuth: () => void = () => {};
 /** Phrase en cours de création (oubliée à la fin du parcours). */

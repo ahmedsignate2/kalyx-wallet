@@ -47,6 +47,10 @@ p { margin: 0; }
 .micro { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.2px; color: var(--text-tertiary); }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .error { color: var(--danger); font-size: 14px; line-height: 20px; }
+/* Une erreur présente : un encart teinté, pas une ligne rouge perdue. */
+.error:not(:empty) { margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--danger) 10%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent); font-weight: 500; }
+.error.shake { animation: shake 0.36s var(--ease-out); }
+@keyframes shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 .ok { color: var(--up); font-size: 14px; }
 .up { color: var(--up); }
 .down { color: var(--down); }

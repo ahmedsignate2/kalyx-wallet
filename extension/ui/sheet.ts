@@ -40,6 +40,37 @@ export function openSheet(title: string, ...content: (Node | false | null | unde
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
     else setTimeout(done, 160);
   }
+  // Geste : tirer la feuille vers le bas par sa poignée (ou son en-tête) la ferme ; relâchée tôt, elle revient.
+  let y0: number | null = null;
+  const grab = panel.querySelector<HTMLElement>('.grip')!;
+  const head = panel.querySelector<HTMLElement>('.modal-head')!;
+  const startDrag = (e: PointerEvent) => {
+    if ((e.target as Element).closest('button')) return;
+    e.preventDefault(); // pas de sélection de texte (elle ferait partir un glisser-déposer au geste suivant)
+    y0 = e.clientY;
+    panel.setPointerCapture(e.pointerId);
+    panel.classList.add('dragging');
+  };
+  grab.addEventListener('pointerdown', startDrag);
+  head.addEventListener('pointerdown', startDrag);
+  panel.addEventListener('pointermove', (e) => {
+    if (y0 == null) return;
+    panel.style.transform = `translateY(${Math.max(0, e.clientY - y0)}px)`;
+  });
+  const endDrag = (e: PointerEvent) => {
+    if (y0 == null) return;
+    const dy = e.clientY - y0;
+    y0 = null;
+    panel.classList.remove('dragging');
+    if (dy > 90) return close();
+    panel.style.transform = '';
+  };
+  panel.addEventListener('pointerup', endDrag);
+  panel.addEventListener('pointercancel', () => {
+    y0 = null;
+    panel.classList.remove('dragging');
+    panel.style.transform = '';
+  });
   document.addEventListener('keydown', onKey);
   document.body.append(veil);
   requestAnimationFrame(() => panel.focus());

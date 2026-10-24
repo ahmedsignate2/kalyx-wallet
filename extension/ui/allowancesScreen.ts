@@ -4,6 +4,7 @@
  * les contrats signalés passent en tête. Révoquer est une transaction
  * (frais réseau), confirmée explicitement, et suivie jusqu'à son issue.
  */
+import { skeletonList } from './feedback';
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { errorText, t } from './i18n';
@@ -93,7 +94,7 @@ function remindersCard(refresh: () => void): HTMLElement {
 
 export function allowancesScreen(app: HTMLElement, back: () => void, chain = 'ethereum') {
   const select = h('select', { class: 'inline', 'aria-label': t('network'), 'data-testid': 'allow-chain', on: { change: () => allowancesScreen(app, back, select.value) } }, ...CHAINS.map(([id, name]) => h('option', { value: id, selected: id === chain }, name)));
-  const body = h('div', { class: 'stack' }, h('p', { class: 'small muted' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), ` ${t('refreshing')}`));
+  const body = h('div', { class: 'stack', 'aria-busy': 'true' }, h('span', { class: 'sr' }, t('refreshing')), skeletonList(3));
   const err = h('p', { class: 'error', role: 'alert' });
   app.replaceChildren(
     h(

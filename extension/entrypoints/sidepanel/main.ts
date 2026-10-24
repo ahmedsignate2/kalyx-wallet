@@ -2,12 +2,14 @@
  * PANNEAU LATÉRAL : le même portefeuille que le popup, qui reste ouvert à
  * côté de la page (et ne se ferme pas au premier clic ailleurs).
  */
+import { installFeedback } from '../../ui/feedback';
 import { mountScene } from '../../ui/landscape';
 import { applyLang } from '../../ui/i18n';
 import { mountWallet } from '../../ui/wallet';
 import { lockedScreen, noVaultScreen } from '../../ui/screens';
 
 applyLang();
+installFeedback();
 mountScene();
 const app = document.getElementById('app')!;
 const wallet = mountWallet(app, {

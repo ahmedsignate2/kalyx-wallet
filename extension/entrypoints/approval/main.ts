@@ -8,6 +8,7 @@
  * ses raisons (explication de l'app), le message ou les détails techniques.
  * En danger, signer demande de MAINTENIR le bouton 2 s.
  */
+import { installFeedback } from '../../ui/feedback';
 import { mountScene } from '../../ui/landscape';
 import { h, nodes, send } from '../../ui/dom';
 import { applyLang, errorText, hasErrorText, t } from '../../ui/i18n';
@@ -56,6 +57,7 @@ interface SiteReport {
 let siteIcon: string | undefined;
 
 applyLang();
+installFeedback();
 mountScene();
 const app = document.getElementById('app')!;
 const id = location.hash.slice(1);
@@ -293,7 +295,6 @@ async function signScreen(req: Req) {
     // Raison connue : dans la langue de la fenêtre ; sinon le message (court) de l'échec.
     const reason = x?.params?.reason;
     err.textContent = x?.error === 'ACTION_FAILED' ? t('apFailed', { m: hasErrorText(reason) ? errorText(reason) : (x.params?.message ?? '') }) : errorText(x?.error, x?.params);
-    play('error');
     ok.classList.remove('held');
     ok.style.setProperty('--p', '0');
     ok.disabled = false;
@@ -451,7 +452,7 @@ function connectScreen(req: Req, wallets: WalletMeta[], selected: { walletId: st
   const ready = () => (ok.disabled = !armed || !chosen || chosen.lost || (needAck && !ack.checked));
   ack.addEventListener('change', ready);
   setTimeout(() => ((armed = true), ok.classList.remove('arming'), ready()), ARM_MS);
-  const siteBox = h('div', { class: 'site-check', 'data-testid': 'site-check' }, h('p', { class: 'small muted' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('apSiteChecking')));
+  const siteBox = h('div', { class: 'site-check', 'data-testid': 'site-check', 'aria-busy': 'true' }, h('span', { class: 'sr' }, t('apSiteChecking')), h('i', { class: 'sk', style: 'width:62%;height:12px' }));
   void send<SiteReport>({ type: 'approval:site', id }).then((x) => {
     if (!x?.ok) return void siteBox.replaceChildren();
     const lines: Node[] = [];
