@@ -211,24 +211,40 @@ export function nftBaseUrl(chain: ChainConfig): string | undefined {
 const MAX_PAGES = 4;
 
 export async function getNfts(chain: ChainConfig, address: string): Promise<NftItem[]> {
+  return (await getNftsChecked(chain, address)).items;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Comme `getNfts`, en disant si le RÉSEAU n'est pas couvert par l'API NFT
+ * (réponse 4xx dès la première page) : l'appelant peut ne plus le demander,
+ * au lieu de dépenser une requête par ouverture de l'onglet.
+ */
+export async function getNftsChecked(chain: ChainConfig, address: string): Promise<{ items: NftItem[]; unsupported: boolean }> {
+  // Débit dépassé il y a un instant : on attend la fin de la pause (courte) plutôt qu'échouer.
+  for (let i = 0; i < 3 && relayPaused('nft'); i++) await sleep(4000);
   const base = nftBaseUrl(chain);
-  // Relais en pause : une PANNE à dire, pas une liste vide (« aucun NFT » serait faux).
+  // Relais en pause (quota) : une PANNE à dire, pas une liste vide (« aucun NFT » serait faux).
   if (!base && chain.rpcUrls.some((u) => isAlchemyRpc(u) && isRelayUrl(u))) throw new Error('relais en pause (quota)');
-  if (!base) return [];
+  if (!base) return { items: [], unsupported: true };
   const out: NftItem[] = [];
   let pageKey: string | undefined;
   for (let page = 0; page < MAX_PAGES; page++) {
     // Une page suivante en panne : on garde ce qui est lu plutôt que tout perdre.
     const r = page === 0 ? await getNftPage(base, address) : await getNftPage(base, address, pageKey).catch(() => null);
-    if (!r) break;
+    if (!r) {
+      if (page === 0) return { items: [], unsupported: true };
+      break;
+    }
     out.push(...r.items);
     pageKey = r.pageKey;
     if (!pageKey) break;
   }
-  return out;
+  return { items: out, unsupported: false };
 }
 
-async function getNftPage(base: string, address: string, pageKey?: string): Promise<{ items: NftItem[]; pageKey?: string } | null> {
+async function getNftPage(base: string, address: string, pageKey?: string, retried = false): Promise<{ items: NftItem[]; pageKey?: string } | null> {
   const res = await withTimeout(
       // Pas de `excludeFilters[]=SPAM` ni `spamConfidenceLevel` : réservés au plan
       // payant Alchemy (403 sinon). Le spam est écarté côté client via `isSpam`
@@ -237,6 +253,12 @@ async function getNftPage(base: string, address: string, pageKey?: string): Prom
       TIMEOUT,
       () => new Error('timeout'),
     );
+  // Débit (429) : on attend ce que le relais demande (10 s au plus) et on réessaie une fois.
+  if (res.status === 429 && !retried) {
+    const wait = Math.min(10, Number(res.headers.get('retry-after')) || 5);
+    await sleep(wait * 1000);
+    return getNftPage(base, address, pageKey, true);
+  }
   noteRelayResponse(base, res);
   /*
    * Un réseau que l'API NFT ne couvre pas répond 4xx : ce n'est pas une panne,

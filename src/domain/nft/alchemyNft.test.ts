@@ -1,4 +1,4 @@
-import { parseNfts, displayableImage, inlineSvg, getNfts } from './alchemyNft';
+import { parseNfts, displayableImage, inlineSvg, getNfts, getNftsChecked } from './alchemyNft';
 
 describe('parseNfts', () => {
   const json = {
@@ -121,5 +121,37 @@ describe('getNfts : pagination', () => {
     const nfts = await getNfts(chain, '0xme');
     expect(nfts.map((n) => n.contract)).toEqual(['0xa', '0xb']);
     expect(urls[1]).toContain('&pageKey=k1');
+  });
+});
+
+describe('getNftsChecked : débit et réseaux non couverts', () => {
+  const chain = { id: 'base', rpcUrls: ['https://base-mainnet.g.alchemy.com/v2/KEY'] } as unknown as Parameters<typeof getNfts>[0];
+  const headers = (h: Record<string, string> = {}) => ({ get: (n: string) => h[n.toLowerCase()] ?? null });
+  afterEach(() => { (global as { fetch?: unknown }).fetch = undefined; jest.useRealTimers(); });
+
+  it('un 429 : attend le retry-after puis réessaie une fois', async () => {
+    jest.useFakeTimers();
+    const replies = [
+      { ok: false, status: 429, headers: headers({ 'retry-after': '2' }), json: async () => ({}) },
+      { ok: true, status: 200, headers: headers(), json: async () => ({ ownedNfts: [{ contract: { address: '0xa' }, tokenId: '1', name: 'A', image: { cachedUrl: 'https://i/a.png' } }] }) },
+    ];
+    const f = jest.fn(async () => replies.shift());
+    (global as { fetch?: unknown }).fetch = f;
+    const p = getNftsChecked(chain, '0xme');
+    await jest.advanceTimersByTimeAsync(2000);
+    const r = await p;
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(r).toMatchObject({ unsupported: false });
+    expect(r.items).toHaveLength(1);
+  });
+
+  it('4xx dès la première page : réseau non couvert, pas une panne', async () => {
+    (global as { fetch?: unknown }).fetch = jest.fn(async () => ({ ok: false, status: 400, headers: headers(), json: async () => ({}) }));
+    await expect(getNftsChecked(chain, '0xme')).resolves.toEqual({ items: [], unsupported: true });
+  });
+
+  it('5xx : la panne remonte (jamais « aucun NFT »)', async () => {
+    (global as { fetch?: unknown }).fetch = jest.fn(async () => ({ ok: false, status: 502, headers: headers(), json: async () => ({}) }));
+    await expect(getNftsChecked(chain, '0xme')).rejects.toThrow('502');
   });
 });

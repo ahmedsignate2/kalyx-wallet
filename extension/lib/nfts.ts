@@ -12,7 +12,7 @@
  * Images : https seulement, ou une image inscrite dans le NFT (data:image) ;
  * dessinées par <img> (un SVG n'y exécute aucun script).
  */
-import { getNfts, type NftItem } from '../../src/domain/nft/alchemyNft';
+import { getNftsChecked, type NftItem } from '../../src/domain/nft/alchemyNft';
 import { parseDasNfts } from '../../src/domain/nft/solanaNft';
 import { withTimeout } from '../../src/domain/chains/net';
 import { isAlchemyRpc, isRelayUrl, noteRelayResponse, noteRelayUnreachable, relayPaused } from '../../src/domain/net/relay';
@@ -149,7 +149,11 @@ interface Stored {
 
 export function makeNfts(deps: NftsDeps) {
   const now = deps.now ?? Date.now;
-  const read = deps.fetch ?? ((chain: ChainConfig, owner: string) => (chain.family === 'solana' ? solanaViaRelay(chain, owner) : getNfts(chain, owner)));
+  const read = async (chain: ChainConfig, owner: string): Promise<{ items: NftItem[]; unsupported: boolean }> =>
+    deps.fetch ? { items: await deps.fetch(chain, owner), unsupported: false } : chain.family === 'solana' ? { items: await solanaViaRelay(chain, owner), unsupported: false } : getNftsChecked(chain, owner);
+  /** Réseaux que l'API NFT ne couvre pas (réponse 4xx) : plus demandés pendant un jour (un refus passager ne les cache pas longtemps). */
+  const SKIP_KEY = 'nfts.unsupported';
+  const SKIP_MS = 86_400_000;
   const key = (a: Acct) => `nfts.${(a.evm ?? '').toLowerCase()}|${a.solana ?? ''}`;
   const inflight = new Map<string, Promise<NftsView>>();
 
@@ -157,7 +161,8 @@ export function makeNfts(deps: NftsDeps) {
   async function chainsFor(a: Acct): Promise<ChainConfig[]> {
     const hidden = new Set(deps.hiddenChains ? await deps.hiddenChains() : []);
     const covers = deps.covers ?? covered;
-    return viewChains().filter((c) => !hidden.has(c.id) && covers(c) && ((c.family === 'evm' && !!a.evm) || (c.family === 'solana' && !!a.solana)));
+    const skip = (await deps.disk.get<Record<string, number>>(SKIP_KEY)) ?? {};
+    return viewChains().filter((c) => !hidden.has(c.id) && !((skip[c.id] ?? 0) > now()) && covers(c) && ((c.family === 'evm' && !!a.evm) || (c.family === 'solana' && !!a.solana)));
   }
 
   const nameOf = (id: string) => {
@@ -190,10 +195,13 @@ export function makeNfts(deps: NftsDeps) {
       const before = await deps.disk.get<Stored>(k);
       const chains = await chainsFor(a);
       const failed: string[] = [];
-      // Six réseaux à la fois : une rafale de quarante requêtes ferait refuser le relais pour débit.
-      const lists = await mapLimit(chains, 6, async (c) => {
+      const unsupported: string[] = [];
+      // Trois réseaux à la fois : le relais accepte 30 requêtes / 10 s par adresse, pages suivantes comprises.
+      const lists = await mapLimit(chains, 3, async (c) => {
           try {
-            return (await read(c, c.family === 'solana' ? a.solana! : a.evm!)).map((n) => toView(c, n));
+            const r = await read(c, c.family === 'solana' ? a.solana! : a.evm!);
+            if (r.unsupported) unsupported.push(c.id);
+            return r.items.map((n) => toView(c, n));
           } catch {
             failed.push(c.id);
             return (before?.items ?? []).filter((n) => n.chainId === c.id);
@@ -203,6 +211,11 @@ export function makeNfts(deps: NftsDeps) {
       const items = lists.flat().filter((n) => (seen.has(n.key) ? false : (seen.add(n.key), true))).slice(0, MAX_ITEMS);
       const stored: Stored = { at: now(), items, failed };
       await deps.disk.set(k, stored);
+      if (unsupported.length) {
+        const skip = (await deps.disk.get<Record<string, number>>(SKIP_KEY)) ?? {};
+        for (const id of unsupported) skip[id] = now() + SKIP_MS;
+        await deps.disk.set(SKIP_KEY, skip);
+      }
       const { stale: _s, ...v } = await show(a, stored);
       return v;
     })().finally(() => inflight.delete(k));

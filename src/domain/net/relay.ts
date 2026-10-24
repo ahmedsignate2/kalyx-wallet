@@ -15,7 +15,7 @@
  */
 export const RELAY_URL: string = (process.env.EXPO_PUBLIC_KALYX_RELAY_URL ?? '').replace(/\/+$/, '');
 
-export type RelayService = 'alchemy' | 'helius' | 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'heliusapi';
+export type RelayService = 'alchemy' | 'helius' | 'coingecko' | 'lifi' | 'relaylink' | 'etherscan' | 'heliusapi' | 'nft';
 
 const pausedUntil = new Map<RelayService, number>();
 const DEFAULT_PAUSE_S = 300;
@@ -46,7 +46,8 @@ export const isRelayUrl = (u: string): boolean => !!RELAY_URL && u.startsWith(`$
 export const isAlchemyRpc = (u: string): boolean => u.includes('.alchemy.com') || /\/rpc\/alchemy\/[a-z0-9-]+$/.test(u);
 
 /** Service d'une URL du relais (pour le disjoncteur). */
-export const relayServiceOf = (u: string): RelayService | null => (!isRelayUrl(u) ? null : u.includes('/rpc/helius') ? 'helius' : 'alchemy');
+// NFT à part : un refus pour DÉBIT sur l'onglet NFT (rafale de réseaux) ne doit pas couper les soldes.
+export const relayServiceOf = (u: string): RelayService | null => (!isRelayUrl(u) ? null : u.includes('/rpc/helius') ? 'helius' : u.includes('/nft/') ? 'nft' : 'alchemy');
 
 /**
  * Réponse du relais qui doit mettre le client en pause : quota (503) ou débit
