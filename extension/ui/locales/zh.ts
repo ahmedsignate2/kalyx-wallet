@@ -143,4 +143,5 @@ export default {
   vdLow: '未发现可疑之处', vdMedium: '注意：签名前请阅读以下几点', vdHigh: '危险：除非完全确定，否则请拒绝', pvUnavailableTitle: '无法预览', pvUnavailableBody: 'Kalyx 无法预测确切结果：某些网络和合约会出现这种情况。在你确认之前不会转出任何资产。如果你不认识这个网站，请拒绝。', pvFailedTitle: '这笔交易很可能会失败', pvFailedBody: '根据预览，网络会拒绝这笔交易，但仍会收取手续费。最稳妥的做法：拒绝，然后核对金额和余额后在网站上重试。', pvErrorLabel: '技术原因', holdKeep: '继续按住…', vdWhy: '原因',
   stTitle: '你的钱包已就绪', stBody: '充值即可开始：用银行卡，或从其他钱包、交易所转入。',
   modeNowBeginner: '新手模式：只显示要点，不含技术细节。', modeNowExpert: '专家模式：所有内容可见、可调整。',
+  obV1: '每次签名都会在你同意前得到解释和评分', obV2: 'EVM、Solana、Bitcoin 和 TON 集于一处', obV3: '密钥加密保存在这里：其他人无法访问', obLockLater: '自动锁定：15 分钟，可在设置中修改。',
 };
