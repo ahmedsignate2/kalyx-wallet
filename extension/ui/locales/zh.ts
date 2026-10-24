@@ -138,4 +138,5 @@ export default {
   receiveBtcNote: '仅限比特币，且须在 Bitcoin 网络上。bc1 地址不接收其他任何资产。',
   recipientPhBtc: 'Bitcoin 地址（bc1…）', ctNoneBtc: '没有 Bitcoin 联系人。可在设置 › 地址簿中添加。', ctAddressPhAll: 'EVM（0x…）、Solana 或 Bitcoin 地址', e_BTC_DUST: '对此 Bitcoin 地址来说金额太小：至少 {min} {symbol}，否则网络会拒绝该交易。', e_BTC_TOO_MANY_INPUTS: '零散小额币太多，无法合并到一笔交易中。请发送更小的金额。',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '手机账户暂不支持 Bitcoin 网站：请使用本扩展中的账户。',
+  receiveTonNote: '仅限 TON 网络上的资产（TON 和 jetton）。在此收款无需填写备注。',
 };

@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'Nur Bitcoin, im Bitcoin-Netzwerk. Eine bc1-Adresse nimmt nichts anderes an.',
   recipientPhBtc: 'Bitcoin-Adresse (bc1…)', ctNoneBtc: 'Keine Bitcoin-Kontakte. Füge welche unter Einstellungen, Adressbuch hinzu.', ctAddressPhAll: 'EVM- (0x…), Solana- oder Bitcoin-Adresse', e_BTC_DUST: 'Zu wenig für diese Bitcoin-Adresse: mindestens {min} {symbol}, sonst lehnt das Netzwerk die Transaktion ab.', e_BTC_TOO_MANY_INPUTS: 'Zu viele kleine Münzen für eine einzige Transaktion. Sende einen kleineren Betrag.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Bitcoin-Websites werden für ein Handy-Konto noch nicht unterstützt: Nutze ein Konto dieser Erweiterung.',
+  receiveTonNote: 'Nur Assets im TON-Netzwerk (TON und Jettons). Für den Empfang hier ist kein Kommentar nötig.',
 };

@@ -292,6 +292,7 @@ const fr = {
   receiveBtcNote: 'Uniquement des bitcoins, sur le réseau Bitcoin. Une adresse bc1 n’accepte rien d’autre.',
   recipientPhBtc: 'Adresse Bitcoin (bc1…)', ctNoneBtc: 'Aucun contact Bitcoin. Ajoute-en depuis Réglages, Carnet d’adresses.', ctAddressPhAll: 'Adresse EVM (0x…), Solana ou Bitcoin', e_BTC_DUST: 'Trop petit pour cette adresse Bitcoin : au moins {min} {symbol}, sinon le réseau refuse la transaction.', e_BTC_TOO_MANY_INPUTS: 'Trop de petites pièces à rassembler en une seule transaction. Envoie un montant plus faible.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Les sites Bitcoin ne sont pas encore servis pour un compte du téléphone : utilise un compte de cette extension.',
+  receiveTonNote: 'Uniquement des actifs du réseau TON (TON et jettons). Aucun commentaire n’est nécessaire pour recevoir ici.',
 };
 
 type Dict = typeof fr;
@@ -568,6 +569,7 @@ const en: Dict = {
   receiveBtcNote: 'Only bitcoin, on the Bitcoin network. A bc1 address accepts nothing else.',
   recipientPhBtc: 'Bitcoin address (bc1…)', ctNoneBtc: 'No Bitcoin contacts. Add some from Settings, Address book.', ctAddressPhAll: 'EVM (0x…), Solana or Bitcoin address', e_BTC_DUST: 'Too small for this Bitcoin address: at least {min} {symbol}, or the network rejects the transaction.', e_BTC_TOO_MANY_INPUTS: 'Too many small coins to gather in a single transaction. Send a smaller amount.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Bitcoin sites aren’t served yet for a phone account: use an account from this extension.',
+  receiveTonNote: 'Only assets on the TON network (TON and jettons). No comment is needed to receive here.',
 };
 
 export type Key = keyof Dict;

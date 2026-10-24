@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'Только биткоины, в сети Bitcoin. Адрес bc1 не принимает ничего другого.',
   recipientPhBtc: 'Адрес Bitcoin (bc1…)', ctNoneBtc: 'Нет контактов Bitcoin. Добавь их в Настройки, Адресная книга.', ctAddressPhAll: 'Адрес EVM (0x…), Solana или Bitcoin', e_BTC_DUST: 'Слишком мало для этого адреса Bitcoin: минимум {min} {symbol}, иначе сеть отклонит транзакцию.', e_BTC_TOO_MANY_INPUTS: 'Слишком много мелких монет для одной транзакции. Отправь меньшую сумму.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Сайты Bitcoin пока не работают с аккаунтом телефона: используй аккаунт этого расширения.',
+  receiveTonNote: 'Только активы сети TON (TON и жетоны). Комментарий для получения сюда не нужен.',
 };

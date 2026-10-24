@@ -116,9 +116,16 @@ describe('soldes', () => {
     expect(v.failed).toEqual(['Ethereum', 'Solana']);
   });
 
-  test('seuls EVM et Solana : un actif d’une autre famille est écarté', async () => {
-    const v = await make(loader([holding('ethereum', 'ETH', 1, 10), holding('ton', 'TON', 5, 5, { id: 'ton:native' })])).refresh(ACCT, 'usd');
-    expect(v.main.map((h) => h.symbol)).toEqual(['ETH']);
+  test('réseaux servis seulement : TON compté, un réseau inconnu de l’extension écarté', async () => {
+    const v = await make(loader([holding('ethereum', 'ETH', 1, 10), holding('ton', 'TON', 5, 5, { id: 'ton:native' }), holding('cosmoshub', 'ATOM', 3, 5, { id: 'cosmoshub:native' })])).refresh(ACCT, 'usd');
+    expect(v.main.map((h) => h.symbol)).toEqual(['TON', 'ETH']);
+  });
+
+  test('TON : clé publique transmise, adresse calculée par réseau', async () => {
+    let seen: { tonPublicKey?: string } = {};
+    const load: Load = async (a) => ((seen = a), []);
+    await make(load).refresh({ ...ACCT, ton: 'UQ…', tonPub: 'ab'.repeat(32) }, 'usd');
+    expect(seen.tonPublicKey).toBe('ab'.repeat(32));
   });
 
   test('token non vérifié : masqué, sans valeur, jamais dans le total', async () => {

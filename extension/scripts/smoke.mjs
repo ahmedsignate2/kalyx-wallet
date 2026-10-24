@@ -56,9 +56,9 @@ process.on('beforeExit', () => {
     process.exitCode = 1;
   }
 });
-// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors|beauty|bitcoin : une seule partie (plus rapide à relancer).
-if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors', 'beauty', 'bitcoin'].includes(process.env.ONLY)) {
-  await { onboarding, dapps, attacks, langs, help, hardening, factors, beauty, bitcoin }[process.env.ONLY]();
+// ONLY=onboarding|dapps|attacks|langs|help|hardening|factors|beauty|bitcoin|ton : une seule partie (plus rapide à relancer).
+if (['onboarding', 'dapps', 'attacks', 'langs', 'help', 'hardening', 'factors', 'beauty', 'bitcoin', 'ton'].includes(process.env.ONLY)) {
+  await { onboarding, dapps, attacks, langs, help, hardening, factors, beauty, bitcoin, ton }[process.env.ONLY]();
   if (cspViolations.length) fail('violations CSP / Trusted Types :\n  ' + [...new Set(cspViolations)].join('\n  '));
   console.log(process.exitCode ? 'ÉCHEC' : 'OK');
   process.exit();
@@ -134,6 +134,38 @@ await hardening();
 await factors();
 await beauty();
 await bitcoin();
+await ton();
+
+/**
+ * TON (lecture) : la clé de Tonkeeper pour la phrase de test, son adresse
+ * v5r1 (UQ…), dans Recevoir ; TON lu ou nommé s'il ne répond pas.
+ */
+async function ton() {
+  const TON0 = 'UQ';
+  const ctx = await launch();
+  try {
+    const sw = ctx.serviceWorkers()[0] ?? (await ctx.waitForEvent('serviceworker', { timeout: 15_000 }));
+    const id = new URL(sw.url()).host;
+    const p = await ctx.newPage();
+    await p.goto(`chrome-extension://${id}/popup.html`);
+    const bg = (m) => p.evaluate((msg) => chrome.runtime.sendMessage(msg), m);
+    await bg({ type: 'vault:create', password: 'Plage-Orange-47!' });
+    await bg({ type: 'wallet:import-phrase', phrase: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' });
+    const a = (await bg({ type: 'home:get' })).wallets[0].accounts[0];
+    a.tonPub === '7952e94118f34607c75e23258dd9220d66ccac5a3ee074125c25068e8107bfbf' && a.ton?.startsWith(TON0) ? console.log(`✓ TON : clé de Tonkeeper pour cette phrase, adresse ${a.ton.slice(0, 8)}…`) : fail(`TON ${JSON.stringify(a).slice(0, 160)}`);
+    await p.reload();
+    await p.locator('[data-testid=account]').waitFor();
+    await p.getByRole('button', { name: 'Recevoir' }).first().click();
+    await p.getByRole('tab', { name: 'TON' }).click();
+    const shown = (await p.locator('[data-testid=receive-address]').textContent()).replace(/\s/g, '');
+    shown === a.ton ? console.log('✓ Recevoir : onglet TON, adresse UQ… et QR') : fail(`Recevoir TON ${shown}`);
+    const r = await bg({ type: 'portfolio:refresh' });
+    const held = [...r.portfolio.main, ...r.portfolio.small].some((h) => h.chainId === 'ton');
+    r.portfolio.failed.includes('TON') || held ? console.log(`✓ soldes : TON lu ou nommé s’il ne répond pas (${held ? 'lu' : 'injoignable ici'})`) : fail(`TON ni lu ni signalé ${JSON.stringify(r.portfolio.failed)}`);
+  } finally {
+    await ctx.close();
+  }
+}
 
 /**
  * Bitcoin (lecture) : la MÊME adresse bc1 que l'app (vecteur BIP-84 officiel),

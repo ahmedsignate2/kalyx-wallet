@@ -138,4 +138,5 @@ export default {
   receiveBtcNote: 'Bitcoin ネットワーク上のビットコインのみ。bc1 アドレスはそれ以外を受け取れません。',
   recipientPhBtc: 'Bitcoin アドレス（bc1…）', ctNoneBtc: 'Bitcoin の連絡先がありません。設定 › アドレス帳から追加してください。', ctAddressPhAll: 'EVM（0x…）、Solana、Bitcoin のアドレス', e_BTC_DUST: 'この Bitcoin アドレスには少なすぎます：最低 {min} {symbol}。それ未満だとネットワークに拒否されます。', e_BTC_TOO_MANY_INPUTS: '1 回の取引にまとめるには小さなコインが多すぎます。少ない金額を送ってください。',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'スマホのアカウントではまだ Bitcoin サイトに対応していません。この拡張機能のアカウントを使ってください。',
+  receiveTonNote: 'TON ネットワーク上の資産（TON とジェットン）のみ。ここで受け取るのにコメントは不要です。',
 };

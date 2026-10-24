@@ -138,4 +138,5 @@ export default {
   receiveBtcNote: 'Bitcoin 네트워크의 비트코인만 받을 수 있습니다. bc1 주소는 다른 자산을 받지 않습니다.',
   recipientPhBtc: 'Bitcoin 주소(bc1…)', ctNoneBtc: 'Bitcoin 연락처가 없습니다. 설정 › 주소록에서 추가하세요.', ctAddressPhAll: 'EVM(0x…), Solana 또는 Bitcoin 주소', e_BTC_DUST: '이 Bitcoin 주소에는 너무 적습니다: 최소 {min} {symbol}, 아니면 네트워크가 거래를 거부합니다.', e_BTC_TOO_MANY_INPUTS: '한 번의 거래로 모으기에는 작은 코인이 너무 많습니다. 더 적은 금액을 보내세요.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '휴대폰 계정은 아직 Bitcoin 사이트를 지원하지 않습니다. 이 확장 프로그램의 계정을 사용하세요.',
+  receiveTonNote: 'TON 네트워크의 자산(TON 및 제톤)만 받을 수 있습니다. 여기서 받을 때 메모는 필요 없습니다.',
 };

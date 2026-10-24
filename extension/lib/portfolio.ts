@@ -17,6 +17,8 @@
 import { isAlchemyRpc, relayPaused } from '../../src/domain/net/relay';
 import { carryOver, deserialize, loadHoldings, serialize, splitHoldings, summarize, verifiedChainSymbols, verifiedContracts, type Holding, type Snapshot } from '../../lib/portfolio/holdings';
 import { buildTrusted, pickHistoryChains } from '../../lib/historyTrust';
+import { addressForChain } from '../../lib/accountAddress';
+import { loadJettons } from '../../lib/portfolio/jettons';
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import { chainIconUrl, embeddedChainLogo } from '../../src/domain/chains/icons';
 import { formatTokenAmount } from '../../src/domain/validation/format';
@@ -30,10 +32,13 @@ export interface Acct {
   evm?: string;
   solana?: string;
   bitcoin?: string;
+  /** TON : adresse (UQ…) et clé publique, d'où l'app recalcule l'adresse par réseau. */
+  ton?: string;
+  tonPub?: string;
 }
 
 /** Familles servies par l'extension. */
-const FAMILIES = new Set(['evm', 'solana', 'bitcoin']);
+const FAMILIES = new Set(['evm', 'solana', 'bitcoin', 'ton']);
 const STALE_MS = 45_000;
 const MAX_ACTIVITY = 60;
 
@@ -138,7 +143,7 @@ export function chainLogo(id: string): string | undefined {
 }
 
 /** Adresse du compte sur un réseau ('' : le compte n'y a pas d'adresse). */
-const addressOn = (a: Acct, c: Pick<ChainConfig, 'family'>): string => (c.family === 'evm' ? a.evm : c.family === 'solana' ? a.solana : c.family === 'bitcoin' ? a.bitcoin : '') ?? '';
+const addressOn = (a: Acct, c: Pick<ChainConfig, 'family'>): string => (c.family === 'evm' ? a.evm : c.family === 'solana' ? a.solana : c.family === 'bitcoin' ? a.bitcoin : c.family === 'ton' ? a.ton : '') ?? '';
 
 /** Seuls les logos https sont repris d'un indexeur (jamais javascript:, data: ou http:). */
 const safeLogo = (u?: string) => (u && /^https:\/\//i.test(u) ? u : undefined);
@@ -290,7 +295,7 @@ export function makePortfolio(deps: PortfolioDeps) {
       const failed = new Set<string>();
       const before2 = await readCustom(a);
       const [fresh, customRead] = await Promise.all([
-        load({ evmAddress: a.evm ?? '', solAddress: a.solana, btcAddress: a.bitcoin }, fiat, false, failed),
+        load({ evmAddress: a.evm ?? '', solAddress: a.solana, btcAddress: a.bitcoin, tonPublicKey: a.tonPub }, fiat, false, failed, undefined, { addressOf: addressForChain, jettons: loadJettons }),
         deps.assets ? deps.assets.balances(a.evm, before2.list) : Promise.resolve({ items: [], failed: [] as string[] }),
       ]);
       // Tokens ajoutés : un réseau muet garde ses derniers soldes lus.
@@ -332,7 +337,7 @@ export function makePortfolio(deps: PortfolioDeps) {
     const { snap } = await readSnapshot(a, fiat);
     const holdings = snap?.holdings ?? [];
     const trusted = buildTrusted(verifiedContracts(holdings));
-    const own = [a.evm, a.solana, a.bitcoin].filter((x): x is string => !!x);
+    const own = [a.evm, a.solana, a.bitcoin, a.ton].filter((x): x is string => !!x);
     const known = knownCounterparties(txs, trusted, own);
     const prices = new Map(holdings.filter((h) => h.verified && h.price > 0).map((h) => [h.symbol.toUpperCase(), h.price]));
     const money = new Intl.NumberFormat(deps.locale, { style: 'currency', currency: fiat.toUpperCase() });

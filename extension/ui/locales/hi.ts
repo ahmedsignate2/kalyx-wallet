@@ -124,4 +124,5 @@ export default {
   receiveBtcNote: 'केवल बिटकॉइन, Bitcoin नेटवर्क पर। bc1 पता और कुछ स्वीकार नहीं करता।',
   recipientPhBtc: 'Bitcoin पता (bc1…)', ctNoneBtc: 'कोई Bitcoin संपर्क नहीं। सेटिंग्स, पता पुस्तिका से जोड़ें।', ctAddressPhAll: 'EVM (0x…), Solana या Bitcoin पता', e_BTC_DUST: 'इस Bitcoin पते के लिए बहुत कम: कम से कम {min} {symbol}, वरना नेटवर्क लेनदेन ठुकरा देगा।', e_BTC_TOO_MANY_INPUTS: 'एक लेनदेन में जोड़ने के लिए बहुत सारे छोटे सिक्के। कम राशि भेजें।',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'फ़ोन खाते के लिए Bitcoin साइटें अभी समर्थित नहीं हैं: इस एक्सटेंशन का कोई खाता इस्तेमाल करें।',
+  receiveTonNote: 'केवल TON नेटवर्क की संपत्तियाँ (TON और जेटन)। यहाँ पाने के लिए कोई टिप्पणी ज़रूरी नहीं।',
 };

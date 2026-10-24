@@ -1,3 +1,4 @@
+import '../lib/bufferGlobal';
 import { isOwnExtensionPage } from '../lib/internal';
 import { lockSessionToExtension, makeStore } from '../lib/storage';
 import { makeSession, AUTO_LOCK_ALARM } from '../lib/session';
