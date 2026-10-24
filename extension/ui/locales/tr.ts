@@ -130,4 +130,5 @@ export default {
   stTitle: 'Cüzdanın hazır', stBody: 'Başlamak için para ekle: kartla ya da başka bir cüzdandan veya borsadan.',
   modeNowBeginner: 'Başlangıç modu: temel bilgiler, teknik ayrıntı yok.', modeNowExpert: 'Uzman modu: her şey görünür ve ayarlanabilir.',
   obV1: 'Her imza, kabul etmeden önce açıklanır ve puanlanır', obV2: 'EVM, Solana, Bitcoin ve TON tek bir yerde', obV3: 'Anahtarların burada, şifreli kalır: başka kimse erişemez', obLockLater: 'Otomatik kilit: 15 dk, Ayarlar’dan değiştirilebilir.',
+  esNftBody: 'Bu hesabın aldığı NFT’ler burada, koleksiyona göre görünecek.', esActBody: 'Gönderimlerin, alımların ve takasların burada gün gün görünecek.', esCtBody: 'Sık kullandığın adresleri kaydet: yazdığın bir adres bunlardan birine benzerse Kalyx seni uyarır.', esSitesBody: 'Kalyx’i bir siteye bağladığında burada görünür ve tek dokunuşla bağlantıyı kesebilirsin.', esApprBody: 'Hiçbir sözleşme burada tokenlarını harcayamaz: iptal edilecek bir şey yok.', esWlBody: 'İzin verdiğin adresleri ekle: diğer tüm alıcılar engellenir.',
 };

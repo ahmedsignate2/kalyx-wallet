@@ -404,3 +404,11 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 .toast.out { opacity: 0; transform: translate(-50%, 8px); transition: opacity 0.2s, transform 0.2s; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px); } }
 @media (prefers-reduced-motion: reduce) { .toast, .mode-switch.flip .mode-opt.on { animation: none; } }
+/* États vides : une icône dans un halo, ce qui manque, ce qui viendra. */
+.empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 26px 18px 22px; }
+.empty-state .empty-halo { width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 6px; color: var(--text-secondary);
+  background: radial-gradient(circle, var(--surface-2) 58%, transparent 60%), radial-gradient(circle, color-mix(in srgb, var(--ink-send) 16%, transparent) 0, transparent 70%); box-shadow: 0 0 0 8px color-mix(in srgb, var(--surface-2) 45%, transparent); }
+.empty-state strong { font-size: 15.5px; line-height: 20px; }
+.empty-state p { margin: 0; max-width: 280px; }
+.empty-state .chip { margin-top: 8px; }
+.pane { touch-action: pan-y; }

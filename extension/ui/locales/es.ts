@@ -130,4 +130,5 @@ export default {
   stTitle: 'Tu monedero está listo', stBody: 'Añade fondos para empezar: con tarjeta, o desde otro monedero o un exchange.',
   modeNowBeginner: 'Modo Principiante: lo esencial, sin detalles técnicos.', modeNowExpert: 'Modo Experto: todo visible y ajustable.',
   obV1: 'Cada firma explicada y puntuada antes de aceptar', obV2: 'EVM, Solana, Bitcoin y TON en un solo lugar', obV3: 'Tus claves se quedan aquí, cifradas: nadie más tiene acceso', obLockLater: 'Bloqueo automático: 15 min, modificable en Ajustes.',
+  esNftBody: 'Los que reciba esta cuenta aparecerán aquí, por colección.', esActBody: 'Tus envíos, recepciones e intercambios aparecerán aquí, día a día.', esCtBody: 'Guarda las direcciones que usas a menudo: Kalyx te avisa si una dirección que escribes se parece a una de ellas.', esSitesBody: 'Cuando conectas Kalyx a un sitio, aparece aquí y puedes desconectarlo con un toque.', esApprBody: 'Ningún contrato puede gastar tus tokens aquí: nada que revocar.', esWlBody: 'Añade las direcciones que autorizas: cualquier otro destinatario quedará bloqueado.',
 };

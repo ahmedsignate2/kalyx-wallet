@@ -144,4 +144,5 @@ export default {
   stTitle: '你的钱包已就绪', stBody: '充值即可开始：用银行卡，或从其他钱包、交易所转入。',
   modeNowBeginner: '新手模式：只显示要点，不含技术细节。', modeNowExpert: '专家模式：所有内容可见、可调整。',
   obV1: '每次签名都会在你同意前得到解释和评分', obV2: 'EVM、Solana、Bitcoin 和 TON 集于一处', obV3: '密钥加密保存在这里：其他人无法访问', obLockLater: '自动锁定：15 分钟，可在设置中修改。',
+  esNftBody: '此账户收到的 NFT 会按合集显示在这里。', esActBody: '你的转出、收款和兑换会按天显示在这里。', esCtBody: '保存常用地址：输入的地址与其中某个相似时，Kalyx 会提醒你。', esSitesBody: '当你将 Kalyx 连接到网站后，它会显示在这里，一点即可断开。', esApprBody: '这里没有任何合约可以花费你的代币：无需撤销。', esWlBody: '添加你允许的地址：其他收款方都会被阻止。',
 };

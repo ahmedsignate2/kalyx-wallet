@@ -130,4 +130,5 @@ export default {
   stTitle: 'Sua carteira está pronta', stBody: 'Adicione fundos para começar: com cartão, ou de outra carteira ou exchange.',
   modeNowBeginner: 'Modo Iniciante: o essencial, sem detalhes técnicos.', modeNowExpert: 'Modo Especialista: tudo visível e ajustável.',
   obV1: 'Cada assinatura explicada e avaliada antes de você aceitar', obV2: 'EVM, Solana, Bitcoin e TON num só lugar', obV3: 'Suas chaves ficam aqui, criptografadas: ninguém mais tem acesso', obLockLater: 'Bloqueio automático: 15 min, ajustável em Configurações.',
+  esNftBody: 'Os que esta conta receber aparecerão aqui, por coleção.', esActBody: 'Seus envios, recebimentos e trocas aparecerão aqui, dia a dia.', esCtBody: 'Salve os endereços que você usa com frequência: o Kalyx avisa se um endereço digitado se parecer com um deles.', esSitesBody: 'Quando você conecta o Kalyx a um site, ele aparece aqui e pode ser desconectado com um toque.', esApprBody: 'Nenhum contrato pode gastar seus tokens aqui: nada a revogar.', esWlBody: 'Adicione os endereços que você autoriza: qualquer outro destinatário será bloqueado.',
 };

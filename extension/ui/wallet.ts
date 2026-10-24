@@ -31,7 +31,7 @@ import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScr
 import { allowedSitesSheet, capSelect, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
 import { getMode, getTheme, isExpert, setMode, setSounds, setTheme, soundsOn, type Mode, type Theme } from './prefs';
 import { play } from './sound';
-import { skeletonList, toast } from './feedback';
+import { emptyState, skeletonList, toast } from './feedback';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -630,7 +630,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { class: 'stack', style: 'gap:12px', 'data-testid': 'nfts' },
       !!nfts.failed.length && h('div', { class: 'banner warn' }, glyph('alert', 16), h('span', { class: 'grow' }, t('nftDown', { list: names(nfts.failed) }))),
       nftsLoading && h('p', { class: 'small muted' }, t('refreshing')),
-      !nfts.items.length && !nftsLoading && !nfts.failed.length && h('p', { class: 'empty' }, t('nftEmpty')),
+      !nfts.items.length && !nftsLoading && !nfts.failed.length && emptyState(glyph('create', 26), t('nftEmpty'), t('esNftBody')),
       nfts.items.length > 0 &&
         h(
           'div',
@@ -730,7 +730,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       { class: 'stack', style: 'gap:12px', 'data-testid': 'activity' },
       !!activity.failed.length && h('div', { class: 'banner warn' }, glyph('alert', 16), h('span', { class: 'grow' }, t('networksDownActivity', { list: names(activity.failed) }))),
       activityLoading && h('p', { class: 'small muted' }, t('refreshing')),
-      !activity.rows.length && !activityLoading && !activity.failed.length && h('p', { class: 'empty' }, t('noActivity')),
+      !activity.rows.length && !activityLoading && !activity.failed.length && emptyState(glyph('history', 26), t('noActivity'), t('esActBody'), h('button', { class: 'chip', type: 'button', on: { click: go(() => receiveScreen(app, home, { close: opts.mode === 'popup' })) } }, glyph('receive', 16), t('receive'))),
       // Un jour = une carte, comme l'activité de l'app.
       ...groups.flatMap((g) => [h('p', { class: 'day' }, g.label), h('div', { class: 'list card' }, ...g.items.map(activityRow))]),
       activity.hiddenCount > 0 && h('p', { class: 'small muted note' }, t('hiddenActivity', { n: activity.hiddenCount })),
@@ -780,6 +780,25 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const step = tabIdx(tab) - tabIdx(paneTab);
     paneTab = tab;
     const pane = h('div', { class: `pane${step ? ` pane-in ${step > 0 ? 'from-end' : 'from-start'}` : ''}` }, tab === 'tokens' ? tokens() : tab === 'nfts' ? nftList() : activityList());
+    // Geste : balayer le contenu vers la gauche ou la droite change d'onglet (doigt ou stylet ; la souris garde la sélection de texte).
+    let sx: number | null = null;
+    let sy = 0;
+    pane.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;
+      sx = e.clientX;
+      sy = e.clientY;
+    });
+    pane.addEventListener('pointerup', (e) => {
+      if (sx == null) return;
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      sx = null;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      const order = ['tokens', 'nfts', 'activity'] as const;
+      const next = order[tabIdx(tab) + (dx < 0 ? 1 : -1)];
+      if (next) (root.querySelector<HTMLButtonElement>(`.tabs [role=tab]:nth-child(${tabIdx(next) + 1})`))?.click();
+    });
+    pane.addEventListener('pointercancel', () => (sx = null));
     const sheet = h('section', { class: 'sheet' }, banners(), tabs(), pane);
     const root = h('div', { class: `home${opts.mode === 'popup' ? ' compact' : ''}${entered ? '' : ' enter'}` }, hero, sheet);
     entered = true;

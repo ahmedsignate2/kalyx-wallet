@@ -298,6 +298,7 @@ const fr = {
   stTitle: 'Ton portefeuille est prêt', stBody: 'Ajoute des fonds pour commencer : par carte, ou depuis un autre portefeuille ou une plateforme d’échange.',
   modeNowBeginner: 'Mode Débutant : l’essentiel, sans détails techniques.', modeNowExpert: 'Mode Expert : tout est visible et réglable.',
   obV1: 'Chaque signature expliquée et notée avant que tu acceptes', obV2: 'EVM, Solana, Bitcoin et TON au même endroit', obV3: 'Tes clés restent ici, chiffrées : personne d’autre n’y a accès', obLockLater: 'Verrouillage automatique : 15 min, modifiable dans Réglages.',
+  esNftBody: 'Ceux que ce compte reçoit apparaîtront ici, rangés par collection.', esActBody: 'Tes envois, réceptions et échanges s’afficheront ici, jour par jour.', esCtBody: 'Enregistre les adresses que tu utilises souvent : Kalyx te prévient si une adresse saisie ressemble à l’une d’elles.', esSitesBody: 'Quand tu connectes Kalyx à un site, il apparaît ici et tu peux le déconnecter d’un geste.', esApprBody: 'Aucun contrat ne peut dépenser tes tokens ici : rien à révoquer.', esWlBody: 'Ajoute les adresses que tu autorises : tout autre destinataire sera bloqué.',
 };
 
 type Dict = typeof fr;
@@ -580,6 +581,7 @@ const en: Dict = {
   stTitle: 'Your wallet is ready', stBody: 'Add funds to get started: by card, or from another wallet or an exchange.',
   modeNowBeginner: 'Beginner mode: the essentials, no technical details.', modeNowExpert: 'Expert mode: everything visible and adjustable.',
   obV1: 'Every signature explained and scored before you accept', obV2: 'EVM, Solana, Bitcoin and TON in one place', obV3: 'Your keys stay here, encrypted: nobody else can reach them', obLockLater: 'Auto-lock: 15 min, adjustable in Settings.',
+  esNftBody: 'The ones this account receives will show up here, grouped by collection.', esActBody: 'Your transfers, receipts and swaps will show up here, day by day.', esCtBody: 'Save the addresses you use often: Kalyx warns you when an address you type looks like one of them.', esSitesBody: 'When you connect Kalyx to a site, it shows up here and you can disconnect it in one tap.', esApprBody: 'No contract can spend your tokens here: nothing to revoke.', esWlBody: 'Add the addresses you allow: any other recipient will be blocked.',
 };
 
 export type Key = keyof Dict;

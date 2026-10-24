@@ -4,6 +4,7 @@
  * changement d'adresse) ; l'écran montre ses avertissements et ne passe une
  * confirmation que si la personne a coché la case.
  */
+import { emptyState } from './feedback';
 import { glyph } from './glyph';
 import { h, send } from './dom';
 import { errorText, LOCALE, t } from './i18n';
@@ -135,7 +136,7 @@ export function contactsScreen(app: HTMLElement, back: () => void) {
     body.replaceChildren(
       list.length
         ? h('div', { class: 'list card', 'data-testid': 'contacts' }, ...list.map((c) => contactRow(c, () => contactSheet(c, () => void draw(false)))))
-        : h('div', { class: 'empty-card card' }, glyph('wallet', 28), h('p', { class: 'muted' }, t('ctEmpty'))),
+        : emptyState(glyph('wallet', 26), t('ctEmpty'), t('esCtBody')),
     );
     if (first) cascade(body.querySelectorAll('.row'));
   };

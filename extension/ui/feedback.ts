@@ -62,3 +62,15 @@ export function toast(text: string, ms = 2400): void {
     setTimeout(() => el.remove(), 220);
   }, ms);
 }
+
+/** État vide soigné : une icône dans un halo, ce qui manque, ce qui viendra — et, si utile, un geste. */
+export function emptyState(icon: Node, title: string, body?: string, action?: HTMLElement, testid?: string): HTMLElement {
+  return h(
+    'div',
+    { class: 'empty-state', 'data-testid': testid ?? false },
+    h('span', { class: 'empty-halo', 'aria-hidden': 'true' }, icon),
+    h('strong', {}, title),
+    body && h('p', { class: 'small muted' }, body),
+    action ?? null,
+  );
+}

@@ -40,8 +40,10 @@ html, body { margin: 0; background: var(--bg); color: var(--text); font: 500 16p
 #app > * { position: relative; }
 
 /* Échelle de texte de l'app (ui/tokens.ts → type). */
-h1 { font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.6px; margin: 0; }
-p { margin: 0; }
+h1 { font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.6px; margin: 0; text-wrap: balance; }
+p { margin: 0; text-wrap: pretty; }
+/* Montants : chiffres de même largeur partout (rien ne « danse » quand ça compte). */
+.total, .token-value, .score-num, .flow strong, .right strong, .kv-row strong { font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-secondary); }
 .small { font-size: 13px; line-height: 18px; }
 .micro { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.2px; color: var(--text-tertiary); }
@@ -62,6 +64,14 @@ p { margin: 0; }
 
 /* Carte : LE conteneur de l'app (surface 1, rayon 24, liseré de lumière en haut). */
 .card { background: var(--surface-1); border: 1px solid var(--border); border-top-color: var(--rim); border-radius: 24px; padding: 16px; box-shadow: var(--depth); }
+/*
+ * Nuit, plus raffinée : les cartes reçoivent une lumière douce venue du haut
+ * (au lieu d'un aplat), les champs un fond un cran plus profond que les
+ * cartes, et le focus un halo chaud plutôt qu'un simple liseré.
+ */
+:root:not([data-theme="light"]) .card { background: linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 92%, #fff 3%) 0%, var(--surface-1) 42%); }
+:root:not([data-theme="light"]) input, :root:not([data-theme="light"]) textarea, :root:not([data-theme="light"]) select { background: color-mix(in srgb, var(--surface-2) 88%, #000); }
+:root:not([data-theme="light"]) body { background: radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--bg) 92%, #3a2a24) 0%, var(--bg) 60%) fixed, var(--bg); }
 
 /* Boutons : principal (la Lumière), secondaire (Orbite), discret. */
 .btn { appearance: none; border: 1px solid transparent; border-radius: 20px; min-height: 58px; padding: 0 22px; font: 600 16px/22px var(--font); cursor: pointer; background: var(--primary); color: var(--on-primary); width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: transform 0.12s; }
@@ -75,7 +85,7 @@ p { margin: 0; }
 /* Champs (Input du kit : surface 2, rayon 12). */
 input, textarea, select { width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 12px; min-height: 52px; padding: 13px 14px; font: 500 16px var(--font); outline: none; }
 input[type=checkbox], input[type=radio] { width: auto; min-height: 0; accent-color: var(--primary); }
-input:focus, textarea:focus, select:focus { border-color: var(--text-secondary); }
+input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var(--ink-send) 60%, var(--border)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink-send) 16%, transparent); }
 select:not(.account) { appearance: none; -webkit-appearance: none; padding-inline-end: 40px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 20px center, right 15px center; background-size: 5px 5px; background-repeat: no-repeat; }
 /* Clavier : un anneau visible sur tout ce qui se manipule. */
 :focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 2px; }
