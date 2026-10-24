@@ -38,15 +38,15 @@
 
 /* Solde : centré, en grand. */
 .summary { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding-top: 6px; }
-.total { font-size: 44px; line-height: 50px; font-weight: 600; letter-spacing: -1.6px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.total { font-size: 54px; line-height: 60px; font-weight: 650; letter-spacing: -2.2px; text-shadow: 0 2px 18px color-mix(in srgb, var(--bg) 35%, transparent); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pill { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 3px 11px; border-radius: 999px; background: color-mix(in srgb, var(--surface-1) 55%, transparent); font-size: 12.5px; line-height: 18px; font-weight: 600; font-variant-numeric: tabular-nums; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .pill.gain { color: var(--up); }
 .pill.loss { color: var(--down); }
 .pill.quiet { font-weight: 500; color: var(--text-secondary); background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; min-height: 0; padding: 0; font-size: 12px; }
 
 /* Gestes : disques de 52 px, le libellé dessous. */
-.acts { display: flex; justify-content: center; gap: 22px; }
-.act { --a-ink: var(--ink-receive); display: flex; flex-direction: column; align-items: center; gap: 7px; border: 0; background: none; color: var(--text); cursor: pointer; padding: 0; font: 600 12.5px/16px var(--font); min-width: 64px; }
+.acts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); justify-items: center; gap: 4px; max-width: 360px; width: 100%; margin: 0 auto; }
+.act { --a-ink: var(--ink-receive); display: flex; flex-direction: column; align-items: center; gap: 7px; border: 0; background: none; color: var(--text); cursor: pointer; padding: 0; font: 600 12.5px/16px var(--font); min-width: 0; width: 100%; }
 .act .disc { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--text); background: color-mix(in srgb, var(--surface-1) 55%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent), 0 6px 16px rgba(0, 0, 0, 0.12); transition: transform 0.14s cubic-bezier(0.3, 0.7, 0.4, 1.5), box-shadow 0.14s; }
 .act:hover .disc { transform: translateY(-2px); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent), 0 10px 20px rgba(0, 0, 0, 0.16); }
 .act:active .disc { transform: scale(0.92); }
@@ -70,8 +70,8 @@
 
 /* Popup (360 × 600) : même design, en plus serré, pour que les tokens soient visibles sans défiler. */
 .compact .hero { gap: 14px; padding-bottom: 46px; }
-.compact .total { font-size: 40px; line-height: 46px; }
-.compact .acts { gap: 18px; }
+.compact .total { font-size: 48px; line-height: 54px; letter-spacing: -1.8px; }
+.compact .acts { gap: 2px; }
 .compact .act .disc { width: 48px; height: 48px; }
 
 /* Onglets : une piste, la pilule glisse sous l'onglet actif. */
@@ -335,8 +335,6 @@ details > summary::-webkit-details-marker { display: none; }
 
 /* Échanger : cinq gestes tiennent dans le popup (360 px). */
 .act.swap .disc { color: var(--ink-swap); }
-.acts:has(> :nth-child(5)) { gap: 10px; }
-.acts:has(> :nth-child(5)) .act { min-width: 58px; }
 
 /* ── Aide et infos (vague 5) ── */
 .faq details.banner > summary { text-align: start; color: var(--text); font-weight: 600; }
@@ -367,3 +365,15 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 .pick .swatch.light { background: #F4EEE5; }
 .pick .swatch.system { background: linear-gradient(90deg, #F4EEE5 50%, #0B0B10 50%); }
 @media (prefers-reduced-motion: reduce) { .success-badge { animation: none; } details.adv > summary > .glyph:last-child { transition: none; } }
+
+/* Solde inconnu : un tiret discret, pas un grand vide. */
+.total.unknown { opacity: 0.55; }
+/* Portefeuille vide ou presque : une carte de départ, deux gestes réels. */
+.starter { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 22px 18px 18px; }
+.starter-mark { width: 56px; height: 56px; border-radius: 18px; display: inline-flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--ink-send) 30%, transparent), transparent 70%); }
+.starter-mark img { width: 40px; height: 40px; }
+.starter strong { font-size: 17px; line-height: 22px; }
+.starter p { margin: 0; max-width: 300px; }
+.starter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
+.starter-actions .btn { min-height: 46px; font-size: 15px; border-radius: 16px; }
+.total .minor { font-size: 0.56em; font-weight: 600; letter-spacing: -0.5px; opacity: 0.72; }

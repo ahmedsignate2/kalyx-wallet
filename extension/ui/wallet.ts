@@ -97,6 +97,11 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   };
 
   const money = (n: number) => new Intl.NumberFormat(LOCALE, { style: 'currency', currency: (data?.fiat ?? 'usd').toUpperCase() }).format(n);
+  /** Le solde en grand : la partie entière domine, centimes et devise en retrait (le texte lu reste le montant exact). */
+  const paintTotal = (el: HTMLElement, n: number) => {
+    const parts = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: (data?.fiat ?? 'usd').toUpperCase() }).formatToParts(n);
+    el.replaceChildren(...parts.map((p) => (p.type === 'integer' || p.type === 'group' || p.type === 'minusSign' ? p.value : h('span', { class: 'minor' }, p.value))));
+  };
   const ago = (at: number) => {
     const s = Math.max(0, Math.round((Date.now() - at) / 1000));
     if (s < 60) return t('justNow');
@@ -308,7 +313,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       'section',
       { class: 'summary' },
       // Le solde, en grand sur le ciel ; inconnu reste « — », jamais un 0 inventé. Premier chargement : un reflet.
-      h('p', { class: `total${total == null && firstLoad ? ' skel' : ''}`, 'data-testid': 'total' }, total == null ? '—' : money(total)),
+      h('p', { class: `total${total == null && firstLoad ? ' skel' : ''}${total == null && !firstLoad ? ' unknown' : ''}`, 'data-testid': 'total' }, total == null ? '—' : money(total)),
       pnl != null && p?.pnl24hPct != null
         ? h('p', { class: `pill ${up ? 'gain' : 'loss'}` }, glyph(up ? 'trendUp' : 'trendDown', 14), `${up ? '+' : '−'}${money(Math.abs(pnl))} (${up ? '+' : '−'}${Math.abs(p.pnl24hPct).toFixed(1)} %) · 24 h`)
         : null,
@@ -334,10 +339,10 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     return h(
       'nav',
       { class: 'acts' },
+      act('buy', 'buy', t('buy'), buySheet),
       act('send primary', 'send', t('send'), go(() => sendScreen(app, home))),
       act('rx', 'receive', t('receive'), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))),
       act('swap', 'exchange', t('swShort'), go(() => swapScreen(app, home, { onPhone: current().w?.kind === 'companion' }))),
-      act('buy', 'buy', t('buy'), buySheet),
       act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
     );
   }
@@ -534,7 +539,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const list: (Node | false | null)[] = [];
     const custom = p.custom ?? [];
     const muted = p.muted ?? [];
-    if (!p.main.length && !p.small.length && !custom.length && p.at && !p.failed.length) list.push(h('p', { class: 'empty' }, t('noTokens')));
+    // Solde nul ou presque (lu, pas inconnu) : une carte de départ plutôt qu'une ligne vide.
+    if (p.at && p.total != null && p.total < 1 && !p.failed.length && !custom.length) list.push(starter());
+    else if (!p.main.length && !p.small.length && !custom.length && p.at && !p.failed.length) list.push(h('p', { class: 'empty' }, t('noTokens')));
     // Une carte par groupe (Card de l'app) : les lignes portent leurs séparateurs.
     if (p.main.length) list.push(h('div', { class: 'list card' }, ...p.main.map(tokenRow)));
     if (custom.length) list.push(h('p', { class: 'day' }, t('tkAddedGroup')), h('div', { class: 'list card', 'data-testid': 'custom-tokens' }, ...custom.map(tokenRow)));
@@ -551,6 +558,23 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       ),
     );
     return h('div', { class: 'stack', style: 'gap:12px' }, ...list);
+  }
+
+  /** Portefeuille vide : ce qu'il est, et les deux façons réelles d'y mettre des fonds. */
+  function starter() {
+    return h(
+      'section',
+      { class: 'card starter', 'data-testid': 'starter' },
+      h('span', { class: 'starter-mark', 'aria-hidden': 'true' }, h('img', { src: '/icon/128.png', alt: '' })),
+      h('strong', {}, t('stTitle')),
+      h('p', { class: 'small muted' }, t('stBody')),
+      h(
+        'div',
+        { class: 'starter-actions' },
+        h('button', { class: 'btn', type: 'button', on: { click: () => void buySheet() } }, glyph('buy', 18), t('buy')),
+        h('button', { class: 'btn secondary', type: 'button', on: { click: go(() => receiveScreen(app, home, { close: opts.mode === 'popup' })) } }, glyph('receive', 18), t('receive')),
+      ),
+    );
   }
 
   /** Ajouter un token : les réseaux EVM affichés, puis relecture des soldes. */
@@ -764,8 +788,11 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     const total = data.portfolio?.total ?? null;
     const fiat = data.fiat ?? '';
     const el = root.querySelector<HTMLElement>('[data-testid=total]');
-    if (el && total != null && shownTotal != null && fiat === shownFiat && shownTotal !== total) countUp(el, shownTotal, total, money);
-    else if (el && total != null && shownTotal == null) el.classList.add('pop');
+    if (el && total != null && shownTotal != null && fiat === shownFiat && shownTotal !== total) countUp(el, shownTotal, total, money, 700, paintTotal);
+    else if (el && total != null) {
+      paintTotal(el, total);
+      if (shownTotal == null) el.classList.add('pop');
+    }
     shownTotal = total;
     shownFiat = fiat;
   }
