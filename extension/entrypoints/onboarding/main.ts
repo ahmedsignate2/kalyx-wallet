@@ -535,7 +535,7 @@ function importKeyScreen() {
         },
       },
     },
-    h('div', { class: 'seg' }, radio('evm', t('keyEvm'), true), radio('solana', t('keySolana'))),
+    h('div', { class: 'seg' }, radio('evm', t('keyEvm'), true), radio('solana', t('keySolana')), radio('bitcoin', 'Bitcoin')),
     area,
     h('p', { class: 'small muted' }, t('keyNote')),
     err,

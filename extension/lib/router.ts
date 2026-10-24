@@ -176,7 +176,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         return { ok: true, wallet: await wallets.importPhrase(m.phrase, optLabel(m.label)) };
       case 'wallet:import-key':
         if (await phoneOnly()) return noLocalKeys;
-        if (!str(m.key, 400) || (m.family !== 'evm' && m.family !== 'solana')) return { ok: false, error: 'BAD_REQUEST' };
+        if (!str(m.key, 400) || (m.family !== 'evm' && m.family !== 'solana' && m.family !== 'bitcoin')) return { ok: false, error: 'BAD_REQUEST' };
         return { ok: true, wallet: await wallets.importKey(m.key, m.family, optLabel(m.label)) };
       case 'wallet:import-backup':
         if (await phoneOnly()) return noLocalKeys;

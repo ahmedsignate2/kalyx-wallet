@@ -9,6 +9,7 @@ import { accountActivity, discoverAccounts, type Rpc } from './discovery';
 import { createWalletsBackup } from '../../src/domain/backup/cloudBackup';
 import { deriveEvmAccount } from '../../src/crypto/hd';
 import { mnemonicToSeedSync } from '../../src/crypto/mnemonic';
+import { signerFor, signerAddress } from './signer';
 
 const ABOUT = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const EVM0 = '0x9858EfFD232B4033E47d90003D41EC34EcaEda94';
@@ -81,7 +82,7 @@ describe('portefeuilles de l’extension', () => {
     await expect(wallets.importKey('pas une clé', 'evm')).rejects.toThrow('INVALID_KEY');
   });
 
-  test('sauvegarde du mobile : phrase + clé EVM reprises ; Bitcoin et doublon comptés, jamais perdus en silence', async () => {
+  test('sauvegarde du mobile : phrase, clé EVM et clé Bitcoin reprises ; doublon compté, jamais perdu en silence', async () => {
     await wallets.importKey(PK, 'evm');
     const file = await createWalletsBackup(
       [
@@ -92,8 +93,10 @@ describe('portefeuilles de l’extension', () => {
       'Sauvegarde-Mobile-9',
     );
     const r = await wallets.importBackup(file, 'Sauvegarde-Mobile-9');
-    expect(r.added.map((w) => w.label)).toEqual(['Principal']);
-    expect(r.skipped).toEqual([{ label: 'Clé EVM', reason: 'DUPLICATE' }, { label: 'Clé BTC', reason: 'UNSUPPORTED_FAMILY' }]);
+    expect(r.added.map((w) => w.label)).toEqual(['Principal', 'Clé BTC']);
+    expect(r.skipped).toEqual([{ label: 'Clé EVM', reason: 'DUPLICATE' }]);
+    expect(r.added[1]).toMatchObject({ kind: 'privateKey', family: 'bitcoin' });
+    expect(r.added[1].accounts[0].bitcoin).toMatch(/^bc1q[0-9a-z]{38}$/);
     const principal = (await wallets.list()).find((w) => w.label === 'Principal')!;
     expect(principal.accounts.map((a) => a.index)).toEqual([0, 2]); // comptes nommés de la sauvegarde
     await expect(wallets.importBackup(file, 'mauvais')).rejects.toThrow('BACKUP_WRONG_PASSWORD');
@@ -241,3 +244,27 @@ describe('gérer les portefeuilles', () => {
     await expect(wallets.exportBackup('Sauvegarde-Solide-93!')).rejects.toThrow('NOTHING_TO_BACKUP');
   });
 });
+
+describe('clés Bitcoin et phrases TON', () => {
+  test('clé Bitcoin (WIF du vecteur BIP-84) : la même adresse bc1 que la phrase, et la signature vient de cette clé', async () => {
+    const w = await wallets.importKey('KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d', 'bitcoin');
+    expect(w.accounts[0].bitcoin).toBe('bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
+    expect(w.accounts[0].bitcoinPub).toMatch(/^0[23][0-9a-f]{64}$/);
+    const s = await signerFor(session, wallets, w.id, 0, 'bitcoin', w.accounts[0].bitcoin!);
+    expect(signerAddress(s, 'bitcoin')).toBe(w.accounts[0].bitcoin);
+    await expect(signerFor(session, wallets, w.id, 0, 'evm', '0x9858EfFD232B4033E47d90003D41EC34EcaEda94')).rejects.toThrow();
+  });
+
+  test('phrase TON native (vecteur officiel) : un compte TON, la clé de Tonkeeper ; aucune autre famille', async () => {
+    const PHRASE = 'hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution';
+    const w = await wallets.importPhrase(PHRASE, 'TON');
+    expect(w).toMatchObject({ kind: 'seed', phrase: 'ton' });
+    expect(w.accounts).toHaveLength(1);
+    expect(w.accounts[0]).toMatchObject({ tonPub: 'f6c450a16bb1c514e22f1977e390a3025599aa1e7b00068a6aacf2119484c1bd', ton: 'UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h' });
+    expect(w.accounts[0].evm).toBeUndefined();
+    const s = await signerFor(session, wallets, w.id, 0, 'ton', w.accounts[0].ton!);
+    expect(signerAddress(s, 'ton')).toBe(w.accounts[0].ton);
+    await expect(wallets.addAccounts(w.id, [1])).rejects.toThrow('NOT_SUPPORTED');
+  });
+});
+

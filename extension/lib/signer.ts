@@ -54,11 +54,13 @@ export async function signerFor(session: Session, wallets: Wallets, walletId: st
       if (family === 'evm') return { result: signerFromEvmPrivateKey(secret) };
       const raw = hexToBytes(secret);
       try {
-        return { result: signerFromRawKey('solana', raw) };
+        return { result: signerFromRawKey(family === 'bitcoin' ? 'bitcoin' : 'solana', raw) };
       } finally {
         raw.fill(0);
       }
     }
+    // Phrase TON native : aucune autre famille n'en dérive (ce ne serait pas la même clé que les autres portefeuilles).
+    if (meta?.phrase === 'ton') throw new WalletError('NOT_SUPPORTED', `WRONG_FAMILY:${family}`);
     const seed = await mnemonicToSeed(secret);
     try {
       return { result: signerFromSeed(family, seed, index) };

@@ -18,7 +18,8 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { generateMnemonic, mnemonicToSeed, validateMnemonic } from '../../src/crypto/mnemonic';
 import { deriveEvmAccount, evmAccountFromPrivateKey } from '../../src/crypto/hd';
 import { deriveSolanaAccount, deriveSolanaSigner } from '../../src/crypto/solana';
-import { deriveBtcAccount } from '../../src/crypto/btc';
+import { deriveBtcAccount, p2wpkhAddress } from '../../src/crypto/btc';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { tonPublicKeyFromPhraseAsync } from '../../src/domain/chains/ton/tonKeys';
 import { addressForChain } from '../../lib/accountAddress';
 import { TON } from '../../src/domain/chains/configs';
@@ -30,7 +31,7 @@ import { addSecret, readSecret, removeSecret } from './vault';
 import type { Store } from './storage';
 import type { Session } from './session';
 
-export type Family = 'evm' | 'solana';
+export type Family = 'evm' | 'solana' | 'bitcoin';
 
 export interface AccountMeta {
   index: number;
@@ -56,6 +57,8 @@ export interface WalletMeta {
   kind: 'seed' | 'privateKey' | 'companion';
   /** Famille d'une clé importée (une clé ne sert qu'une famille). */
   family?: Family;
+  /** Phrase TON native (24 mots Tonkeeper, pas BIP-39) : un seul compte, TON seulement. */
+  phrase?: 'ton';
   /** Mode compagnon : session WalletConnect avec le téléphone, réseaux EVM partagés, lien perdu. */
   topic?: string;
   evmChains?: number[];
@@ -121,6 +124,11 @@ export function accountFromKey(input: string, family: Family): { account: Accoun
       const a = evmAccountFromPrivateKey(`0x${secretHex}`);
       return { account: { index: 0, label: 'Compte 1', evm: a.address }, secret: `0x${secretHex}` };
     }
+    if (family === 'bitcoin') {
+      // Adresse SegWit native (bc1q…), clé publique compressée : celles que l'app calcule pour la même clé.
+      const pub = secp256k1.getPublicKey(parsed.key.secret, true);
+      return { account: { index: 0, label: 'Compte 1', bitcoin: p2wpkhAddress(pub), bitcoinPub: bytesToHex(pub) }, secret: secretHex };
+    }
     return { account: { index: 0, label: 'Compte 1', solana: base58.encode(ed25519.getPublicKey(parsed.key.secret)) }, secret: secretHex };
   } finally {
     parsed.key.secret.fill(0);
@@ -159,7 +167,14 @@ export function makeWallets(disk: Store, session: Session) {
   async function importPhrase(input: string, label = 'Portefeuille importé'): Promise<WalletMeta> {
     const phrase = normalizePhrase(input);
     const kind = classifyRecoveryPhrase(phrase);
-    if (kind === 'ton') throw new WalletError('UNSUPPORTED_PHRASE'); // TON : v2
+    if (kind === 'ton') {
+      // Phrase TON native : sa clé est celle de Tonkeeper, son seul compte est TON.
+      const ton = await tonOf(phrase);
+      if (!ton.tonPub) throw new WalletError('INVALID_PHRASE');
+      const meta: WalletMeta & { kind: 'seed' } = { id: newId(), label, kind: 'seed', phrase: 'ton', createdAt: Date.now(), backedUp: true, accounts: [{ index: 0, label: 'Compte 1', ...ton }] };
+      await add(meta, phrase);
+      return meta;
+    }
     if (kind !== 'bip39' || !validateMnemonic(phrase)) throw new WalletError('INVALID_PHRASE');
     const meta: WalletMeta & { kind: 'seed' } = { id: newId(), label, kind: 'seed', createdAt: Date.now(), backedUp: true, accounts: await accountsFromPhrase(phrase, [0]) };
     await add(meta, phrase);
@@ -175,7 +190,7 @@ export function makeWallets(disk: Store, session: Session) {
 
   /**
    * Sauvegarde chiffrée du MOBILE : chaque portefeuille qu'elle contient est
-   * repris, sauf ceux que l'extension ne sait pas encore servir (Bitcoin, TON)
+   * repris, sauf ceux que l'extension ne sait pas encore servir
    * ou qu'elle a déjà — ils sont comptés, jamais perdus en silence.
    */
   async function importBackup(file: string, password: string): Promise<{ added: WalletMeta[]; skipped: { label: string; reason: string }[] }> {
@@ -192,7 +207,7 @@ export function makeWallets(disk: Store, session: Session) {
           const extra = (w.accounts ?? []).map((a) => a.index).filter((i) => i > 0);
           if (extra.length) await addAccounts(meta.id, extra);
           added.push(meta);
-        } else if (w.keyFamily === 'evm' || w.keyFamily === 'solana') {
+        } else if (w.keyFamily === 'evm' || w.keyFamily === 'solana' || w.keyFamily === 'bitcoin') {
           added.push(await importKey(w.secret, w.keyFamily, label));
         } else {
           skipped.push({ label, reason: 'UNSUPPORTED_FAMILY' });
@@ -210,6 +225,7 @@ export function makeWallets(disk: Store, session: Session) {
       const all = await list();
       const w = all.find((x) => x.id === walletId);
       if (!w || w.kind !== 'seed') throw new WalletError('UNKNOWN_WALLET');
+      if (w.phrase === 'ton') throw new WalletError('NOT_SUPPORTED');
       const fresh = indexes.filter((i) => Number.isInteger(i) && i >= 0 && i < 100 && !w.accounts.some((a) => a.index === i));
       if (fresh.length) {
         const { secret } = readSecret(vault, key, walletId);
@@ -294,7 +310,7 @@ export function makeWallets(disk: Store, session: Session) {
    * ne fait rien s'il n'y a rien à compléter.
    */
   async function backfillBitcoin(): Promise<boolean> {
-    const missing = (await list()).filter((w) => w.kind === 'seed' && w.accounts.some((a) => !a.bitcoin || !a.bitcoinPub || (a.index === 0 && !a.tonPub)));
+    const missing = (await list()).filter((w) => w.kind === 'seed' && w.phrase !== 'ton' && w.accounts.some((a) => !a.bitcoin || !a.bitcoinPub || (a.index === 0 && !a.tonPub)));
     if (!missing.length) return false;
     const filled = await session.withVault(async (vault, key) => {
       const out = new Map<string, Map<number, { bitcoin?: string; bitcoinPub?: string; ton?: string; tonPub?: string }>>();
@@ -313,7 +329,7 @@ export function makeWallets(disk: Store, session: Session) {
   async function addressTable(walletId: string, max = 20): Promise<AccountMeta[]> {
     return session.withVault(async (vault, key) => {
       const w = (await list()).find((x) => x.id === walletId);
-      if (!w || w.kind !== 'seed') throw new WalletError('UNKNOWN_WALLET');
+      if (!w || w.kind !== 'seed' || w.phrase === 'ton') throw new WalletError('UNKNOWN_WALLET');
       const { secret } = readSecret(vault, key, walletId);
       return { result: await accountsFromPhrase(secret, Array.from({ length: max }, (_, i) => i + 1)) };
     });
@@ -389,7 +405,7 @@ export function makeWallets(disk: Store, session: Session) {
       const { secret } = readSecret(vault, key, walletId);
       if (w.kind === 'privateKey') {
         if (w.family !== family) throw new WalletError('WRONG_FAMILY');
-        if (family === 'evm') return { result: secret };
+        if (family === 'evm' || family === 'bitcoin') return { result: secret };
         const seed = hexToBytes(secret);
         try {
           return { result: base58.encode(new Uint8Array([...seed, ...ed25519.getPublicKey(seed)])) };

@@ -21,6 +21,7 @@ export interface ManagedWallet {
   id: string;
   label: string;
   kind?: 'seed' | 'privateKey' | 'companion';
+  phrase?: 'ton';
   family?: 'evm' | 'solana';
   accounts: { index: number; label: string; evm?: string; solana?: string }[];
 }
@@ -163,7 +164,7 @@ export function manageWalletScreen(app: HTMLElement, back: () => void, w: Manage
   const action = (icon: string, label: string, fn: () => void, testid: string, cls = '') =>
     h('button', { class: `row link-row ${cls}`.trim(), type: 'button', 'data-testid': testid, on: { click: fn } }, h('span', { class: 'set-ico' }, glyph(icon, 18)), h('span', { class: 'grow' }, h('strong', {}, label)), glyph('chevron', 16));
 
-  const accounts = h('div', { class: 'list card' }, ...w.accounts.map(accountRow), w.kind === 'seed' ? addAccount : false);
+  const accounts = h('div', { class: 'list card' }, ...w.accounts.map(accountRow), w.kind === 'seed' && w.phrase !== 'ton' ? addAccount : false);
   app.replaceChildren(
     h(
       'div',
