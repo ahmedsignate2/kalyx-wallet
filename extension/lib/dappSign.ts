@@ -26,6 +26,7 @@ import type { ChainConfig } from '../../src/domain/chains/types';
 import { EvmChainAdapter, type RawTxRequest } from '../../src/domain/chains/EvmChainAdapter';
 import { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
 import { simulateSolanaTx } from '../../src/domain/tx/solanaSimulate';
+import { knownSpender } from '../../src/domain/security/knownSpenders';
 import { decodeTx } from '../../src/domain/tx/decodeTx';
 import { simulateTx, type Simulation } from '../../src/domain/tx/simulate';
 import { explainRequest, type ExplainT, type SignExplanation } from '../../src/domain/wc/explain';
@@ -267,6 +268,8 @@ export interface ReviewDeps {
   site?: (origin: string) => Promise<{ known: boolean; tampered: string[] }>;
   /** Prix d'un actif dans la devise affichée (natif si pas de contrat), null s'il est inconnu. */
   priceOf?: (chainId: string, contract?: string) => Promise<number | null>;
+  /** Injectable (tests) : code déployé à une adresse ('0x' = une personne, pas un contrat). */
+  codeOf?: (chain: ChainConfig, address: string) => Promise<string>;
   /** Injectable (tests) : simulation d'une transaction Solana pour ce compte. */
   simulateSolana?: (txB64: string, owner: string) => Promise<Simulation>;
 }
@@ -291,6 +294,24 @@ export async function readTokenMeta(chain: ChainConfig, token: string): Promise<
   } catch {
     return null;
   }
+}
+
+/**
+ * À QUI va une autorisation. Un protocole connu : rien de plus. Une adresse
+ * sans code (une personne) : aucun site honnête ne demande ça — signal fort.
+ * Un contrat inconnu : compté quand l'autorisation est sans limite. Un
+ * bénéficiaire signalé par GoPlus : contrat malveillant.
+ */
+async function spenderSignals(chain: ChainConfig, spender: string, broad: boolean, deps: ReviewDeps, signals: RiskSignals): Promise<void> {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(spender) || /^0x0{40}$/.test(spender) || knownSpender(spender)) return;
+  const codeOf = deps.codeOf ?? ((c: ChainConfig, a: string) => (getAdapter(c.id) as EvmChainAdapter).getCode(a));
+  const [code, flagged] = await Promise.all([
+    withTimeoutOrNull(codeOf(chain, spender)),
+    chain.evmChainId ? withTimeoutOrNull((deps.assess ?? assessAddress)(chain.evmChainId, spender)) : null,
+  ]);
+  if (flagged?.level === 'danger') signals.contractDanger = true;
+  if (code === '0x') signals.spenderNotContract = true;
+  else if (broad) signals.spenderUnknown = true;
 }
 
 /**
@@ -357,6 +378,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     const addressRisk = chain?.evmChainId && s?.verifyingContract ? await risk(chain.evmChainId, s.verifyingContract) : null;
     const explanation = explainRequest({ kind: 'typedData', domain: host, typed: s, tokenSymbol: meta?.symbol ?? null, tokenDecimals: meta?.decimals ?? null, addressRisk, phishingSite, connectedChainId: chain?.evmChainId, t });
     if (explanation.canReduceApproval) sig.unlimitedApproval = true;
+    if (chain && s?.spender && (s.permit2 || /permit/i.test(s.primaryType ?? ''))) await spenderSignals(chain, s.spender, !!s.unlimited, deps, sig);
     if (s?.details?.some((d) => /échéance|deadline/i.test(d.label) && /sans expiration/i.test(d.value))) sig.permitNoExpiry = true;
     if (s?.order) sig.nftOrder = true;
     return {
@@ -385,6 +407,8 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     const explanation = explainRequest({ kind: 'tx', domain: host, decoded, simulation: sim, addressRisk, phishingSite, nativeSymbol: chain.nativeSymbol, nativeDecimals: chain.nativeDecimals, txValue: value, t });
     if (decoded.kind === 'approveAll' && decoded.approved) sig.approveAll = true;
     if (decoded.kind === 'approve' && decoded.unlimited) sig.unlimitedApproval = true;
+    if (decoded.kind === 'approve' && decoded.amount > 0n) await spenderSignals(chain, decoded.spender, decoded.unlimited, deps, sig);
+    if (decoded.kind === 'approveAll' && decoded.approved) await spenderSignals(chain, decoded.operator, true, deps, sig);
     // Perte sans contrepartie : signe d'un drain quand un CONTRAT est appelé (un simple paiement, lui, ne « reçoit » jamais rien).
     if (req.tx.data.length > 2 && sim && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
     if (!sim && (value > 0n || req.tx.data.length > 2)) sig.noSimulation = true;

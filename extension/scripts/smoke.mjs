@@ -596,7 +596,7 @@ async function hardening() {
     const sigWin = await win(() => true);
     await sigWin.locator('[data-testid=risk-score]').waitFor();
     const txt = await sigWin.locator('[data-testid=risk-score]').textContent();
-    txt.includes('Page altérée') && txt.includes('45/100') ? console.log('✓ faux « Kalyx » annoncé par la page : « Page altérée » dans le score (45/100)') : fail(`page altérée ${txt}`);
+    txt.includes('Page altérée') && txt.includes('50/100') ? console.log('✓ faux « Kalyx » annoncé par la page : « Page altérée » dans le score (50/100)') : fail(`page altérée ${txt}`);
     if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sigWin.emulateMedia({ colorScheme: scheme }), await sigWin.waitForTimeout(300), await sigWin.screenshot({ path: join(process.env.SHOTS, `risk-tampered-${scheme}.png`) });
     await sigWin.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
     (await site.evaluate(() => window.kx.s)).code === 4001 ? console.log('✓ refusé : rien de signé') : fail('refus');
@@ -1371,7 +1371,7 @@ async function dapps() {
     (await sw1.locator('[data-testid=message]').textContent()) === 'Bonjour Kalyx' ? console.log('✓ message montré en clair') : fail('message');
     // Score local : site connecté à l'instant (+5), rien d'autre → faible.
     const num1 = await sw1.locator('[data-testid=risk-num]').textContent();
-    num1 === '5/100' && (await sw1.locator('[data-testid=risk-score]').getAttribute('class')).includes('low') ? console.log('✓ score de risque : 5/100, faible (site tout juste connecté)') : fail(`score ${num1}`);
+    num1 === '10/100' && (await sw1.locator('[data-testid=risk-score]').getAttribute('class')).includes('low') ? console.log('✓ score de risque : 10/100, faible (site tout juste connecté)') : fail(`score ${num1}`);
     if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-sign-${scheme}.png`), fullPage: true });
     await sw1.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true, timeout: 5000 }).catch(() => {});
     r = await page.evaluate(() => window.kx.p);
@@ -1386,7 +1386,7 @@ async function dapps() {
     await sw1.locator('[data-testid=risk]').waitFor();
     (await sw1.locator('[data-testid=risk]').textContent()).startsWith('Danger') ? console.log('✓ SIWE d’un autre domaine : « Danger »') : fail('risque SIWE');
     const sc2 = await sw1.locator('[data-testid=risk-score]').textContent();
-    sc2.includes('55/100') && sc2.includes('Message prévu pour un autre site (evil.example)') ? console.log('✓ score : 55/100, raison « message prévu pour un autre site » en premier') : fail(`score SIWE ${sc2}`);
+    sc2.includes('60/100') && sc2.includes('Message prévu pour un autre site (evil.example)') ? console.log('✓ score : 60/100, raison « message prévu pour un autre site » en premier') : fail(`score SIWE ${sc2}`);
     if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-danger-${scheme}.png`), fullPage: true });
     const hold = sw1.getByRole('button', { name: 'Maintenir pour signer' });
     await sw1.waitForTimeout(900);

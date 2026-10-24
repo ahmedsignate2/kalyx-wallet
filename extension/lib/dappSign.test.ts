@@ -256,7 +256,7 @@ describe('explication (fenêtre)', () => {
     expect(off.preview).toEqual({ status: 'unavailable' });
   });
 
-  const quiet = { t: explainT, phishing: async () => false, assess: async () => null as never, simulate: async () => ({ source: 'static', changes: [], approvals: [] }) as never, tokenMeta: async () => ({ symbol: 'USDC', decimals: 6 }) };
+  const quiet = { t: explainT, phishing: async () => false, assess: async () => null as never, simulate: async () => ({ source: 'static', changes: [], approvals: [] }) as never, tokenMeta: async () => ({ symbol: 'USDC', decimals: 6 }), codeOf: async () => '0x6080' };
 
   test('approbation illimitée : risque signalé, réduction proposée', async () => {
     const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveData(MAX), value: '0x0' } }, SITE, quiet);
@@ -279,8 +279,36 @@ describe('explication (fenêtre)', () => {
 
   test('score : approbation illimitée sur un site nouveau, page altérée → élevé, raisons expliquées', async () => {
     const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveData(MAX), value: '0x0' } }, SITE, { ...quiet, site: async () => ({ known: false, tampered: ['rdnsSpoof'] }) });
+    // Bénéficiaire = Permit2 (connu) : pas de point « inconnu ».
     expect(r.score.factors.map((f) => f.code)).toEqual(['pageTampered', 'unlimitedApproval', 'firstVisit']);
-    expect(r.score).toMatchObject({ score: 80, level: 'high' });
+    expect(r.score).toMatchObject({ score: 90, level: 'high' });
+  });
+
+  const approveTo = (spender: string, amount: bigint) => new Interface(['function approve(address,uint256)']).encodeFunctionData('approve', [spender, amount]);
+  const DEAD = '0x000000000000000000000000000000000000dEaD';
+  const UNIVERSAL_ROUTER = '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD';
+
+  test('score : illimitée vers une ADRESSE sans code (0x…dead) sur un site neuf → élevé, maintien forcé', async () => {
+    const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveTo(DEAD, MAX), value: '0x0' } }, SITE, { ...quiet, codeOf: async () => '0x', site: async () => ({ known: false, tampered: [] }) });
+    expect(r.score.factors.map((f) => f.code)).toEqual(['spenderNotContract', 'unlimitedApproval', 'firstVisit']);
+    expect(r.score).toMatchObject({ score: 90, level: 'high' });
+  });
+
+  test('score : illimitée vers un contrat inconnu sur un site neuf → élevé (70)', async () => {
+    const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveTo(STRANGER_CONTRACT, MAX), value: '0x0' } }, SITE, { ...quiet, site: async () => ({ known: false, tampered: [] }) });
+    expect(r.score).toMatchObject({ score: 70, level: 'high' });
+  });
+
+  test('score : illimitée vers Uniswap sur un site connu → moyen, sans lecture du code', async () => {
+    let asked = false;
+    const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveTo(UNIVERSAL_ROUTER, MAX), value: '0x0' } }, SITE, { ...quiet, codeOf: async () => { asked = true; return '0x'; }, site: async () => ({ known: true, tampered: [] }) });
+    expect(asked).toBe(false);
+    expect(r.score).toMatchObject({ score: 40, level: 'medium' });
+  });
+
+  test('score : montant limité vers une adresse sans code → signalé quand même', async () => {
+    const r = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: USDC, data: approveTo(DEAD, 5n), value: '0x0' } }, SITE, { ...quiet, codeOf: async () => '0x', site: async () => ({ known: true, tampered: [] }) });
+    expect(r.score.factors.map((f) => f.code)).toEqual(['spenderNotContract']);
   });
 
   test('score : sosie d’une marque et http public', async () => {

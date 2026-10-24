@@ -120,6 +120,8 @@ export interface TypedDataSummary {
   permit2?: boolean;
   /** Ordre de place de marché (Seaport, Blur…) : signé, il cède des actifs à qui l'exécute. */
   order?: boolean;
+  /** Bénéficiaire de l'autorisation (spender / delegate), s'il est une adresse. */
+  spender?: string;
 }
 
 /** BigInt tolérant (décimal, 0x-hex, number) ; null si non parsable. */
@@ -248,6 +250,8 @@ export function summarizeTypedData(raw: unknown): TypedDataSummary | null {
   const m = (data.message ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const nested = m.details && typeof m.details === 'object' && !Array.isArray(m.details) ? m.details : {};
   const primary = String(out.primaryType ?? '');
+  const spender = m.spender ?? m.delegate ?? nested.spender;
+  if (typeof spender === 'string' && /^0x[0-9a-fA-F]{40}$/.test(spender)) out.spender = spender;
   out.permit2 = domain.name === 'Permit2' || /^Permit(Single|Batch|TransferFrom|WitnessTransferFrom)$/.test(primary);
   // Ordres NFT : Seaport (OrderComponents, offer/consideration), Blur et consorts (Order, BulkOrder).
   /*

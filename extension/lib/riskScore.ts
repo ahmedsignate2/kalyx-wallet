@@ -6,8 +6,9 @@
  *
  * Les poids reflètent ce qui vide réellement les portefeuilles : site
  * signalé, autorisation illimitée, perte sans contrepartie, message signé
- * pour un autre site ou un autre réseau. Un site jamais vu ou en http ne
- * pèse que peu : prudence, pas alarme.
+ * pour un autre site ou un autre réseau, et surtout À QUI va l'autorisation
+ * (une personne, ou un contrat inconnu). Un site jamais vu ou en http pèse
+ * peu seul, mais s'ajoute : illimité + inconnu + site neuf = risque élevé.
  */
 
 export type RiskFactor =
@@ -16,6 +17,8 @@ export type RiskFactor =
   | 'contractDanger'
   | 'domainMismatch'
   | 'unlimitedApproval'
+  | 'spenderNotContract'
+  | 'spenderUnknown'
   | 'approveAll'
   | 'permitNoExpiry'
   | 'nftOrder'
@@ -33,14 +36,18 @@ const WEIGHT: Record<RiskFactor, number> = {
   pageTampered: 40,
   domainMismatch: 50,
   approveAll: 40,
-  unlimitedApproval: 35,
+  // Autorisation à une PERSONNE (adresse sans code) : aucun protocole ne fait ça, les drainers si.
+  spenderNotContract: 40,
+  unlimitedApproval: 40,
+  // Contrat que Kalyx ne connaît pas : illimité + inconnu + site neuf = risque élevé.
+  spenderUnknown: 20,
   lossOnly: 30,
   nftOrder: 25,
   permitNoExpiry: 10,
   noSimulation: 10,
   manyTxs: 10,
   insecureSite: 10,
-  firstVisit: 5,
+  firstVisit: 10,
 };
 
 export type RiskLevel = 'low' | 'medium' | 'high';

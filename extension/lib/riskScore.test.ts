@@ -10,7 +10,7 @@ describe('score de risque (local)', () => {
     const r = scoreRisk({ firstVisit: true, unlimitedApproval: true, lookalike: { brand: 'Uniswap' } });
     expect(r.factors.map((f) => f.code)).toEqual(['lookalike', 'unlimitedApproval', 'firstVisit']);
     expect(r.factors[0].params).toEqual({ brand: 'Uniswap' });
-    expect(r.score).toBe(45 + 35 + 5);
+    expect(r.score).toBe(45 + 40 + 10);
     expect(r.level).toBe('high');
   });
 
