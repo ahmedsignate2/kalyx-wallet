@@ -31,7 +31,7 @@ import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScr
 import { allowedSitesSheet, capSelect, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
 import { getMode, getTheme, isExpert, setMode, setSounds, setTheme, soundsOn, type Mode, type Theme } from './prefs';
 import { play } from './sound';
-import { skeletonList } from './feedback';
+import { skeletonList, toast } from './feedback';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -550,7 +550,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     if (p.hidden.length) list.push(h('details', { class: 'hidden-tokens' }, h('summary', {}, t('hiddenTokens', { n: p.hidden.length })), h('div', { class: 'list card' }, ...p.hidden.map(tokenRow))));
     if (muted.length) list.push(h('details', { class: 'hidden-tokens', 'data-testid': 'muted-tokens' }, h('summary', {}, t('tkMuted', { n: muted.length })), h('div', { class: 'list card' }, ...muted.map(tokenRow))));
     if (p.erc20Partial) list.push(h('p', { class: 'small muted note' }, t('erc20Partial')));
-    list.push(
+    // Ajouter un contrat, choisir les réseaux : gestes d'Expert (en Débutant, la liste suffit).
+    if (isExpert()) list.push(
       h(
         'div',
         { class: 'actions inline-actions' },
@@ -709,7 +710,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         kv(t('tdNetwork'), h('span', { class: 'net' }, r.chainLogo ? h('img', { src: r.chainLogo, alt: '' }) : null, r.chainName)),
         r.from ? kv(t('from'), addressWithContact(r.from, contacts)) : null,
         r.to ? kv(t('to'), addressWithContact(r.to, contacts)) : null,
-        kv(t('txHash'), h('span', { class: 'acct-line' }, h('span', { class: 'mono small' }, r.hash.length > 16 ? `${r.hash.slice(0, 8)}…${r.hash.slice(-6)}` : r.hash), copy)),
+        isExpert() && kv(t('txHash'), h('span', { class: 'acct-line' }, h('span', { class: 'mono small' }, r.hash.length > 16 ? `${r.hash.slice(0, 8)}…${r.hash.slice(-6)}` : r.hash), copy)),
       ),
       r.subtitle ? h('p', { class: 'small muted' }, r.subtitle) : null,
       h(
@@ -871,10 +872,42 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       sel.addEventListener('change', () => onPick(sel.value as V));
       return h('div', { class: 'row' }, h('span', { class: 'set-ico' }, glyph(icon, 18)), h('span', { class: 'grow' }, h('strong', {}, title), h('p', { class: 'small muted' }, body)), sel);
     };
+    /** Débutant / Expert : deux cartes en tête des réglages, l'une allumée ; le changement se confirme d'un message. */
+    function modeSwitch() {
+      const cur = getMode();
+      const opt = (v: Mode, icon: string, title: string, body: string) =>
+        h(
+          'button',
+          {
+            class: `mode-opt${cur === v ? ' on' : ''}`,
+            type: 'button',
+            role: 'radio',
+            'aria-checked': String(cur === v),
+            'data-testid': `mode-${v}`,
+            on: {
+              click: () => {
+                if (getMode() === v) return;
+                setMode(v);
+                settings('none');
+                app.querySelector('.mode-switch')?.classList.add('flip');
+                toast(t(v === 'expert' ? 'modeNowExpert' : 'modeNowBeginner'));
+              },
+            },
+          },
+          h('span', { class: 'mode-ico' }, glyph(icon, 18)),
+          h('strong', {}, title),
+          h('span', { class: 'small muted' }, body),
+        );
+      return h(
+        'section',
+        { class: 'mode-switch', role: 'radiogroup', 'aria-label': t('modeTitle') },
+        opt('beginner', 'faq', t('modeBeginner'), t('modeBeginnerBody')),
+        opt('expert', 'gear', t('modeExpert'), t('modeExpertBody')),
+      );
+    }
     const look = group(
       t('lookTitle'),
       choiceRow<Theme>('eye', t('themeTitle'), t('themeBody'), 'theme', getTheme(), [['dark', t('themeDark')], ['light', t('themeLight')], ['system', t('themeSystem')]], (v) => setTheme(v)),
-      choiceRow<Mode>('faq', t('modeTitle'), t(getMode() === 'expert' ? 'modeExpertBody' : 'modeBeginnerBody'), 'mode', getMode(), [['beginner', t('modeBeginner')], ['expert', t('modeExpert')]], (v) => (setMode(v), settings('none'))),
       switchRow('support', t('soundTitle'), t('soundBody'), 'sounds', soundsOn(), async (on) => (setSounds(on), on && play('success'), { ok: true }), () => settings('none')),
     );
     app.replaceChildren(
@@ -883,6 +916,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         { class: 'screen settings enter' },
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
+        modeSwitch(),
         group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('language', t('language'), languageSelect()), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), expert && item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
         look,
         group(

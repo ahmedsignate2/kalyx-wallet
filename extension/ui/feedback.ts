@@ -51,3 +51,14 @@ export function installFeedback(root: HTMLElement = document.body): void {
     if (b && !b.classList.contains('hold')) play('tap');
   });
 }
+
+/** Message bref en bas de l'écran (confirmation d'un réglage), lu par les lecteurs d'écran. */
+export function toast(text: string, ms = 2400): void {
+  document.querySelector('.toast')?.remove();
+  const el = h('div', { class: 'toast', role: 'status' }, text);
+  document.body.append(el);
+  setTimeout(() => {
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 220);
+  }, ms);
+}

@@ -142,4 +142,5 @@ export default {
   ctNoneTon: '没有 TON 联系人。可在 设置 › 地址簿 中添加。', recipientPhTon: 'TON 地址（UQ… 或 EQ…）', memoLabel: '备注（可选）', memoPh: '部分交易所要求填写', feeTon: '手续费将在下一步、签名之前计算。',
   vdLow: '未发现可疑之处', vdMedium: '注意：签名前请阅读以下几点', vdHigh: '危险：除非完全确定，否则请拒绝', pvUnavailableTitle: '无法预览', pvUnavailableBody: 'Kalyx 无法预测确切结果：某些网络和合约会出现这种情况。在你确认之前不会转出任何资产。如果你不认识这个网站，请拒绝。', pvFailedTitle: '这笔交易很可能会失败', pvFailedBody: '根据预览，网络会拒绝这笔交易，但仍会收取手续费。最稳妥的做法：拒绝，然后核对金额和余额后在网站上重试。', pvErrorLabel: '技术原因', holdKeep: '继续按住…', vdWhy: '原因',
   stTitle: '你的钱包已就绪', stBody: '充值即可开始：用银行卡，或从其他钱包、交易所转入。',
+  modeNowBeginner: '新手模式：只显示要点，不含技术细节。', modeNowExpert: '专家模式：所有内容可见、可调整。',
 };
