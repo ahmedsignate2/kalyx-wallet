@@ -162,6 +162,24 @@ async function ton() {
     const r = await bg({ type: 'portfolio:refresh' });
     const held = [...r.portfolio.main, ...r.portfolio.small].some((h) => h.chainId === 'ton');
     r.portfolio.failed.includes('TON') || held ? console.log(`✓ soldes : TON lu ou nommé s’il ne répond pas (${held ? 'lu' : 'injoignable ici'})`) : fail(`TON ni lu ni signalé ${JSON.stringify(r.portfolio.failed)}`);
+
+    // Envoyer (TON 2) : commentaire borné par le routeur ; avec un solde TON, le champ commentaire n'apparaît que pour TON.
+    const long = await bg({ type: 'send:prepare', assetKey: 'ton:native', to: a.ton, amount: '0.1', memo: 'x'.repeat(121) });
+    long.error === 'BAD_REQUEST' ? console.log('✓ Envoyer TON : commentaire de plus de 120 caractères refusé') : fail(`commentaire long ${JSON.stringify(long)}`);
+    const assets = (await bg({ type: 'send:assets' })).assets ?? [];
+    const tonAsset = assets.find((x) => x.key === 'ton:native');
+    if (tonAsset) {
+      await p.reload();
+      await p.locator('[data-testid=account]').waitFor();
+      await p.getByRole('button', { name: 'Envoyer' }).first().click();
+      await p.locator('select').selectOption('ton:native');
+      (await p.locator('[data-testid=send-memo]').isVisible()) ? console.log('✓ Envoyer TON : champ commentaire affiché') : fail('champ commentaire absent');
+      const evm = await bg({ type: 'send:prepare', assetKey: 'ton:native', to: '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', amount: '0.01' });
+      evm.error === 'INVALID_ADDRESS' ? console.log('✓ Envoyer TON : adresse EVM refusée') : fail(`adresse EVM ${JSON.stringify(evm)}`);
+    } else {
+      const no = await bg({ type: 'send:prepare', assetKey: 'ton:native', to: a.ton, amount: '0.1' });
+      !no.ok ? console.log(`✓ Envoyer TON : sans solde lu, refus clair (${no.error})`) : fail('envoi TON sans solde accepté');
+    }
   } finally {
     await ctx.close();
   }

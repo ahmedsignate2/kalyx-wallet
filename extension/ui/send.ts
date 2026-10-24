@@ -36,6 +36,9 @@ export function sendScreen(app: HTMLElement, back: () => void) {
   const to = h('input', { type: 'text', placeholder: t('recipientPh'), autocomplete: 'off', spellcheck: false });
   const amount = h('input', { type: 'text', inputMode: 'decimal', placeholder: '0.0', autocomplete: 'off' });
   const approx = h('p', { class: 'small muted' });
+  // TON seulement : les plateformes d'échange identifient le dépôt par ce commentaire.
+  const memo = h('input', { type: 'text', placeholder: t('memoPh'), autocomplete: 'off', spellcheck: false, maxLength: 120, 'data-testid': 'send-memo' });
+  const memoBox = h('label', { class: 'small muted stack', style: 'gap:6px', hidden: true }, t('memoLabel'), memo);
   let useMax = false;
   const maxBtn = h('button', { class: 'chip', type: 'button' }, t('max'));
   const feeBox = h('div', { class: 'stack', style: 'gap:8px' });
@@ -48,6 +51,10 @@ export function sendScreen(app: HTMLElement, back: () => void) {
   function renderFees() {
     const a = asset();
     const chips: Node[] = [];
+    if (a?.family === 'ton') {
+      feeBox.replaceChildren(h('p', { class: 'small muted' }, t('feeTon')));
+      return;
+    }
     if (!quote) {
       feeBox.replaceChildren(h('p', { class: 'small muted' }, quoteFor ? t('feeLoading') : t('feeUnavailable')));
       return;
@@ -75,7 +82,7 @@ export function sendScreen(app: HTMLElement, back: () => void) {
 
   async function loadQuote() {
     const a = asset();
-    if (!a) return;
+    if (!a || a.family === 'ton') return renderFees();
     const key = `${a.key}|${to.value.trim()}`;
     if (key === quoteFor && quote) return;
     quoteFor = key;
@@ -96,7 +103,9 @@ export function sendScreen(app: HTMLElement, back: () => void) {
   function onAsset() {
     const a = asset();
     balance.textContent = a ? (a.balanceFmt != null ? t('balanceIs', { b: `${a.balanceFmt} ${a.symbol}` }) : t('balanceUnknown')) : '';
-    to.placeholder = a?.family === 'solana' ? t('recipientPhSol') : a?.family === 'bitcoin' ? t('recipientPhBtc') : t('recipientPh');
+    to.placeholder = a?.family === 'solana' ? t('recipientPhSol') : a?.family === 'bitcoin' ? t('recipientPhBtc') : a?.family === 'ton' ? t('recipientPhTon') : t('recipientPh');
+    memoBox.hidden = a?.family !== 'ton';
+    if (memoBox.hidden) memo.value = '';
     maxBtn.disabled = !a || a.balanceFmt == null;
     useMax = false;
     maxBtn.classList.remove('on');
@@ -147,6 +156,7 @@ export function sendScreen(app: HTMLElement, back: () => void) {
             to: to.value.trim(),
             amount: amount.value.trim(),
             max: useMax,
+            memo: a.family === 'ton' && memo.value.trim() ? memo.value.trim() : undefined,
             speed: speed === 'manual' ? 'normal' : speed,
             manual: speed === 'manual' ? { maxFeeGwei: maxFee.value.trim(), priorityGwei: prio.value.trim() } : undefined,
           }).catch(() => null);
@@ -170,6 +180,7 @@ export function sendScreen(app: HTMLElement, back: () => void) {
     h('label', { class: 'small muted' }, t('amount')),
     h('div', { class: 'amount' }, amount, maxBtn),
     approx,
+    memoBox,
     feeBox,
     err,
     go,
@@ -246,6 +257,7 @@ function reviewScreen(app: HTMLElement, d: DraftView, a: AssetView, edit: () => 
       { class: 'card stack', style: 'gap:10px' },
       line(t('to'), d.ens ? h('strong', {}, d.ens) : '', h('p', { class: 'addr' }, addressView(d.to))),
       line(t('network'), d.chainName),
+      d.memo && line(t('memoLabel'), h('p', { class: 'mono small', 'data-testid': 'review-memo' }, d.memo)),
       line(t('from'), h('p', { class: 'addr' }, addressView(d.from, 'sm'))),
       line(t('fee'), `${d.feeFmt} ${d.nativeSymbol}`),
       sameAsset && line(t('totalCost'), `${formatSum(d.amount, d.fee, a.decimals)} ${d.symbol}`),

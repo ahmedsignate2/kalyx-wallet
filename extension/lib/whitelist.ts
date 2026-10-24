@@ -14,6 +14,7 @@
  * la ramène à « désactivée ». Il aurait de toute façon accès au reste du
  * profil ; la protection vise la personne au clavier, comme sur mobile.
  */
+import { parseTonAddress, toRawTonAddress } from '../../src/domain/chains/ton/tonAddress';
 import { openSecret, sealSecret, type SealedSecret } from '../../src/domain/backup/cloudBackup';
 import {
   addEntry,
@@ -41,8 +42,21 @@ const KEY = 'whitelist';
 const NAME = 'whitelist';
 
 /** Comparaison d'adresses : EVM sans casse, Solana (base58) à l'identique. */
-/** Clé de comparaison : EVM et Bitcoin bech32 (bc1…) sont insensibles à la casse ; Solana et Bitcoin base58, non. */
-export const addressKey = (a: string) => (/^(0x[0-9a-f]{40}|bc1[0-9a-z]{6,87})$/i.test(a.trim()) ? a.trim().toLowerCase() : a.trim());
+/**
+ * Clé de comparaison : EVM et Bitcoin bech32 (bc1…) sont insensibles à la
+ * casse ; Solana et Bitcoin base58, non. TON : les formes EQ…, UQ… et brute
+ * d'un même compte se ramènent à la forme brute (0:…), sinon une adresse de
+ * la liste blanche ne reconnaîtrait pas son autre écriture.
+ */
+export const addressKey = (a: string): string => {
+  const s = a.trim();
+  if (/^(0x[0-9a-f]{40}|bc1[0-9a-z]{6,87})$/i.test(s)) return s.toLowerCase();
+  if (/^(-?\d:[0-9a-f]{64}|[A-Za-z0-9_+/-]{48})$/i.test(s)) {
+    const t = parseTonAddress(s);
+    if (t) return toRawTonAddress(t).toLowerCase();
+  }
+  return s;
+};
 
 export interface WhitelistView {
   enforced: boolean;
@@ -84,7 +98,7 @@ export function makeWhitelist(disk: Store, session: Session, wallets: Wallets, c
     const out = new Set<string>();
     for (const w of await wallets.list()) {
       if (!isTrustedWallet(s, w.id, now)) continue;
-      for (const a of w.accounts) for (const x of [a.evm, a.solana, a.bitcoin]) if (x) out.add(addressKey(x));
+      for (const a of w.accounts) for (const x of [a.evm, a.solana, a.bitcoin, a.ton]) if (x) out.add(addressKey(x));
     }
     return out;
   }

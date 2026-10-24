@@ -137,3 +137,21 @@ describe('adresses Bitcoin', () => {
     expect(parseAddress('HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk').family).toBe('solana');
   });
 });
+
+describe('adresses TON', () => {
+  test('UQ et EQ reconnues comme TON, pas comme Solana', async () => {
+    const { parseAddress } = await import('./contacts');
+    expect(parseAddress(' UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw ')).toEqual({ address: 'UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw', family: 'ton' });
+    const { formatTonAddress, parseTonAddress } = await import('../../src/domain/chains/ton/tonAddress');
+    const eq = formatTonAddress(parseTonAddress('UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw')!, { bounceable: true });
+    expect(parseAddress(eq).family).toBe('ton');
+  });
+
+  test('même adresse TON sous forme EQ : déjà enregistrée', async () => {
+    const { formatTonAddress, parseTonAddress } = await import('../../src/domain/chains/ton/tonAddress');
+    const UQ = 'UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw';
+    const c = make();
+    await c.add('Tonkeeper', UQ);
+    expect(await code(c.add('Autre', formatTonAddress(parseTonAddress(UQ)!, { bounceable: true })))).toBe('CONTACT_EXISTS:Tonkeeper');
+  });
+});

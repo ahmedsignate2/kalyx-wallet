@@ -12,7 +12,9 @@ import { makeWallets } from './wallets';
 import { handleInternal } from './router';
 import type { Companion } from './companion';
 import { activityT } from '../ui/i18n';
-import { BITCOIN, ETHEREUM, SOLANA } from '../../src/domain/chains/configs';
+import { BITCOIN, ETHEREUM, SOLANA, TON } from '../../src/domain/chains/configs';
+import { formatTonAddress, isValidTonAddress, parseTonAddress } from '../../src/domain/chains/ton/tonAddress';
+import { addressForChain } from '../../lib/accountAddress';
 import { BitcoinChainAdapter } from '../../src/domain/chains/BitcoinChainAdapter';
 import { BitcoinAdapterV2 } from '../../src/domain/chains/v2/BitcoinAdapterV2';
 import { p2wpkhAddress } from '../../src/crypto/btc';
@@ -262,6 +264,90 @@ describe('Bitcoin', () => {
 
   test('liste blanche : une adresse bc1 en majuscules est la même adresse', async () => {
     expect(addressKey(DEST.toUpperCase())).toBe(addressKey(DEST));
+  });
+});
+
+describe('TON', () => {
+  const DEST = 'UQC020bHeiUqqyw8BB4EttblmRidKkT_hnINJ-8rZCP0L1Dw';
+  const EXCHANGE = 'UQAfPZl7MGtsMq_nRY6UyeWh9e0qs8Vj5ToOcCI-vTPvM_xm';
+  const TON_FEE = 3_000_000n;
+  /** Réseau TON simulé : mêmes contrats que TonAdapterV2 (commentaire exigé par une plateforme, frais dans le brouillon). */
+  function tonNet() {
+    const out: { reqs: SendRequest[]; signedBy?: string; comment?: string } = { reqs: [] };
+    const a: ChainAdapterV2 = {
+      config: TON,
+      capabilities: {} as never,
+      signerCurve: 'ed25519',
+      deriveAccount: () => { throw new Error('non utilisé'); },
+      validateAddress: (x) => isValidTonAddress(x),
+      getBalance: async () => ({ raw: 2n * 10n ** 9n }) as never,
+      getHistory: async () => [],
+      prepareSend: async (from, req) => {
+        out.reqs.push(req);
+        const warnings = req.to === EXCHANGE && !req.memo?.trim() ? [{ code: 'MEMO_REQUIRED', severity: 'danger' }] : [];
+        return { chainId: 'ton', from, to: req.to, amount: req.amount, token: null, fee: TON_FEE, warnings, payload: { comment: req.memo } } as unknown as SendDraft;
+      },
+      signSend: async (draft, sg: ChainSigner) => {
+        out.signedBy = addressForChain({ evmAddress: '', tonPublicKey: bytesToHex(sg.publicKey) }, TON);
+        out.comment = (draft.payload as { comment?: string }).comment;
+        return { chainId: 'ton', raw: 'boc', draft };
+      },
+      broadcastSend: async () => ({ txid: 'c'.repeat(64) }),
+      waitForTx: async () => ({ status: 'confirmed' }),
+    };
+    return { a, out };
+  }
+  const tonSend = (a: ChainAdapterV2) => {
+    const pf = makePortfolio({ disk: makeStore(disk), t: activityT, locale: 'fr-FR', now: () => clock, load: async () => [holding('ton', 'TON', 2n * 10n ** 9n, 9)], history: async () => [] });
+    const h = makeHome(makeStore(disk), session, wallets, pf, 'eur');
+    return { s: makeSend({ session, wallets, home: h, portfolio: pf, whitelist, now: () => clock, adapterFor: (c) => (c.family === 'ton' ? a : fakeAdapter(c, log)) }), h };
+  };
+
+  test('envoi : signé par la clé du compte UQ affiché, commentaire transmis tel quel', async () => {
+    const { a, out } = tonNet();
+    const { s, h } = tonSend(a);
+    await h.refresh();
+    expect((await s.assets()).some((x) => x.key === 'ton:native' && x.family === 'ton')).toBe(true);
+    const d = await s.prepare({ assetKey: 'ton:native', to: DEST, amount: '0.5', memo: '  dépôt 4412  ' });
+    expect(d.from).toMatch(/^UQ/);
+    expect(d.amount).toBe('500000000');
+    expect(d.memo).toBe('dépôt 4412');
+    expect(out.reqs[0].memo).toBe('dépôt 4412');
+    await s.confirm(d.id);
+    expect(out.signedBy).toBe(d.from);
+    expect(out.comment).toBe('dépôt 4412');
+  });
+
+  test('plateforme qui exige un commentaire : refus sans, accepté avec', async () => {
+    const { a } = tonNet();
+    const { s, h } = tonSend(a);
+    await h.refresh();
+    await expect(s.prepare({ assetKey: 'ton:native', to: EXCHANGE, amount: '0.1' })).rejects.toThrow('Commentaire exigé');
+    await expect(s.prepare({ assetKey: 'ton:native', to: EXCHANGE, amount: '0.1', memo: '   ' })).rejects.toThrow('Commentaire exigé');
+    expect((await s.prepare({ assetKey: 'ton:native', to: EXCHANGE, amount: '0.1', memo: '777' })).memo).toBe('777');
+  });
+
+  test('« Max » TON : solde moins les frais du brouillon d’essai et 10 % de marge', async () => {
+    const { a } = tonNet();
+    const { s, h } = tonSend(a);
+    await h.refresh();
+    const d = await s.prepare({ assetKey: 'ton:native', to: DEST, amount: '', max: true });
+    expect(BigInt(d.amount)).toBe(2n * 10n ** 9n - TON_FEE - TON_FEE / 10n);
+  });
+
+  test('adresse EVM refusée ; commentaire trop long refusé par le routeur', async () => {
+    const { a } = tonNet();
+    const { s, h } = tonSend(a);
+    await h.refresh();
+    await expect(s.prepare({ assetKey: 'ton:native', to: PAID, amount: '0.1' })).rejects.toThrow('Adresse invalide');
+    const r = await handleInternal(session, wallets, { type: 'send:prepare', assetKey: 'ton:native', to: DEST, amount: '0.1', memo: 'x'.repeat(121) }, undefined, { send: s });
+    expect(r).toMatchObject({ ok: false, error: 'BAD_REQUEST' });
+  });
+
+  test('liste blanche : formes EQ et UQ de la même adresse TON = une seule clé', async () => {
+    const eq = formatTonAddress(parseTonAddress(DEST)!, { bounceable: true });
+    expect(eq.startsWith('EQ')).toBe(true);
+    expect(addressKey(eq)).toBe(addressKey(DEST));
   });
 });
 

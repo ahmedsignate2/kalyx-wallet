@@ -192,7 +192,7 @@ const fr = {
   e_WRONG_ACCOUNT: 'Le compte a changé : recommence.',
   e_MANUAL_FEE_TOO_HIGH: 'Frais manuels plus de 5 fois au-dessus du palier Rapide : vérifie la saisie.',
   e_MANUAL_FEE_INVALID: 'Frais manuels invalides (le pourboire ne peut pas dépasser le maximum).',
-  e_MEMO_REQUIRED: 'Ce destinataire exige un commentaire : non pris en charge ici.',
+  e_MEMO_REQUIRED: 'Ce destinataire exige un commentaire (souvent une plateforme d’échange) : ajoute celui qu’elle t’a donné.',
   e_NOT_SUPPORTED: 'Opération non prise en charge.',
   e_LOCKED: 'Kalyx est verrouillé.',
   e_TX_FAILED: 'La transaction a échoué.',
@@ -290,9 +290,10 @@ const fr = {
   grNotifTitle: '{n} autorisation(s) à révoquer', grNotifBody: 'Échéance passée : {list}. Révoque-les en un clic.', capNote: 'Au-delà de ton plafond journalier (il reste {remaining} aujourd’hui, dans ta devise) : confirme avec ton mot de passe.', e_CAP_PASSWORD: 'Plafond journalier dépassé (reste {remaining}) : mot de passe requis.', grRemind: 'Rappel pour révoquer', grNever: 'Jamais', grIn1h: 'Dans 1 h', grIn24h: 'Dans 24 h', grIn7d: 'Dans 7 jours', grTitle: 'Rappels d’autorisations', grLeftMin: 'Encore {n} min', grLeftH: 'Encore {n} h', grLeftD: 'Encore {n} j', grExpired: 'Échue : à révoquer', grDismiss: 'Retirer ce rappel', grRevokeAll: 'Tout révoquer ({n})', grRevoking: 'Révocations en cours…', grRevoked: '{n} révocation(s) envoyée(s).', grFailed: 'Échec : {list}.', capTitle: 'Plafond journalier', capOff: 'Aucun', capRaise: 'Relever le plafond', capRaiseBody: 'Relever ou retirer le plafond journalier demande ton mot de passe.',
   lookTitle: 'Apparence', themeTitle: 'Thème', themeBody: 'Nuit par défaut. Système suit ton ordinateur.', themeDark: 'Nuit', themeLight: 'Crème', themeSystem: 'Système', modeTitle: 'Mode', modeBeginner: 'Débutant', modeExpert: 'Expert', modeBeginnerBody: 'L’essentiel d’abord : les détails techniques restent repliés, les réglages pointus sont rangés.', modeExpertBody: 'Tout à plat : détails techniques ouverts, points du score, réglages avancés visibles.', soundTitle: 'Sons discrets', soundBody: 'Une note douce quand une signature ou un envoi part. Coupé par défaut.', advTitle: 'Réglages avancés', advBody: 'Mode parano, présence sur les sites, téléphone seul, code de contrainte, liste blanche, réseaux.', rkHelp: 'Plus le score est haut, plus cette demande peut te coûter. Au moindre doute, refuse : refuser ne coûte rien.', apDoneSent: 'Envoyé', apDoneSigned: 'Signé', apMethod: 'Méthode', obLookTitle: 'À ton goût',
   receiveBtcNote: 'Uniquement des bitcoins, sur le réseau Bitcoin. Une adresse bc1 n’accepte rien d’autre.',
-  recipientPhBtc: 'Adresse Bitcoin (bc1…)', ctNoneBtc: 'Aucun contact Bitcoin. Ajoute-en depuis Réglages, Carnet d’adresses.', ctAddressPhAll: 'Adresse EVM (0x…), Solana ou Bitcoin', e_BTC_DUST: 'Trop petit pour cette adresse Bitcoin : au moins {min} {symbol}, sinon le réseau refuse la transaction.', e_BTC_TOO_MANY_INPUTS: 'Trop de petites pièces à rassembler en une seule transaction. Envoie un montant plus faible.',
+  recipientPhBtc: 'Adresse Bitcoin (bc1…)', ctNoneBtc: 'Aucun contact Bitcoin. Ajoute-en depuis Réglages, Carnet d’adresses.', ctAddressPhAll: 'Adresse EVM (0x…), Solana, Bitcoin ou TON', e_BTC_DUST: 'Trop petit pour cette adresse Bitcoin : au moins {min} {symbol}, sinon le réseau refuse la transaction.', e_BTC_TOO_MANY_INPUTS: 'Trop de petites pièces à rassembler en une seule transaction. Envoie un montant plus faible.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Les sites Bitcoin ne sont pas encore servis pour un compte du téléphone : utilise un compte de cette extension.',
   receiveTonNote: 'Uniquement des actifs du réseau TON (TON et jettons). Aucun commentaire n’est nécessaire pour recevoir ici.',
+  ctNoneTon: 'Aucun contact TON. Ajoute-en depuis Réglages, Carnet d’adresses.', recipientPhTon: 'Adresse TON (UQ… ou EQ…)', memoLabel: 'Commentaire (facultatif)', memoPh: 'Exigé par certaines plateformes d’échange', feeTon: 'Frais calculés à l’étape suivante, avant toute signature.',
 };
 
 type Dict = typeof fr;
@@ -469,7 +470,7 @@ const en: Dict = {
   e_WRONG_ACCOUNT: 'The account changed: start again.',
   e_MANUAL_FEE_TOO_HIGH: 'Manual fee is more than 5× the Fast tier: check what you typed.',
   e_MANUAL_FEE_INVALID: 'Invalid manual fee (the tip can’t exceed the max fee).',
-  e_MEMO_REQUIRED: 'This recipient requires a memo: not supported here.',
+  e_MEMO_REQUIRED: 'This recipient requires a comment (often an exchange): add the one it gave you.',
   e_NOT_SUPPORTED: 'Operation not supported.',
   e_LOCKED: 'Kalyx is locked.',
   e_TX_FAILED: 'The transaction failed.',
@@ -567,9 +568,10 @@ const en: Dict = {
   grNotifTitle: '{n} approval(s) to revoke', grNotifBody: 'Past due: {list}. Revoke them in one click.', capNote: 'Above your daily limit ({remaining} left today, in your currency): confirm with your password.', e_CAP_PASSWORD: 'Daily limit exceeded ({remaining} left): password required.', grRemind: 'Reminder to revoke', grNever: 'Never', grIn1h: 'In 1 h', grIn24h: 'In 24 h', grIn7d: 'In 7 days', grTitle: 'Approval reminders', grLeftMin: '{n} min left', grLeftH: '{n} h left', grLeftD: '{n} d left', grExpired: 'Due: revoke it', grDismiss: 'Remove this reminder', grRevokeAll: 'Revoke all ({n})', grRevoking: 'Revoking…', grRevoked: '{n} revocation(s) sent.', grFailed: 'Failed: {list}.', capTitle: 'Daily limit', capOff: 'None', capRaise: 'Raise the limit', capRaiseBody: 'Raising or removing the daily limit requires your password.',
   lookTitle: 'Appearance', themeTitle: 'Theme', themeBody: 'Night by default. System follows your computer.', themeDark: 'Night', themeLight: 'Cream', themeSystem: 'System', modeTitle: 'Mode', modeBeginner: 'Beginner', modeExpert: 'Expert', modeBeginnerBody: 'Essentials first: technical details stay folded, advanced settings are tucked away.', modeExpertBody: 'Everything laid out: technical details open, score points, advanced settings visible.', soundTitle: 'Subtle sounds', soundBody: 'A soft note when a signature or a transfer goes out. Off by default.', advTitle: 'Advanced settings', advBody: 'Paranoid mode, presence on sites, phone only, duress code, allowlist, networks.', rkHelp: 'The higher the score, the more this request can cost you. If in doubt, refuse: refusing costs nothing.', apDoneSent: 'Sent', apDoneSigned: 'Signed', apMethod: 'Method', obLookTitle: 'Make it yours',
   receiveBtcNote: 'Only bitcoin, on the Bitcoin network. A bc1 address accepts nothing else.',
-  recipientPhBtc: 'Bitcoin address (bc1…)', ctNoneBtc: 'No Bitcoin contacts. Add some from Settings, Address book.', ctAddressPhAll: 'EVM (0x…), Solana or Bitcoin address', e_BTC_DUST: 'Too small for this Bitcoin address: at least {min} {symbol}, or the network rejects the transaction.', e_BTC_TOO_MANY_INPUTS: 'Too many small coins to gather in a single transaction. Send a smaller amount.',
+  recipientPhBtc: 'Bitcoin address (bc1…)', ctNoneBtc: 'No Bitcoin contacts. Add some from Settings, Address book.', ctAddressPhAll: 'EVM (0x…), Solana, Bitcoin or TON address', e_BTC_DUST: 'Too small for this Bitcoin address: at least {min} {symbol}, or the network rejects the transaction.', e_BTC_TOO_MANY_INPUTS: 'Too many small coins to gather in a single transaction. Send a smaller amount.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'Bitcoin sites aren’t served yet for a phone account: use an account from this extension.',
   receiveTonNote: 'Only assets on the TON network (TON and jettons). No comment is needed to receive here.',
+  ctNoneTon: 'No TON contacts. Add some from Settings, Address book.', recipientPhTon: 'TON address (UQ… or EQ…)', memoLabel: 'Comment (optional)', memoPh: 'Required by some exchanges', feeTon: 'Fees are calculated in the next step, before anything is signed.',
 };
 
 export type Key = keyof Dict;
