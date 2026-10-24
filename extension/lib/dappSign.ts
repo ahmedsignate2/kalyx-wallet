@@ -75,6 +75,12 @@ export interface Review {
   score: RiskScore;
   /** Valeur de ce qui part, dans la devise affichée (plafond journalier) ; null si inconnue. */
   outFiat: number | null;
+  /**
+   * Aperçu du résultat manquant ('unavailable' : pas de simulateur ou pas de
+   * réponse ; 'failed' : la simulation dit que ça échouerait). La fenêtre en
+   * fait un message humain ; `error` (brut, borné) n'apparaît qu'en Expert.
+   */
+  preview?: { status: 'unavailable' | 'failed'; error?: string };
   /** Autorisation de token accordée par cette transaction (rappel d'expiration). */
   approval?: { chainId: string; chainName: string; token: string; symbol: string; spender: string };
 }
@@ -377,6 +383,13 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     // Perte sans contrepartie : signe d'un drain quand un CONTRAT est appelé (un simple paiement, lui, ne « reçoit » jamais rien).
     if (req.tx.data.length > 2 && sim && sim.changes.some((c) => c.direction === 'out') && !sim.changes.some((c) => c.direction === 'in')) sig.lossOnly = true;
     if (!sim && (value > 0n || req.tx.data.length > 2)) sig.noSimulation = true;
+    // Un simple envoi (sans données) n'a pas besoin d'aperçu : son effet est connu.
+    const preview: Review['preview'] = sim?.error
+      ? { status: 'failed', error: clip(sim.error, 200) }
+      : req.tx.data.length > 2 && (!sim || sim.source === 'static')
+        ? { status: 'unavailable' }
+        : undefined;
+    if (preview) humanizePreview(explanation, preview, t);
     const suggested =
       decoded.kind === 'approve' ? sim?.changes.find((c) => c.direction === 'out' && c.contract && same(c.contract, decoded.token))?.rawAmount : undefined;
     return {
@@ -389,6 +402,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
         { label: 'Données', value: req.tx.data.length > 10 ? `${req.tx.data.slice(0, 10)}… (${(req.tx.data.length - 2) / 2} octets)` : '—' },
       ],
       outFiat: await outFiatOf(chain, value, req.tx.data, sim, deps.priceOf),
+      ...(preview ? { preview } : {}),
       approval: decoded.kind === 'approve' && decoded.amount > 0n ? { chainId: chain.id, chainName: chain.name, token: decoded.token, symbol: meta?.symbol ?? '?', spender: decoded.spender } : undefined,
       reduce:
         explanation.canReduceApproval && decoded.kind === 'approve' && meta
@@ -404,6 +418,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
     const summary = summarizePsbt(req.psbt, [req.from]);
     const explanation = explainRequest({ kind: 'btcPsbt', domain: host, btc: { psbt: summary, inputs: req.indexes.length, broadcast: req.send }, phishingSite, t });
     if (!summary || summary.unknownInputs) sig.noSimulation = true;
+    const preview: Review['preview'] = !summary ? { status: 'unavailable' } : undefined;
     const price = summary && summary.sent > 0n && deps.priceOf ? await withTimeoutOrNull(deps.priceOf('bitcoin')) : null;
     const fmt = (v: bigint) => `${formatTokenAmount(v, 8)} BTC`;
     return {
@@ -417,6 +432,7 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
       ],
       // Ce qui part (hors monnaie rendue) ; inconnu sans PSBT lisible ou sans prix.
       outFiat: !summary ? null : summary.sent === 0n ? 0 : price ? (Number(summary.sent) / 1e8) * price : null,
+      ...(preview ? { preview } : {}),
     };
   }
   if (req.kind === 'solMessage') {
@@ -442,6 +458,18 @@ async function explainOnly(req: SignRequest, origin: string, deps: ReviewDeps, s
       ...(desc?.programs ?? []).slice(0, 8).map((p) => ({ label: 'Programme', value: typeof p === 'string' ? p : JSON.stringify(p) })),
     ],
   };
+}
+
+/**
+ * L'aperçu manque : la fenêtre le dit avec ses propres mots (rassurants,
+ * actionnables). On retire donc de l'explication les phrases techniques qui
+ * disaient la même chose — l'erreur brute du simulateur surtout.
+ */
+function humanizePreview(ex: SignExplanation, preview: NonNullable<Review['preview']>, t: ExplainT): void {
+  const technical = new Set([t('exContractDetailNoSim'), ...(preview.error ? [t('exContractDetailErr', { error: preview.error })] : [])]);
+  if (ex.detail && technical.has(ex.detail)) delete ex.detail;
+  const noSimPrefix = t('exTxNoSimulationValue', { amount: '\u0000' }).split('\u0000')[0];
+  ex.reasons = ex.reasons.filter((r) => !(noSimPrefix && r.startsWith(noSimPrefix)));
 }
 
 /* ── 3. Signer ── */

@@ -597,7 +597,7 @@ async function hardening() {
     remind === '24' && (await tw.locator('[data-testid=cap-note]').count()) === 0
       ? console.log('✓ autorisation : rappel de révocation (24 h par défaut) ; aucun fonds ne part, le plafond ne s’applique pas')
       : fail(`fenêtre d'autorisation : rappel ${remind}`);
-    if (process.env.SHOTS) await tw.screenshot({ path: join(process.env.SHOTS, 'approve-remind.png'), fullPage: true });
+    if (process.env.SHOTS) for (const scheme of ['dark', 'light']) await tw.emulateMedia({ colorScheme: scheme }), await tw.screenshot({ path: join(process.env.SHOTS, `approve-remind-${scheme}.png`), fullPage: true });
     await tw.getByRole('button', { name: 'Refuser' }).click({ noWaitAfter: true }).catch(() => {});
     await site.evaluate(() => window.kx.t);
 
@@ -1344,7 +1344,7 @@ async function dapps() {
     // Score local : site connecté à l'instant (+5), rien d'autre → faible.
     const num1 = await sw1.locator('[data-testid=risk-num]').textContent();
     num1 === '5/100' && (await sw1.locator('[data-testid=risk-score]').getAttribute('class')).includes('low') ? console.log('✓ score de risque : 5/100, faible (site tout juste connecté)') : fail(`score ${num1}`);
-    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-sign-${scheme}.png`) });
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-sign-${scheme}.png`), fullPage: true });
     await sw1.getByRole('button', { name: 'Signer' }).click({ noWaitAfter: true, timeout: 5000 }).catch(() => {});
     r = await page.evaluate(() => window.kx.p);
     r.r && verifyMessage('Bonjour Kalyx', r.r) === EVM0 ? console.log('✓ personal_sign : signature valide du compte accordé') : fail(`personal_sign ${JSON.stringify(r)}`);
@@ -1359,7 +1359,7 @@ async function dapps() {
     (await sw1.locator('[data-testid=risk]').textContent()).startsWith('Danger') ? console.log('✓ SIWE d’un autre domaine : « Danger »') : fail('risque SIWE');
     const sc2 = await sw1.locator('[data-testid=risk-score]').textContent();
     sc2.includes('55/100') && sc2.includes('Message prévu pour un autre site (evil.example)') ? console.log('✓ score : 55/100, raison « message prévu pour un autre site » en premier') : fail(`score SIWE ${sc2}`);
-    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-danger-${scheme}.png`) });
+    if (process.env.SHOTS) for (const scheme of ['light', 'dark']) await sw1.emulateMedia({ colorScheme: scheme }), await sw1.screenshot({ path: join(process.env.SHOTS, `approval-danger-${scheme}.png`), fullPage: true });
     const hold = sw1.getByRole('button', { name: 'Maintenir pour signer' });
     await sw1.waitForTimeout(900);
     await hold.click({ timeout: 3000 });

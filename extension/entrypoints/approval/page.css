@@ -5,19 +5,103 @@
 .center img { width: 72px; height: 72px; }
 .center form { width: 100%; }
 
-/* Score de risque (calculé localement) : nombre, jauge, raisons pondérées. */
-.score { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
-.score-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.score-num { font-variant-numeric: tabular-nums; font-weight: 700; }
-.score .meter { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
-.score .meter i { display: block; height: 100%; border-radius: inherit; background: var(--up); transition: width 0.4s ease-out; }
-.score.medium .meter i { background: var(--warning); }
-.score.medium .score-num { color: var(--warning); }
-.score.high .meter i { background: var(--danger); }
-.score.high .score-num { color: var(--danger); }
-.score.low .score-num { color: var(--up); }
-.factors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-.factors li { display: flex; gap: 8px; align-items: baseline; }
-.factors .pts { flex: none; min-width: 34px; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-secondary); }
-@media (prefers-reduced-motion: reduce) { .score .meter i { transition: none; } }
+/* ── Fenêtre de signature : verdict d'abord, le reste en second plan ── */
+.tiny { font-size: 11.5px; line-height: 15px; }
+.tiny { display: flex; align-items: center; gap: 5px; margin: 0; }
+.tiny .glyph { flex: none; }
+.center-text.tiny { justify-content: center; }
+
+/* Le site, sur une ligne. */
+.site-bar { display: flex; align-items: center; gap: 10px; padding: 4px 2px; }
+.site-bar .grow { flex: 1; display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.site-bar strong { font-size: 15px; line-height: 19px; }
+.site-bar .origin { align-self: flex-start; padding: 1px 8px; font-size: 11px; }
+.site-mini, .site-mini-icon { flex: none; width: 28px; height: 28px; border-radius: 9px; position: relative; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
+.site-mini .avatar { position: absolute; inset: 0; border-radius: 9px; }
+.site-mini b { position: relative; color: #fff; font-size: 13px; font-weight: 700; }
+.site-mini-icon { object-fit: contain; background: var(--surface-1); box-shadow: 0 0 0 1px var(--border); }
+.kalyx-mini { width: 22px; height: 22px; opacity: 0.85; }
+
+/* Verdict : une carte teintée par le niveau, la jauge à gauche, la phrase à droite. */
+.verdict { --tone: var(--up); display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 22px;
+  background: color-mix(in srgb, var(--tone) 9%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent); box-shadow: var(--depth); }
+.verdict.medium { --tone: var(--warning); }
+.verdict.high { --tone: var(--danger); border-width: 1.5px; box-shadow: var(--depth), 0 0 0 4px color-mix(in srgb, var(--danger) 10%, transparent); }
+.verdict.pending { --tone: var(--text-tertiary); }
+.verdict-head { display: flex; align-items: center; gap: 14px; }
+.gauge-box { position: relative; flex: none; width: 96px; height: 58px; }
+.gauge { width: 100%; height: 100%; overflow: visible; }
+.gauge path { fill: none; stroke-width: 9; stroke-linecap: round; }
+.gauge .track { stroke: color-mix(in srgb, var(--text) 10%, transparent); }
+.gauge .fill { stroke: var(--tone); transition: stroke-dasharray 0.9s var(--ease-out); }
+.score-num { position: absolute; inset: auto 0 0; text-align: center; font-variant-numeric: tabular-nums; color: var(--tone); line-height: 1; }
+.score-num b { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.score-num small { font-size: 11px; font-weight: 600; opacity: 0.75; }
+.verdict-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.verdict-text strong { font-size: 16.5px; line-height: 21px; font-weight: 700; color: var(--text); }
+.verdict.high .verdict-text strong { color: var(--danger); }
+.verdict-text .muted { text-transform: none; }
+.factors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; font-size: 13.5px; line-height: 18px; }
+.factors li { display: flex; gap: 9px; align-items: flex-start; }
+.factors .dot { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--text-tertiary); }
+.factors .sev-high { font-weight: 600; }
+.factors .sev-high .dot { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent); }
+.factors .sev-medium .dot { background: var(--warning); }
+.factors .pts { flex: none; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text-secondary); font-size: 12px; }
+.verdict details > summary { padding: 0; text-align: start; cursor: pointer; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; list-style: none; }
+.verdict details > summary::-webkit-details-marker { display: none; }
+.verdict details > summary::after { content: ' ▾'; }
+.verdict details[open] > summary::after { content: ' ▴'; }
+.verdict .why p { margin: 6px 0 0; font-size: 13px; line-height: 18px; color: var(--text-secondary); }
+.verdict .help { margin: 0; color: var(--text-secondary); }
+
+/* Ce qui se passe. */
+.what h1 { margin: 2px 0 0; font-size: 19px; line-height: 25px; letter-spacing: -0.01em; }
+.what p { margin: 4px 0 0; }
+.kicker-left { margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
+
+/* Ce qui bouge : signe, montant en gros. */
+.flows { display: flex; flex-direction: column; gap: 2px; padding: 6px 14px; }
+.flow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.flow + .flow { border-top: 1px solid var(--border); }
+.flow-sign { flex: none; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; }
+.flow.lose .flow-sign { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.flow.receive .flow-sign { background: color-mix(in srgb, var(--up) 14%, transparent); color: var(--up); }
+.flow strong { font-size: 17px; line-height: 22px; font-variant-numeric: tabular-nums; word-break: break-word; }
+.flow.lose strong { color: var(--danger); }
+.flow.receive strong { color: var(--up); }
+
+/* Aperçu indisponible : calme, pas une alarme ; échec probable : ambre. */
+.preview-note { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 18px; background: var(--surface-2); }
+.preview-note strong { display: block; font-size: 14px; line-height: 19px; }
+.preview-note p { margin: 3px 0 0; font-size: 13px; line-height: 18px; color: var(--text-secondary); }
+.preview-icon { flex: none; width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-1); color: var(--text-secondary); }
+.preview-note.failed { background: color-mix(in srgb, var(--warning) 10%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); }
+.preview-note.failed .preview-icon { color: var(--warning); }
+
+/* Détails techniques : discrets. */
+details.tech { border-radius: 16px; background: var(--surface-2); padding: 10px 14px; }
+details.tech > summary { padding: 0; text-align: start; cursor: pointer; font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+details.tech .kv { margin-top: 8px; }
+
+/* Barre du bas : teintée en danger pour que le geste se fasse en connaissance de cause. */
+.dock.high { background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--danger) 6%, var(--bg)) 30%); }
+.dock .tiny { margin: 0 0 8px; }
+
+/* Maintenir pour signer : un remplissage qui suit le doigt, puis une coche. */
+.btn.hold { position: relative; overflow: hidden; isolation: isolate; }
+.btn.hold .hold-fill { position: absolute; inset: 0; z-index: -1; transform-origin: left center; transform: scaleX(var(--p, 0)); background: rgba(0, 0, 0, 0.28); transition: transform 0.35s var(--ease-out); }
+:root[dir="rtl"] .btn.hold .hold-fill { transform-origin: right center; }
+.btn.hold.holding { transform: scale(0.985); box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 22%, transparent); }
+.btn.hold.holding .hold-fill { transition: none; }
+.btn.hold.held .hold-fill { transform: scaleX(1); background: var(--up); transition: transform 0.15s, background-color 0.2s; }
+.btn.hold.held { background: var(--up); }
+
+/* Squelette pendant l'analyse. */
+.skeleton { gap: 14px; }
+.sk { display: block; position: relative; overflow: hidden; border-radius: 10px; background: var(--surface-2); }
+.sk::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, color-mix(in srgb, #fff 18%, transparent) 50%, transparent 80%); transform: translateX(-100%); animation: shimmer 1.3s ease-in-out infinite; }
+.verdict.pending .sk { background: color-mix(in srgb, var(--text) 8%, transparent); }
+
+@media (prefers-reduced-motion: reduce) { .gauge .fill, .btn.hold .hold-fill { transition: none; } .sk::after { animation: none; } }
 .row-inline { display: flex; align-items: center; gap: 10px; }
