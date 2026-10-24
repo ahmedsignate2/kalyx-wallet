@@ -354,6 +354,24 @@ async function beauty() {
     }
     inside ? console.log('✓ feuille : le focus clavier reste dedans (Tab, Maj+Tab)') : fail('focus sorti de la feuille');
     await p.keyboard.press('Escape');
+    await p.locator('.veil').waitFor({ state: 'detached' });
+
+    // Geste : tirer la feuille par sa poignée — un petit glissé la laisse en place, un grand la ferme.
+    await p.locator('[data-testid=account]').click();
+    await p.locator('.modal').waitFor();
+    await p.waitForTimeout(350);
+    const drag = async (dy) => {
+      const g = await p.locator('.modal .grip').boundingBox();
+      await p.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+      await p.mouse.down();
+      await p.mouse.move(g.x + g.width / 2, g.y + g.height / 2 + dy, { steps: 8 });
+        await p.mouse.up();
+      await p.waitForTimeout(400);
+    };
+    await drag(30);
+    const stays = (await p.locator('.veil').count()) === 1;
+    await drag(160);
+    stays && (await p.locator('.veil').count()) === 0 ? console.log('✓ feuille : tirée vers le bas, elle se ferme (petit glissé : elle revient)') : fail(`glisser pour fermer (reste après petit glissé : ${stays})`);
 
     // Contrastes WCAG AA des textes (4,5:1) sur les surfaces, dans les deux thèmes.
     const contrast = () =>

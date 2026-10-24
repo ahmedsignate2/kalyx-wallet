@@ -31,6 +31,7 @@ import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScr
 import { allowedSitesSheet, capSelect, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
 import { getMode, getTheme, isExpert, setMode, setSounds, setTheme, soundsOn, type Mode, type Theme } from './prefs';
 import { play } from './sound';
+import { skeletonList } from './feedback';
 import { groupByDay } from '../../src/domain/tx/humanize';
 import { AUTO_LOCK_CHOICES } from '../lib/policy';
 import type { ActivityRow, ActivityView, HoldingView, PortfolioView } from '../lib/portfolio';
@@ -531,7 +532,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   /** Lignes fantômes pendant le premier chargement : la place est réservée, rien ne saute. */
-  const skeleton = (n: number) => h('div', { class: 'list card', 'aria-hidden': 'true' }, ...Array.from({ length: n }, () => h('div', { class: 'row' }, h('span', { class: 'logo skel' }), h('div', { class: 'grow' }, h('i', { class: 'skel line w40' }), h('i', { class: 'skel line w25' })), h('div', { class: 'right' }, h('i', { class: 'skel line w50' })))));
+  const skeleton = skeletonList;
 
   function tokens() {
     const p = data?.portfolio;
@@ -767,12 +768,17 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   }
 
   let entered = false;
+  /** Onglet du contenu affiché au dernier dessin : le nouveau contenu glisse du côté de son onglet. */
+  let paneTab: 'tokens' | 'nfts' | 'activity' = tab;
+  const tabIdx = (x: 'tokens' | 'nfts' | 'activity') => (x === 'tokens' ? 0 : x === 'nfts' ? 1 : 2);
   function render() {
     if (!data) return;
     const back = away && entered;
     away = false;
     const hero = h('section', { class: 'hero on-sky' }, landscape({ veil: true, glow: 0.32 }), header(), summary(), actions());
-    const pane = h('div', { class: 'pane' }, tab === 'tokens' ? tokens() : tab === 'nfts' ? nftList() : activityList());
+    const step = tabIdx(tab) - tabIdx(paneTab);
+    paneTab = tab;
+    const pane = h('div', { class: `pane${step ? ` pane-in ${step > 0 ? 'from-end' : 'from-start'}` : ''}` }, tab === 'tokens' ? tokens() : tab === 'nfts' ? nftList() : activityList());
     const sheet = h('section', { class: 'sheet' }, banners(), tabs(), pane);
     const root = h('div', { class: `home${opts.mode === 'popup' ? ' compact' : ''}${entered ? '' : ' enter'}` }, hero, sheet);
     entered = true;

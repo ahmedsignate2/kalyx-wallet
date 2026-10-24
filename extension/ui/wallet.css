@@ -377,3 +377,14 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 .starter-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
 .starter-actions .btn { min-height: 46px; font-size: 15px; border-radius: 16px; }
 .total .minor { font-size: 0.56em; font-weight: 600; letter-spacing: -0.5px; opacity: 0.72; }
+/* Onglets : le contenu arrive du côté de son onglet. */
+.pane-in.from-end { animation: pane-end var(--d-base) var(--ease-out); }
+.pane-in.from-start { animation: pane-start var(--d-base) var(--ease-out); }
+@keyframes pane-end { from { opacity: 0; transform: translateX(18px); } }
+@keyframes pane-start { from { opacity: 0; transform: translateX(-18px); } }
+/* Feuille tirée vers le bas : elle suit le doigt, puis revient en souplesse. */
+.modal { transition: transform 0.28s var(--ease-spring); }
+.modal.dragging { transition: none; }
+.grip, .modal-head { cursor: grab; touch-action: none; user-select: none; }
+.modal.dragging .grip, .modal.dragging .modal-head { cursor: grabbing; }
+@media (prefers-reduced-motion: reduce) { .pane-in { animation: none !important; } .modal { transition: none; } }
