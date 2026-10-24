@@ -15,11 +15,12 @@
  * refusé (rejouable là-bas), « message » Solana qui est en fait une
  * transaction refusé, eth_sign (hachage brut) refusé.
  */
-import { Interface, Wallet, getBytes, isHexString } from 'ethers';
+import { Interface, Signature, TypedDataEncoder, getBytes, hashMessage, isHexString } from 'ethers';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { ed25519 } from '@noble/curves/ed25519';
 import { base58, base64 } from '@scure/base';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
-import { wipeSigner, withSigner } from '../../src/domain/chains/v2/signer';
+import { wipeSigner, withSigner, type ChainSigner } from '../../src/domain/chains/v2/signer';
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
 import type { ChainConfig } from '../../src/domain/chains/types';
 import { EvmChainAdapter, type RawTxRequest } from '../../src/domain/chains/EvmChainAdapter';
@@ -538,17 +539,33 @@ export async function execute(req: SignRequest, grant: { walletId: string; index
     // Sites Bitcoin depuis le téléphone : pas encore (le téléphone ne partage pas sa clé publique ici).
     if (family === 'bitcoin') throw new RpcError(4200, 'COMPANION_NO_BTC_SITES');
     if (!deps.companion) throw new RpcError(4900, 'COMPANION_UNAVAILABLE');
-    const acct = meta.accounts[0];
+    // Le compte ACCORDÉ au site (un portefeuille du téléphone en a plusieurs).
+    const acct = meta.accounts.find((a) => a.index === grant.index);
     if ((family === 'evm' ? acct?.evm : acct?.solana)?.toLowerCase() !== req.from.toLowerCase()) throw new RpcError(4100, 'Ce compte n’est pas celui du téléphone');
     return executeOnPhone(req, meta, deps.companion, { reduceTo: opts.reduceTo, site: opts.site, tokenMeta: deps.tokenMeta ?? readTokenMeta });
   }
   const signer = await signerFor(deps.session, deps.wallets, grant.walletId, grant.index, family, req.from);
+  // Effacée QUOI QU'IL ARRIVE : une préparation qui échoue avant la signature (PSBT illisible, décimales introuvables…) ne la laisse pas en mémoire.
+  try {
+    return await signWith(signer, req, deps, opts);
+  } finally {
+    wipeSigner(signer);
+  }
+}
 
+/** Signature EVM d'un condensat, sans jamais passer la clé en texte (une chaîne ne s'efface pas). */
+function evmSign(hash: string, privateKey: Uint8Array): string {
+  const sig = secp256k1.sign(getBytes(hash), privateKey, { lowS: true });
+  const word = (n: bigint) => `0x${n.toString(16).padStart(64, '0')}`;
+  return Signature.from({ r: word(sig.r), s: word(sig.s), v: 27 + (sig.recovery ?? 0) }).serialized;
+}
+
+async function signWith(signer: ChainSigner, req: SignRequest, deps: ExecuteDeps, opts: { reduceTo?: string; site?: string }): Promise<unknown> {
   if (req.kind === 'personal') {
     return withSigner(signer, async (s) => {
       if (s.curve !== 'secp256k1') throw new Error('courbe');
       const data = isHexString(req.hex) ? getBytes(req.hex) : req.hex;
-      return new Wallet(`0x${bytesToHex(s.privateKey)}`).signMessage(data);
+      return evmSign(hashMessage(data), s.privateKey);
     });
   }
   if (req.kind === 'typed') {
@@ -569,7 +586,7 @@ export async function execute(req: SignRequest, grant: { walletId: string; index
     const { EIP712Domain: _drop, ...types } = req.data.types as Record<string, unknown>;
     return withSigner(signer, async (s) => {
       if (s.curve !== 'secp256k1') throw new Error('courbe');
-      return new Wallet(`0x${bytesToHex(s.privateKey)}`).signTypedData(req.data.domain as never, types as never, req.data.message as never);
+      return evmSign(TypedDataEncoder.hash(req.data.domain as never, types as never, req.data.message as never), s.privateKey);
     });
   }
   if (req.kind === 'evmTx') {
