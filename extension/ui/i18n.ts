@@ -297,6 +297,7 @@ const fr = {
   vdLow: 'Rien d’inquiétant repéré', vdMedium: 'Prudence : lis ces points avant de signer', vdHigh: 'Danger : refuse, sauf si tu es absolument sûr', pvUnavailableTitle: 'Aperçu indisponible', pvUnavailableBody: 'Kalyx n’a pas pu prévoir le résultat exact : ça arrive avec certains réseaux et contrats. Rien ne part tant que tu ne confirmes pas. Si tu ne connais pas ce site, refuse.', pvFailedTitle: 'Cette transaction risque d’échouer', pvFailedBody: 'D’après l’aperçu, le réseau la refuserait, et des frais seraient quand même prélevés. Le plus sûr : refuser, puis réessayer depuis le site en vérifiant le montant et ton solde.', pvErrorLabel: 'Raison technique', holdKeep: 'Continue d’appuyer…', vdWhy: 'Pourquoi',
   stTitle: 'Ton portefeuille est prêt', stBody: 'Ajoute des fonds pour commencer : par carte, ou depuis un autre portefeuille ou une plateforme d’échange.',
   modeNowBeginner: 'Mode Débutant : l’essentiel, sans détails techniques.', modeNowExpert: 'Mode Expert : tout est visible et réglable.',
+  obV1: 'Chaque signature expliquée et notée avant que tu acceptes', obV2: 'EVM, Solana, Bitcoin et TON au même endroit', obV3: 'Tes clés restent ici, chiffrées : personne d’autre n’y a accès', obLockLater: 'Verrouillage automatique : 15 min, modifiable dans Réglages.',
 };
 
 type Dict = typeof fr;
@@ -578,6 +579,7 @@ const en: Dict = {
   vdLow: 'Nothing worrying found', vdMedium: 'Careful: read these points before signing', vdHigh: 'Danger: refuse unless you are absolutely sure', pvUnavailableTitle: 'Preview unavailable', pvUnavailableBody: 'Kalyx couldn’t predict the exact result: this happens with some networks and contracts. Nothing leaves until you confirm. If you don’t know this site, refuse.', pvFailedTitle: 'This transaction will probably fail', pvFailedBody: 'According to the preview, the network would reject it and fees would still be charged. Safest: refuse, then try again from the site after checking the amount and your balance.', pvErrorLabel: 'Technical reason', holdKeep: 'Keep holding…', vdWhy: 'Why',
   stTitle: 'Your wallet is ready', stBody: 'Add funds to get started: by card, or from another wallet or an exchange.',
   modeNowBeginner: 'Beginner mode: the essentials, no technical details.', modeNowExpert: 'Expert mode: everything visible and adjustable.',
+  obV1: 'Every signature explained and scored before you accept', obV2: 'EVM, Solana, Bitcoin and TON in one place', obV3: 'Your keys stay here, encrypted: nobody else can reach them', obLockLater: 'Auto-lock: 15 min, adjustable in Settings.',
 };
 
 export type Key = keyof Dict;

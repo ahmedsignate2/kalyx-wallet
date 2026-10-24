@@ -18,7 +18,7 @@ import { h, send } from '../../ui/dom';
 import { applyLang, errorText, LANG, reasonText, t } from '../../ui/i18n';
 import { passwordStrength } from '../../../src/security/passwordStrength';
 import { createBackupChallenge, unknownWords, type WordChallenge } from '../../../src/domain/wallet/backupChallenge';
-import { AUTO_LOCK_CHOICES, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
+import { DEFAULT_AUTO_LOCK_MIN, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
 import { languageSelect } from '../../ui/helpScreen';
 import { createPasskey, passkeyPrf, passkeySupported, unlockWith, type PasskeyStatus } from '../../ui/passkey';
 import { getMode, getTheme, setMode, setTheme, type Mode, type Theme } from '../../ui/prefs';
@@ -29,7 +29,7 @@ interface WalletMeta {
   label: string;
   kind: 'seed' | 'privateKey' | 'companion';
   backedUp: boolean;
-  accounts: { index: number; evm?: string; solana?: string; bitcoin?: string }[];
+  accounts: { index: number; evm?: string; solana?: string; bitcoin?: string; ton?: string }[];
 }
 
 // Pas de rechargement en plein parcours (la phrase en cours serait perdue) : la langue se choisit sur l'accueil.
@@ -67,7 +67,12 @@ function welcome() {
   screen(
     h('span', { class: 'access-logo ob-logo' }, h('img', { src: '/icon/128.png', alt: '' })),
     h('h1', {}, t('welcomeTitle')),
-    h('p', { class: 'muted' }, t('welcomeSub')),
+    // La valeur d'abord : trois choses vraies que Kalyx fait, avant le premier clic.
+    h(
+      'ul',
+      { class: 'ob-values' },
+      ...([['security', 'obV1'], ['dapps', 'obV2'], ['lock', 'obV3']] as const).map(([icon, k], i) => h('li', { style: `animation-delay:${120 + i * 70}ms` }, h('span', { class: 'ob-v-ico' }, glyph(icon, 18)), h('span', {}, t(k)))),
+    ),
     h('button', { class: 'btn', type: 'button', on: { click: () => withAuth(createFlow) } }, t('create')),
     h('button', { class: 'btn secondary', type: 'button', on: { click: () => withAuth(importMenu) } }, t('haveOne')),
     h('label', { class: 'ob-lang small muted' }, glyph('language', 16), languageSelect()),
@@ -583,7 +588,6 @@ async function finish(notes: string[] = []) {
   phrase = '';
   const [list, st] = await Promise.all([send<{ wallets: WalletMeta[] }>({ type: 'wallet:list' }), send<{ autoLockMin: number }>({ type: 'vault:status' })]);
   const wallets = list.ok ? list.wallets : [];
-  const select = h('select', { on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(select.value) }) } }, ...AUTO_LOCK_CHOICES.map((m) => h('option', { value: String(m), selected: m === st.autoLockMin }, t('minutes', { n: m }))));
   screen(
     !!createdId && steps(3),
     h('div', { class: 'success-badge' }, glyph('check', 34)),
@@ -596,13 +600,13 @@ async function finish(notes: string[] = []) {
         h('strong', {}, w.label),
         !w.backedUp && h('div', { class: 'banner' }, h('span', {}, t('backupBanner'))),
         // Une ligne par adresse, sans espaces de remplissage : « EVM 0x9858…da94 ».
-        ...w.accounts.map((a) => h('div', { class: 'acct-addrs' }, ...[a.evm && ['EVM', a.evm], a.solana && ['SOL', a.solana], a.bitcoin && ['BTC', a.bitcoin]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
+        ...w.accounts.map((a) => h('div', { class: 'acct-addrs' }, ...[a.evm && ['EVM', a.evm], a.solana && ['SOL', a.solana], a.bitcoin && ['BTC', a.bitcoin], a.ton && ['TON', a.ton]].filter((x): x is [string, string] => !!x).map(([k, v]) => h('span', { class: 'chip-addr' }, h('b', {}, k), h('span', { class: 'mono' }, short(v)))))),
       ),
     ),
     personalize(),
     pinTip,
-    h('label', { class: 'small muted' }, t('autoLock')),
-    select,
+    // Moins d'étapes : le verrouillage reste au réglage par défaut, modifiable plus tard.
+    h('p', { class: 'small muted note-line' }, glyph('clock', 14), st.ok && st.autoLockMin !== DEFAULT_AUTO_LOCK_MIN ? `${t('autoLock')} : ${t('minutes', { n: st.autoLockMin })}` : t('obLockLater')),
     h('button', { class: 'btn', type: 'button', on: { click: () => window.close() } }, t('done')),
   );
 }

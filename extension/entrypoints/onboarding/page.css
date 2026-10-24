@@ -27,3 +27,11 @@ ul.warn { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size
 .row { display: flex; gap: 10px; }
 .seg { display: flex; gap: 8px; }
 .seg label { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border-radius: 14px; padding: 12px; cursor: pointer; font-size: 14px; }
+
+/* Accueil : la valeur avant le premier clic. */
+.ob-values { list-style: none; margin: 2px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ob-values li { display: flex; align-items: center; gap: 12px; font-size: 14.5px; line-height: 19px; font-weight: 500; animation: rise var(--d-base) var(--ease-out) both; }
+.ob-v-ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--ink-send) 14%, var(--surface-2)); color: var(--ink-send); }
+@media (prefers-reduced-motion: reduce) { .ob-values li { animation: none; } }
+.note-line { display: flex; align-items: center; gap: 6px; margin: 0; }
+.note-line .glyph { flex: none; }
