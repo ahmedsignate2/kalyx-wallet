@@ -18,6 +18,9 @@ import { openSheet } from '../../ui/sheet';
 import { addressView } from '../../ui/address';
 import { isExpert } from '../../ui/prefs';
 import { play } from '../../ui/sound';
+import { reducedMotion } from '../../ui/motion';
+
+const NS = 'http://www.w3.org/2000/svg';
 
 interface Req {
   id: string;
@@ -34,6 +37,7 @@ interface Review {
   reduce?: { symbol: string; decimals: number; suggested?: string };
   score: { score: number; level: 'low' | 'medium' | 'high'; factors: { code: string; points: number; params?: Record<string, string> }[] };
   outFiat: number | null;
+  preview?: { status: 'unavailable' | 'failed'; error?: string };
   approval?: { chainId: string; chainName: string; token: string; symbol: string; spender: string };
 }
 interface WalletMeta {
@@ -97,34 +101,143 @@ function siteHero(origin: string, testid = true) {
   );
 }
 
+/** Le site, en une ligne (fenêtre de signature : le verdict passe avant). */
+function siteBar(origin: string) {
+  const url = new URL(origin);
+  const secure = url.protocol === 'https:';
+  const name = url.hostname.replace(/^www\./, '');
+  const mono = () => h('span', { class: 'site-mini', 'aria-hidden': 'true' }, avatar(name, 28), h('b', {}, name.slice(0, 1).toUpperCase()));
+  let mark: HTMLElement = mono();
+  if (siteIcon) {
+    const img = h('img', { class: 'site-mini-icon', src: siteIcon, alt: '', referrerPolicy: 'no-referrer' });
+    img.addEventListener('error', () => img.replaceWith(mono()));
+    mark = img;
+  }
+  return h(
+    'header',
+    { class: 'site-bar' },
+    mark,
+    h('span', { class: 'grow' }, h('strong', { class: 'ellipsis' }, url.host), h('span', { class: `origin ${secure ? 'secure' : 'insecure'}` }, glyph(secure ? 'lock' : 'warning', 11), secure ? 'https' : 'http')),
+    h('img', { class: 'kalyx-mini', src: '/icon/32.png', alt: 'Kalyx' }),
+  );
+}
+
+type Level = 'low' | 'medium' | 'high';
+
+/** Le niveau affiché : le pire de l'explication (danger / à vérifier) et du score. */
+function levelOf(rv: Review): Level {
+  const ex = rv.explanation;
+  if (ex.risk === 'danger' || rv.score.level === 'high') return 'high';
+  if (ex.risk === 'warning' || rv.score.level === 'medium') return 'medium';
+  return 'low';
+}
+
+/** Jauge en demi-cercle : la longueur de l'arc EST le score (pathLength 100). */
+function gauge(score: number): SVGElement {
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 58');
+  svg.setAttribute('class', 'gauge');
+  svg.setAttribute('aria-hidden', 'true');
+  const arc = (cls: string) => {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', 'M10 52 A40 40 0 0 1 90 52');
+    p.setAttribute('pathLength', '100');
+    p.setAttribute('class', cls);
+    return p;
+  };
+  const track = arc('track');
+  const fill = arc('fill');
+  const value = Math.max(2, Math.min(100, score));
+  // Remplissage depuis zéro : la jauge « monte » jusqu'au score à l'ouverture.
+  fill.setAttribute('stroke-dasharray', `${reducedMotion() ? value : 0} 100`);
+  if (!reducedMotion()) requestAnimationFrame(() => requestAnimationFrame(() => fill.setAttribute('stroke-dasharray', `${value} 100`)));
+  svg.append(track, fill);
+  return svg;
+}
+
 /**
- * Score de risque : un nombre, une jauge, puis les raisons de la plus lourde
- * à la plus légère (trois visibles, le reste en dépliant). Calculé localement.
+ * VERDICT, en tête : jauge colorée, une phrase simple, puis les raisons de la
+ * plus lourde à la plus légère, chacune marquée de sa gravité. Le détail (les
+ * explications longues, les points en Expert) vient ensuite, replié.
  */
-function scoreCard(sc: Review['score']) {
-  // Expert : les points de chaque raison, et toutes les raisons dépliées. Débutant : les raisons, en mots.
+function verdictCard(rv: Review) {
+  const sc = rv.score;
+  const ex = rv.explanation;
+  const level = levelOf(rv);
   const expert = isExpert();
-  const row = (f: Review['score']['factors'][number]) => h('li', {}, expert && h('span', { class: 'pts' }, `+${f.points}`), h('span', {}, t(`rk_${f.code}` as 'rk_lossOnly', f.params ?? {})));
+  const sev = (pts: number) => (pts >= 25 ? 'high' : pts >= 10 ? 'medium' : 'low');
+  const row = (f: Review['score']['factors'][number]) =>
+    h('li', { class: `sev-${sev(f.points)}` }, h('i', { class: 'dot', 'aria-hidden': 'true' }), h('span', { class: 'grow' }, t(`rk_${f.code}` as 'rk_lossOnly', f.params ?? {})), expert && h('span', { class: 'pts' }, `+${f.points}`));
   const shown = expert ? sc.factors.length : 3;
   return h(
     'section',
-    { class: `card score ${sc.level}`, 'data-testid': 'risk-score', 'aria-label': t('rkTitle') },
+    { class: `verdict ${level}`, 'data-testid': 'risk-score', 'aria-label': t('rkTitle') },
     h(
       'div',
-      { class: 'score-head' },
-      h('strong', {}, `${t('rkTitle')} · ${t(sc.level === 'high' ? 'rkHigh' : sc.level === 'medium' ? 'rkMedium' : 'rkLow')}`),
-      h('span', { class: 'score-num', 'data-testid': 'risk-num' }, t('rkScore', { score: sc.score })),
+      { class: 'verdict-head' },
+      h(
+        'div',
+        { class: 'gauge-box', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(sc.score), 'aria-label': t('rkTitle') },
+        gauge(sc.score),
+        h('span', { class: 'score-num', 'data-testid': 'risk-num' }, h('b', {}, String(sc.score)), h('small', {}, '/100')),
+      ),
+      h(
+        'div',
+        { class: 'verdict-text' },
+        h('strong', { 'data-testid': ex.risk !== 'none' ? 'risk' : false }, t(level === 'high' ? 'vdHigh' : level === 'medium' ? 'vdMedium' : 'vdLow')),
+        h('span', { class: 'small muted' }, `${t('rkTitle')} ${t(level === 'high' ? 'rkHigh' : level === 'medium' ? 'rkMedium' : 'rkLow')}`),
+      ),
     ),
-    h('div', { class: 'meter', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(sc.score), 'aria-label': t('rkTitle') }, h('i', { style: `width:${Math.max(3, sc.score)}%` })),
-    sc.factors.length ? h('ul', { class: 'factors' }, ...sc.factors.slice(0, shown).map(row)) : h('p', { class: 'small muted' }, t('rkNone')),
-    sc.factors.length > shown && h('details', {}, h('summary', {}, t('rkMore', { n: sc.factors.length - shown })), h('ul', { class: 'factors' }, ...sc.factors.slice(shown).map(row))),
-    !expert && sc.level !== 'low' && h('p', { class: 'small', 'data-testid': 'risk-help' }, t('rkHelp')),
-    h('p', { class: 'small muted' }, t('rkLocal')),
+    sc.factors.length > 0 && h('ul', { class: 'factors' }, ...sc.factors.slice(0, shown).map(row)),
+    sc.factors.length > shown && h('details', { class: 'more' }, h('summary', {}, t('rkMore', { n: sc.factors.length - shown })), h('ul', { class: 'factors' }, ...sc.factors.slice(shown).map(row))),
+    ex.reasons.length > 0 && h('details', { class: 'why', open: expert || level === 'high' }, h('summary', {}, t('vdWhy')), ...ex.reasons.map((x) => h('p', {}, x))),
+    !expert && level !== 'low' && h('p', { class: 'small help', 'data-testid': 'risk-help' }, t('rkHelp')),
+    h('p', { class: 'tiny muted' }, glyph('security', 12), t('rkLocal')),
+  );
+}
+
+/** L'aperçu du résultat manque : le dire calmement, et quoi faire. */
+function previewCard(p: NonNullable<Review['preview']>) {
+  const failed = p.status === 'failed';
+  return h(
+    'section',
+    { class: `preview-note ${failed ? 'failed' : ''}`, role: failed ? 'alert' : 'note', 'data-testid': 'preview' },
+    h('span', { class: 'preview-icon', 'aria-hidden': 'true' }, glyph(failed ? 'warning' : 'about', 18)),
+    h(
+      'div',
+      { class: 'grow' },
+      h('strong', {}, t(failed ? 'pvFailedTitle' : 'pvUnavailableTitle')),
+      h('p', {}, t(failed ? 'pvFailedBody' : 'pvUnavailableBody')),
+      failed && p.error && isExpert() && h('p', { class: 'mono tiny muted' }, `${t('pvErrorLabel')} : ${p.error}`),
+    ),
+  );
+}
+
+/** Ce qui part et ce qui arrive : les montants d'abord, en gros, signés. */
+function flows(ex: Review['explanation']) {
+  if (!ex.lose.length && !ex.receive.length) return null;
+  const line = (sign: '−' | '+', cls: string, label: string, v: string) => h('div', { class: `flow ${cls}` }, h('span', { class: 'flow-sign', 'aria-hidden': 'true' }, sign), h('span', { class: 'grow' }, h('span', { class: 'sr' }, `${label} : `), h('strong', {}, v)));
+  return h(
+    'section',
+    { class: 'card flows' },
+    ...ex.lose.map((v) => line('−', 'lose', t('apLose'), v)),
+    ...ex.receive.map((v) => line('+', 'receive', t('apReceive'), v)),
+  );
+}
+
+/** Pendant l'analyse : la forme de l'écran, sans contenu inventé. */
+function signSkeleton() {
+  const bar = (w: string, hgt = 12) => h('i', { class: 'sk', style: `width:${w};height:${hgt}px` });
+  return h(
+    'div',
+    { class: 'stack skeleton', role: 'status', 'aria-busy': 'true', 'aria-label': t('apAnalyzing') },
+    h('section', { class: 'verdict pending' }, h('div', { class: 'verdict-head' }, h('i', { class: 'sk', style: 'width:96px;height:56px;border-radius:56px 56px 8px 8px' }), h('div', { class: 'stack', style: 'gap:8px;flex:1' }, bar('80%', 16), bar('40%')))), bar('70%', 22), bar('100%', 52),
+    h('p', { class: 'small muted center-text' }, t('apAnalyzing')),
   );
 }
 
 async function signScreen(req: Req) {
-  app.replaceChildren(h('header', { class: 'bar' }, h('img', { src: '/icon/128.png', alt: '' }), h('strong', {}, 'Kalyx')), h('p', { class: 'muted', role: 'status' }, t('apAnalyzing')));
+  app.replaceChildren(siteBar(req.origin), signSkeleton());
   const r = await send<{ review: Review; askPassword: boolean; capPassword?: boolean; capRemaining?: number | null; onPhone?: boolean }>({ type: 'approval:review', id, lang: navigator.language }).catch(() => null);
   if (!r?.ok) return r?.error === 'REQUEST_EXPIRED' ? gone() : void app.append(h('p', { class: 'error' }, errorText(r?.error)));
   const { review: rv, askPassword, capPassword, capRemaining, onPhone } = r;
@@ -151,7 +264,7 @@ async function signScreen(req: Req) {
   const label = hold ? t('apHold') : onPhone ? t('sendToPhone') : sending ? t('apConfirm') : t('apSign');
   // Mode compagnon : la signature se fait sur le téléphone ; pendant l'attente, on le dit.
   const phoneWait = h('p', { class: 'pill quiet status', hidden: true, role: 'status', 'data-testid': 'on-phone' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('onPhoneHint'));
-  const ok = h('button', { class: `btn arming ${ex.risk === 'danger' ? 'danger' : ''}`, type: 'button', disabled: true, style: `--arm:${ARM_MS}ms` }, label);
+  const ok = h('button', { class: `btn arming ${ex.risk === 'danger' || rv.score.level === 'high' ? 'danger' : ''}${hold ? ' hold' : ''}`, type: 'button', disabled: true, style: `--arm:${ARM_MS}ms`, 'aria-label': label }, label);
   setTimeout(() => ((ok.disabled = false), ok.classList.remove('arming')), ARM_MS);
 
   const refuse = async () => {
@@ -181,6 +294,8 @@ async function signScreen(req: Req) {
     const reason = x?.params?.reason;
     err.textContent = x?.error === 'ACTION_FAILED' ? t('apFailed', { m: hasErrorText(reason) ? errorText(reason) : (x.params?.message ?? '') }) : errorText(x?.error, x?.params);
     play('error');
+    ok.classList.remove('held');
+    ok.style.setProperty('--p', '0');
     ok.disabled = false;
   };
   /** Accord parti : une coche, un son discret (si activé), puis la fenêtre se ferme. */
@@ -191,16 +306,42 @@ async function signScreen(req: Req) {
   };
 
   // Danger : maintenir 2 s (un clic, même automatisé ou hérité, ne suffit pas).
+  // Le minuteur décide ; l'anneau qui se remplit n'est que l'image du temps qui reste.
   if (hold) {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let raf = 0;
+    let t0 = 0;
+    const text = h('span', { class: 'hold-label' }, label);
+    ok.replaceChildren(h('span', { class: 'hold-fill', 'aria-hidden': 'true' }), text);
+    const paint = (now: number) => {
+      ok.style.setProperty('--p', String(Math.min(1, (now - t0) / HOLD_MS)));
+      raf = requestAnimationFrame(paint);
+    };
     const stop = () => {
       clearTimeout(timer);
+      cancelAnimationFrame(raf);
+      if (!ok.classList.contains('holding')) return;
       ok.classList.remove('holding');
+      ok.style.setProperty('--p', '0');
+      text.textContent = label;
+    };
+    const begin = () => {
+      ok.classList.add('holding');
+      text.textContent = t('holdKeep');
+      t0 = performance.now();
+      if (!reducedMotion()) raf = requestAnimationFrame(paint);
+      play('tap');
+      timer = setTimeout(() => {
+        cancelAnimationFrame(raf);
+        ok.classList.remove('holding');
+        ok.classList.add('held');
+        ok.style.setProperty('--p', '1');
+        void approve();
+      }, HOLD_MS);
     };
     ok.addEventListener('pointerdown', () => {
       if (ok.disabled) return;
-      ok.classList.add('holding');
-      timer = setTimeout(() => (stop(), void approve()), HOLD_MS);
+      begin();
     });
     for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) ok.addEventListener(ev, stop);
     // Clavier : Espace ou Entrée MAINTENUS 2 s (la répétition de touche ne relance pas le compte).
@@ -208,28 +349,24 @@ async function signScreen(req: Req) {
       if ((e.key !== ' ' && e.key !== 'Enter') || ok.disabled) return;
       e.preventDefault();
       if (e.repeat || ok.classList.contains('holding')) return;
-      ok.classList.add('holding');
-      timer = setTimeout(() => (stop(), void approve()), HOLD_MS);
+      begin();
     });
     ok.addEventListener('keyup', (e) => (e.key === ' ' || e.key === 'Enter') && stop());
     ok.addEventListener('blur', stop);
   } else ok.addEventListener('click', () => void approve());
   document.addEventListener('keydown', (e) => e.key === 'Escape' && void refuse());
 
-  const list = (title: string, items: string[], cls: string) => items.length > 0 && h('div', { class: `card stack ${cls}`, style: 'gap:4px' }, h('p', { class: 'small muted' }, title), ...items.map((x) => h('strong', {}, x)));
   const refuseBtn = h('button', { class: 'btn secondary', type: 'button', on: { click: () => void refuse() } }, t('apRefuse'));
+  const level = levelOf(rv);
   app.replaceChildren(
     ...nodes(
-      siteHero(req.origin, false),
+      siteBar(req.origin),
       lookalikeBox,
-      h('div', { class: 'kicker' }, h('span', { class: `risk-pill ${ex.risk}` }, glyph(ex.risk === 'none' ? 'check' : 'warning', 12), ex.risk === 'none' ? ex.title : t(`apRisk_${ex.risk}` as 'apRisk_danger')), rv.chainName && h('span', { class: 'small muted' }, rv.chainName)),
-      h('h1', { 'data-testid': 'headline' }, ex.headline),
-      scoreCard(rv.score),
-      ex.detail && h('p', { class: 'muted' }, ex.detail),
-      ex.risk !== 'none' &&
-        h('div', { class: `banner ${ex.risk === 'danger' ? 'danger' : 'warn'}`, role: 'alert', 'data-testid': 'risk' }, h('div', {}, h('strong', {}, t(`apRisk_${ex.risk}` as 'apRisk_danger')), ...ex.reasons.map((x) => h('p', {}, x)))),
-      list(t('apLose'), ex.lose, 'lose'),
-      list(t('apReceive'), ex.receive, 'receive'),
+      // 1. Le verdict (danger d'abord), 2. ce qui se passe, 3. ce qui bouge — le reste est secondaire.
+      verdictCard(rv),
+      h('div', { class: 'what' }, h('p', { class: 'kicker-left small muted' }, ex.title, rv.chainName && ` · ${rv.chainName}`), h('h1', { 'data-testid': 'headline' }, ex.headline), ex.detail && h('p', { class: 'muted small' }, ex.detail)),
+      flows(ex),
+      rv.preview && previewCard(rv.preview),
       rv.messageText && h('div', { class: 'stack', style: 'gap:6px' }, h('p', { class: 'small muted' }, t('apMessage')), h('pre', { class: 'msg', 'data-testid': 'message' }, rv.messageText)),
       rv.reduce &&
         h(
@@ -239,15 +376,14 @@ async function signScreen(req: Req) {
           h('div', { class: 'amount' }, reduceAmount, h('span', { class: 'small muted' }, rv.reduce.symbol)),
           h('p', { class: 'small muted' }, t('apReduceHint', { s: rv.reduce.symbol })),
         ),
-      rv.details.length > 0 && h('details', { open: isExpert(), 'data-testid': 'tech-details' }, h('summary', {}, t('apDetails')), isExpert() && h('div', { class: 'kv' }, h('span', { class: 'small muted' }, t('apMethod')), h('p', { class: 'mono small' }, rv.method)), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
       rv.approval && h('label', { class: 'row-inline small' }, h('span', { class: 'grow muted' }, t('grRemind')), remind),
+      rv.details.length > 0 && h('details', { class: 'tech', open: isExpert(), 'data-testid': 'tech-details' }, h('summary', {}, t('apDetails')), isExpert() && h('div', { class: 'kv' }, h('span', { class: 'small muted' }, t('apMethod')), h('p', { class: 'mono small' }, rv.method)), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
       capPassword && h('p', { class: 'banner warn', role: 'status', 'data-testid': 'cap-note' }, glyph('warning', 16), h('span', { class: 'grow' }, t('capNote', { remaining: String(Math.floor(capRemaining ?? 0)) }))),
       askPassword && pw,
-      hold && h('p', { class: 'small muted' }, t('apHoldHint')),
       phoneWait,
       err,
       // Danger : Refuser en premier (et focalisé), signer à droite.
-      h('div', { class: 'dock' }, h('div', { class: 'actions' }, refuseBtn, ok)),
+      h('div', { class: `dock ${level}` }, hold && h('p', { class: 'tiny muted center-text' }, t('apHoldHint')), h('div', { class: 'actions' }, refuseBtn, ok)),
     ),
   );
   if (ex.risk === 'danger') refuseBtn.focus();

@@ -140,4 +140,5 @@ export default {
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '휴대폰 계정은 아직 Bitcoin 사이트를 지원하지 않습니다. 이 확장 프로그램의 계정을 사용하세요.',
   receiveTonNote: 'TON 네트워크의 자산(TON 및 제톤)만 받을 수 있습니다. 여기서 받을 때 메모는 필요 없습니다.',
   ctNoneTon: 'TON 연락처가 없습니다. 설정 › 주소록에서 추가하세요.', recipientPhTon: 'TON 주소(UQ… 또는 EQ…)', memoLabel: '메모(선택)', memoPh: '일부 거래소에서 요구합니다', feeTon: '수수료는 서명 전 다음 단계에서 계산됩니다.',
+  vdLow: '걱정할 만한 점이 없습니다', vdMedium: '주의: 서명하기 전에 다음 내용을 읽어 보세요', vdHigh: '위험: 확실하지 않다면 거절하세요', pvUnavailableTitle: '미리보기를 사용할 수 없음', pvUnavailableBody: 'Kalyx가 정확한 결과를 예측하지 못했습니다. 일부 네트워크와 컨트랙트에서 생기는 일입니다. 확인하기 전에는 아무것도 나가지 않습니다. 모르는 사이트라면 거절하세요.', pvFailedTitle: '이 트랜잭션은 실패할 가능성이 높습니다', pvFailedBody: '미리보기에 따르면 네트워크가 거부하지만 수수료는 그대로 부과됩니다. 가장 안전한 방법: 거절한 뒤 금액과 잔액을 확인하고 사이트에서 다시 시도하세요.', pvErrorLabel: '기술적 이유', holdKeep: '계속 누르고 있으세요…', vdWhy: '이유',
 };

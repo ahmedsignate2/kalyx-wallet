@@ -216,6 +216,8 @@ describe('Solana', () => {
   });
 });
 
+const STRANGER_CONTRACT = '0x1111111111111111111111111111111111111111';
+
 describe('explication (fenêtre)', () => {
   test('plusieurs transactions Solana : le risque monte, et la fenêtre le dit', async () => {
     const one = base64.encode(solTransfer('HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk', '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'));
@@ -257,6 +259,27 @@ describe('explication (fenêtre)', () => {
     // Message simple, site connu, rien de signalé : faible.
     const clean = await review({ kind: 'personal', from: EVM0, hex: '0x6869', text: 'hi', siwe: null }, SITE, { ...quiet, site: async () => ({ known: true, tampered: [] }) });
     expect(clean.score).toMatchObject({ score: 0, level: 'low' });
+  });
+
+  test('aperçu : simulation en échec → statut « failed », aucune erreur brute dans le texte affiché', async () => {
+    const tx = { kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: STRANGER_CONTRACT, data: '0xa9059cbb' + '0'.repeat(128), value: '0x0' } } as const;
+    const r = await review(tx, SITE, { ...quiet, simulate: async () => ({ source: 'node', changes: [], approvals: [], error: 'execution reverted: ERC20: transfer amount exceeds balance' }) as never });
+    expect(r.preview).toEqual({ status: 'failed', error: 'execution reverted: ERC20: transfer amount exceeds balance' });
+    const shown = [r.explanation.headline, r.explanation.detail ?? '', ...r.explanation.reasons].join(' ');
+    expect(shown).not.toMatch(/execution reverted/);
+  });
+
+  test('aperçu : pas de simulateur (lecture statique) sur un appel de contrat → « unavailable » ; simple envoi → rien', async () => {
+    const call = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: STRANGER_CONTRACT, data: '0x12345678', value: '0x0' } }, SITE, quiet);
+    expect(call.preview).toEqual({ status: 'unavailable' });
+    expect(call.explanation.detail ?? '').not.toMatch(/simulation/i);
+    const plain = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: STRANGER_CONTRACT, data: '0x', value: '0x2386f26fc10000' } }, SITE, quiet);
+    expect(plain.preview).toBeUndefined();
+    // Simulateur muet (null) sur un appel avec valeur : la phrase technique « non simulé » laisse place à l'aperçu.
+    const mute = await review({ kind: 'evmTx', from: EVM0, chainId: '0x1', tx: { to: STRANGER_CONTRACT, data: '0x12345678', value: '0x2386f26fc10000' } }, SITE, { ...quiet, simulate: async () => null as never });
+    expect(mute.preview).toEqual({ status: 'unavailable' });
+    expect(mute.explanation.lose.length).toBe(1);
+    expect(mute.explanation.reasons.join(' ')).not.toMatch(/simul/i);
   });
 
 });
