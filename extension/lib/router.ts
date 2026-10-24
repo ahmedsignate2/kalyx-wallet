@@ -359,6 +359,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         const manual = m.manual as Record<string, unknown> | undefined;
         if (!str(m.assetKey, 200) || !str(m.to, 200) || typeof m.amount !== 'string' || m.amount.length > 80) return { ok: false, error: 'BAD_REQUEST' };
         if (m.speed !== undefined && !SPEEDS.has(m.speed as string)) return { ok: false, error: 'BAD_REQUEST' };
+        if (m.memo !== undefined && (typeof m.memo !== 'string' || m.memo.length > 120)) return { ok: false, error: 'BAD_REQUEST' };
         if (manual !== undefined && (!gwei(manual?.maxFeeGwei) || !gwei(manual?.priorityGwei))) return { ok: false, error: 'MANUAL_FEE_INVALID' };
         return {
           ok: true,
@@ -367,6 +368,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
             to: m.to,
             amount: m.amount,
             max: m.max === true,
+            ...(typeof m.memo === 'string' && m.memo.trim() ? { memo: m.memo } : {}),
             speed: m.speed as 'slow' | 'normal' | 'fast' | undefined,
             manual: manual ? { maxFeeGwei: String(manual.maxFeeGwei).replace(',', '.'), priorityGwei: String(manual.priorityGwei).replace(',', '.') } : undefined,
           }),

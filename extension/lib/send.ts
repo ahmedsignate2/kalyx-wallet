@@ -1,5 +1,5 @@
 /**
- * ENVOYER — EVM, Solana (pièce native et tokens) et Bitcoin.
+ * ENVOYER — EVM, Solana, TON (pièce native et tokens) et Bitcoin.
  *
  * Le pipeline est celui de l'app (adaptateurs v2 du cœur) : préparer →
  * vérifier → signer → diffuser → suivre. Ce module y ajoute les verrous de
@@ -20,6 +20,7 @@ import { bytesToHex } from '@noble/hashes/utils';
 import { EvmAdapterV2 } from '../../src/domain/chains/v2/EvmAdapterV2';
 import { SolanaAdapterV2 } from '../../src/domain/chains/v2/SolanaAdapterV2';
 import { BitcoinAdapterV2 } from '../../src/domain/chains/v2/BitcoinAdapterV2';
+import { TonAdapterV2 } from '../../src/domain/chains/v2/TonAdapterV2';
 import { withSigner } from '../../src/domain/chains/v2/signer';
 import { signerFor } from './signer';
 import { BTC_CAIP, checkBtcTxid, checkSolSignature, checkTxHash, evmChainFor, evmTxParam, SOLANA_CAIP, unsignedSolanaTx } from './companionCore';
@@ -45,7 +46,7 @@ const GWEI = 1_000_000_000n;
 /** Garde-fou du mode manuel : au plus 5 × le palier Rapide (une virgule mal placée coûte cher). */
 const MANUAL_MAX_FACTOR = 5n;
 /** Réseaux dont la pièce native est proposée même sans solde lu (le réseau peut être muet). */
-const MAIN_NATIVES = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb', 'avalanche', 'solana', 'bitcoin'];
+const MAIN_NATIVES = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb', 'avalanche', 'solana', 'bitcoin', 'ton'];
 
 export interface AssetView {
   key: string;
@@ -83,6 +84,8 @@ export interface PrepareInput {
   max?: boolean;
   speed?: SendSpeed;
   manual?: ManualFee;
+  /** Commentaire (TON) : les plateformes d'échange l'exigent pour créditer le bon compte. */
+  memo?: string;
 }
 
 export interface DraftView {
@@ -107,6 +110,8 @@ export interface DraftView {
   expiresAt: number;
   /** Mode compagnon : la confirmation se fait sur le téléphone. */
   onPhone?: boolean;
+  /** TON : commentaire joint au transfert, montré tel qu'il sera signé. */
+  memo?: string;
 }
 
 interface Held {
@@ -141,21 +146,23 @@ export interface SendDeps {
   onSent?: (w: { txid: string; chainId: string; chainName: string; what: string; explorer?: string; opaque?: unknown; expiresAt?: number }) => void;
 }
 
-export type Family = 'evm' | 'solana' | 'bitcoin';
+export type Family = 'evm' | 'solana' | 'bitcoin' | 'ton';
 
 const familyOf = (c: ChainConfig): Family => {
-  if (c.family === 'evm' || c.family === 'solana' || c.family === 'bitcoin') return c.family;
+  if (c.family === 'evm' || c.family === 'solana' || c.family === 'bitcoin' || c.family === 'ton') return c.family;
   throw new WalletError('NOT_SUPPORTED', `Réseau non servi par l'extension : ${c.name}`);
 };
 
 const defaultAdapter = (c: ChainConfig): ChainAdapterV2 => {
   const f = familyOf(c);
-  return f === 'evm' ? new EvmAdapterV2(c) : f === 'solana' ? new SolanaAdapterV2(c) : new BitcoinAdapterV2(c);
+  return f === 'evm' ? new EvmAdapterV2(c) : f === 'solana' ? new SolanaAdapterV2(c) : f === 'ton' ? new TonAdapterV2(c) : new BitcoinAdapterV2(c);
 };
 
 /** Adresse du compte dans une famille ('' : le compte n'en a pas, ex. clé importée EVM). */
-const addrOf = (acct: Acct, f: string): string => (f === 'evm' ? acct.evm : f === 'solana' ? acct.solana : f === 'bitcoin' ? acct.bitcoin : '') ?? '';
+const addrOf = (acct: Acct, f: string): string => (f === 'evm' ? acct.evm : f === 'solana' ? acct.solana : f === 'bitcoin' ? acct.bitcoin : f === 'ton' ? acct.ton : '') ?? '';
 
+/** Commentaire TON saisi, sans espaces autour ; vide : aucun. */
+const tonMemo = (input: { memo?: string }): string | undefined => input.memo?.trim() || undefined;
 const toGwei = (wei: bigint) => formatTokenAmount(wei, 9).replace(/\s/g, '');
 function fromGwei(s: string): bigint {
   try {
@@ -216,7 +223,7 @@ export function makeSend(deps: SendDeps) {
       } catch {
         continue;
       }
-      if (c.family !== 'evm' && c.family !== 'solana' && c.family !== 'bitcoin') continue;
+      if (c.family !== 'evm' && c.family !== 'solana' && c.family !== 'bitcoin' && c.family !== 'ton') continue;
       if (!addrOf(acct, c.family)) continue;
       const key = `${c.id}:${h.kind === 'native' || !h.contract ? 'native' : h.contract}`;
       out.set(key, {
@@ -318,6 +325,10 @@ export function makeSend(deps: SendDeps) {
       if (family === 'bitcoin' && btc.maxSendable) {
         // Bitcoin : les frais dépendent des pièces à rassembler — c'est l'adaptateur qui calcule le maximum.
         amount = (await btc.maxSendable(from, to, speed)).amount;
+      } else if (!token && family === 'ton') {
+        // TON : pas de devis à part — les frais viennent d'un brouillon d'essai (émulation), plus 10 % de marge.
+        const probe = await a.prepareSend(from, { to, amount: 1n, token: null, speed, ...(tonMemo(input) ? { memo: tonMemo(input) } : {}) });
+        amount -= probe.fee + probe.fee / 10n;
       } else if (!token) {
         const q = a.quoteFees ? await a.quoteFees(from, { to, amount: 1n, token: null }) : null;
         amount -= q ? q[speed].cost : 0n;
@@ -328,7 +339,8 @@ export function makeSend(deps: SendDeps) {
     }
 
     // 4. Brouillon (refus de l'adaptateur : solde, décimales, frais).
-    let draft = await a.prepareSend(from, { to, amount, token, speed }).catch((e: unknown) => {
+    const memo = family === 'ton' ? tonMemo(input) : undefined;
+    let draft = await a.prepareSend(from, { to, amount, token, speed, ...(memo ? { memo } : {}) }).catch((e: unknown) => {
       throw family === 'bitcoin' ? btcError(e) : e;
     });
     if (input.manual && family === 'evm') draft = await applyManual(a, draft, input.manual, from);
@@ -336,7 +348,7 @@ export function makeSend(deps: SendDeps) {
 
     // 5. Anti-empoisonnement : sosie d'une adresse payée, de la liste, ou d'un compte à soi.
     const fiat = await deps.home.fiat();
-    const own = [cur.acct.evm, cur.acct.solana, cur.acct.bitcoin].filter((x): x is string => !!x);
+    const own = [cur.acct.evm, cur.acct.solana, cur.acct.bitcoin, cur.acct.ton].filter((x): x is string => !!x);
     const known = [...(await deps.portfolio.paidAddresses(cur.acct, fiat)), ...(await deps.whitelist.known()), ...own];
     const knownKeys = new Set(known.map(addressKey));
     const match = knownKeys.has(addressKey(to)) ? null : detectPoisoning(to, known);
@@ -364,6 +376,7 @@ export function makeSend(deps: SendDeps) {
       warnings: draft.warnings.map((w) => w.code),
       expiresAt: Math.min(until, draft.expiresAt ?? Infinity),
       onPhone: cur.wallet.kind === 'companion' || undefined,
+      memo,
     };
   }
 
@@ -389,6 +402,8 @@ export function makeSend(deps: SendDeps) {
       if (!deps.companion) throw new WalletError('NOT_SUPPORTED', 'COMPANION_UNAVAILABLE');
       let txid: string;
       let opaque: number | undefined;
+      // TON via le téléphone : pas encore (le téléphone ne partage pas son compte TON par WalletConnect).
+      if (familyOf(chain) === 'ton') throw new WalletError('NOT_SUPPORTED', 'COMPANION');
       if (familyOf(chain) === 'bitcoin') {
         /*
          * Bitcoin : le téléphone reçoit le destinataire et le montant en

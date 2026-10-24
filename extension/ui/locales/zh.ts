@@ -79,7 +79,7 @@ export default {
   e_WRONG_ACCOUNT: '账户已变更：请重新开始。',
   e_MANUAL_FEE_TOO_HIGH: '手动费用超过“快”档的 5 倍：请检查输入。',
   e_MANUAL_FEE_INVALID: '手动费用无效（小费不能超过最高费用）。',
-  e_MEMO_REQUIRED: '该收款人需要备注（memo）：此处不支持。',
+  e_MEMO_REQUIRED: '该收款方要求填写备注（通常是交易所）：请填入对方提供的备注。',
   e_NOT_SUPPORTED: '不支持该操作。', e_LOCKED: 'Kalyx 已锁定。', e_TX_FAILED: '交易失败。',
   e_CALL_EXCEPTION: '合约拒绝了该操作。', e_UNKNOWN_ACCOUNT: '未找到账户。', e_TX_UNCONFIRMED: '未知交易。',
   e_SOL_RENT_RECIPIENT: '金额太小，无法创建收款人的 Solana 账户。',
@@ -136,7 +136,8 @@ export default {
   grNotifTitle: '{n} 项授权待撤销', grNotifBody: '已到期：{list}。一键撤销。', capNote: '超出每日限额（今天还剩 {remaining}，按你的货币）：请用密码确认。', e_CAP_PASSWORD: '已超出每日限额（剩余 {remaining}）：需要密码。', grRemind: '撤销提醒', grNever: '从不', grIn1h: '1 小时后', grIn24h: '24 小时后', grIn7d: '7 天后', grTitle: '授权提醒', grLeftMin: '还剩 {n} 分钟', grLeftH: '还剩 {n} 小时', grLeftD: '还剩 {n} 天', grExpired: '已到期：请撤销', grDismiss: '移除此提醒', grRevokeAll: '全部撤销（{n}）', grRevoking: '正在撤销…', grRevoked: '已发送 {n} 项撤销。', grFailed: '失败：{list}。', capTitle: '每日限额', capOff: '无', capRaise: '提高限额', capRaiseBody: '提高或取消每日限额需要你的密码。',
   lookTitle: '外观', themeTitle: '主题', themeBody: '默认为夜间。“系统”跟随你的电脑。', themeDark: '夜间', themeLight: '奶油', themeSystem: '系统', modeTitle: '模式', modeBeginner: '新手', modeExpert: '专家', modeBeginnerBody: '先看重点：技术细节默认折叠，高级设置收起。', modeExpertBody: '全部展开：技术细节打开，显示评分点数和高级设置。', soundTitle: '轻柔提示音', soundBody: '签名或转账发出时一声轻响。默认关闭。', advTitle: '高级设置', advBody: '偏执模式、在网站上的显示、仅手机、胁迫码、白名单、网络。', rkHelp: '分数越高，这个请求可能让你损失越多。拿不准就拒绝：拒绝不花任何代价。', apDoneSent: '已发送', apDoneSigned: '已签名', apMethod: '方法', obLookTitle: '按你的喜好',
   receiveBtcNote: '仅限比特币，且须在 Bitcoin 网络上。bc1 地址不接收其他任何资产。',
-  recipientPhBtc: 'Bitcoin 地址（bc1…）', ctNoneBtc: '没有 Bitcoin 联系人。可在设置 › 地址簿中添加。', ctAddressPhAll: 'EVM（0x…）、Solana 或 Bitcoin 地址', e_BTC_DUST: '对此 Bitcoin 地址来说金额太小：至少 {min} {symbol}，否则网络会拒绝该交易。', e_BTC_TOO_MANY_INPUTS: '零散小额币太多，无法合并到一笔交易中。请发送更小的金额。',
+  recipientPhBtc: 'Bitcoin 地址（bc1…）', ctNoneBtc: '没有 Bitcoin 联系人。可在设置 › 地址簿中添加。', ctAddressPhAll: 'EVM（0x…）、Solana、Bitcoin 或 TON 地址', e_BTC_DUST: '对此 Bitcoin 地址来说金额太小：至少 {min} {symbol}，否则网络会拒绝该交易。', e_BTC_TOO_MANY_INPUTS: '零散小额币太多，无法合并到一笔交易中。请发送更小的金额。',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '手机账户暂不支持 Bitcoin 网站：请使用本扩展中的账户。',
   receiveTonNote: '仅限 TON 网络上的资产（TON 和 jetton）。在此收款无需填写备注。',
+  ctNoneTon: '没有 TON 联系人。可在 设置 › 地址簿 中添加。', recipientPhTon: 'TON 地址（UQ… 或 EQ…）', memoLabel: '备注（可选）', memoPh: '部分交易所要求填写', feeTon: '手续费将在下一步、签名之前计算。',
 };

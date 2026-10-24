@@ -79,7 +79,7 @@ export default {
   e_WRONG_ACCOUNT: '계정이 바뀌었습니다. 다시 시작하세요.',
   e_MANUAL_FEE_TOO_HIGH: '수동 수수료가 ‘빠름’의 5배를 넘습니다. 입력값을 확인하세요.',
   e_MANUAL_FEE_INVALID: '잘못된 수동 수수료입니다(팁은 최대 수수료를 넘을 수 없음).',
-  e_MEMO_REQUIRED: '이 받는 사람은 메모(memo)가 필요합니다. 여기서는 지원하지 않습니다.',
+  e_MEMO_REQUIRED: '이 수신자는 메모가 필요합니다(대개 거래소): 안내받은 메모를 입력하세요.',
   e_NOT_SUPPORTED: '지원하지 않는 작업입니다.', e_LOCKED: 'Kalyx가 잠겨 있습니다.', e_TX_FAILED: '트랜잭션이 실패했습니다.',
   e_CALL_EXCEPTION: '컨트랙트가 작업을 거부했습니다.', e_UNKNOWN_ACCOUNT: '계정을 찾을 수 없습니다.', e_TX_UNCONFIRMED: '알 수 없는 트랜잭션입니다.',
   e_SOL_RENT_RECIPIENT: '금액이 너무 적어 받는 사람의 Solana 계정을 만들 수 없습니다.',
@@ -136,7 +136,8 @@ export default {
   grNotifTitle: '취소할 승인 {n}건', grNotifBody: '기한 만료: {list}. 한 번에 취소하세요.', capNote: '일일 한도 초과(오늘 {remaining} 남음, 표시 통화 기준): 비밀번호로 확인하세요.', e_CAP_PASSWORD: '일일 한도 초과({remaining} 남음): 비밀번호가 필요합니다.', grRemind: '취소 알림', grNever: '안 함', grIn1h: '1시간 후', grIn24h: '24시간 후', grIn7d: '7일 후', grTitle: '승인 알림', grLeftMin: '{n}분 남음', grLeftH: '{n}시간 남음', grLeftD: '{n}일 남음', grExpired: '기한 만료: 취소하세요', grDismiss: '이 알림 삭제', grRevokeAll: '모두 취소({n})', grRevoking: '취소하는 중…', grRevoked: '{n}건의 취소를 보냈습니다.', grFailed: '실패: {list}.', capTitle: '일일 한도', capOff: '없음', capRaise: '한도 올리기', capRaiseBody: '일일 한도를 올리거나 없애려면 비밀번호가 필요합니다.',
   lookTitle: '화면', themeTitle: '테마', themeBody: '기본은 나이트. 시스템은 컴퓨터 설정을 따릅니다.', themeDark: '나이트', themeLight: '크림', themeSystem: '시스템', modeTitle: '모드', modeBeginner: '초보자', modeExpert: '전문가', modeBeginnerBody: '핵심부터: 기술 세부 정보는 접혀 있고 고급 설정은 따로 정리됩니다.', modeExpertBody: '모두 펼침: 기술 세부 정보, 점수 배점, 고급 설정이 모두 보입니다.', soundTitle: '은은한 소리', soundBody: '서명이나 송금이 나갈 때 부드러운 소리. 기본은 꺼짐.', advTitle: '고급 설정', advBody: '편집증 모드, 사이트 표시, 휴대폰 전용, 강요 코드, 허용 목록, 네트워크.', rkHelp: '점수가 높을수록 이 요청으로 잃을 수 있는 것이 큽니다. 의심되면 거절하세요: 거절에는 비용이 없습니다.', apDoneSent: '보냄', apDoneSigned: '서명함', apMethod: '메서드', obLookTitle: '내 취향대로',
   receiveBtcNote: 'Bitcoin 네트워크의 비트코인만 받을 수 있습니다. bc1 주소는 다른 자산을 받지 않습니다.',
-  recipientPhBtc: 'Bitcoin 주소(bc1…)', ctNoneBtc: 'Bitcoin 연락처가 없습니다. 설정 › 주소록에서 추가하세요.', ctAddressPhAll: 'EVM(0x…), Solana 또는 Bitcoin 주소', e_BTC_DUST: '이 Bitcoin 주소에는 너무 적습니다: 최소 {min} {symbol}, 아니면 네트워크가 거래를 거부합니다.', e_BTC_TOO_MANY_INPUTS: '한 번의 거래로 모으기에는 작은 코인이 너무 많습니다. 더 적은 금액을 보내세요.',
+  recipientPhBtc: 'Bitcoin 주소(bc1…)', ctNoneBtc: 'Bitcoin 연락처가 없습니다. 설정 › 주소록에서 추가하세요.', ctAddressPhAll: 'EVM(0x…), Solana, Bitcoin 또는 TON 주소', e_BTC_DUST: '이 Bitcoin 주소에는 너무 적습니다: 최소 {min} {symbol}, 아니면 네트워크가 거래를 거부합니다.', e_BTC_TOO_MANY_INPUTS: '한 번의 거래로 모으기에는 작은 코인이 너무 많습니다. 더 적은 금액을 보내세요.',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: '휴대폰 계정은 아직 Bitcoin 사이트를 지원하지 않습니다. 이 확장 프로그램의 계정을 사용하세요.',
   receiveTonNote: 'TON 네트워크의 자산(TON 및 제톤)만 받을 수 있습니다. 여기서 받을 때 메모는 필요 없습니다.',
+  ctNoneTon: 'TON 연락처가 없습니다. 설정 › 주소록에서 추가하세요.', recipientPhTon: 'TON 주소(UQ… 또는 EQ…)', memoLabel: '메모(선택)', memoPh: '일부 거래소에서 요구합니다', feeTon: '수수료는 서명 전 다음 단계에서 계산됩니다.',
 };

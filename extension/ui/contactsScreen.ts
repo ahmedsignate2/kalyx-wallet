@@ -16,7 +16,7 @@ export interface ContactView {
   id: string;
   name: string;
   address: string;
-  family: 'evm' | 'solana' | 'bitcoin';
+  family: 'evm' | 'solana' | 'bitcoin' | 'ton';
   changedAt?: number;
   previous?: string;
   recentlyChanged: boolean;
@@ -40,7 +40,7 @@ function contactRow(c: ContactView, onClick: () => void, testid = 'contact') {
     'button',
     { class: 'row link-row', type: 'button', 'data-testid': testid, on: { click: onClick } },
     avatar(c.address, 36),
-    h('span', { class: 'grow' }, h('strong', {}, c.name, h('span', { class: 'tag' }, c.family === 'solana' ? 'Solana' : c.family === 'bitcoin' ? 'Bitcoin' : 'EVM')), h('p', { class: 'small muted mono' }, shortAddr(c.address)), changedNote(c)),
+    h('span', { class: 'grow' }, h('strong', {}, c.name, h('span', { class: 'tag' }, c.family === 'solana' ? 'Solana' : c.family === 'bitcoin' ? 'Bitcoin' : c.family === 'ton' ? 'TON' : 'EVM')), h('p', { class: 'small muted mono' }, shortAddr(c.address)), changedNote(c)),
     glyph('chevron', 16),
   );
 }
@@ -154,13 +154,13 @@ export function contactsScreen(app: HTMLElement, back: () => void) {
 }
 
 /** Envoyer : choisir un contact du bon réseau. Ne fait que remplir l'adresse. */
-export async function pickContactSheet(family: 'evm' | 'solana' | 'bitcoin' | undefined, pick: (address: string) => void) {
+export async function pickContactSheet(family: 'evm' | 'solana' | 'bitcoin' | 'ton' | undefined, pick: (address: string) => void) {
   const list = (await loadContacts()).filter((c) => !family || c.family === family);
   const sheet = openSheet(
     t('ctTitle'),
     list.length
       ? h('div', { class: 'list card' }, ...list.map((c) => contactRow(c, () => (sheet.close(), pick(c.address)), 'pick-contact')))
-      : h('p', { class: 'muted' }, t(family === 'solana' ? 'ctNoneSol' : family === 'bitcoin' ? 'ctNoneBtc' : 'ctNone')),
+      : h('p', { class: 'muted' }, t(family === 'solana' ? 'ctNoneSol' : family === 'bitcoin' ? 'ctNoneBtc' : family === 'ton' ? 'ctNoneTon' : 'ctNone')),
   );
 }
 

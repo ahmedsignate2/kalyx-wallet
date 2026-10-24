@@ -79,7 +79,7 @@ export default {
   e_WRONG_ACCOUNT: 'アカウントが変わりました：やり直してください。',
   e_MANUAL_FEE_TOO_HIGH: '手動手数料が「高速」の 5 倍を超えています：入力を確認してください。',
   e_MANUAL_FEE_INVALID: '無効な手動手数料です（チップは最大手数料を超えられません）。',
-  e_MEMO_REQUIRED: 'この受取人にはメモ（memo）が必要です：ここでは対応していません。',
+  e_MEMO_REQUIRED: 'この送金先はコメントが必須です（多くは取引所）：指定されたコメントを入力してください。',
   e_NOT_SUPPORTED: 'この操作には対応していません。', e_LOCKED: 'Kalyx はロックされています。', e_TX_FAILED: 'トランザクションが失敗しました。',
   e_CALL_EXCEPTION: 'コントラクトが操作を拒否しました。', e_UNKNOWN_ACCOUNT: 'アカウントが見つかりません。', e_TX_UNCONFIRMED: '不明なトランザクションです。',
   e_SOL_RENT_RECIPIENT: '金額が小さすぎて、受取人の Solana アカウントを作成できません。',
@@ -136,7 +136,8 @@ export default {
   grNotifTitle: '取り消すべき承認：{n} 件', grNotifBody: '期限切れ：{list}。ワンクリックで取り消せます。', capNote: '1 日の上限を超えています（本日残り {remaining}、表示通貨）：パスワードで確認してください。', e_CAP_PASSWORD: '1 日の上限を超えました（残り {remaining}）：パスワードが必要です。', grRemind: '取り消しのリマインダー', grNever: 'なし', grIn1h: '1 時間後', grIn24h: '24 時間後', grIn7d: '7 日後', grTitle: '承認のリマインダー', grLeftMin: '残り {n} 分', grLeftH: '残り {n} 時間', grLeftD: '残り {n} 日', grExpired: '期限切れ：取り消してください', grDismiss: 'このリマインダーを削除', grRevokeAll: 'すべて取り消す（{n}）', grRevoking: '取り消し中…', grRevoked: '{n} 件の取り消しを送信しました。', grFailed: '失敗：{list}。', capTitle: '1 日の上限', capOff: 'なし', capRaise: '上限を上げる', capRaiseBody: '1 日の上限を上げる・解除するにはパスワードが必要です。',
   lookTitle: '外観', themeTitle: 'テーマ', themeBody: '既定はナイト。「システム」はパソコンの設定に合わせます。', themeDark: 'ナイト', themeLight: 'クリーム', themeSystem: 'システム', modeTitle: 'モード', modeBeginner: 'ビギナー', modeExpert: 'エキスパート', modeBeginnerBody: '大事なことを先に：技術的な詳細は折りたたみ、上級者向け設定はまとめておきます。', modeExpertBody: 'すべて表示：技術的な詳細を開き、スコアの点数と上級者向け設定を表示します。', soundTitle: '控えめなサウンド', soundBody: '署名や送金のときに小さな音を鳴らします。既定はオフ。', advTitle: '詳細設定', advBody: 'パラノイドモード、サイトでの表示、スマホのみ、強要コード、許可リスト、ネットワーク。', rkHelp: 'スコアが高いほど、このリクエストで損をするおそれが大きくなります。迷ったら拒否：拒否しても何も失いません。', apDoneSent: '送信しました', apDoneSigned: '署名しました', apMethod: 'メソッド', obLookTitle: 'お好みに',
   receiveBtcNote: 'Bitcoin ネットワーク上のビットコインのみ。bc1 アドレスはそれ以外を受け取れません。',
-  recipientPhBtc: 'Bitcoin アドレス（bc1…）', ctNoneBtc: 'Bitcoin の連絡先がありません。設定 › アドレス帳から追加してください。', ctAddressPhAll: 'EVM（0x…）、Solana、Bitcoin のアドレス', e_BTC_DUST: 'この Bitcoin アドレスには少なすぎます：最低 {min} {symbol}。それ未満だとネットワークに拒否されます。', e_BTC_TOO_MANY_INPUTS: '1 回の取引にまとめるには小さなコインが多すぎます。少ない金額を送ってください。',
+  recipientPhBtc: 'Bitcoin アドレス（bc1…）', ctNoneBtc: 'Bitcoin の連絡先がありません。設定 › アドレス帳から追加してください。', ctAddressPhAll: 'EVM（0x…）、Solana、Bitcoin または TON アドレス', e_BTC_DUST: 'この Bitcoin アドレスには少なすぎます：最低 {min} {symbol}。それ未満だとネットワークに拒否されます。', e_BTC_TOO_MANY_INPUTS: '1 回の取引にまとめるには小さなコインが多すぎます。少ない金額を送ってください。',
   apFamilyBtc: 'Bitcoin', e_COMPANION_NO_BTC_SITES: 'スマホのアカウントではまだ Bitcoin サイトに対応していません。この拡張機能のアカウントを使ってください。',
   receiveTonNote: 'TON ネットワーク上の資産（TON とジェットン）のみ。ここで受け取るのにコメントは不要です。',
+  ctNoneTon: 'TON の連絡先はありません。設定 › アドレス帳 から追加できます。', recipientPhTon: 'TON アドレス（UQ… または EQ…）', memoLabel: 'コメント（任意）', memoPh: '一部の取引所で必須です', feeTon: '手数料は次のステップ、署名の前に計算されます。',
 };
