@@ -520,3 +520,8 @@ export {
   type BuyAsset,
   type BuyPaymentMethod,
 } from './domain/ramp/moonpay';
+
+// Score de risque d'une signature (commun à l'app et à l'extension)
+export { scoreRisk, levelOf as riskLevelOf, type RiskScore, type RiskFactor, type RiskSignals, type RiskLevel as ScoreLevel } from './domain/security/riskScore';
+export { spenderRisk } from './domain/security/spenderRisk';
+export { knownSpender } from './domain/security/knownSpenders';

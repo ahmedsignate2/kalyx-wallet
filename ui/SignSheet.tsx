@@ -18,7 +18,7 @@ import { Text, Button, HoldButton, Divider, RiskBadge, AddressGlyph, Sheet, Skel
 import { Icon } from './icon';
 import { useTheme } from './theme';
 import { space, radius } from './tokens';
-import type { SignExplanation } from '../src';
+import type { SignExplanation, RiskScore } from '../src';
 
 export function SignSheet({
   visible,
@@ -34,6 +34,7 @@ export function SignSheet({
   onReduceApproval,
   signLabel,
   via,
+  score,
 }: {
   visible: boolean;
   peer: { name: string; url: string; icon?: string } | null;
@@ -50,6 +51,8 @@ export function SignSheet({
   signLabel?: string;
   /** Demande relayée (extension Kalyx) : nom de l'intermédiaire, sous le vrai site. */
   via?: string;
+  /** Score de risque 0-100 (même moteur que l'extension) et ses raisons, de la plus lourde à la plus légère. */
+  score?: RiskScore | null;
 }) {
   const t = useT();
   const { colors } = useTheme();
@@ -59,7 +62,10 @@ export function SignSheet({
   const verified = verify?.validation === 'VALID';
   const badDomain = verify?.validation === 'INVALID' || verify?.isScam;
   // Domaine usurpé ou signalé : signer exige le même appui long qu'un risque élevé.
-  const danger = explanation?.risk === 'danger' || !!badDomain;
+  // Score élevé : comme un danger, signer exige l'appui long (même règle que l'extension).
+  const danger = explanation?.risk === 'danger' || !!badDomain || score?.level === 'high';
+  const fill = (s: string, p?: Record<string, string>) => (p ? Object.entries(p).reduce((a, [k, v]) => a.split(`{${k}}`).join(v), s) : s);
+  const scoreTone = score?.level === 'high' ? 'danger' : score?.level === 'medium' ? 'warning' : 'secondary';
 
   return (
     <Sheet visible={visible} onClose={onReject}>
@@ -124,6 +130,16 @@ export function SignSheet({
           {explanation.reasons.map((r, i) => (
             <Text key={i} variant="caption" tone={explanation.risk === 'danger' ? 'danger' : explanation.risk === 'warning' ? 'warning' : 'secondary'}>• {r}</Text>
           ))}
+          {score && score.factors.length ? (
+            <View testID="risk-score" style={{ gap: 2, marginTop: space[1] }}>
+              <Text variant="caption" tone={scoreTone}>
+                {`${t('rkTitle')} ${t(score.level === 'high' ? 'rkHigh' : score.level === 'medium' ? 'rkMedium' : 'rkLow')} · ${fill(t('rkScore'), { score: String(score.score) })}`}
+              </Text>
+              {score.factors.slice(0, 3).map((f) => (
+                <Text key={f.code} variant="micro" tone="tertiary">• {fill(t(`rk_${f.code}` as 'rk_firstVisit'), f.params)}</Text>
+              ))}
+            </View>
+          ) : null}
           {explanation.canReduceApproval && onReduceApproval ? <Button label={t('reduceToExact')} variant="secondary" size="sm" onPress={onReduceApproval} style={{ alignSelf: 'flex-start' }} /> : null}
         </View>
       ) : null}

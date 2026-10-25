@@ -19,6 +19,9 @@ import { useIsWatchOnly } from '../../ui/WatchOnlyGate';
 import { randomBytes } from '@noble/hashes/utils';
 import { signMessageParam } from '../../lib/dappProvider';
 import { base64 } from '@scure/base';
+import { signRisk, siteKnown } from '../../lib/signRisk';
+import { withTimeout } from '../../src/domain/chains/net';
+import type { EvmChainAdapter } from '../../src/domain/chains/EvmChainAdapter';
 import { solanaTxDecode } from '../../src/domain/wc/solanaTx';
 import type { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
 import { shouldClosePending } from '../../lib/dappPending';
@@ -84,7 +87,8 @@ import {
   isValidEvmAddress,
   type RawTxRequest,
   type RiskAssessment,
-  type Simulation
+  type Simulation,
+  type RiskScore
 } from '../../src';
 import { useHistoryStore } from '../../lib/historyStore';
 import { solanaMessageBytes } from '../../lib/solanaMessage';
@@ -814,6 +818,46 @@ export default function Browser() {
     analyzePending(() => alive);
     return () => { alive = false; };
   }, [pendingId]);
+
+  /*
+   * SCORE DE RISQUE (même moteur que l'extension) : site signalé, sosie, SIWE
+   * d'un autre domaine, autorisation illimitée, bénéficiaire sans code ou
+   * inconnu, perte sans contrepartie, site neuf. Élevé = appui long.
+   */
+  const [score, setScore] = useState<RiskScore | null>(null);
+  const computeScore = useEffectEvent((isAlive: () => boolean) => {
+    setScore(null);
+    if (!pending || pending.kind === 'connect' || sim === 'loading' || risk === 'loading') return;
+    const host = pending.origin.replace(/^www\./, '');
+    const decoded = pending.kind === 'tx' ? decodeTx({ to: pending.raw.to, value: pending.raw.value, data: pending.raw.data }) : null;
+    // Réseau de la demande (figé pour une transaction), pas forcément celui de l'onglet.
+    const net = pending.kind === 'tx' ? getAdapter(pending.chainId).config : chain;
+    const evm = (pending.kind === 'tx' || pending.kind === 'typedData') && net.family === 'evm' ? (getAdapter(net.id) as EvmChainAdapter) : null;
+    void signRisk(
+      {
+        host,
+        url: `https://${pending.origin}`,
+        phishingSite: phishSite,
+        siweDomain: pending.kind === 'sign' && pending.siwe && siweDomainMismatch(pending.siwe.domain, `https://${pending.origin}`) ? pending.siwe.domain : null,
+        contractDanger: !!risk && risk.level === 'danger',
+        decoded,
+        typed: pending.kind === 'typedData' ? pending.summary : null,
+        simulation: sim || null,
+        hasData: pending.kind === 'tx' && !!pending.raw.data && pending.raw.data.length > 2,
+        value: pending.kind === 'tx' ? pending.value : undefined,
+        txCount: pending.kind === 'solTx' ? pending.txs.length : undefined,
+        knownSite: siteKnown(host, useDappActivity.getState()),
+      },
+      evm ? { codeOf: (a) => withTimeout(evm.getCode(a), 4000, () => new Error('timeout')).catch(() => null), assess: net.evmChainId ? (a) => assessAddress(net.evmChainId!, a).catch(() => null) : undefined } : {},
+    ).then((r) => {
+      if (isAlive()) setScore(r);
+    });
+  });
+  useEffect(() => {
+    let alive = true;
+    computeScore(() => alive);
+    return () => { alive = false; };
+  }, [pendingId, sim, risk, phishSite]);
 
   const explanation = useMemo(() => {
     if (!pending || pending.kind === 'connect') return null;
@@ -1549,6 +1593,7 @@ export default function Browser() {
         // (analyse désactivée, échouée, ou site simplement inconnu).
         verify={danger || phishSite ? { validation: 'INVALID', isScam: true } : pending && VERIFIED_HOSTS.has(pending.origin) ? { validation: 'VALID' } : { validation: 'UNKNOWN' }}
         explanation={explanation}
+        score={score}
         simulating={sim === 'loading'}
         network={pending?.kind === 'solTx' ? getAdapter(pending.chainId).config.name : pending?.kind === 'solMessage' ? 'Solana' : chain.name}
         address={pending?.kind === 'solTx' || pending?.kind === 'solMessage' ? solAddress : evmAddress}

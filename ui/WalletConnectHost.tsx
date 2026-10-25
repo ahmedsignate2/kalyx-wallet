@@ -52,9 +52,14 @@ import {
   isWalletError,
   type PsbtSummary,
   type RiskAssessment,
-  type Simulation
+  type Simulation,
+  type RiskScore
 } from '../src';
 import { SignSheet } from './SignSheet';
+import { signRisk, siteKnown } from '../lib/signRisk';
+import { useDappActivity } from '../lib/dappActivity';
+import { withTimeout } from '../src/domain/chains/net';
+import type { EvmChainAdapter } from '../src/domain/chains/EvmChainAdapter';
 import { Interface } from 'ethers';
 
 /** Hôte RÉEL de l'URL déclarée (identifiants et chemins piégés compris). */
@@ -183,6 +188,8 @@ export function WalletConnectHost() {
   const [sim, setSim] = useState<Simulation | 'loading' | null>(null);
   // Token d'un Permit/Permit2 : symbole + décimales (registre local, puis métadonnées ERC-20).
   const [permitToken, setPermitToken] = useState<{ symbol: string; decimals: number } | null>(null);
+  // Score de risque 0-100 (même moteur que l'extension), calculé quand l'analyse est prête.
+  const [score, setScore] = useState<RiskScore | null>(null);
 
   // Décodage lisible de la requête (mémoïsé : parsing hex/SIWE/EIP-712).
   const info = useMemo(() => {
@@ -330,6 +337,47 @@ export function WalletConnectHost() {
     };
     // Compte changé (« Signer avec Compte 2 ») : la simulation se refait depuis le bon compte.
   }, [request, activeAccountIndex]);
+
+  /*
+   * SCORE DE RISQUE : les mêmes signaux que l'extension (site signalé, sosie,
+   * SIWE d'un autre domaine, autorisation illimitée, bénéficiaire sans code ou
+   * inconnu, perte sans contrepartie, site neuf…). Score élevé = appui long.
+   */
+  const computeScore = useEffectEvent((isAlive: () => boolean) => {
+    setScore(null);
+    if (!info || !request || sim === 'loading' || risk === 'loading') return;
+    const site = info.originSite ?? info.peer?.url ?? '';
+    const host = site ? hostOf(site).replace(/^www\./, '') : undefined;
+    const p0 = request.params?.request?.params?.[0] ?? request.params?.request?.params;
+    const act = useDappActivity.getState();
+    const evm = info.chain?.family === 'evm' ? (getAdapter(info.chain.id) as EvmChainAdapter) : null;
+    void signRisk(
+      {
+        host,
+        url: site,
+        phishingSite: phishSite,
+        siweDomain: info.phishing && info.siwe ? info.siwe.domain : null,
+        contractDanger: !!risk && risk.level === 'danger',
+        decoded: info.decoded,
+        typed: info.typed,
+        simulation: sim || null,
+        hasData: !!info.tx?.data && info.tx.data.length > 2,
+        value: info.tx?.value,
+        txCount: Array.isArray(p0?.transactions) ? p0.transactions.length : undefined,
+        knownSite: host ? siteKnown(host, act) : undefined,
+      },
+      evm ? { codeOf: (a) => withTimeout(evm.getCode(a), 4000, () => new Error('timeout')).catch(() => null), assess: info.chain?.evmChainId ? (a) => assessAddress(info.chain!.evmChainId!, a).catch(() => null) : undefined } : {},
+    ).then((r) => {
+      if (isAlive()) setScore(r);
+    });
+  });
+  useEffect(() => {
+    let alive = true;
+    computeScore(() => alive);
+    return () => {
+      alive = false;
+    };
+  }, [request, sim, risk, phishSite]);
 
   // Token d'un Permit / Permit2 : symbole et décimales, pour ne jamais afficher « tes Permit2 ».
   const resolvePermitToken = useEffectEvent((isAlive: () => boolean) => {
@@ -558,6 +606,7 @@ export function WalletConnectHost() {
           via={info.originSite ? peer?.name || t('appGeneric') : undefined}
           verify={verify}
           explanation={explanation}
+          score={score}
           simulating={simulating}
           network={chain?.name}
           address={signerAddress}

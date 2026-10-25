@@ -26,7 +26,7 @@ import type { ChainConfig } from '../../src/domain/chains/types';
 import { EvmChainAdapter, type RawTxRequest } from '../../src/domain/chains/EvmChainAdapter';
 import { SolanaChainAdapter } from '../../src/domain/chains/SolanaChainAdapter';
 import { simulateSolanaTx } from '../../src/domain/tx/solanaSimulate';
-import { knownSpender } from '../../src/domain/security/knownSpenders';
+import { spenderRisk } from '../../src/domain/security/spenderRisk';
 import { decodeTx } from '../../src/domain/tx/decodeTx';
 import { simulateTx, type Simulation } from '../../src/domain/tx/simulate';
 import { explainRequest, type ExplainT, type SignExplanation } from '../../src/domain/wc/explain';
@@ -303,15 +303,15 @@ export async function readTokenMeta(chain: ChainConfig, token: string): Promise<
  * bénéficiaire signalé par GoPlus : contrat malveillant.
  */
 async function spenderSignals(chain: ChainConfig, spender: string, broad: boolean, deps: ReviewDeps, signals: RiskSignals): Promise<void> {
-  if (!/^0x[0-9a-fA-F]{40}$/.test(spender) || /^0x0{40}$/.test(spender) || knownSpender(spender)) return;
   const codeOf = deps.codeOf ?? ((c: ChainConfig, a: string) => (getAdapter(c.id) as EvmChainAdapter).getCode(a));
-  const [code, flagged] = await Promise.all([
-    withTimeoutOrNull(codeOf(chain, spender)),
-    chain.evmChainId ? withTimeoutOrNull((deps.assess ?? assessAddress)(chain.evmChainId, spender)) : null,
-  ]);
-  if (flagged?.level === 'danger') signals.contractDanger = true;
-  if (code === '0x') signals.spenderNotContract = true;
-  else if (broad) signals.spenderUnknown = true;
+  const assess = deps.assess ?? assessAddress;
+  Object.assign(
+    signals,
+    await spenderRisk(spender, broad, {
+      codeOf: (a) => withTimeoutOrNull(codeOf(chain, a)),
+      assess: chain.evmChainId ? (a) => withTimeoutOrNull(assess(chain.evmChainId!, a)) : undefined,
+    }),
+  );
 }
 
 /**
