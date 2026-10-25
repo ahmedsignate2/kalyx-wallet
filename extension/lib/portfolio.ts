@@ -199,6 +199,19 @@ function customHolding(c: CustomToken & { raw: bigint }): Holding {
 interface StoredSnapshot {
   json: string;
   failed: string[];
+  /** Dernier tour COMPLET (tous les réseaux) ; entre deux, seuls les réseaux actifs sont relus. */
+  fullAt?: number;
+}
+
+/** Un tour complet au plus toutes les 10 minutes ; entre deux, les réseaux où le compte a quelque chose. */
+export const FULL_SCAN_MS = 10 * 60_000;
+
+/**
+ * Réseaux à relire entre deux tours complets : ceux où le compte a un solde,
+ * ceux restés muets la dernière fois (on réessaie) et les grands réseaux.
+ */
+export function activeChains(snap: Snapshot, failed: string[]): Set<string> {
+  return new Set([...PRIORITY, 'bitcoin', 'ton', ...snap.holdings.map((h) => h.chainId), ...failed]);
 }
 
 const NO_PREFS: ViewPrefs = { hiddenChains: [], hiddenTokens: [] };
@@ -291,11 +304,14 @@ export function makePortfolio(deps: PortfolioDeps) {
   /** Relit le réseau (une seule lecture à la fois par compte et devise). */
   function refresh(a: Acct, fiat: string): Promise<PortfolioView> {
     return once(key('portfolio', a, fiat), async () => {
-      const { snap: before } = await readSnapshot(a, fiat);
+      const stored = await deps.disk.get<StoredSnapshot>(key('portfolio', a, fiat));
+      const before = stored ? deserialize(stored.json) : null;
+      const full = !before || !stored?.fullAt || now() - stored.fullAt > FULL_SCAN_MS;
+      const active = before && !full ? activeChains(before, stored?.failed ?? []) : null;
       const failed = new Set<string>();
       const before2 = await readCustom(a);
       const [fresh, customRead] = await Promise.all([
-        load({ evmAddress: a.evm ?? '', solAddress: a.solana, btcAddress: a.bitcoin, tonPublicKey: a.tonPub }, fiat, false, failed, undefined, { addressOf: addressForChain, jettons: loadJettons }),
+        load({ evmAddress: a.evm ?? '', solAddress: a.solana, btcAddress: a.bitcoin, tonPublicKey: a.tonPub }, fiat, false, failed, undefined, { addressOf: addressForChain, jettons: loadJettons, ...(active ? { only: (c: ChainConfig) => active.has(c.id) } : {}) }),
         deps.assets ? deps.assets.balances(a.evm, before2.list) : Promise.resolve({ items: [], failed: [] as string[] }),
       ]);
       // Tokens ajoutés : un réseau muet garde ses derniers soldes lus.
@@ -305,10 +321,11 @@ export function makePortfolio(deps: PortfolioDeps) {
       await deps.disk.set(key('custom', a), { json: JSON.stringify(customHeld, replacer) });
       // Seuls les réseaux servis par l'extension comptent (un compte sans adresse TON n'en lit aucun).
       const ours = fresh.filter((h) => FAMILIES.has(chainOf(h.chainId)?.family ?? ''));
+      // Les réseaux non relus n'avaient rien : `active` contient tous ceux du dernier relevé.
       const holdings = carryOver(before?.holdings ?? [], ours, failed);
       const snap: Snapshot = { holdings, ...summarize(holdings), at: now() };
       const failedChains = [...new Set([...[...failed].map((f) => f.split(':')[0]), ...customRead.failed])].filter((id) => FAMILIES.has(chainOf(id)?.family ?? ''));
-      await deps.disk.set(key('portfolio', a, fiat), { json: serialize(snap), failed: failedChains } satisfies StoredSnapshot);
+      await deps.disk.set(key('portfolio', a, fiat), { json: serialize(snap), failed: failedChains, fullAt: full ? now() : stored?.fullAt } satisfies StoredSnapshot);
       dirty.delete(key('portfolio', a));
       return toView(snap, failedChains, fiat, await prefsOf(), { list: before2.list, held: customHeld });
     });

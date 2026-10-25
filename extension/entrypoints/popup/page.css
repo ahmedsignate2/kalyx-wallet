@@ -12,3 +12,6 @@
 .center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 14px; }
 .center img { width: 72px; height: 72px; }
 .center form { width: 100%; }
+
+/* Encoche et barre d'accueil (iPhone) : rien ne passe dessous. */
+#app { padding-bottom: max(var(--pad), env(safe-area-inset-bottom, 0px)); }

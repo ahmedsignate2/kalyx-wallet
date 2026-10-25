@@ -167,14 +167,21 @@ const plainAddressOf: AddressOf = (acct, chain) =>
 export interface HoldingExtras {
   addressOf?: AddressOf;
   jettons?: JettonLoader;
+  /**
+   * Réseaux à lire (défaut : tous). L'extension s'en sert pour ne relire, entre
+   * deux tours complets, que les réseaux où le compte a quelque chose : sur un
+   * téléphone, 240 requêtes à chaque ouverture faisaient attendre 10 s et plus.
+   */
+  only?: (chain: ChainConfig) => boolean;
 }
 
 export async function loadHoldings(acct: PortfolioAccount, fiat: string, includeTestnets = false, failed: Failed = new Set(), diag?: PortfolioDiag, extras: HoldingExtras = {}): Promise<Holding[]> {
   const addressForChain = extras.addressOf ?? plainAddressOf;
   const note = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
-  const chains = includeTestnets
+  const allChains = includeTestnets
     ? listChains({ includeTestnets: true }).filter((c) => c.coingeckoId || c.testnet)
     : VALUE_CHAINS;
+  const chains = extras.only ? allChains.filter(extras.only) : allChains;
   // + l'USDT : son cours dans la devise sert de taux dollar → devise pour les prix de jetons.
   const ids = [...new Set([...chains.map((c) => c.coingeckoId).filter((id): id is string => !!id), USD_PEG])];
 
@@ -228,7 +235,7 @@ export async function loadHoldings(acct: PortfolioAccount, fiat: string, include
    * Le spam est déjà filtré. Les LISTES seulement : les prix viennent ensuite, groupés.
    * Sans adresse EVM (clé Solana importée), aucune liste à demander : ce n'est pas un échec.
    */
-  const evmAll = !acct.evmAddress ? [] : VALUE_CHAINS.filter((c) => c.family === 'evm' && c.coingeckoPlatform);
+  const evmAll = !acct.evmAddress ? [] : VALUE_CHAINS.filter((c) => c.family === 'evm' && c.coingeckoPlatform && (!extras.only || extras.only(c)));
   const alchemyOk = (c: ChainConfig) => c.rpcUrls.some(isAlchemyRpc) && !ALCHEMY_NO_TOKEN_API.has(c.id);
   const evmChains = evmAll.filter((c) => alchemyOk(c) || knownTokensFor(c.evmChainId).length > 0);
   const relayed = evmAll.filter((c) => alchemyOk(c) && c.rpcUrls.some((u) => isAlchemyRpc(u) && isRelayUrl(u)) && !c.rpcUrls.some((u) => isAlchemyRpc(u) && !isRelayUrl(u)));

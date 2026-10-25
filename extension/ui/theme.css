@@ -40,13 +40,13 @@ html, body { margin: 0; background: var(--bg); color: var(--text); font: 500 16p
 #app > * { position: relative; }
 
 /* Échelle de texte de l'app (ui/tokens.ts → type). */
-h1 { font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.6px; margin: 0; text-wrap: balance; }
+h1 { font-size: 26px; line-height: 32px; font-weight: 600; letter-spacing: -0.8px; margin: 0; text-wrap: balance; }
 p { margin: 0; text-wrap: pretty; }
 /* Montants : chiffres de même largeur partout (rien ne « danse » quand ça compte). */
 .total, .token-value, .score-num, .flow strong, .right strong, .kv-row strong { font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-secondary); }
 .small { font-size: 13px; line-height: 18px; }
-.micro { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.2px; color: var(--text-tertiary); }
+.micro { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.2px; color: var(--text-tertiary); }
 .stack { display: flex; flex-direction: column; gap: 16px; }
 .error { color: var(--danger); font-size: 14px; line-height: 20px; }
 /* Une erreur présente : un encart teinté, pas une ligne rouge perdue. */
@@ -56,7 +56,7 @@ p { margin: 0; text-wrap: pretty; }
 .ok { color: var(--up); font-size: 14px; }
 .up { color: var(--up); }
 .down { color: var(--down); }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; word-break: break-all; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; word-break: break-all; }
 /* Adresses, clés, montants : toujours de gauche à droite, même en arabe. */
 .mono, .addr, input, textarea { unicode-bidi: plaintext; }
 .mono, .addr { direction: ltr; }
@@ -87,6 +87,7 @@ input, textarea, select { width: 100%; border: 1px solid var(--border); backgrou
 input[type=checkbox], input[type=radio] { width: auto; min-height: 0; accent-color: var(--primary); }
 input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var(--ink-send) 60%, var(--border)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink-send) 16%, transparent); }
 select:not(.account) { appearance: none; -webkit-appearance: none; padding-inline-end: 40px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 20px center, right 15px center; background-size: 5px 5px; background-repeat: no-repeat; }
+[dir="rtl"] select:not(.account) { background-position: left 15px center, left 20px center; }
 /* Clavier : un anneau visible sur tout ce qui se manipule. */
 :focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 2px; }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
@@ -156,10 +157,22 @@ button.row:active, a.row:active { transform: scale(0.985); transition-duration: 
   --depth: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 28px -8px rgba(0, 0, 0, 0.6);
   --lift: 0 2px 6px rgba(0, 0, 0, 0.55), 0 20px 40px -10px rgba(0, 0, 0, 0.7);
 }
-h1 { font-size: var(--fs-h1); line-height: 32px; font-weight: 650; letter-spacing: -0.8px; }
-.small { font-size: var(--fs-body-s); line-height: 18px; }
+h1 { font-size: var(--fs-h1); }
+.small { font-size: var(--fs-body-s); }
 /* Cartes cliquables : elles se soulèvent au survol, s'enfoncent à l'appui. */
 .card { transition: box-shadow var(--d-fast) var(--ease-out), transform var(--d-fast) var(--ease-out); }
-a.card:hover, button.card:hover { box-shadow: var(--lift); transform: translateY(-1px); }
+@media (hover: hover) { a.card:hover, button.card:hover { box-shadow: var(--lift); transform: translateY(-1px); } }
 /* Liseré de lumière en haut des cartes en Nuit : l'arête accroche la lumière. */
 :root:not([data-theme="light"]) .card { box-shadow: var(--depth), inset 0 1px 0 rgba(255, 244, 230, 0.06); }
+
+/*
+ * Écrans tactiles (navigateurs mobiles) : un survol « collé » après l'appui
+ * laissait une tuile levée ou une ligne teintée. Pas de survol sans souris.
+ */
+@media (hover: none) {
+  .icon:hover, .acct:hover { background: transparent; }
+  .glass:hover { background: color-mix(in srgb, var(--surface-1) 42%, transparent); }
+  .chip:hover { background: var(--surface-1); }
+  .act:hover .disc { transform: none; }
+  .act:hover .disc::after { content: none; }
+}

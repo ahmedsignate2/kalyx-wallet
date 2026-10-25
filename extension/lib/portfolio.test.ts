@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { makePortfolio, type Acct } from './portfolio';
+import { FULL_SCAN_MS, makePortfolio, type Acct } from './portfolio';
 import { makeHome } from './home';
 import { makeSession } from './session';
 import { makeStore, type StorageArea } from './storage';
@@ -222,5 +222,27 @@ describe('écran principal', () => {
     await expect(home.setFiat('btc')).rejects.toThrow('BAD_SETTING');
     await home.setFiat('usd');
     expect((await home.get()).fiat).toBe('usd');
+  });
+});
+
+describe('réseaux relus', () => {
+  test('entre deux tours complets, seuls les réseaux actifs (et muets) sont relus', async () => {
+    const asked: (string[] | null)[] = [];
+    const chain = (id: string) => ({ id }) as Parameters<NonNullable<NonNullable<Parameters<Load>[5]>['only']>>[0];
+    const load: Load = async (_a, _f, _t, failed, _d, extras) => {
+      asked.push(extras?.only ? ['ethereum', 'zora', 'scroll', 'linea'].filter((id) => extras.only!(chain(id))) : null);
+      if (asked.length === 1) failed?.add('scroll:native');
+      return [holding('linea', 'ETH', 0.1, 3000, { id: 'linea:native' })];
+    };
+    const p = make(load);
+    await p.refresh(ACCT, 'eur');
+    expect(asked[0]).toBeNull();
+    clock += 60_000;
+    await p.refresh(ACCT, 'eur');
+    // Ethereum (grand réseau), Linea (un solde), Scroll (muet la dernière fois) ; pas Zora (vide).
+    expect(asked[1]).toEqual(['ethereum', 'scroll', 'linea']);
+    clock += FULL_SCAN_MS;
+    await p.refresh(ACCT, 'eur');
+    expect(asked[2]).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 /* Styles propres à cette page (hors ligne : la CSP refuse les <style> en ligne). */
 body { min-height: 100vh; }
-#app { position: relative; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 0 20px 48px; }
+#app { position: relative; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 0 20px max(48px, env(safe-area-inset-bottom, 0px)); }
 /* Le ciel de l'app, en bandeau ; la carte du parcours vient s'y poser. */
 .ob-sky { position: absolute !important; inset: 0 0 auto 0; height: 340px; overflow: hidden; z-index: 0; -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
 .ob-sky svg { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -12,18 +12,18 @@ body { min-height: 100vh; }
 .ob-steps { display: flex; gap: 6px; }
 .ob-steps i { height: 4px; flex: 1; border-radius: 2px; background: var(--surface-3); transition: background var(--d-base); }
 .ob-steps i.done { background: var(--up); }
-.ob-steps i.on { background: linear-gradient(90deg, var(--up), var(--surface-3)); }
+.ob-steps i.on { background: var(--up); box-shadow: 0 0 0 2px color-mix(in srgb, var(--up) 28%, transparent); }
 .grid { transition: filter var(--d-slow) var(--ease-out); }
 .word { transition: transform var(--d-fast); }
 .btn.shake { animation: shake 0.4s; border-color: var(--danger); }
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 @media (prefers-reduced-motion: reduce) { .btn.shake { animation: none; } .grid { transition: none; } }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; user-select: none; -webkit-user-select: none; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; user-select: none; -webkit-user-select: none; }
 .grid.hidden { filter: blur(9px); }
-.word { background: var(--surface-2); border-radius: 12px; padding: 9px 10px; font-weight: 500; }
-.word span { color: var(--text-secondary); margin-right: 6px; font-size: 12px; }
+.word { background: var(--surface-2); border-radius: 12px; padding: 9px 10px; font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.word span { color: var(--text-secondary); margin-inline-end: 6px; font-size: 12px; }
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-ul.warn { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 14px; }
+ul.warn { margin: 0; padding-inline-start: 18px; color: var(--text-secondary); font-size: 14px; }
 .row { display: flex; gap: 10px; }
 .seg { display: flex; gap: 8px; }
 .seg label { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border-radius: 14px; padding: 12px; cursor: pointer; font-size: 14px; }

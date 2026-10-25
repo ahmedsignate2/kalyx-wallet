@@ -454,7 +454,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
 
   function tokenLogo(src: string | undefined, symbol: string, chainLogo?: string) {
     const fallback = () => h('span', { class: 'logo letter' }, symbol.slice(0, 1).toUpperCase());
-    const main = src ? h('img', { class: 'logo', src, alt: '', loading: 'lazy', referrerPolicy: 'no-referrer' }) : chainLogo ? h('img', { class: 'logo', src: chainLogo, alt: '' }) : fallback();
+    const main = src ? h('img', { class: 'logo', src, alt: '', decoding: 'async', referrerPolicy: 'no-referrer' }) : chainLogo ? h('img', { class: 'logo', src: chainLogo, alt: '' }) : fallback();
     if (main instanceof HTMLImageElement) main.addEventListener('error', () => main.replaceWith(fallback()), { once: true });
     return h('span', { class: 'logos' }, main, src && chainLogo ? h('img', { class: 'badge', src: chainLogo, alt: '' }) : null);
   }

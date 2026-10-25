@@ -14,7 +14,7 @@
 /* Le site, sur une ligne. */
 .site-bar { display: flex; align-items: center; gap: 10px; padding: 4px 2px; }
 .site-bar .grow { flex: 1; display: flex; flex-direction: column; min-width: 0; gap: 2px; }
-.site-bar strong { font-size: 15px; line-height: 19px; }
+.site-bar strong { font-size: 15px; line-height: 19px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .site-bar .origin { align-self: flex-start; padding: 1px 8px; font-size: 11px; }
 .site-mini, .site-mini-icon { flex: none; width: 28px; height: 28px; border-radius: 9px; position: relative; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
 .site-mini .avatar { position: absolute; inset: 0; border-radius: 9px; }
@@ -38,11 +38,12 @@
 .score-num b { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .score-num small { font-size: 11px; font-weight: 600; opacity: 0.75; }
 .verdict-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.verdict-text strong { font-size: 16.5px; line-height: 21px; font-weight: 700; color: var(--text); }
+.verdict-text strong { font-weight: 700; color: var(--text); }
 .verdict.high .verdict-text strong { color: var(--danger); }
 .verdict-text .muted { text-transform: none; }
 .factors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; font-size: 13.5px; line-height: 18px; }
-.factors li { display: flex; gap: 9px; align-items: flex-start; }
+.factors li { display: flex; gap: 9px; align-items: flex-start; min-width: 0; }
+.factors .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .factors .dot { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--text-tertiary); }
 .factors .sev-high { font-weight: 600; }
 .factors .sev-high .dot { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent); }
@@ -56,7 +57,7 @@
 .verdict .help { margin: 0; color: var(--text-secondary); }
 
 /* Ce qui se passe. */
-.what h1 { margin: 2px 0 0; font-size: 19px; line-height: 25px; letter-spacing: -0.01em; }
+.what h1 { margin: 2px 0 0; }
 .what p { margin: 4px 0 0; }
 .kicker-left { margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
 
@@ -92,7 +93,7 @@ details.tech .kv { margin-top: 8px; }
 
 /* Maintenir pour signer : un remplissage qui suit le doigt, puis une coche. */
 .btn.hold { position: relative; overflow: hidden; isolation: isolate; }
-.btn.hold .hold-fill { position: absolute; inset: 0; z-index: -1; transform-origin: left center; transform: scaleX(var(--p, 0)); background: rgba(0, 0, 0, 0.28); transition: transform 0.35s var(--ease-out); }
+.btn.hold .hold-fill { position: absolute; inset: 0; z-index: -1; transform-origin: left center; transform: scaleX(var(--p, 0)); background: color-mix(in srgb, var(--on-primary) 26%, transparent); transition: transform 0.35s var(--ease-out); }
 :root[dir="rtl"] .btn.hold .hold-fill { transform-origin: right center; }
 .btn.hold.holding { transform: scale(0.985); box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 22%, transparent); }
 .btn.hold.holding .hold-fill { transition: none; }
@@ -122,3 +123,6 @@ details.tech .kv { margin-top: 8px; }
 .dock { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 82%, transparent); }
 .dock.high { background: color-mix(in srgb, color-mix(in srgb, var(--danger) 7%, var(--bg)) 85%, transparent); }
 @media (prefers-reduced-motion: reduce) { .verdict.high { animation: none; } }
+
+/* Encoche et barre d'accueil (iPhone) : rien ne passe dessous. */
+#app { padding-bottom: max(var(--pad), env(safe-area-inset-bottom, 0px)); }
