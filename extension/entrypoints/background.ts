@@ -144,7 +144,11 @@ export default defineBackground(() => {
     connected: async () => (await sites.list()).map((x) => x.origin),
     register: async (matches) => registerInpage((await disk.get<boolean>('defaultProvider')) === true, matches),
   });
-  const host = makeDappHost(() => dapp, (origin) => approvals.originGone(origin));
+  const host = makeDappHost(
+    () => dapp,
+    (origin) => approvals.originGone(origin),
+    (tabId) => browser.tabs.get(tabId).then((t) => t.url),
+  );
   const dapp = makeDapp({
     session,
     wallets,

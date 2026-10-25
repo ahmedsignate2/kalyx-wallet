@@ -50,7 +50,8 @@ export async function registeredMatches(): Promise<string[] | null> {
   return [...(list[0].matches ?? [])].sort();
 }
 
-export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string) => void) {
+/** `tabUrl` : URL actuelle d'un onglet (recoupement de l'origine du port à chaque demande). */
+export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string) => void, tabUrl?: (tabId: number) => Promise<string | undefined>) {
   const ports = new Map<string, Set<Port>>();
 
   function emit(origin: string, event: string, data: unknown) {
@@ -68,6 +69,13 @@ export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string)
   const TAMPER_CODES = new Set(['rdnsSpoof', 'ethereumReplaced', 'postMessageHooked']);
   const tamperOf = (origin: string) => [...(tampered.get(origin) ?? [])];
 
+  /** L'onglet affiche-t-il toujours cette origine ? (URL lisible seulement : sinon, pas de verdict contraire.) */
+  async function sameTabOrigin(tabId: number | undefined, origin: string): Promise<boolean> {
+    if (tabId === undefined || !tabUrl) return true;
+    const url = await tabUrl(tabId).catch(() => undefined);
+    return !url || webOrigin(url) === origin || !/^https?:/i.test(url);
+  }
+
   function accept(port: Port) {
     if (port.name !== 'kalyx-dapp') return;
     const sender = port.sender;
@@ -81,8 +89,23 @@ export function makeDappHost(getDapp: () => Dapp, onOriginGone: (origin: string)
     set.add(port);
     const stamps: number[] = [];
 
-    port.onMessage.addListener(async (m: { hello?: boolean; id?: number; family?: 'evm' | 'solana' | 'bitcoin'; method?: string; params?: unknown[] }) => {
+    port.onMessage.addListener(async (m: { hello?: boolean; id?: number; family?: 'evm' | 'solana' | 'bitcoin'; method?: string; params?: unknown[]; at?: unknown }) => {
       const dapp = getDapp();
+      /*
+       * La page a changé sous ce port (navigateur qui garde le script d'une page
+       * à l'autre) : l'origine du port n'est plus celle de la page. Rien n'est
+       * traité ; le port est fermé, le relais en rouvre un pour la bonne page.
+       */
+      if (m?.at !== undefined && webOrigin(typeof m.at === 'string' ? m.at : undefined) !== origin) {
+        if (typeof m.id === 'number') port.postMessage({ id: m.id, error: { code: 4100, message: 'Page changée : réessaie' } });
+        port.disconnect();
+        return;
+      }
+      if (typeof m?.id === 'number' && !(await sameTabOrigin(sender?.tab?.id, origin))) {
+        port.postMessage({ id: m.id, error: { code: 4100, message: 'Page changée : réessaie' } });
+        port.disconnect();
+        return;
+      }
       if (m?.hello) {
         port.postMessage({ event: 'hello', data: await dapp.hello(origin).catch(() => null) });
         return;

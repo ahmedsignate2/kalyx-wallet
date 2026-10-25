@@ -21,7 +21,7 @@ export default defineContentScript({
   main() {
     // Jamais dans un cadre (défense en profondeur : l'enregistrement l'exclut déjà).
     if (window.top !== window) return;
-    const ORIGIN = location.origin;
+    let ORIGIN = location.origin;
     let port: ReturnType<typeof browser.runtime.connect> | null = null;
     const inFlight = new Set<number>();
 
@@ -50,6 +50,21 @@ export default defineContentScript({
     }
 
     window.addEventListener('message', (e: MessageEvent) => {
+      /*
+       * Certains navigateurs mobiles (Mises sur iOS) gardent ce script — et son
+       * port — d'une page à l'autre du même onglet : le service worker aurait
+       * gardé l'ORIGINE DE LA PAGE PRÉCÉDENTE (google.com au lieu d'uniswap.org).
+       * Page changée : nouveau port, ouvert pour la page actuelle.
+       */
+      if (location.origin !== ORIGIN) {
+        ORIGIN = location.origin;
+        try {
+          port?.disconnect();
+        } catch {
+          /* déjà fermé */
+        }
+        port = null;
+      }
       if (e.source !== window || e.origin !== ORIGIN) return;
       const d = e.data as { k?: string; id?: unknown; family?: unknown; method?: unknown; params?: unknown };
       if (d?.k !== 'kalyx:req') return;
@@ -67,7 +82,8 @@ export default defineContentScript({
       if (inFlight.size >= MAX_IN_FLIGHT) return reject(-32005, 'Trop de demandes en cours');
       inFlight.add(id);
       try {
-        connect().postMessage({ id, family: d.family, method: d.method, params: d.params });
+        // `at` : l'origine de la page À L'ENVOI, recoupée par le service worker avec celle du port et de l'onglet.
+        connect().postMessage({ id, family: d.family, method: d.method, params: d.params, at: location.origin });
       } catch {
         inFlight.delete(id);
         reject(4900, 'Kalyx indisponible');
