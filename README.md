@@ -11,9 +11,9 @@
 [![License: proprietary, source-available](https://img.shields.io/badge/license-proprietary%20%C2%B7%20source--available-lightgrey)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-critical)](SECURITY.md)
 
-Kalyx Wallet est un **wallet crypto non-custodial** pour Android, accompagné d'un **tableau de bord web**, d'une **mini-app Telegram** et d'un **bot Telegram**. Il est construit avec **React Native, Expo et TypeScript**.
+Kalyx Wallet est un **wallet crypto non-custodial** pour Android, accompagné d'une **extension navigateur** (bêta), d'un **tableau de bord web**, d'une **mini-app Telegram** et d'un **bot Telegram**. Il est construit avec **React Native, Expo et TypeScript** (l'extension : TypeScript, WXT, Manifest V3).
 
-Les clés sont générées et gardées **sur le téléphone, et nulle part ailleurs**. Kalyx n'a aucun serveur de conservation, aucun compte, aucune télémétrie. Le web et Telegram ne signent jamais : chaque opération est validée sur le téléphone.
+Les clés sont générées et gardées **sur l'appareil où vous les créez — le téléphone, ou l'ordinateur avec l'extension — et nulle part ailleurs**. Kalyx n'a aucun serveur de conservation, aucun compte, aucune télémétrie. Le web et Telegram ne signent jamais : chaque opération est validée sur le téléphone. L'extension peut aussi fonctionner **sans aucune clé** (mode compagnon) : elle relaie chaque signature à l'app du téléphone.
 
 > 🚀 **Bêta ouverte.** L'app est utilisable et gratuite, et vos retours façonnent la suite :
 > Telegram [@kalyxntw](https://t.me/kalyxntw) · X [@kalyxntw](https://x.com/kalyxntw) · support@kalyxwallet.com
@@ -23,6 +23,7 @@ Les clés sont générées et gardées **sur le téléphone, et nulle part aille
 | | |
 |---|---|
 | 📲 **Télécharger (Android)** | [kalyxwallet.com/download](https://kalyxwallet.com/download) — APK + empreinte SHA-256 sur [kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release/releases/latest) |
+| 🧩 **Extension navigateur (bêta)** | Chrome, Edge, Brave : portefeuille complet (clés chiffrées sur l'ordinateur) ou **mode compagnon** (clés sur le téléphone, chaque signature validée dans l'app). EVM, Solana, Bitcoin, TON. |
 | 🖥️ **Tableau de bord web** | [app.kalyxwallet.com](https://app.kalyxwallet.com) — relié au téléphone par WalletConnect |
 | ✈️ **Telegram** | Mini-app (même tableau de bord) + bot : cours, gas, analyse de token, alertes de prix |
 | 🌐 **Site** | [kalyxwallet.com](https://kalyxwallet.com) — FAQ, confidentialité, conditions, mentions légales |
@@ -53,9 +54,9 @@ Les clés sont générées et gardées **sur le téléphone, et nulle part aille
 
 | | |
 |---|---|
-| **Où sont les clés** | Générées et stockées sur le téléphone uniquement (Keystore/Keychain), chiffrées AES-256-GCM sous une clé dérivée du PIN par scrypt. Jamais sur un serveur, jamais sur le web. |
+| **Où sont les clés** | Téléphone : Keystore/Keychain, chiffrées AES-256-GCM sous une clé dérivée du PIN par scrypt. Extension : coffre chiffré sur l'ordinateur (scrypt + AES-256-GCM, mot de passe fort imposé, passkeys en second facteur au choix) — ou aucune clé en mode compagnon. Jamais sur un serveur, jamais sur le web. |
 | **Serveur Kalyx** | Aucun pour le wallet : pas de compte, pas de session distante, pas de télémétrie. (Le bot Telegram ne garde que l'identifiant Telegram, la langue et les alertes de prix.) |
-| **Signatures** | Chaque demande est expliquée en clair (« Tu vas envoyer 0,25 ETH à … ») et validée sur le téléphone par PIN/biométrie. Le web et Telegram ne font que lire et relayer (WalletConnect). |
+| **Signatures** | Chaque demande est expliquée en clair (« Tu vas envoyer 0,25 ETH à … ») avec un **score de risque** (0-100, même moteur dans l'app et l'extension) ; un score élevé impose de maintenir pour signer. Validation par PIN/biométrie sur le téléphone, par mot de passe ou passkey dans l'extension. Le web et Telegram ne font que lire et relayer (WalletConnect). |
 | **Avant chaque envoi** | Anti-Drainer (simulation de la transaction), détection d'empoisonnement d'adresse, première fois vers cette adresse, analyse GoPlus des contrats, « maintenir pour envoyer ». |
 | **Sous la contrainte** | Un **code de contrainte** ouvre un **portefeuille leurre** : les vrais portefeuilles, contacts et historiques restent invisibles. |
 | **Liste blanche** | Envois limités aux adresses approuvées ; un ajout ou une désactivation ne prend effet qu'après **24 h**. |
@@ -76,7 +77,8 @@ Aucune adresse de perception n'est codée en dur. Le récapitulatif de swap affi
 ## ⚠️ Limites connues
 
 - Pas d'audit de sécurité indépendant.
-- Android uniquement (APK signé, hors Play Store pour l'instant) ; pas encore d'app iOS ni d'extension navigateur.
+- Android (APK signé, hors Play Store pour l'instant) ; pas encore d'app iOS. L'extension navigateur est en **bêta**.
+- Extension : les passkeys ne fonctionnent pas dans tous les navigateurs (souvent refusées aux extensions sur Android : Mises, Kiwi) ; le mot de passe reste alors la protection.
 - Tableau de bord web : TON n'y est pas signable (WalletConnect ne couvre pas TON) ; pas encore d'onglet Gagner ni de révocation d'autorisations côté web.
 - Pas de mise à jour à distance : chaque correctif passe par un nouvel APK.
 - Plusieurs fonctions dépendent de services tiers (RPC, CoinGecko, GoPlus, LI.FI…) qui peuvent être lents, limités ou indisponibles.

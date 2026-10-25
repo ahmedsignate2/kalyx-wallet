@@ -34,7 +34,13 @@ In scope:
   `public/_headers`): session handling, CSP, storage encryption, request
   forwarding to the phone.
 - The Telegram bot (`bot/`): webhook authentication, input handling.
-- The TonAPI proxy (`ton-proxy/`).
+- The browser extension (`extension/`): the encrypted vault (scrypt +
+  AES-256-GCM, optional passkeys via WebAuthn PRF), the session key handling
+  (`extension/lib/keyBox.ts`), the dApp bridge (EIP-1193 / EIP-6963, Solana
+  and Bitcoin Wallet Standard), the approval window and its risk score,
+  companion mode (keys stay on the phone), the duress profile, backups.
+- The Cloudflare relay (`ton-proxy/`): API keys kept server-side, method
+  allow-lists, caching.
 - The release pipeline (`.eas/workflows/release-production.yml`,
   `scripts/publish-release.mjs`): integrity of the published APK.
 - The marketing site `kalyxwallet.com` (`web/`).
@@ -76,6 +82,37 @@ to other users' data, no service disruption) will not be met with legal action.
   installed APK (`expo-updates` is not included). Every release is built on
   EAS and published with its SHA-256 checksum
   (`sha256sum -c kalyx-wallet.apk.sha256`).
+
+### Browser extension — threat model
+
+The extension can hold keys (full wallet) or none at all (companion mode:
+every signature is forwarded to the phone and approved there).
+
+- **Vault**: secrets are sealed with AES-256-GCM under a random vault key,
+  itself wrapped by a key derived from the password with scrypt (N = 2^17).
+  A weak password is refused (same strength rule as backup files).
+- **Passkeys (optional second factor)**: up to five (this computer, a phone
+  via hybrid/QR, a security key). Each has its own slot sealed by
+  HKDF(password-derived key ‖ WebAuthn PRF output): the password alone, or a
+  passkey alone, opens nothing. A passkey can also confirm a signature while
+  the session is open (a PRF fingerprint is checked, under the same
+  throttling as the password).
+- **Session**: the vault key is kept sealed in session storage by a
+  non-extractable key (KeyBox); it is cleared on lock, auto-lock, browser
+  close, and on service-worker stop in paranoid mode. Signing keys are wiped
+  from memory after each use.
+- **Signing**: every request opens a Kalyx window explaining it in plain
+  language, with simulation (EVM, Solana) and a local 0-100 risk score
+  (phishing site, look-alike domain, unlimited approval, approval to an
+  address without code, unknown spender, loss without counterpart, new
+  site…). High score = hold to sign. Re-asking the password (or a passkey)
+  for each signature is on by default.
+- **Duress code**: opens a separate decoy profile whose data never touches the
+  real one; both scrypt derivations run on every unlock (same timing).
+
+Known, accepted: anything that can read the browser profile *and* the user's
+password can open the vault; WalletConnect session keys (companion mode) live
+in extension storage.
 
 ### Web dashboard (app.kalyxwallet.com) — threat model
 
