@@ -59,7 +59,7 @@ import { technicalLogger } from '../../lib/technicalLogger';
 import { useBrowserStore } from '../../lib/browserStore';
 import { saveTabs, loadTabs } from '../../lib/browserTabs';
 import { useBrowserPresence } from '../../lib/browserPresence';
-import { useWalletConnect } from '../../lib/walletconnect';
+import { useWalletConnect, pairErrorKey } from '../../lib/walletconnect';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { extractWcUri, isWcPairingUri } from '../../src/domain/qr/deeplink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
@@ -476,7 +476,7 @@ export default function Browser() {
         useWalletConnect
           .getState()
           .pair(wcUri)
-          .catch((e) => toast.error(t('connectionFailed'), /expired/i.test(String(e)) ? t('linkExpiredBody') : t('linkUnusable')));
+          .catch((e) => toast.error(t('connectionFailed'), t(pairErrorKey(e))));
       }
       return false;
     }
@@ -1449,7 +1449,7 @@ export default function Browser() {
               setLinkText('');
               setLinkSheet(false);
             } catch (e) {
-              toast.error(t('connectionFailed'), /expired/i.test(String(e)) ? t('linkExpiredBody') : t('linkUnusable'));
+              toast.error(t('connectionFailed'), t(pairErrorKey(e)));
             } finally {
               setLinkBusy(false);
             }

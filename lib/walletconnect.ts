@@ -23,6 +23,7 @@ import { useSettings } from './settingsStore';
 import { fill, translate, type Key } from './i18n';
 import { useWallet, type Unlock } from './walletStore';
 import { notify } from './notifications';
+import { toast } from './toast';
 import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnectError, isValidEvmAddress, shortAddress, WalletError, type RawTxRequest } from '../src';
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
@@ -355,6 +356,17 @@ export interface WcSession {
   icon?: string;
 }
 
+/** Échec d'appairage → phrase claire (QR expiré, relais injoignable, lien inutilisable), jamais le message brut du SDK. */
+export function pairErrorKey(e: unknown): 'linkExpiredBody' | 'wcRelayDown' | 'linkUnusable' {
+  const m = String(e instanceof Error ? e.message : e);
+  if (/expired/i.test(m)) return 'linkExpiredBody';
+  if (/network|socket|relay|timeout|timed out|fetch|offline|RPC_UNAVAILABLE/i.test(m)) return 'wcRelayDown';
+  return 'linkUnusable';
+}
+
+/** Session ouverte par l'extension Kalyx en mode compagnon (son nom et son site déclarés ; pour l'affichage seulement). */
+export const isKalyxExtensionSession = (s: WcSession): boolean => s.name === 'Kalyx — extension' && /^https:\/\/kalyxwallet\.com\/?$/.test(s.url);
+
 interface WcState {
   configured: boolean;
   ready: boolean;
@@ -621,7 +633,15 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       const label = tr(METHOD_LABELS[method] ?? 'wcReqGeneric');
       notifyIncoming(tr('notifWcActionTitle'), peer ? `${label} · ${peer}` : tr('notifWcActionOpen', { label }));
     });
-    w.on('session_delete', () => get().refresh());
+    w.on('session_delete', (ev: { topic?: string }) => {
+      // L'extension Kalyx (mode compagnon) s'est déliée : on le dit, ici comme en arrière-plan.
+      const gone = get().sessions.find((x) => x.topic === ev?.topic);
+      void get().refresh();
+      if (gone && isKalyxExtensionSession(gone)) {
+        if (AppState.currentState === 'active') toast.info(tr('notifExtUnlinkedTitle'), tr('notifExtUnlinkedBody'));
+        else void notify(tr('notifExtUnlinkedTitle'), tr('notifExtUnlinkedBody'));
+      }
+    });
     // Réseau changé dans Kalyx → événement chainChanged vers les dApps connectées.
     useWallet.subscribe((state, prev) => {
       if (state.activeChain !== prev.activeChain) broadcastChainChanged(w, state.activeChain);
@@ -681,8 +701,26 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     } catch {
       /* liste illisible : on tente l'appairage */
     }
-    await wallet.pair({ uri: normalized });
+    const before = get().sessions.length;
+    // Une proposition arrivée (acceptée ou refusée ensuite) : l'appairage a abouti, rien à signaler.
+    let seen = false;
+    const stop = useWalletConnect.subscribe((st) => {
+      if (st.proposal) seen = true;
+    });
+    await wallet.pair({ uri: normalized }).catch((e: unknown) => {
+      stop();
+      throw e;
+    });
     console.log('[KALYX-WC] pair:done (en attente de la proposition du site)');
+    /*
+     * Appairé, mais rien n'arrive (site ou extension refermé, QR déjà utilisé
+     * ailleurs, relais lent) : on le dit au bout de 30 s au lieu d'attendre
+     * en silence.
+     */
+    setTimeout(() => {
+      stop();
+      if (!seen && !get().proposal && get().sessions.length === before) toast.info(tr('connectionFailed'), tr('wcPairNoAnswer'));
+    }, 30_000);
   },
 
   approveProposal: async (unlock, perms, accountIndex) => {

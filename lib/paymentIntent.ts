@@ -25,7 +25,7 @@ import { toast } from './toast';
 import { translate } from './i18n';
 import { useSettings } from './settingsStore';
 import { useWallet } from './walletStore';
-import { useWalletConnect } from './walletconnect';
+import { useWalletConnect, pairErrorKey } from './walletconnect';
 import { isWcPairingUri } from '../src/domain/qr/deeplink';
 import { usePortfolioStore } from './portfolio/portfolioStore';
 import {
@@ -234,7 +234,7 @@ export async function runQrIntent(result: QrResult, opts?: { replace?: boolean; 
     useWalletConnect
       .getState()
       .pair(result.uri, { returnAfterApproval: !opts?.fromScan })
-      .catch((e) => toast.error(tr('connectionFailed'), e instanceof Error ? e.message : undefined));
+      .catch((e) => toast.error(tr('connectionFailed'), tr(pairErrorKey(e))));
     go('/walletconnect');
     return;
   }
