@@ -25,6 +25,11 @@ const fail = (m) => {
   console.error('✗', m);
   process.exitCode = 1;
 };
+/** Sélecteur Kalyx (ui/picker) : ouvrir la liste, toucher l'option. */
+const pick = async (page, selector, value) => {
+  await page.locator(selector).click();
+  await page.locator(`.picker-list [data-value="${value}"]`).click();
+};
 
 /** Violations de la CSP ou de Trusted Types relevées dans les pages de l'extension et le service worker. */
 const cspViolations = [];
@@ -176,7 +181,7 @@ async function ton() {
       await p.reload();
       await p.locator('[data-testid=account]').waitFor();
       await p.getByRole('button', { name: 'Envoyer' }).first().click();
-      await p.locator('select').selectOption('ton:native');
+      await pick(p, '[data-testid=send-asset]', 'ton:native');
       (await p.locator('[data-testid=send-memo]').isVisible()) ? console.log('✓ Envoyer TON : champ commentaire affiché') : fail('champ commentaire absent');
       const evm = await bg({ type: 'send:prepare', assetKey: 'ton:native', to: '0x9858EfFD232B4033E47d90003D41EC34EcaEda94', amount: '0.01' });
       evm.error === 'INVALID_ADDRESS' ? console.log('✓ Envoyer TON : adresse EVM refusée') : fail(`adresse EVM ${JSON.stringify(evm)}`);
@@ -304,18 +309,18 @@ async function beauty() {
     !l.attr && l.bg === 'rgb(11, 11, 16)' ? console.log('✓ thème : Nuit par défaut (même sur un système clair)') : fail(`thème par défaut ${JSON.stringify(l)}`);
 
     await p.getByRole('button', { name: 'Réglages' }).click();
-    await p.locator('[data-testid=theme]').selectOption('light');
+    await pick(p, '[data-testid=theme]', 'light');
     l = await look();
     l.attr === 'light' && l.bg === 'rgb(244, 238, 229)' ? console.log('✓ thème Crème appliqué tout de suite') : fail(`Crème ${JSON.stringify(l)}`);
     await p.reload();
     await p.locator('[data-testid=account]').waitFor();
     (await look()).attr === 'light' ? console.log('✓ Crème gardé après réouverture (posé avant le premier affichage)') : fail('Crème perdu');
     await p.getByRole('button', { name: 'Réglages' }).click();
-    await p.locator('[data-testid=theme]').selectOption('system');
+    await pick(p, '[data-testid=theme]', 'system');
     (await look()).attr === 'light' ? console.log('✓ Système sur un système clair : Crème') : fail('Système clair');
     await p.emulateMedia({ colorScheme: 'dark' });
     (await p.waitForFunction(() => !document.documentElement.hasAttribute('data-theme'), null, { timeout: 3000 }).then(() => true, () => false)) ? console.log('✓ Système suit le passage en sombre, en direct') : fail('Système sombre');
-    await p.locator('[data-testid=theme]').selectOption('dark');
+    await pick(p, '[data-testid=theme]', 'dark');
 
     // Mode Débutant (défaut) : réglages pointus repliés ; Expert : tout à plat.
     const adv = p.locator('[data-testid=advanced]');
@@ -369,10 +374,11 @@ async function beauty() {
     await p.locator('.modal').waitFor();
     await p.waitForTimeout(350);
     const drag = async (dy) => {
-      const g = await p.locator('.modal .grip').boundingBox();
-      await p.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+      // Par le titre de la feuille (la poignée n'est dessinée que sur les petits écrans).
+      const g = await p.locator('.modal-head strong').boundingBox();
+      await p.mouse.move(g.x + 10, g.y + g.height / 2);
       await p.mouse.down();
-      await p.mouse.move(g.x + g.width / 2, g.y + g.height / 2 + dy, { steps: 8 });
+      await p.mouse.move(g.x + 10, g.y + g.height / 2 + dy, { steps: 8 });
         await p.mouse.up();
       await p.waitForTimeout(400);
     };
@@ -617,7 +623,7 @@ async function hardening() {
     await ext.reload();
     await ext.locator('[data-testid=account]').waitFor();
     await ext.getByRole('button', { name: 'Réglages' }).click();
-    await ext.locator('[data-testid=cap]').selectOption('100');
+    await pick(ext, '[data-testid=cap]', '100');
     await ext.waitForTimeout(300);
     (await bg({ type: 'cap:get' })).limit === 100 ? console.log('✓ plafond journalier réglé (100)') : fail('plafond non réglé');
     // (délai anti-inondation après le refus précédent : 10 s)
@@ -628,7 +634,7 @@ async function hardening() {
     });
     const tw = await win(() => true);
     await tw.locator('[data-testid=risk-score]').waitFor({ timeout: 25_000 });
-    const remind = await tw.locator('[data-testid=remind]').inputValue().catch(() => null);
+    const remind = await tw.locator('[data-testid=remind]').evaluate((el) => el.value).catch(() => null);
     remind === '24' && (await tw.locator('[data-testid=cap-note]').count()) === 0
       ? console.log('✓ autorisation : rappel de révocation (24 h par défaut) ; aucun fonds ne part, le plafond ne s’applique pas')
       : fail(`fenêtre d'autorisation : rappel ${remind}`);
@@ -726,7 +732,7 @@ async function help() {
     await popup.locator('header.bar .link').click();
 
     // Langue choisie à la main : enregistrée, la page se recharge dans cette langue ; « navigateur » revient au français.
-    await Promise.all([popup.waitForEvent('load'), popup.locator('[data-testid=language]').selectOption('ja')]);
+    await Promise.all([popup.waitForEvent('load'), pick(popup, '[data-testid=language]', 'ja')]);
     await popup.locator('[data-testid=account]').waitFor();
     const lang = (await popup.evaluate(() => chrome.storage.local.get('kalyx.lang')))['kalyx.lang'];
     const jaHome = await popup.evaluate(() => document.documentElement.lang);
@@ -737,7 +743,7 @@ async function help() {
     await panel.locator('[data-testid=account]').waitFor();
     (await panel.evaluate(() => document.documentElement.lang)) === 'ja' ? console.log('✓ panneau latéral dans la langue choisie') : fail('panneau pas dans la langue choisie');
     await popup.getByRole('button', { name: '設定' }).click();
-    await Promise.all([panel.waitForEvent('load'), popup.waitForEvent('load'), popup.locator('[data-testid=language]').selectOption('')]);
+    await Promise.all([panel.waitForEvent('load'), popup.waitForEvent('load'), pick(popup, '[data-testid=language]', '')]);
     await popup.locator('[data-testid=account]').waitFor();
     (await popup.evaluate(() => document.documentElement.lang)) === 'fr' && (await panel.evaluate(() => document.documentElement.lang)) === 'fr'
       ? console.log('✓ retour à la langue du navigateur : toutes les vues suivent')
@@ -980,9 +986,9 @@ async function onboarding() {
       const acts = await popup.evaluate(() => { const r = document.querySelector('.acts')?.getBoundingClientRect(); return r ? { w: r.width, right: r.right, vw: innerWidth } : null; });
       acts && acts.right <= acts.vw ? console.log(`✓ accueil : 5 gestes dans le popup (${Math.round(acts.w)} px)`) : fail(`gestes hors du popup : ${JSON.stringify(acts)}`);
       await popup.getByRole('button', { name: 'Swap', exact: true }).click();
-      await popup.waitForFunction(() => document.querySelector('[data-testid=sw-empty]') || document.querySelectorAll('[data-testid=sw-from] option').length > 0, null, { timeout: 30_000 });
+      await popup.waitForFunction(() => document.querySelector('[data-testid=sw-empty]') || Number(document.querySelector('[data-testid=sw-from]')?.dataset.count ?? 0) > 0, null, { timeout: 30_000 });
       const swErr = (await popup.locator('[data-testid=sw-empty]').textContent().catch(() => '')) ?? '';
-      const nSrc = await popup.locator('[data-testid=sw-from] option').count();
+      const nSrc = (await popup.locator('[data-testid=sw-from]').count()) ? Number((await popup.locator('[data-testid=sw-from]').getAttribute('data-count')) ?? 0) : 0;
       nSrc > 0 || swErr.includes('Aucun actif') ? console.log(`✓ Échanger : ${nSrc ? `${nSrc} actif(s) de départ` : '« Aucun actif à échanger » dit, rien d’inventé'}`) : fail(`Échanger : « ${swErr} »`);
       if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `swap-${scheme}.png`) });
       await popup.emulateMedia({ colorScheme: 'light' });
@@ -1011,7 +1017,7 @@ async function onboarding() {
     // Un vrai contrat (UNI, Ethereum), lu sur le réseau : rien de fictif.
     const UNI = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984';
     await popup.locator('[data-testid=add-token]').click();
-    await popup.locator('[data-testid=token-chain]').selectOption('ethereum');
+    await pick(popup, '[data-testid=token-chain]', 'ethereum');
     await popup.locator('[data-testid=token-contract]').fill('0x1234');
     await popup.locator('[data-testid=token-check]').click();
     await popup.waitForFunction(() => document.querySelector('.modal .error')?.textContent?.includes('invalide'), null, { timeout: 10_000 }).then(() => console.log('✓ contrat invalide refusé'), () => fail('contrat invalide accepté'));
@@ -1132,7 +1138,10 @@ async function onboarding() {
     }
     await popup.locator('header .link').click();
     await popup.getByRole('button', { name: 'Réglages' }).click();
-    await popup.locator('select[aria-label="Devise"]').selectOption('usd');
+    // Déjà en USD (choix d'un test précédent) : le sélecteur ne « change » rien, on revient à l'accueil soi-même.
+    const wasUsd = (await popup.locator('[data-testid=currency]').evaluate((el) => el.value)) === 'usd';
+    await pick(popup, '[data-testid=currency]', 'usd');
+    if (wasUsd) await popup.locator('.settings header .link').click();
     await popup.waitForFunction(() => document.querySelector('[data-testid=total]'), null, { timeout: 30_000 });
     const totalUsd = await popup.locator('[data-testid=total]').textContent();
     totalUsd === '—' || totalUsd.includes('$') ? console.log(`✓ devise USD (« ${totalUsd} »)`) : fail(`devise : « ${totalUsd} »`);
@@ -1231,7 +1240,7 @@ async function onboarding() {
       await popup.emulateMedia({ colorScheme: 'light' });
       await popup.reload();
       await popup.getByRole('button', { name: /Envoyer/ }).click();
-      await popup.waitForFunction(() => document.querySelectorAll('form select option').length > 0);
+      await popup.waitForFunction(() => Number(document.querySelector('[data-testid=send-asset]')?.dataset.count ?? 0) > 0);
       await popup.locator('[data-testid=send-contacts]').click();
       await popup.locator('[data-testid=pick-contact]').first().click();
       (await popup.locator('form input[type=text]').first().inputValue()) === B ? console.log('✓ Envoyer : contact choisi, adresse remplie (même parcours ensuite)') : fail('choix du contact dans Envoyer');
@@ -1240,8 +1249,8 @@ async function onboarding() {
     // Envoyer : réseau injoignable ici → erreur nommée, rien n'est signé.
     await popup.reload();
     await popup.getByRole('button', { name: /Envoyer/ }).click();
-    await popup.locator('form select').waitFor();
-    await popup.waitForFunction(() => document.querySelectorAll('form select option').length > 0);
+    await popup.locator('[data-testid=send-asset]').waitFor();
+    await popup.waitForFunction(() => Number(document.querySelector('[data-testid=send-asset]')?.dataset.count ?? 0) > 0);
     await popup.locator('form input[type=text]').first().fill('0x123');
     await popup.locator('form input[inputmode=decimal]').first().fill('0.01');
     await popup.getByRole('button', { name: 'Vérifier' }).click();

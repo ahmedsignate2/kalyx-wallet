@@ -5,6 +5,7 @@
  * Les documents légaux sont ceux du site (source unique, dans la langue
  * affichée) ; l'extension n'en garde pas de copie qui pourrait diverger.
  */
+import { picker } from './picker';
 import { glyph } from './glyph';
 import { h, send } from './dom';
 import { CHOSEN, LANG, LANG_NAMES, LANGS, langOf, t, useLang, type Key } from './i18n';
@@ -71,24 +72,19 @@ export function aboutScreen(app: HTMLElement, back: () => void, version: string)
 }
 
 /** Choix de la langue : « celle du navigateur » ou l'une des 15, chacune écrite dans sa langue. */
-export function languageSelect(): HTMLSelectElement {
+export function languageSelect(): HTMLButtonElement {
   const nav = langOf(navigator.language);
-  const sel = h(
-    'select',
-    {
-      class: 'inline',
-      'aria-label': t('language'),
-      'data-testid': 'language',
-      on: {
-        // Le service worker enregistre ; cette page se recharge dans la nouvelle langue, les autres vues ouvertes suivent (applyLang).
-        change: async () => {
-          const lang = sel.value || null;
-          if ((await send({ type: 'settings:set-lang', lang })).ok) useLang(lang);
-        },
-      },
-    },
-    h('option', { value: '', selected: CHOSEN === null }, t('langAuto', { name: LANG_NAMES[nav] })),
-    ...LANGS.map((l) => h('option', { value: l, selected: CHOSEN === l, lang: l }, LANG_NAMES[l])),
-  );
+  const sel = picker({
+    inline: true,
+    label: t('language'),
+    testid: 'language',
+    value: CHOSEN ?? '',
+    options: [{ value: '', label: t('langAuto', { name: LANG_NAMES[nav] }) }, ...LANGS.map((l) => ({ value: l, label: LANG_NAMES[l], lang: l, sub: l.toUpperCase() }))],
+  });
+  // Le service worker enregistre ; cette page se recharge dans la nouvelle langue, les autres vues ouvertes suivent (applyLang).
+  sel.addEventListener('change', async () => {
+    const lang = sel.value || null;
+    if ((await send({ type: 'settings:set-lang', lang })).ok) useLang(lang);
+  });
   return sel;
 }

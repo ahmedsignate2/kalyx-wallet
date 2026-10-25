@@ -20,7 +20,6 @@ import { buildTrusted, pickHistoryChains } from '../../lib/historyTrust';
 import { addressForChain } from '../../lib/accountAddress';
 import { loadJettons } from '../../lib/portfolio/jettons';
 import { getAdapter, listChains } from '../../src/domain/chains/registry';
-import { chainIconUrl, embeddedChainLogo } from '../../src/domain/chains/icons';
 import { formatTokenAmount } from '../../src/domain/validation/format';
 import { humanizeTx, type ActivityTranslate, type HumanTx } from '../../src/domain/tx/humanize';
 import { knownCounterparties, paidCounterparties, spamReason } from '../../src/domain/tx/spam';
@@ -135,12 +134,8 @@ const chainName = (id: string) => chainOf(id)?.name ?? id;
 const PRIORITY = ['ethereum', 'solana', 'base', 'arbitrum', 'optimism', 'polygon', 'bnb', 'avalanche'];
 const byPriority = (ids: string[]) => [...ids].sort((a, b) => (PRIORITY.indexOf(a) + 1 || 99) - (PRIORITY.indexOf(b) + 1 || 99));
 
-/** Logo d'un réseau : le SVG embarqué de l'app en data URL, sinon l'image distante. */
-export function chainLogo(id: string): string | undefined {
-  const uri = chainIconUrl(id);
-  const svg = embeddedChainLogo(uri);
-  return svg ? `data:image/svg+xml,${encodeURIComponent(svg)}` : uri;
-}
+export { chainLogo } from './chainLogo';
+import { chainLogo } from './chainLogo';
 
 /** Adresse du compte sur un réseau ('' : le compte n'y a pas d'adresse). */
 const addressOn = (a: Acct, c: Pick<ChainConfig, 'family'>): string => (c.family === 'evm' ? a.evm : c.family === 'solana' ? a.solana : c.family === 'bitcoin' ? a.bitcoin : c.family === 'ton' ? a.ton : '') ?? '';

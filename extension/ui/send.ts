@@ -7,6 +7,7 @@
  * identifiant. Le bouton de confirmation s'active après un court délai : un
  * double-clic hérité de l'écran précédent ne confirme rien.
  */
+import { picker, type PickOption } from './picker';
 import { glyph } from './glyph';
 import { h, nodes, send } from './dom';
 import { play } from './sound';
@@ -32,7 +33,7 @@ export function sendScreen(app: HTMLElement, back: () => void) {
   let speed: Speed | 'manual' = 'normal';
 
   const err = h('p', { class: 'error', role: 'alert' });
-  const assetSel = h('select', { 'aria-label': t('asset') });
+  const assetSel = picker({ label: t('asset'), testid: 'send-asset', options: [], placeholder: t('refreshing') });
   const balance = h('p', { class: 'small muted' });
   const to = h('input', { type: 'text', placeholder: t('recipientPh'), autocomplete: 'off', spellcheck: false });
   const amount = h('input', { type: 'text', inputMode: 'decimal', placeholder: '0.0', autocomplete: 'off' });
@@ -197,7 +198,8 @@ export function sendScreen(app: HTMLElement, back: () => void) {
     const r = await send<{ assets: AssetView[] }>({ type: 'send:assets' }).catch(() => null);
     if (!r?.ok) return void (err.textContent = errorOf(r));
     assets = r.assets;
-    assetSel.replaceChildren(...assets.map((a) => h('option', { value: a.key }, `${a.symbol} · ${a.chainName}${a.balanceFmt != null ? ` — ${a.balanceFmt}` : ''}`)));
+    // Chaque actif : son logo (ou celui du réseau), son réseau, son solde.
+    assetSel.setOptions(assets.map((a): PickOption => ({ value: a.key, label: a.symbol, sub: a.chainName, end: a.balanceFmt ?? undefined, icon: a.logo ?? a.chainLogo })));
     onAsset();
     to.focus();
   })();

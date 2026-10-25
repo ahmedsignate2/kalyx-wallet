@@ -3,6 +3,7 @@
  * garde le devis, le contrôle et signe (lib/swap). Ce qui est signé est le
  * devis montré, ou un devis plus récent qui garantit au moins autant.
  */
+import { picker } from './picker';
 import { glyph } from './glyph';
 import { h, send } from './dom';
 import { play } from './sound';
@@ -18,11 +19,14 @@ interface Source {
   decimals: number;
   balanceFmt: string;
   maxInput: string;
+  logo?: string;
+  chainLogo?: string;
 }
 interface Target {
   address: string;
   symbol: string;
   name: string;
+  logo?: string;
 }
 interface Quote {
   id: string;
@@ -53,18 +57,18 @@ const STAGES: Record<string, 'swStApproving' | 'swStApprovalWait' | 'swStSwappin
 export function swapScreen(app: HTMLElement, back: () => void, opts: { onPhone: boolean }) {
   let sources: Source[] = [];
   let targets: Target[] = [];
-  let networks: { id: string; name: string; family: string; hidden: boolean }[] = [];
+  let networks: { id: string; name: string; family: string; hidden: boolean; logo?: string }[] = [];
   let slippage = 0.005;
   let quote: Quote | null = null;
   let askPassword = false;
 
   const err = h('p', { class: 'error', role: 'alert' });
-  const fromSel = h('select', { 'aria-label': t('swFrom'), 'data-testid': 'sw-from' });
+  const fromSel = picker({ label: t('swFrom'), testid: 'sw-from', options: [], placeholder: t('refreshing') });
   const balance = h('p', { class: 'small muted' });
   const amount = h('input', { type: 'text', inputMode: 'decimal', placeholder: '0.0', autocomplete: 'off', 'aria-label': t('amount'), 'data-testid': 'sw-amount' });
   const maxBtn = h('button', { class: 'chip', type: 'button' }, t('max'));
-  const toNet = h('select', { 'aria-label': t('network'), 'data-testid': 'sw-to-chain' });
-  const toSel = h('select', { 'aria-label': t('swTo'), 'data-testid': 'sw-to' });
+  const toNet = picker({ label: t('network'), testid: 'sw-to-chain', options: [] });
+  const toSel = picker({ label: t('swTo'), testid: 'sw-to', options: [], placeholder: t('refreshing') });
   const slipBox = h('div', { class: 'fees' });
   const quoteBox = h('div', { class: 'stack', style: 'gap:10px' });
   const go = h('button', { class: 'btn', type: 'button', 'data-testid': 'sw-quote' }, t('swGetQuote'));
@@ -90,14 +94,14 @@ export function swapScreen(app: HTMLElement, back: () => void, opts: { onPhone: 
   }
 
   async function loadTargets() {
-    toSel.replaceChildren(h('option', { value: '' }, t('refreshing')));
+    toSel.setOptions([]);
     const r = await send<{ tokens: Target[] }>({ type: 'swap:targets', chainId: toNet.value });
-    if (!r.ok) return void ((err.textContent = errorText(r.error)), toSel.replaceChildren());
+    if (!r.ok) return void ((err.textContent = errorText(r.error)), toSel.setOptions([]));
     targets = r.tokens;
     const s = src();
     // Par défaut : un autre jeton que celui de départ.
     const first = targets.find((x) => !(s && toNet.value === s.chainId && x.address.toLowerCase() === s.address.toLowerCase()));
-    toSel.replaceChildren(...targets.map((x) => h('option', { value: x.address, selected: x === first }, `${x.symbol} · ${x.name}`)));
+    toSel.setOptions(targets.map((x) => ({ value: x.address, label: x.symbol, sub: x.name, icon: x.logo })), first?.address);
   }
 
   function onSource() {
@@ -255,8 +259,8 @@ export function swapScreen(app: HTMLElement, back: () => void, opts: { onPhone: 
     networks = n.ok ? n.networks.filter((x) => !x.hidden) : [];
     // Rien à échanger : on le dit, sans formulaire vide.
     if (!sources.length) return void form.replaceChildren(h('div', { class: 'empty-card card', 'data-testid': 'sw-empty' }, glyph('exchange', 28), h('p', { class: 'muted' }, t('swNoSource'))));
-    fromSel.replaceChildren(...sources.map((x) => h('option', { value: x.key }, `${x.symbol} · ${x.chainName} — ${x.balanceFmt}`)));
-    toNet.replaceChildren(...networks.map((x) => h('option', { value: x.id }, x.name)));
+    fromSel.setOptions(sources.map((x) => ({ value: x.key, label: x.symbol, sub: x.chainName, end: x.balanceFmt, icon: x.logo ?? x.chainLogo })));
+    toNet.setOptions(networks.map((x) => ({ value: x.id, label: x.name, icon: x.logo })));
     onSource();
   })();
 }

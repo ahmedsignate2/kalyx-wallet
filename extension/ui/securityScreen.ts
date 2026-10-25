@@ -3,6 +3,7 @@
  * (partout ou sites autorisés seulement) et bandeau « Activer sur ce site ».
  * Le service worker décide et enregistre ; l'écran ne fait que montrer.
  */
+import { picker } from './picker';
 import { glyph } from './glyph';
 import { h, send } from './dom';
 import { errorText, t } from './i18n';
@@ -196,9 +197,9 @@ const CAPS = [100, 250, 500, 1000, 2500, 5000];
  * Plafond journalier (dans la devise affichée) : un choix. Le baisser est
  * immédiat ; le relever ou le retirer redemande le mot de passe.
  */
-export function capSelect(fiat: string, locale: string, reload: () => void): HTMLSelectElement {
+export function capSelect(fiat: string, locale: string, reload: () => void): HTMLButtonElement {
   const money = (n: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: fiat.toUpperCase(), maximumFractionDigits: 0 }).format(n);
-  const sel = h('select', { class: 'inline', 'aria-label': t('capTitle'), 'data-testid': 'cap' }, h('option', { value: '' }, t('capOff')), ...CAPS.map((c) => h('option', { value: String(c) }, money(c))));
+  const sel = picker({ inline: true, label: t('capTitle'), testid: 'cap', value: '', options: [{ value: '', label: t('capOff') }, ...CAPS.map((c) => ({ value: String(c), label: money(c) }))] });
   let current = '';
   void send<{ limit: number | null; spent: number }>({ type: 'cap:get' }).then((r) => {
     if (r.ok) sel.value = current = r.limit ? String(r.limit) : '';

@@ -450,3 +450,55 @@ details.adv[open] > summary { border-bottom: 1px solid var(--border); }
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } a.card:hover, button.card:hover { transform: none; } }
 /* Fenêtre de signature : passkey ou mot de passe, d'un geste. */
 .pk-switch { display: inline-flex; align-items: center; gap: 6px; align-self: center; }
+
+/* ── Fenêtres (feuilles) : refonte ──
+ * Téléphone et popup : la feuille monte du bas, en-tête fixe, contenu qui
+ * défile seul, marge de la barre d'accueil. Grand écran (webapp, panneau
+ * élargi) : une fenêtre centrée, coins arrondis partout. */
+.modal { display: flex; flex-direction: column; max-height: min(86vh, 760px); overflow: hidden; padding: 8px 0 0; border: 1px solid var(--border); border-bottom: 0; border-top-color: var(--rim); }
+.modal .grip { margin: 2px auto 4px; width: 40px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+.modal-head { padding: 4px 16px 12px; border-bottom: 1px solid transparent; transition: border-color var(--d-fast); }
+.modal-head strong { font-size: var(--fs-title-s); letter-spacing: -0.2px; }
+.modal-head .icon { background: var(--surface-2); width: 32px; height: 32px; }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 16px max(18px, env(safe-area-inset-bottom, 0px)); }
+.modal.scrolled .modal-head { border-bottom-color: var(--border); }
+.list.card { overflow: hidden; }
+.actions > :only-child { grid-column: 1 / -1; }
+.actions .btn { min-height: 52px; padding: 0 14px; line-height: 19px; }
+@media (min-width: 600px) {
+  .veil { align-items: center; padding: 24px; }
+  .modal { max-width: 440px; border-radius: 24px; border-bottom: 1px solid var(--border); box-shadow: var(--lift), 0 30px 80px rgba(0, 0, 0, 0.35); animation: pop-in var(--d-base) var(--ease-out); }
+  .modal .grip { display: none; }
+  .modal-head { padding-top: 10px; cursor: default; }
+  .veil.out .modal { animation: pop-in 0.16s ease-in reverse forwards; }
+}
+@keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } }
+
+/* ── Sélecteur Kalyx (remplace les <select>) ── */
+.picker { appearance: none; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); color: var(--text); font: 500 var(--fs-body) var(--font); text-align: start; cursor: pointer; transition: border-color var(--d-fast), background-color var(--d-fast), transform var(--d-fast) var(--ease-spring); }
+:root:not([data-theme="light"]) .picker { background: color-mix(in srgb, var(--surface-2) 88%, #000); }
+.picker:hover { border-color: color-mix(in srgb, var(--text) 18%, var(--border)); }
+.picker:active:not(:disabled) { transform: scale(0.98); }
+.picker:disabled { opacity: 0.5; cursor: default; }
+.picker > .glyph { flex: none; color: var(--text-secondary); margin-inline-start: auto; }
+.pk-face { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.pk-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker.inline { width: auto; max-width: 58%; min-height: 36px; padding: 6px 10px 6px 12px; border-radius: 999px; font-size: var(--fs-body-s); gap: 6px; flex: none; }
+.picker.inline .pk-face { gap: 6px; }
+.pk-logo { flex: none; width: 20px; height: 20px; border-radius: 50%; object-fit: cover; background: var(--surface-3); }
+.pk-row .pk-logo { width: 32px; height: 32px; }
+.pk-none { background: transparent; width: 0 !important; margin-inline-end: -12px; }
+.pk-search { min-height: 46px; border-radius: 999px; padding: 10px 16px; position: sticky; top: 0; z-index: 1; }
+.picker-list { display: flex; flex-direction: column; gap: 2px; }
+.pk-row { appearance: none; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 12px; border: 0; border-radius: 14px; background: transparent; color: var(--text); font: inherit; text-align: start; cursor: pointer; transition: background-color var(--d-fast); }
+.pk-row:hover, .pk-row:focus-visible { background: var(--surface-2); outline: none; }
+.pk-row.on { background: color-mix(in srgb, var(--up) 10%, var(--surface-2)); }
+.pk-row:disabled { opacity: 0.45; cursor: default; }
+.pk-row .grow { flex: 1; min-width: 0; }
+.pk-row strong { display: block; font-weight: 600; font-size: var(--fs-body); line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-row small { display: block; font-size: var(--fs-body-s); line-height: 17px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-end { flex: none; font-size: var(--fs-body-s); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.pk-empty { text-align: center; padding: 16px 0; }
+.picker-sheet .sheet-body { gap: 10px; }
+@media (hover: none) { .picker:hover { border-color: var(--border); } .pk-row:hover { background: transparent; } .pk-row.on:hover { background: color-mix(in srgb, var(--up) 10%, var(--surface-2)); } }
+@media (prefers-reduced-motion: reduce) { .modal { animation: none !important; } }

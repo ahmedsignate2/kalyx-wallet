@@ -18,6 +18,8 @@ export function openSheet(title: string, ...content: (Node | false | null | unde
     body,
   );
   const veil = h('div', { class: 'veil', on: { click: (e) => e.target === veil && close() } }, panel);
+  // Contenu qui défile : un filet sous l'en-tête, qui reste en place.
+  body.addEventListener('scroll', () => panel.classList.toggle('scrolled', body.scrollTop > 4), { passive: true });
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') return close();
     // Tab reste DANS la feuille (lecteur d'écran, clavier) : on ne tombe pas sur la page derrière le voile.

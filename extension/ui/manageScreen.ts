@@ -7,6 +7,7 @@
  * chose (suppression) redemande le mot de passe ; le service worker le
  * revérifie et applique la liste blanche — l'écran ne décide de rien.
  */
+import { picker } from './picker';
 import { h, send } from './dom';
 import { glyph } from './glyph';
 import { avatar } from './avatar';
@@ -100,7 +101,7 @@ export function manageWalletScreen(app: HTMLElement, back: () => void, w: Manage
   /** Clé privée : avertissement, mot de passe, puis la clé (jamais conservée par l'écran). */
   function keySheet(a: Account) {
     const families = (['evm', 'solana'] as const).filter((f) => !!a[f] && (w.kind !== 'privateKey' || w.family === f));
-    const fam = h('select', { class: 'inline', 'aria-label': t('network') }, ...families.map((f) => h('option', { value: f }, f === 'evm' ? 'Ethereum / EVM' : 'Solana')));
+    const fam = picker({ inline: true, label: t('network'), options: families.map((f) => ({ value: f, label: f === 'evm' ? 'Ethereum / EVM' : 'Solana' })) });
     const pw = pwInput(t('mgPassword'));
     const e = h('p', { class: 'error', role: 'alert' });
     const go = h('button', { class: 'btn danger', type: 'button', 'data-testid': 'key-reveal' }, t('mgShowKey'));

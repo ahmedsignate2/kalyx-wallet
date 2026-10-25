@@ -10,6 +10,7 @@
  * Tout le texte passe par `h` (textContent) : un nom de token ou une adresse
  * venus d'un indexeur ne peuvent pas injecter de HTML.
  */
+import { picker } from './picker';
 import { h, send } from './dom';
 import { glyph } from './glyph';
 import { avatar } from './avatar';
@@ -839,12 +840,13 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
   function settings(dir: 'fwd' | 'back' | 'none' = 'fwd') {
     away = true;
     if (dir !== 'none') navIn(app, dir);
-    const fiat = h('select', { class: 'inline', 'aria-label': t('currency'), on: { change: async () => (await send({ type: 'home:set-fiat', fiat: fiat.value }), await load()) } }, ...FIATS.map((f) => h('option', { value: f, selected: f === data?.fiat }, f.toUpperCase())));
-    const lock = h(
-      'select',
-      { class: 'inline', 'aria-label': t('autoLock'), on: { change: () => void send({ type: 'vault:set-auto-lock', minutes: Number(lock.value) }) } },
-      ...AUTO_LOCK_CHOICES.map((m) => h('option', { value: String(m), selected: m === data?.status.autoLockMin }, t('minutes', { n: m }))),
-    );
+    // Devises : code, nom dans la langue de l'interface, symbole.
+    const fiatName = (() => { try { return new Intl.DisplayNames([LOCALE], { type: 'currency' }); } catch { return null; } })();
+    const sym = (f: string) => new Intl.NumberFormat(LOCALE, { style: 'currency', currency: f.toUpperCase(), currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? '';
+    const fiat = picker({ inline: true, label: t('currency'), testid: 'currency', value: data?.fiat, options: FIATS.map((f) => ({ value: f, label: f.toUpperCase(), sub: fiatName?.of(f.toUpperCase()), end: sym(f) })) });
+    fiat.addEventListener('change', async () => (await send({ type: 'home:set-fiat', fiat: fiat.value }), await load()));
+    const lock = picker({ inline: true, label: t('autoLock'), testid: 'auto-lock', value: String(data?.status.autoLockMin ?? ''), options: AUTO_LOCK_CHOICES.map((m) => ({ value: String(m), label: t('minutes', { n: m }) })) });
+    lock.addEventListener('change', () => void send({ type: 'vault:set-auto-lock', minutes: Number(lock.value) }));
     // Redemander le mot de passe pour signer (activé par défaut) : un interrupteur.
     const askPw = h('button', { class: 'row link-row', type: 'button', role: 'switch', 'aria-checked': 'true', 'data-testid': 'ask-password' }, h('span', { class: 'set-ico' }, glyph('security', 18)), h('span', { class: 'grow' }, h('strong', {}, t('askPwTitle')), h('p', { class: 'small muted' }, t('askPwBody'))), h('span', { class: 'switch', 'aria-hidden': 'true' }));
     void send<{ on: boolean }>({ type: 'settings:get-ask-password' }).then((r) => {
@@ -897,7 +899,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       expert ? rows : [h('details', { class: 'adv', 'data-testid': 'advanced', open: advOpen, on: { toggle: (e) => (advOpen = (e.target as HTMLDetailsElement).open) } }, h('summary', { class: 'row link-row' }, h('span', { class: 'set-ico' }, glyph('gear', 18)), h('span', { class: 'grow' }, h('strong', {}, t('advTitle')), h('p', { class: 'small muted' }, t('advBody'))), glyph('caretDown', 16)), ...rows.filter((r): r is Node => !!r))];
     // Apparence : thème (Nuit par défaut), mode, sons. Propre à cet ordinateur.
     const choiceRow = <V extends string>(icon: string, title: string, body: string, testid: string, value: V, choices: [V, string][], onPick: (v: V) => void) => {
-      const sel = h('select', { class: 'inline', 'aria-label': title, 'data-testid': testid }, ...choices.map(([v, label]) => h('option', { value: v, selected: v === value }, label)));
+      const sel = picker({ inline: true, label: title, testid, value, search: false, options: choices.map(([v, label]) => ({ value: v, label })) });
       sel.addEventListener('change', () => onPick(sel.value as V));
       return h('div', { class: 'row' }, h('span', { class: 'set-ico' }, glyph(icon, 18)), h('span', { class: 'grow' }, h('strong', {}, title), h('p', { class: 'small muted' }, body)), sel);
     };

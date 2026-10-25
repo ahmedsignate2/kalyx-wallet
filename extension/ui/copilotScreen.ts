@@ -3,6 +3,7 @@
  * conversation. L'écran n'envoie que des messages à l'hôte (web/host.ts) :
  * la clé et les appels au fournisseur restent de son côté.
  */
+import { picker } from './picker';
 import { h, send } from './dom';
 import { errorText, t } from './i18n';
 import { glyph } from './glyph';
@@ -25,7 +26,7 @@ export async function copilotScreen(app: HTMLElement, back: () => void) {
 
 /** Choisir le fournisseur et coller la clé : elle est testée avant d'être gardée. */
 function setupScreen(app: HTMLElement, back: () => void) {
-  const provider = h('select', { 'aria-label': t('aiProvider'), 'data-testid': 'ai-provider' }, ...PROVIDERS.map((p) => h('option', { value: p, selected: p === 'deepseek' }, PROVIDER_LABELS[p])));
+  const provider = picker({ label: t('aiProvider'), testid: 'ai-provider', value: 'deepseek', search: false, options: PROVIDERS.map((p) => ({ value: p, label: PROVIDER_LABELS[p], sub: p === 'custom' ? 'https://…' : undefined })) });
   const key = h('input', { type: 'password', autocomplete: 'off', spellcheck: false, placeholder: t('aiKeyPh'), 'aria-label': t('aiKeyLabel'), 'data-testid': 'ai-key', maxLength: 400 });
   const model = h('input', { type: 'text', autocomplete: 'off', spellcheck: false, placeholder: t('aiModel'), 'aria-label': t('aiModel'), maxLength: 120 });
   const url = h('input', { type: 'url', autocomplete: 'off', spellcheck: false, placeholder: 'https://…/v1/chat/completions', 'aria-label': t('aiUrl'), maxLength: 300, hidden: true });

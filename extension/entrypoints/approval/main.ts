@@ -8,6 +8,7 @@
  * ses raisons (explication de l'app), le message ou les détails techniques.
  * En danger, signer demande de MAINTENIR le bouton 2 s.
  */
+import { picker } from '../../ui/picker';
 import { installFeedback } from '../../ui/feedback';
 import { mountScene } from '../../ui/landscape';
 import { h, nodes, send } from '../../ui/dom';
@@ -277,11 +278,7 @@ async function signScreen(req: Req) {
   // Montant exact par défaut quand la simulation le connaît : on n'accorde que ce qu'il faut.
   const reduceBox = h('input', { type: 'checkbox', style: 'width:auto', checked: !!rv.reduce?.suggested, 'data-testid': 'reduce' });
   // Autorisation : rappel de révocation à l'échéance choisie (24 h par défaut).
-  const remind = h(
-    'select',
-    { class: 'inline', 'aria-label': t('grRemind'), 'data-testid': 'remind' },
-    ...[1, 24, 168, 0].map((hrs) => h('option', { value: String(hrs), selected: hrs === 24 }, t(hrs === 0 ? 'grNever' : hrs === 1 ? 'grIn1h' : hrs === 24 ? 'grIn24h' : 'grIn7d'))),
-  );
+  const remind = picker({ inline: true, label: t('grRemind'), testid: 'remind', value: '24', search: false, options: [1, 24, 168, 0].map((hrs) => ({ value: String(hrs), label: t(hrs === 0 ? 'grNever' : hrs === 1 ? 'grIn1h' : hrs === 24 ? 'grIn24h' : 'grIn7d') })) });
   const reduceAmount = h('input', { type: 'text', inputMode: 'decimal', value: rv.reduce?.suggested ?? '', placeholder: '0.0', 'aria-label': t('apReduce') });
   const sending = rv.method === 'eth_sendTransaction' || rv.method === 'solana:signAndSendTransaction';
   // Domaine sosie d'un site connu : l'alerte suit jusque dans la signature.

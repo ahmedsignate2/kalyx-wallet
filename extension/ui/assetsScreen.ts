@@ -7,6 +7,7 @@
  * Ajouter un token : le contrat est lu sur le réseau par le service worker,
  * puis RELU à l'ajout ; l'écran ne fait que montrer ce que le contrat dit.
  */
+import { picker } from './picker';
 import { glyph } from './glyph';
 import { h, send } from './dom';
 import { errorText, t } from './i18n';
@@ -79,7 +80,7 @@ export function networksScreen(app: HTMLElement, back: () => void) {
 
 /** Ajouter un token : réseau, contrat, vérification sur le contrat, puis ajout. */
 export function addTokenSheet(networks: { id: string; name: string }[], added: () => void) {
-  const select = h('select', { class: 'inline', 'aria-label': t('network'), 'data-testid': 'token-chain' }, ...networks.map((n) => h('option', { value: n.id }, n.name)));
+  const select = picker({ label: t('network'), testid: 'token-chain', options: networks.map((n) => ({ value: n.id, label: n.name, icon: (n as { logo?: string }).logo })) });
   const input = h('input', { class: 'mono-input', type: 'text', placeholder: '0x…', maxLength: 64, spellcheck: false, autocomplete: 'off', 'aria-label': t('atContract'), 'data-testid': 'token-contract' });
   const err = h('p', { class: 'error', role: 'alert' });
   const preview = h('div', { class: 'stack', style: 'gap:8px' });
