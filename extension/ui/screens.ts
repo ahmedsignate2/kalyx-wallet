@@ -35,7 +35,7 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = t
   const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'current-password' });
   const go = h('button', { class: 'btn', type: 'submit' }, t('unlock'));
   const note = h('p', { class: 'small muted', 'data-testid': 'passkey-note' });
-  let st: PasskeyStatus = { passkey: null };
+  let st: PasskeyStatus = { passkeys: [] };
   const form = h(
     'form',
     {
@@ -64,8 +64,8 @@ export function lockedScreen(app: HTMLElement, onUnlocked: () => void, close = t
   pw.focus();
   // Coffre à passkey : dans le popup, le déverrouillage passe par un onglet (la fenêtre passkey fermerait le popup).
   void send<PasskeyStatus>({ type: 'vault:status' }).then((r) => {
-    if (!r.ok || !r.passkey) return;
-    st = { passkey: r.passkey };
+    if (!r.ok || !r.passkeys?.length) return;
+    st = { passkeys: r.passkeys };
     if (!inPopup()) return void (note.textContent = t('pkActiveNote'));
     form.replaceChildren(
       h('p', { class: 'small muted' }, t('pkPopupNote')),

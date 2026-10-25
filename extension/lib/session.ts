@@ -17,7 +17,7 @@
  */
 import type { Store } from './storage';
 import { isSealedKey, makeKeyBox, memoryWrapStore, type KeyBox, type SealedKey } from './keyBox';
-import { changeVaultPassword, checkVaultPassword, createDecoyVault, createVault, disablePasskey, enablePasskey, parseDecoyVault, parseVault, recodeDecoyVault, unlockVault, type ExtVault } from './vault';
+import { addPasskey as vaultAddPasskey, changeVaultPassword, checkVaultPassword, createDecoyVault, createVault, parseDecoyVault, parseVault, passkeyMatches, passkeysOf, recodeDecoyVault, removePasskey as vaultRemovePasskey, unlockVault, upgradeLegacyPasskey, type ExtVault, type PasskeyKind } from './vault';
 import { DECOY_DISK_PREFIX, PROFILE_KEY, profileOf, type Profile } from './profile';
 import { afterFailure, DEFAULT_AUTO_LOCK_MIN, NO_THROTTLE, passwordAccepted, validAutoLock, waitMs, type Throttle } from './policy';
 
@@ -49,10 +49,12 @@ export interface SessionStatus {
   autoLockMin: number;
   /** Mode parano : session perdue à l'arrêt du service worker, à la perte du focus, en veille. */
   paranoid: boolean;
-  /** Second facteur : la passkey à demander (identifiant et sel PRF, publics), null sans passkey. */
-  passkey: { cred: string; salt: string } | null;
-  /** Le coffre du profil ouvert a une passkey (réglages). */
+  /** Second facteur : les passkeys à proposer au déverrouillage (identifiant et sel PRF, publics), vide sans passkey. */
+  passkeys: { cred: string; salt: string }[];
+  /** Le coffre du profil ouvert a une passkey (réglages, confirmation d'une signature). */
   passkeyHere: boolean;
+  /** Ses passkeys (session ouverte seulement) : où elles vivent, depuis quand. */
+  passkeyList: { cred: string; salt: string; kind: PasskeyKind; at: number }[];
   /** Un code de contrainte est en place (vu depuis le profil ouvert). */
   duress: boolean;
   /** Attente avant le prochain essai de mot de passe (ms), 0 si libre. */
@@ -130,11 +132,12 @@ export function makeSession(deps: SessionDeps) {
   async function status(): Promise<SessionStatus> {
     // La passkey demandée au déverrouillage est celle du VRAI coffre (l'écran ne sait pas quel code sera tapé).
     const [main, here, t] = await Promise.all([readAt(K.vault).catch(() => null), readVault().catch(() => null), throttle()]);
-    const pk = main?.passkey ? { cred: main.passkey.cred, salt: main.passkey.salt } : null;
+    const pks = passkeysOf(main).map(({ cred, salt }) => ({ cred, salt }));
     const unlocked = !!(await sealed());
     const decoy = (await profileOf(deps.session)) === 'decoy';
     const duress = unlocked && (await deps.disk.get(decoy ? DECOY_OWN_DURESS : K.decoy)) !== undefined;
-    return { hasVault: (await deps.disk.get(K.vault)) !== undefined, unlocked, autoLockMin: await autoLockMin(), paranoid: await paranoid(), passkey: pk, passkeyHere: unlocked && !!here?.passkey, duress, waitMs: waitMs(t, now()) };
+    const list = unlocked ? passkeysOf(here) : [];
+    return { hasVault: (await deps.disk.get(K.vault)) !== undefined, unlocked, autoLockMin: await autoLockMin(), paranoid: await paranoid(), passkeys: pks, passkeyHere: list.length > 0, passkeyList: list, duress, waitMs: waitMs(t, now()) };
   }
 
   /**
@@ -191,6 +194,8 @@ export function makeSession(deps: SessionDeps) {
       }
       throw m.reason;
     });
+    // Ancien format (une passkey) : converti maintenant que mot de passe et PRF sont justes ; sinon tel quel.
+    if (profile === 'main' && vault.passkey && prf) await upgradeLegacyPasskey(vault, password, prf).then((v) => deps.disk.set(K.vault, v), () => {});
     await open(key, profile);
   }
 
@@ -212,28 +217,42 @@ export function makeSession(deps: SessionDeps) {
     await guarded(() => checkVaultPassword(vault, password));
   }
 
-  /** Second facteur ajouté : mot de passe redemandé, session ouverte (sa clé doit être celle du coffre). */
-  async function addPasskey(password: string, p: { cred: string; salt: string; prf: Uint8Array }): Promise<void> {
+  /**
+   * Une passkey de plus (ordinateur, téléphone, clé de sécurité ; cinq au
+   * plus) : mot de passe redemandé et, s'il y en a déjà une, l'une d'elles.
+   */
+  async function addPasskey(password: string, proof: Uint8Array | undefined, p: { cred: string; salt: string; prf: Uint8Array; kind: PasskeyKind }): Promise<void> {
     const vault = await readVault();
     if (!vault) throw new SessionError('NO_VAULT');
-    if (vault.passkey) throw new SessionError('PASSKEY_EXISTS');
     // Profil leurre : la passkey protège le vrai coffre ; ici, une erreur ordinaire.
     if ((await profileOf(deps.session)) === 'decoy') throw new SessionError('PASSKEY_FAILED');
     const key = await vaultKey();
     try {
-      await deps.disk.set(K.vault, await guarded(() => enablePasskey(vault, password, key, p)));
+      await deps.disk.set(K.vault, await guarded(() => vaultAddPasskey(vault, password, key, proof, p, now())));
     } finally {
       key.fill(0);
     }
   }
 
-  /** Second facteur retiré : les deux facteurs une dernière fois. */
-  async function removePasskey(password: string, prf: Uint8Array): Promise<void> {
+  /** Une passkey retirée : mot de passe et une passkey (n'importe laquelle) une dernière fois. */
+  async function removePasskey(password: string, proof: Uint8Array, cred: string): Promise<void> {
     const vault = await readVault();
     if (!vault) throw new SessionError('NO_VAULT');
-    if (!vault.passkey) throw new SessionError('NO_PASSKEY');
+    if (!passkeysOf(vault).length) throw new SessionError('NO_PASSKEY');
     if (!(await sealed())) throw new SessionError('LOCKED');
-    await deps.disk.set(await vaultKeyName(), await guarded(() => disablePasskey(vault, password, prf)));
+    await deps.disk.set(await vaultKeyName(), await guarded(() => vaultRemovePasskey(vault, password, proof, cred)));
+  }
+
+  /**
+   * Confirmation d'une action par la passkey SEULE, session ouverte (au lieu
+   * de retaper le mot de passe pour signer). Même freinage qu'un mot de passe.
+   */
+  async function checkPasskey(prf: Uint8Array): Promise<void> {
+    if (!(await sealed())) throw new SessionError('LOCKED');
+    const vault = await readVault();
+    await guarded(async () => {
+      if (!vault || !passkeyMatches(vault, prf)) throw new Error('WRONG_PASSKEY');
+    });
   }
 
   /**
@@ -337,8 +356,9 @@ export function makeSession(deps: SessionDeps) {
     withVault: <T>(fn: VaultFn<T>) => serial(() => withVault(fn)),
     create: (pw: string) => serial(() => create(pw)),
     unlock: (pw: string, prf?: Uint8Array) => serial(() => unlock(pw, prf)),
-    addPasskey: (pw: string, p: { cred: string; salt: string; prf: Uint8Array }) => serial(() => addPasskey(pw, p)),
-    removePasskey: (pw: string, prf: Uint8Array) => serial(() => removePasskey(pw, prf)),
+    addPasskey: (pw: string, proof: Uint8Array | undefined, p: { cred: string; salt: string; prf: Uint8Array; kind: PasskeyKind }) => serial(() => addPasskey(pw, proof, p)),
+    removePasskey: (pw: string, proof: Uint8Array, cred: string) => serial(() => removePasskey(pw, proof, cred)),
+    checkPasskey: (prf: Uint8Array) => serial(() => checkPasskey(prf)),
     setDuress: (pw: string, code: string) => serial(() => setDuress(pw, code)),
     removeDuress: (pw: string) => serial(() => removeDuress(pw)),
     changePassword: (oldPw: string, newPw: string) => serial(() => changePassword(oldPw, newPw)),

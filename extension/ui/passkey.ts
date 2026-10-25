@@ -33,28 +33,57 @@ const prfOf = (c: Credential | null): string | null => {
   return first && first.byteLength === 32 ? bytesToHex(new Uint8Array(first)) : null;
 };
 
-/** Sortie PRF d'une passkey existante, pour ce sel (hex 64). */
-export async function passkeyPrf(cred: string, salt: string): Promise<string> {
+/** Passkey publique (identifiant et sel PRF) telle que le coffre la connaît. */
+export interface PasskeyRef {
+  cred: string;
+  salt: string;
+}
+
+/**
+ * Sortie PRF d'une des passkeys du coffre : l'utilisateur choisit laquelle
+ * (cet ordinateur, son téléphone, sa clé). Chaque passkey a son sel :
+ * `evalByCredential` donne le bon à chacune.
+ */
+export async function passkeyPrfAny(list: PasskeyRef[]): Promise<{ cred: string; prf: string }> {
+  if (!list.length) throw new PasskeyError('NO_PASSKEY');
   try {
     const c = await navigator.credentials.get({
       publicKey: {
         challenge: random(32),
-        allowCredentials: [{ type: 'public-key', id: base64urlnopad.decode(cred) as Uint8Array<ArrayBuffer> }],
+        allowCredentials: list.map((p) => ({ type: 'public-key' as const, id: base64urlnopad.decode(p.cred) as Uint8Array<ArrayBuffer> })),
         userVerification: 'required',
         timeout: 120_000,
-        extensions: { prf: { eval: { first: hexBytes(salt) } } } as AuthenticationExtensionsClientInputs,
+        extensions: { prf: { evalByCredential: Object.fromEntries(list.map((p) => [p.cred, { first: hexBytes(p.salt) }])) } } as AuthenticationExtensionsClientInputs,
       },
     });
     const prf = prfOf(c);
     if (!prf) throw new PasskeyError('PASSKEY_NO_PRF');
-    return prf;
+    return { cred: base64urlnopad.encode(new Uint8Array((c as PublicKeyCredential).rawId)), prf };
   } catch (e) {
     throw failure(e);
   }
 }
 
+/** Sortie PRF d'une passkey précise, pour ce sel (hex 64). */
+export async function passkeyPrf(cred: string, salt: string): Promise<string> {
+  return (await passkeyPrfAny([{ cred, salt }])).prf;
+}
+
+export type PasskeyKind = 'device' | 'phone' | 'key';
+
+/**
+ * Où créer la passkey. Ordinateur : Touch ID, Windows Hello. Téléphone : par
+ * QR code et Bluetooth, la passkey vit sur le téléphone (iPhone, Android) ;
+ * il doit être à côté de l'ordinateur à chaque usage. Clé : YubiKey et autres.
+ */
+const PLACE: Record<PasskeyKind, { attachment: AuthenticatorAttachment; hints: string[] }> = {
+  device: { attachment: 'platform', hints: ['client-device'] },
+  phone: { attachment: 'cross-platform', hints: ['hybrid'] },
+  key: { attachment: 'cross-platform', hints: ['security-key'] },
+};
+
 /** Nouvelle passkey avec PRF : identifiant, sel tiré ici, et sortie PRF (demandée une seconde fois si l'authentificateur ne la rend pas à la création). */
-export async function createPasskey(): Promise<{ cred: string; salt: string; prf: string }> {
+export async function createPasskey(kind: PasskeyKind = 'device', exclude: string[] = []): Promise<{ cred: string; salt: string; prf: string; kind: PasskeyKind }> {
   const salt = bytesToHex(random(32));
   let c: Credential | null;
   try {
@@ -67,10 +96,13 @@ export async function createPasskey(): Promise<{ cred: string; salt: string; prf
           { type: 'public-key', alg: -7 },
           { type: 'public-key', alg: -257 },
         ],
-        authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
+        // Les passkeys déjà enregistrées ne sont pas recréées sur le même appareil.
+        excludeCredentials: exclude.map((id) => ({ type: 'public-key' as const, id: base64urlnopad.decode(id) as Uint8Array<ArrayBuffer> })),
+        authenticatorSelection: { authenticatorAttachment: PLACE[kind].attachment, residentKey: 'preferred', userVerification: 'required' },
+        hints: PLACE[kind].hints,
         timeout: 120_000,
         extensions: { prf: { eval: { first: hexBytes(salt) } } } as AuthenticationExtensionsClientInputs,
-      },
+      } as PublicKeyCredentialCreationOptions,
     });
   } catch (e) {
     throw failure(e);
@@ -78,7 +110,7 @@ export async function createPasskey(): Promise<{ cred: string; salt: string; prf
   const ext = (c as PublicKeyCredential).getClientExtensionResults() as { prf?: { enabled?: boolean } };
   if (ext.prf?.enabled === false) throw new PasskeyError('PASSKEY_NO_PRF');
   const cred = base64urlnopad.encode(new Uint8Array((c as PublicKeyCredential).rawId));
-  return { cred, salt, prf: prfOf(c) ?? (await passkeyPrf(cred, salt)) };
+  return { cred, salt, prf: prfOf(c) ?? (await passkeyPrf(cred, salt)), kind };
 }
 
 function hexBytes(h: string): Uint8Array<ArrayBuffer> {
@@ -88,15 +120,15 @@ function hexBytes(h: string): Uint8Array<ArrayBuffer> {
 }
 
 export interface PasskeyStatus {
-  passkey: { cred: string; salt: string } | null;
+  passkeys: PasskeyRef[];
 }
 
-/** Déverrouille : mot de passe, puis passkey si le coffre en a une. */
+/** Déverrouille : mot de passe, puis une des passkeys si le coffre en a. */
 export async function unlockWith(password: string, st: PasskeyStatus): Promise<{ ok: boolean; error?: string; waitMs?: number }> {
   let prf: string | undefined;
-  if (st.passkey) {
+  if (st.passkeys.length) {
     try {
-      prf = await passkeyPrf(st.passkey.cred, st.passkey.salt);
+      prf = (await passkeyPrfAny(st.passkeys)).prf;
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }

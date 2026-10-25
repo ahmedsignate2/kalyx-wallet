@@ -441,9 +441,9 @@ async function factors() {
     await page.locator('[data-testid=pk-go]').click();
     await page.locator('[data-testid=pk-done]').waitFor({ timeout: 15_000 }).catch(async () => fail(`activation : ${await page.locator('.error').allTextContents()}`));
     let st = await bg({ type: 'vault:status' });
-    st.passkey?.cred && st.passkeyHere ? console.log('✓ passkey activée (WebAuthn PRF, authentificateur virtuel)') : fail(`passkey ${JSON.stringify(st)}`);
+    st.passkeys?.[0]?.cred && st.passkeyHere && st.passkeyList?.[0]?.kind === 'device' ? console.log('✓ passkey activée sur cet ordinateur (WebAuthn PRF, authentificateur virtuel)') : fail(`passkey ${JSON.stringify(st)}`);
     const vault = (await page.evaluate(() => chrome.storage.local.get('kalyx.vault')))['kalyx.vault'];
-    vault.passkey && vault.key.ct.length === 128 ? console.log('✓ coffre : enveloppe intérieure (passkey) dans l’extérieure (mot de passe)') : fail('format du coffre à passkey');
+    vault.passkeys?.length === 1 && !vault.passkey && vault.key.ct.length === 96 ? console.log('✓ coffre : une case par passkey, scellée par mot de passe ET passkey') : fail('format du coffre à passkey');
 
     // Mot de passe seul : refusé par le service worker.
     await bg({ type: 'vault:lock' });
@@ -505,14 +505,21 @@ async function factors() {
     const addrs = (h) => (h.wallets ?? []).flatMap((w) => [w.id, ...(w.accounts ?? []).map((x) => x.evm)]).join();
     mainHome.wallets?.length === 1 && mainHome.wallets[0].id !== decoyHome.wallets?.[0]?.id && addrs(mainHome) !== addrs(decoyHome) ? console.log('✓ vrai profil : uniquement le vrai portefeuille (autres adresses que le leurre)') : fail(`vrai profil mélangé ${addrs(mainHome)} / ${addrs(decoyHome)}`);
 
-    // Désactiver la passkey : les deux facteurs une dernière fois ; ensuite le mot de passe suffit.
+    // Une seule passkey : le secours est proposé, avec le choix de l'appareil (ordinateur, téléphone, clé).
+    // (Ajouter la seconde est couvert par les tests unitaires : Chrome de test ne sait pas mener une cérémonie à deux authentificateurs.)
     await page.goto(`chrome-extension://${id}/onboarding.html#passkey`);
-    await page.locator('[data-testid=pk-go]').waitFor();
+    await page.locator('[data-testid=pk-backup-tip]').waitFor({ timeout: 8_000 }).then(() => console.log('✓ une seule passkey : « ajoute ton téléphone en secours » proposé'), () => fail('pas de conseil de secours'));
+    (await page.locator('[data-testid=pk-kind-phone]').isChecked()) && (await page.locator('[data-testid=pk-row]').count()) === 1 ? console.log('✓ liste des passkeys ; secours : « Mon téléphone » proposé d’office') : fail('liste / choix de l’appareil');
+    if (SHOTS) await page.screenshot({ path: join(SHOTS, 'passkey-list.png'), fullPage: true });
+
+    // Dernière passkey retirée : le mot de passe suffit de nouveau.
+    await page.goto(`chrome-extension://${id}/onboarding.html#passkey`);
+    await page.locator('[data-testid=pk-remove]').waitFor();
     await page.locator('[data-testid=pk-password]').fill(PW);
-    await page.locator('[data-testid=pk-go]').click();
+    await page.locator('[data-testid=pk-remove]').click();
     await page.locator('[data-testid=pk-done]').waitFor({ timeout: 15_000 });
     await bg({ type: 'vault:lock' });
-    (await bg({ type: 'vault:unlock', password: PW })).ok ? console.log('✓ passkey désactivée : le mot de passe suffit de nouveau') : fail('désactivation passkey');
+    (await bg({ type: 'vault:unlock', password: PW })).ok ? console.log('✓ dernière passkey retirée : le mot de passe suffit de nouveau') : fail('désactivation passkey');
   } finally {
     await ctx.close();
   }

@@ -35,3 +35,17 @@ ul.warn { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size
 @media (prefers-reduced-motion: reduce) { .ob-values li { animation: none; } }
 .note-line { display: flex; align-items: center; gap: 6px; margin: 0; }
 .note-line .glyph { flex: none; }
+
+/* Passkeys : où la créer (ordinateur, téléphone, clé) et la liste de celles en place. */
+.pk-kinds { display: flex; flex-direction: column; gap: 8px; }
+.pk-kind { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--surface-2); border: 1.5px solid transparent; cursor: pointer; transition: border-color var(--d-fast), background var(--d-fast); }
+.pk-kind:has(input:checked) { border-color: var(--ink-send); background: color-mix(in srgb, var(--ink-send) 8%, var(--surface-2)); }
+.pk-kind input { position: absolute; opacity: 0; pointer-events: none; }
+.pk-kind:has(input:focus-visible) { outline: 2px solid var(--ink-send); outline-offset: 2px; }
+.pk-kind strong, .pk-row strong { display: block; font-size: 14.5px; }
+.pk-kind small, .pk-row small { display: block; font-size: 12.5px; line-height: 17px; }
+.pk-ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--ink-send) 14%, var(--surface-2)); color: var(--ink-send); }
+.pk-list { display: flex; flex-direction: column; gap: 8px; }
+.pk-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; background: var(--surface-2); }
+.grow { flex: 1; min-width: 0; }
+.pk-row .pk-remove { width: auto; flex: none; padding: 8px 14px; min-height: 0; font-size: 13.5px; color: var(--danger); }

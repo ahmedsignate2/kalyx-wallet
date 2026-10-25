@@ -155,6 +155,10 @@ describe('routeur interne', () => {
     expect(await go({ type: 'swap:confirm', id: 'q1' })).toEqual({ ok: false, error: 'PASSWORD_REQUIRED' });
     expect(confirmed).toBe(0);
     expect(await go({ type: 'swap:confirm', id: 'q1', password: 'Plage-Orange-47!' })).toMatchObject({ ok: true });
+    // Coffre à passkey : elle confirme à la place du mot de passe ; une autre est refusée.
+    await s.addPasskey('Plage-Orange-47!', undefined, { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'ab'.repeat(32), prf: new Uint8Array(32).fill(7), kind: 'phone' });
+    expect(await go({ type: 'swap:confirm', id: 'q1', prf: '07'.repeat(32) })).toMatchObject({ ok: true });
+    expect(await go({ type: 'swap:confirm', id: 'q1', prf: '09'.repeat(32) })).toMatchObject({ ok: false, error: 'WRONG_PASSKEY' });
     expect(await go({ type: 'settings:set-ask-password', on: false })).toEqual({ ok: true });
     expect(await go({ type: 'settings:get-ask-password' })).toEqual({ ok: true, on: false });
     expect(await go({ type: 'swap:confirm', id: 'q2' })).toMatchObject({ ok: true });

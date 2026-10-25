@@ -20,7 +20,7 @@ import { passwordStrength } from '../../../src/security/passwordStrength';
 import { createBackupChallenge, unknownWords, type WordChallenge } from '../../../src/domain/wallet/backupChallenge';
 import { DEFAULT_AUTO_LOCK_MIN, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
 import { languageSelect } from '../../ui/helpScreen';
-import { createPasskey, passkeyPrf, passkeySupported, unlockWith, type PasskeyStatus } from '../../ui/passkey';
+import { createPasskey, passkeyPrfAny, passkeySupported, unlockWith, type PasskeyKind, type PasskeyStatus } from '../../ui/passkey';
 import { getMode, getTheme, setMode, setTheme, type Mode, type Theme } from '../../ui/prefs';
 import { play } from '../../ui/sound';
 
@@ -79,54 +79,111 @@ function welcome() {
   );
 }
 
-/* ── Passkey (second facteur) : activer ou désactiver ── */
+/* ── Passkeys (second facteur) : la liste, en ajouter une (ordinateur, téléphone, clé), en retirer une ── */
+type PkInfo = { cred: string; salt: string; kind: PasskeyKind; at: number };
+const PK_KINDS: { kind: PasskeyKind; icon: string; title: 'pkKindDevice' | 'pkKindPhone' | 'pkKindKey'; sub: 'pkKindDeviceSub' | 'pkKindPhoneSub' | 'pkKindKeySub' }[] = [
+  { kind: 'device', icon: 'security', title: 'pkKindDevice', sub: 'pkKindDeviceSub' },
+  { kind: 'phone', icon: 'scan', title: 'pkKindPhone', sub: 'pkKindPhoneSub' },
+  { kind: 'key', icon: 'sign', title: 'pkKindKey', sub: 'pkKindKeySub' },
+];
+
 async function passkeyScreen() {
-  const st = await send<PasskeyStatus>({ type: 'vault:status' });
-  const on = !!(st.ok && st.passkey);
+  const st = await send<{ passkeyList: PkInfo[] }>({ type: 'vault:status' });
+  const list = st.ok ? st.passkeyList : [];
+  const on = list.length > 0;
   const err = errorLine();
   const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', 'data-testid': 'pk-password' });
+  let kind: PasskeyKind = on ? 'phone' : 'device';
+  const picker = h(
+    'div',
+    { class: 'pk-kinds', role: 'radiogroup', 'aria-label': t('pkWhere') },
+    ...PK_KINDS.map((k) => {
+      const input = h('input', { type: 'radio', name: 'pk-kind', value: k.kind, checked: k.kind === kind, 'data-testid': `pk-kind-${k.kind}`, on: { change: () => (kind = k.kind) } });
+      return h('label', { class: 'pk-kind' }, input, h('span', { class: 'pk-ico' }, glyph(k.icon, 18)), h('span', { class: 'grow' }, h('strong', {}, t(k.title)), h('small', { class: 'muted' }, t(k.sub))));
+    }),
+  );
   const ack = h('input', { type: 'checkbox', 'data-testid': 'pk-ack' });
-  const go = h('button', { class: on ? 'btn danger' : 'btn', type: 'submit', disabled: !on, 'data-testid': 'pk-go' }, t(on ? 'pkDisable' : 'pkEnable'));
-  if (!on) ack.addEventListener('change', () => (go.disabled = !ack.checked));
+  const add = h('button', { class: 'btn', type: 'submit', disabled: !on, 'data-testid': 'pk-go' }, t(on ? 'pkAddBackup' : 'pkEnable'));
+  if (!on) ack.addEventListener('change', () => (add.disabled = !ack.checked));
+
+  /** Une opération, puis l'écran « fait » ; les erreurs restent sur place. */
+  const run = async (btn: HTMLButtonElement, op: () => Promise<{ ok: boolean; error?: string; waitMs?: number }>, done: 'pkRemovedOne' | 'pkDisabled' | 'pkAddedDone' | 'pkEnabled') => {
+    if (!pw.value) return void (err.textContent = errorText('PASSWORD_REQUIRED'));
+    btn.disabled = true;
+    err.textContent = '';
+    let r: { ok: boolean; error?: string; waitMs?: number };
+    try {
+      r = await op();
+    } catch (x) {
+      r = { ok: false, error: (x as Error).message };
+    }
+    pw.value = '';
+    btn.disabled = false;
+    if (!r.ok) return showError(err, r);
+    screen(
+      h('h1', {}, t('pkTitle')),
+      h('p', { class: 'banner', role: 'status', 'data-testid': 'pk-done' }, glyph('check', 18), h('span', {}, t(done))),
+      h('button', { class: 'btn secondary', type: 'button', on: { click: () => void passkeyScreen() } }, t('pkManage')),
+    );
+  };
+
+  const rows = list.map((p) =>
+    h(
+      'div',
+      { class: 'pk-row', 'data-testid': 'pk-row' },
+      h('span', { class: 'pk-ico' }, glyph(PK_KINDS.find((k) => k.kind === p.kind)?.icon ?? 'security', 18)),
+      h('span', { class: 'grow' }, h('strong', {}, t(PK_KINDS.find((k) => k.kind === p.kind)?.title ?? 'pkKindDevice')), h('small', { class: 'muted' }, p.at ? t('pkAddedOn', { date: new Date(p.at).toLocaleDateString() }) : t('pkFirst'))),
+      h('button', {
+        class: 'btn secondary pk-remove',
+        type: 'button',
+        'data-testid': 'pk-remove',
+        on: {
+          click: (e) =>
+            void run(e.currentTarget as HTMLButtonElement, async () => {
+              // N'importe laquelle des passkeys prouve le second facteur (l'ordinateur perdu se retire avec le téléphone).
+              const proof = await passkeyPrfAny(list);
+              return send({ type: 'vault:passkey-remove', password: pw.value, prf: proof.prf, cred: p.cred });
+            }, list.length > 1 ? 'pkRemovedOne' : 'pkDisabled'),
+        },
+      }, t('pkRemove')),
+    ),
+  );
+
   const form = h(
     'form',
     {
       class: 'stack',
       on: {
-        submit: async (e) => {
+        submit: (e) => {
           e.preventDefault();
-          if (!pw.value || go.disabled) return;
-          go.disabled = true;
-          err.textContent = '';
-          let r: { ok: boolean; error?: string; waitMs?: number };
-          try {
-            if (on) r = await send({ type: 'vault:passkey-remove', password: pw.value, prf: await passkeyPrf(st.passkey!.cred, st.passkey!.salt) });
-            else {
-              // Mot de passe vérifié AVANT de créer la passkey : pas de passkey orpheline sur l'authentificateur.
-              r = await send({ type: 'vault:check-password', password: pw.value });
-              if (r.ok) r = await send({ type: 'vault:passkey-add', password: pw.value, ...(await createPasskey()) });
-            }
-          } catch (x) {
-            r = { ok: false, error: (x as Error).message };
-          }
-          pw.value = '';
-          go.disabled = false;
-          if (!r.ok) return showError(err, r);
-          screen(h('h1', {}, t('pkTitle')), h('p', { class: 'banner', role: 'status', 'data-testid': 'pk-done' }, glyph('check', 18), h('span', {}, t(on ? 'pkDisabled' : 'pkEnabled'))));
+          if (add.disabled) return;
+          void run(add, async () => {
+            // Mot de passe vérifié AVANT de créer la passkey : pas de passkey orpheline sur l'authentificateur.
+            const c = await send({ type: 'vault:check-password', password: pw.value });
+            if (!c.ok) return c;
+            // Une passkey de plus ne s'ajoute pas sans une des passkeys déjà là.
+            const proof = on ? (await passkeyPrfAny(list)).prf : undefined;
+            const made = await createPasskey(kind, list.map((x) => x.cred));
+            return send({ type: 'vault:passkey-add', password: pw.value, ...(proof ? { proof } : {}), ...made });
+          }, on ? 'pkAddedDone' : 'pkEnabled');
         },
       },
     },
-    pw,
+    h('p', { class: 'small muted' }, t('pkWhere')),
+    picker,
     !on && h('label', { class: 'check' }, ack, h('span', {}, t('pkAck'))),
-    err,
-    go,
+    add,
   );
+
   screen(
     h('h1', {}, t('pkTitle')),
     h('p', { class: 'muted' }, t('pkIntro')),
-    h('p', { class: 'small muted', 'data-testid': 'pk-state' }, t(on ? 'pkOn' : 'pkOff')),
+    h('p', { class: 'small muted', 'data-testid': 'pk-state' }, on ? t('pkCount', { n: list.length }) : t('pkOff')),
     !on && h('p', { class: 'banner warn', role: 'note' }, glyph('warning', 18), h('span', {}, t('pkWarn'))),
-    passkeySupported() ? form : h('p', { class: 'error' }, t('pkUnsupported')),
+    on && list.length === 1 && h('p', { class: 'banner', role: 'note', 'data-testid': 'pk-backup-tip' }, glyph('alert', 18), h('span', {}, t('pkBackupTip'))),
+    ...(passkeySupported()
+      ? [rows.length ? h('div', { class: 'pk-list' }, ...rows) : null, pw, list.length < 5 ? form : h('p', { class: 'small muted' }, t('pkMax')), err]
+      : [h('p', { class: 'error' }, t('pkUnsupported'))]),
   );
 }
 
@@ -237,9 +294,9 @@ function unlockScreen() {
   const err = errorLine();
   const pw = h('input', { type: 'password', placeholder: t('pwPlaceholder'), autocomplete: 'current-password' });
   const note = h('p', { class: 'small muted', 'data-testid': 'passkey-note' });
-  let st: PasskeyStatus = { passkey: null };
+  let st: PasskeyStatus = { passkeys: [] };
   void send<PasskeyStatus>({ type: 'vault:status' }).then((r) => {
-    if (r.ok && r.passkey) (st = { passkey: r.passkey }), (note.textContent = t('pkActiveNote'));
+    if (r.ok && r.passkeys?.length) (st = { passkeys: r.passkeys }), (note.textContent = t('pkActiveNote'));
   });
   const form = h(
     'form',

@@ -20,6 +20,7 @@ import { addressView } from '../../ui/address';
 import { isExpert } from '../../ui/prefs';
 import { play } from '../../ui/sound';
 import { reducedMotion } from '../../ui/motion';
+import { passkeyPrfAny, passkeySupported, type PasskeyRef } from '../../ui/passkey';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -251,6 +252,28 @@ async function signScreen(req: Req) {
   const hold = ex.holdToSign || rv.score.level === 'high';
   const err = h('p', { class: 'error', role: 'alert' });
   const pw = h('input', { type: 'password', placeholder: t('apPassword'), autocomplete: 'current-password' });
+  /*
+   * Coffre à passkey : elle confirme la signature à la place du mot de passe
+   * (empreinte, visage, téléphone) — plus rapide, et un second facteur réel.
+   * Le mot de passe reste possible d'un geste.
+   */
+  let pkList: PasskeyRef[] = [];
+  let usePk = false;
+  const pkSwitch = h('button', { class: 'link small pk-switch', type: 'button', hidden: true, 'data-testid': 'use-passkey' });
+  const pkMode = (on: boolean) => {
+    usePk = on;
+    pw.hidden = on;
+    pkSwitch.replaceChildren(glyph(on ? 'lock' : 'security', 16), h('span', {}, t(on ? 'pkSignOr' : 'pkSignWith')));
+  };
+  pkSwitch.addEventListener('click', () => pkMode(!usePk));
+  if (askPassword && passkeySupported()) {
+    void send<{ passkeyList?: PasskeyRef[] }>({ type: 'vault:status' }).then((x) => {
+      if (!x?.ok || !x.passkeyList?.length) return;
+      pkList = x.passkeyList.map(({ cred, salt }) => ({ cred, salt }));
+      pkSwitch.hidden = false;
+      pkMode(true);
+    });
+  }
   // Montant exact par défaut quand la simulation le connaît : on n'accorde que ce qu'il faut.
   const reduceBox = h('input', { type: 'checkbox', style: 'width:auto', checked: !!rv.reduce?.suggested, 'data-testid': 'reduce' });
   // Autorisation : rappel de révocation à l'échéance choisie (24 h par défaut).
@@ -278,15 +301,25 @@ async function signScreen(req: Req) {
   };
   const approve = async () => {
     if (ok.disabled) return;
-    if (askPassword && !pw.value) return void (err.textContent = errorText('PASSWORD_REQUIRED'));
+    if (askPassword && !usePk && !pw.value) return void (err.textContent = errorText('PASSWORD_REQUIRED'));
     ok.disabled = true;
     err.textContent = '';
+    let prf: string | undefined;
+    if (askPassword && usePk) {
+      try {
+        prf = (await passkeyPrfAny(pkList)).prf;
+      } catch (e) {
+        ok.disabled = false;
+        return void (err.textContent = errorText((e as Error).message));
+      }
+    }
     phoneWait.hidden = !onPhone;
     const x = await send<{ params?: Record<string, string> }>({
       type: 'approval:respond',
       id,
       approve: true,
-      password: askPassword ? pw.value : undefined,
+      password: askPassword && !usePk ? pw.value : undefined,
+      ...(prf ? { prf } : {}),
       reduceTo: rv.reduce && reduceBox.checked && reduceAmount.value.trim() ? reduceAmount.value.trim() : undefined,
       remindHours: rv.approval ? Number(remind.value) : undefined,
     }).catch(() => null);
@@ -384,6 +417,7 @@ async function signScreen(req: Req) {
       rv.details.length > 0 && h('details', { class: 'tech', open: isExpert(), 'data-testid': 'tech-details' }, h('summary', {}, t('apDetails')), isExpert() && h('div', { class: 'kv' }, h('span', { class: 'small muted' }, t('apMethod')), h('p', { class: 'mono small' }, rv.method)), ...rv.details.map((d) => h('div', { class: 'kv' }, h('span', { class: 'small muted' }, d.label), h('p', { class: 'mono small' }, d.value)))),
       capPassword && h('p', { class: 'banner warn', role: 'status', 'data-testid': 'cap-note' }, glyph('warning', 16), h('span', { class: 'grow' }, t('capNote', { remaining: String(Math.floor(capRemaining ?? 0)) }))),
       askPassword && pw,
+      askPassword && pkSwitch,
       phoneWait,
       err,
       // Danger : Refuser en premier (et focalisé), signer à droite.

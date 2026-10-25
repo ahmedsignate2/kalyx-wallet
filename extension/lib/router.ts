@@ -12,6 +12,7 @@ import { siteReport } from './siteInfo';
 import type { Allowances } from './allowances';
 import type { TxWatch } from './txWatch';
 import { SessionError, type Session } from './session';
+import { PASSKEY_KINDS, type PasskeyKind } from './vault';
 import { coreSelfTest } from './coreSelfTest';
 import { passwordAccepted, RESET_CONFIRM } from './policy';
 import { WalletError, type Wallets } from './wallets';
@@ -97,10 +98,12 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
    * réponse d'erreur, ou null si l'on peut continuer.
    */
   // « Redemander le mot de passe pour signer » : ACTIF par défaut, seul un refus explicite le coupe.
-  const passwordGate = async (value: number | null | undefined, password: unknown): Promise<Reply | null> => {
+  // Avec une passkey sur le coffre, elle confirme aussi bien que le mot de passe (`prf`, sortie de l'authentificateur).
+  const passwordGate = async (value: number | null | undefined, password: unknown, prf?: unknown): Promise<Reply | null> => {
     const ask = !!disk && (await disk.get<boolean>('askPasswordToSign')) !== false;
     const capped = !!cap && value !== undefined && (await cap.needsPassword(value));
     if (!ask && !capped) return null;
+    if (prfHex(prf)) return void (await session.checkPasskey(hexToBytes(prf))), null;
     if (!pw(password)) return { ok: false, error: capped ? 'CAP_PASSWORD' : 'PASSWORD_REQUIRED', ...(capped && cap ? { params: { remaining: String(Math.floor((await cap.status()).remaining ?? 0)) } } : {}) };
     await session.checkPassword(password);
     return null;
@@ -133,12 +136,12 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         await session.removeDuress(m.password);
         return { ok: true };
       case 'vault:passkey-add':
-        if (!pw(m.password) || !prfHex(m.prf) || typeof m.cred !== 'string' || typeof m.salt !== 'string') return { ok: false, error: 'BAD_REQUEST' };
-        await session.addPasskey(m.password, { cred: m.cred, salt: m.salt, prf: hexToBytes(m.prf) });
+        if (!pw(m.password) || !prfHex(m.prf) || typeof m.cred !== 'string' || typeof m.salt !== 'string' || (m.proof !== undefined && !prfHex(m.proof)) || !PASSKEY_KINDS.includes(m.kind as PasskeyKind)) return { ok: false, error: 'BAD_REQUEST' };
+        await session.addPasskey(m.password, m.proof ? hexToBytes(m.proof) : undefined, { cred: m.cred, salt: m.salt, prf: hexToBytes(m.prf), kind: m.kind as PasskeyKind });
         return { ok: true };
       case 'vault:passkey-remove':
-        if (!pw(m.password) || !prfHex(m.prf)) return { ok: false, error: 'BAD_REQUEST' };
-        await session.removePasskey(m.password, hexToBytes(m.prf));
+        if (!pw(m.password) || !prfHex(m.prf) || typeof m.cred !== 'string') return { ok: false, error: 'BAD_REQUEST' };
+        await session.removePasskey(m.password, hexToBytes(m.prf), m.cred);
         return { ok: true };
       case 'vault:lock':
         await session.lock();
@@ -266,7 +269,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (swap.known && !swap.known(m.id)) return { ok: false, error: 'SWAP_QUOTE_GONE' };
         // « Redemander le mot de passe pour signer » et plafond journalier valent aussi pour un échange.
         const value = swap.valueOf(m.id);
-        const gate = await passwordGate(value, m.password);
+        const gate = await passwordGate(value, m.password, m.prf);
         if (gate) return gate;
         const done = await swap.confirm(m.id, m.ack === true);
         await cap?.record(value ?? null);
@@ -383,7 +386,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         if (!str(m.id, 64)) return { ok: false, error: 'BAD_REQUEST' };
         {
           const value = send.valueOf(m.id);
-          const gate = await passwordGate(value, m.password);
+          const gate = await passwordGate(value, m.password, m.prf);
           if (gate) return gate;
           const done = await send.confirm(m.id, m.acceptRisk === true);
           await cap?.record(value ?? null);
@@ -454,7 +457,7 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         } else {
           // Signature : le compte est celui ACCORDÉ au site, jamais choisi ici.
           review = dapp ? await dapp.reviewOf(m.id)?.catch(() => undefined) : undefined;
-          const gate = await passwordGate(review ? review.outFiat : null, m.password);
+          const gate = await passwordGate(review ? review.outFiat : null, m.password, m.prf);
           if (gate) return gate;
           if (m.remindHours !== undefined && !(REMIND_HOURS as readonly unknown[]).includes(m.remindHours)) return { ok: false, error: 'BAD_REQUEST' };
           if (m.reduceTo !== undefined && (typeof m.reduceTo !== 'string' || !/^\d{1,40}([.,]\d{1,40})?$/.test(m.reduceTo.trim()))) return { ok: false, error: 'INVALID_AMOUNT' };

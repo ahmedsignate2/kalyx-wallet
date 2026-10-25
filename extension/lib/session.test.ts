@@ -178,15 +178,18 @@ describe('session de l’extension', () => {
 describe('passkey (second facteur, PRF)', () => {
   const PRF = new Uint8Array(32).fill(7);
   const OTHER = new Uint8Array(32).fill(9);
-  const P = { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'ab'.repeat(32), prf: PRF };
+  const PHONE_PRF = new Uint8Array(32).fill(11);
+  const P = { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'ab'.repeat(32), prf: PRF, kind: 'device' as const };
+  const PHONE = { cred: 'cGhvbmUtY3JlZGVudGlhbC0x', salt: 'ef'.repeat(32), prf: PHONE_PRF, kind: 'phone' as const };
 
   test('il faut les deux facteurs ; le mot de passe seul ne donne rien', async () => {
     const s = session();
     await s.create(PW);
-    await expect(s.addPasskey('mauvais-mot-de-passe', P)).rejects.toThrow('WRONG_PASSWORD');
-    await s.addPasskey(PW, P);
-    expect(await s.status()).toMatchObject({ passkey: { cred: P.cred, salt: P.salt }, passkeyHere: true });
+    await expect(s.addPasskey('mauvais-mot-de-passe', undefined, P)).rejects.toThrow('WRONG_PASSWORD');
+    await s.addPasskey(PW, undefined, P);
+    expect(await s.status()).toMatchObject({ passkeys: [{ cred: P.cred, salt: P.salt }], passkeyHere: true, passkeyList: [{ cred: P.cred, kind: 'device' }] });
     await s.lock();
+    expect((await s.status()).passkeyList).toEqual([]);
     await expect(s.unlock(PW)).rejects.toThrow('PASSKEY_REQUIRED');
     clock += 3_600_000;
     await expect(s.unlock(PW, OTHER)).rejects.toThrow('WRONG_PASSKEY');
@@ -200,7 +203,7 @@ describe('passkey (second facteur, PRF)', () => {
   test('changer le mot de passe ne demande pas la passkey, et la garde', async () => {
     const s = session();
     await s.create(PW);
-    await s.addPasskey(PW, P);
+    await s.addPasskey(PW, undefined, P);
     await s.changePassword(PW, 'Autre-Mot-De-Passe-91!');
     await s.checkPassword('Autre-Mot-De-Passe-91!');
     await s.lock();
@@ -209,17 +212,77 @@ describe('passkey (second facteur, PRF)', () => {
     await s.unlock('Autre-Mot-De-Passe-91!', PRF);
   });
 
-  test('retirer la passkey : les deux facteurs une dernière fois ; ensuite le mot de passe suffit', async () => {
+  test('passkey de secours (téléphone) : l’une OU l’autre ouvre ; une seconde ne s’ajoute pas sans la première', async () => {
     const s = session();
     await s.create(PW);
-    await s.addPasskey(PW, P);
-    await expect(s.addPasskey(PW, P)).rejects.toThrow('PASSKEY_EXISTS');
-    await expect(s.removePasskey(PW, OTHER)).rejects.toThrow('WRONG_PASSKEY');
+    await s.addPasskey(PW, undefined, P);
+    await expect(s.addPasskey(PW, undefined, PHONE)).rejects.toThrow('PASSKEY_REQUIRED');
+    await expect(s.addPasskey(PW, OTHER, PHONE)).rejects.toThrow('WRONG_PASSKEY');
     clock += 3_600_000;
-    await s.removePasskey(PW, PRF);
+    await expect(s.addPasskey(PW, PRF, P)).rejects.toThrow('PASSKEY_EXISTS');
+    await s.addPasskey(PW, PRF, PHONE);
+    expect((await s.status()).passkeyList.map((x) => x.kind)).toEqual(['device', 'phone']);
+    await s.lock();
+    await s.unlock(PW, PHONE_PRF);
+    await s.lock();
+    await s.unlock(PW, PRF);
+  });
+
+  test('retirer : une passkey à la fois ; la dernière retirée, le mot de passe suffit', async () => {
+    const s = session();
+    await s.create(PW);
+    await s.addPasskey(PW, undefined, P);
+    await s.addPasskey(PW, PRF, PHONE);
+    await expect(s.removePasskey(PW, OTHER, P.cred)).rejects.toThrow('WRONG_PASSKEY');
+    clock += 3_600_000;
+    // Ordinateur perdu : retirée avec le téléphone.
+    await s.removePasskey(PW, PHONE_PRF, P.cred);
+    await s.lock();
+    await expect(s.unlock(PW, PRF)).rejects.toThrow('WRONG_PASSKEY');
+    clock += 3_600_000;
+    await s.unlock(PW, PHONE_PRF);
+    await s.removePasskey(PW, PHONE_PRF, PHONE.cred);
     await s.lock();
     await s.unlock(PW);
-    expect(await s.status()).toMatchObject({ passkey: null, passkeyHere: false });
+    expect(await s.status()).toMatchObject({ passkeys: [], passkeyHere: false });
+  });
+
+  test('confirmer avec la passkey seule (session ouverte) ; une autre est refusée (et comptée comme un échec)', async () => {
+    const s = session();
+    await s.create(PW);
+    await expect(s.checkPasskey(PRF)).rejects.toThrow('WRONG_PASSKEY');
+    clock += 3_600_000;
+    await s.addPasskey(PW, undefined, P);
+    await s.checkPasskey(PRF);
+    await expect(s.checkPasskey(OTHER)).rejects.toThrow('WRONG_PASSKEY');
+    expect((disk.data['kalyx.throttle'] as { failures: number }).failures).toBe(1);
+    await s.lock();
+    await expect(s.checkPasskey(PRF)).rejects.toThrow('LOCKED');
+  });
+
+  test('ancien format (une passkey) : s’ouvre, puis converti au déverrouillage, sans rien perdre', async () => {
+    const { createVault, unlockVault } = await import('./vault');
+    const { gcm } = await import('@noble/ciphers/aes');
+    const { hkdf } = await import('@noble/hashes/hkdf');
+    const { sha256 } = await import('@noble/hashes/sha2');
+    const { bytesToHex, hexToBytes, utf8ToBytes } = await import('@noble/hashes/utils');
+    const { deriveKey } = await import('../../src/security/vault');
+    // Coffre écrit comme l'ancienne version : extérieur(mot de passe) ⊃ intérieur(PRF) ⊃ clé.
+    const { vault, vaultKey } = await createVault(PW, FAST);
+    const k = hkdf(sha256, PRF, hexToBytes(P.salt), utf8ToBytes('kalyx-ext-passkey-v1'), 32);
+    const n = new Uint8Array(12).fill(1);
+    const inner = gcm(k, n, utf8ToBytes(`kalyx-ext-passkey|${vault.id}|${P.cred}|v1`)).encrypt(vaultKey);
+    const kek = await deriveKey(PW, hexToBytes(vault.kdf.salt), vault.kdf);
+    const n2 = new Uint8Array(12).fill(2);
+    const legacy = { ...vault, key: { n: bytesToHex(n2), ct: bytesToHex(gcm(kek, n2, utf8ToBytes(`kalyx-ext-vault|${vault.id}|v1`)).encrypt(inner)) }, passkey: { cred: P.cred, salt: P.salt, n: bytesToHex(n) } };
+    disk.data['kalyx.vault'] = legacy;
+    const s = session();
+    expect((await s.status()).passkeys).toEqual([{ cred: P.cred, salt: P.salt }]);
+    await s.unlock(PW, PRF);
+    const now = disk.data['kalyx.vault'] as typeof legacy & { passkeys?: unknown[] };
+    expect(now.passkey).toBeUndefined();
+    expect(now.passkeys).toHaveLength(1);
+    expect(await unlockVault(now, PW, PRF)).toEqual(vaultKey);
   });
 });
 
@@ -295,7 +358,7 @@ describe('code de contrainte (profil leurre)', () => {
   test('avec une passkey sur le vrai coffre, le code ouvre quand même le leurre', async () => {
     const s = session();
     await s.create(PW);
-    await s.addPasskey(PW, { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'cd'.repeat(32), prf: new Uint8Array(32).fill(3) });
+    await s.addPasskey(PW, undefined, { cred: 'Y3JlZGVudGlhbC1pZC0xMjM0', salt: 'cd'.repeat(32), prf: new Uint8Array(32).fill(3), kind: 'device' });
     await s.setDuress(PW, CODE);
     await s.lock();
     await s.unlock(CODE, new Uint8Array(32).fill(3));

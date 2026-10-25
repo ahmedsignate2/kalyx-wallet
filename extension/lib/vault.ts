@@ -18,8 +18,23 @@
  *
  * Il faut les DEUX : le mot de passe seul ne donne qu'un chiffré, la passkey
  * seule n'ouvre rien. La sortie PRF est un secret de l'authentificateur
- * (Touch ID, Windows Hello, clé de sécurité), jamais stockée. Changer le mot
- * de passe ne réemballe que l'extérieur : la passkey n'est pas redemandée.
+ * (Touch ID, Windows Hello, téléphone, clé de sécurité), jamais stockée.
+ * Changer le mot de passe ne réemballe que l'extérieur : la passkey n'est pas
+ * redemandée.
+ *
+ * PLUSIEURS passkeys (format actuel, `passkeys`) : l'extérieur emballe une
+ * clé W, tirée au hasard ; chaque passkey a sa case, scellée par une clé tirée
+ * de W ET de SA sortie PRF :
+ *
+ *   mot de passe ──scrypt──► W ─┐
+ *   passkey i ──PRF─────────────┴─HKDF──► case i ──AES-GCM──► CLÉ DU COFFRE
+ *
+ * N'importe laquelle des passkeys, avec le mot de passe, ouvre le coffre : en
+ * perdre une (ordinateur changé, téléphone perdu) ne bloque plus tout. Une
+ * empreinte (`gate`) par case permet aussi de CONFIRMER une signature avec la
+ * passkey seule, session déjà ouverte ; elle ne révèle rien de la sortie PRF.
+ * L'ancien format (une passkey, `passkey`) s'ouvre toujours et se convertit
+ * au premier déverrouillage.
  *
  * Les briques sont celles du mobile, déjà auditées : dérivation scrypt avec
  * paramètres bornés (src/security/vault), scellement AES-GCM dont les données
@@ -28,11 +43,11 @@
  * s'ouvre pas.
  *
  * Erreurs : `Error` dont le message est un code — WRONG_PASSWORD,
- * PASSKEY_REQUIRED, WRONG_PASSKEY, PASSKEY_EXISTS, NO_PASSKEY, CORRUPTED,
- * UNKNOWN_WALLET.
+ * PASSKEY_REQUIRED, WRONG_PASSKEY, PASSKEY_EXISTS, NO_PASSKEY,
+ * TOO_MANY_PASSKEYS, BAD_PASSKEY, CORRUPTED, UNKNOWN_WALLET.
  */
 import { gcm } from '@noble/ciphers/aes';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, concatBytes, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { getRandomBytes } from '../../src/crypto/random';
@@ -56,9 +71,29 @@ export interface ExtVault {
   kdf: { name: 'scrypt'; N: number; r: number; p: number; salt: string };
   /** Clé du coffre (ou, avec passkey, l'enveloppe intérieure), emballée par la clé dérivée du mot de passe. */
   key: { n: string; ct: string };
-  /** Second facteur : identifiant de la passkey (base64url), sel PRF, nonce de l'enveloppe intérieure. */
+  /** Ancien format (une passkey) : identifiant (base64url), sel PRF, nonce de l'enveloppe intérieure. */
   passkey?: { cred: string; salt: string; n: string };
+  /** Format actuel : une case par passkey (l'extérieur emballe alors W, pas la clé du coffre). */
+  passkeys?: PasskeySlot[];
   wallets: Record<string, VaultEntry>;
+}
+
+/** Où vit la passkey : cet ordinateur, un téléphone (à proximité, par QR), une clé de sécurité. */
+export type PasskeyKind = 'device' | 'phone' | 'key';
+export const PASSKEY_KINDS: readonly PasskeyKind[] = ['device', 'phone', 'key'];
+export const MAX_PASSKEYS = 5;
+
+export interface PasskeySlot {
+  cred: string;
+  salt: string;
+  /** Clé du coffre scellée par HKDF(W ‖ PRF). */
+  n: string;
+  ct: string;
+  kind: PasskeyKind;
+  /** Ajoutée le (ms) ; 0 pour une passkey reprise de l'ancien format. */
+  at: number;
+  /** Empreinte de la sortie PRF (confirmation par la passkey seule, session ouverte). */
+  gate: string;
 }
 
 const KEY_LEN = 32;
@@ -69,6 +104,11 @@ const CRED = /^[A-Za-z0-9_-]{16,1400}$/;
 /** Sortie PRF (32 octets) + sel du coffre → clé de l'enveloppe intérieure. */
 const prfKey = (prf: Uint8Array, salt: string) => hkdf(sha256, prf, hexToBytes(salt), utf8ToBytes('kalyx-ext-passkey-v1'), KEY_LEN);
 const isPrf = (prf: unknown): prf is Uint8Array => prf instanceof Uint8Array && prf.length === KEY_LEN;
+const slotAad = (id: string, cred: string) => utf8ToBytes(`kalyx-ext-passkey-slot|${id}|${cred}|v2`);
+/** W (mot de passe) et sortie PRF (passkey) → clé de la case : il faut les deux. */
+const slotKey = (w: Uint8Array, prf: Uint8Array, salt: string) => hkdf(sha256, concatBytes(w, prf), hexToBytes(salt), utf8ToBytes('kalyx-ext-passkey-slot-v2'), KEY_LEN);
+/** Empreinte publique de la sortie PRF (un secret de 256 bits : rien à deviner). */
+const gateOf = (prf: Uint8Array, salt: string) => bytesToHex(sha256(hkdf(sha256, prf, hexToBytes(salt), utf8ToBytes('kalyx-ext-passkey-gate-v2'), KEY_LEN)));
 const WALLET_ID = /^[a-z0-9-]{1,64}$/;
 
 function wrap(kek: Uint8Array, id: string, vaultKey: Uint8Array): ExtVault['key'] {
@@ -107,7 +147,16 @@ export function parseVault(raw: unknown): ExtVault {
     throw new Error('CORRUPTED');
   }
   if (v.passkey !== undefined && (!v.passkey || !CRED.test(v.passkey.cred) || !hex(v.passkey.salt, 64) || !hex(v.passkey.n, 24))) throw new Error('CORRUPTED');
-  // Avec passkey, l'extérieur emballe l'enveloppe intérieure (clé + étiquette GCM).
+  if (v.passkeys !== undefined) {
+    if (v.passkey !== undefined || !Array.isArray(v.passkeys) || v.passkeys.length < 1 || v.passkeys.length > MAX_PASSKEYS) throw new Error('CORRUPTED');
+    const seen = new Set<string>();
+    for (const s of v.passkeys) {
+      const ok = !!s && CRED.test(s.cred) && !seen.has(s.cred) && hex(s.salt, 64) && hex(s.n, 24) && hex(s.ct, (KEY_LEN + 16) * 2) && PASSKEY_KINDS.includes(s.kind) && Number.isSafeInteger(s.at) && s.at >= 0 && hex(s.gate, 64);
+      if (!ok) throw new Error('CORRUPTED');
+      seen.add(s.cred);
+    }
+  }
+  // Ancien format : l'extérieur emballe l'enveloppe intérieure (clé + étiquette GCM) ; sinon une clé (du coffre, ou W).
   const inner = v.passkey ? KEY_LEN + 16 : KEY_LEN;
   if (!v.key || !hex(v.key.n, 24) || !hex(v.key.ct, (inner + 16) * 2)) throw new Error('CORRUPTED');
   if (!v.wallets || typeof v.wallets !== 'object') throw new Error('CORRUPTED');
@@ -135,6 +184,14 @@ async function openOuter(vault: ExtVault, password: string): Promise<{ plain: Ui
 export async function unlockVault(vault: ExtVault, password: string, prf?: Uint8Array): Promise<Uint8Array> {
   const { plain, kek } = await openOuter(vault, password);
   kek.fill(0);
+  if (vault.passkeys) {
+    try {
+      if (!isPrf(prf)) throw new Error('PASSKEY_REQUIRED');
+      return openSlots(vault, plain, prf);
+    } finally {
+      plain.fill(0);
+    }
+  }
   if (!vault.passkey) return plain;
   try {
     if (!isPrf(prf)) throw new Error('PASSKEY_REQUIRED');
@@ -174,48 +231,146 @@ export async function changeVaultPassword(vault: ExtVault, oldPassword: string, 
 
 const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.reduce((d, x, i) => d | (x ^ b[i]), 0) === 0;
 
-/**
- * Ajoute la passkey : il faut le mot de passe (l'extérieur est réemballé) ET
- * la clé de la session ouverte (elle doit être celle du coffre).
- */
-export async function enablePasskey(vault: ExtVault, password: string, sessionKey: Uint8Array, p: { cred: string; salt: string; prf: Uint8Array }): Promise<ExtVault> {
-  if (vault.passkey) throw new Error('PASSKEY_EXISTS');
-  if (!CRED.test(p.cred) || !hex(p.salt, 64) || !isPrf(p.prf)) throw new Error('BAD_PASSKEY');
-  const { plain, kek } = await openOuter(vault, password);
-  const k = prfKey(p.prf, p.salt);
+/** W + sortie PRF → clé du coffre, par la case de CETTE passkey (les autres ne s'ouvrent pas). `WRONG_PASSKEY` sinon. */
+function openSlots(vault: ExtVault, w: Uint8Array, prf: Uint8Array): Uint8Array {
+  for (const s of vault.passkeys ?? []) {
+    const k = slotKey(w, prf, s.salt);
+    try {
+      return gcm(k, hexToBytes(s.n), slotAad(vault.id, s.cred)).decrypt(hexToBytes(s.ct));
+    } catch {
+      /* pas cette case */
+    } finally {
+      k.fill(0);
+    }
+  }
+  throw new Error('WRONG_PASSKEY');
+}
+
+function makeSlot(id: string, w: Uint8Array, vaultKey: Uint8Array, p: { cred: string; salt: string; prf: Uint8Array; kind: PasskeyKind }, at: number): PasskeySlot {
+  const k = slotKey(w, p.prf, p.salt);
   try {
-    if (!sameBytes(plain, sessionKey)) throw new Error('CORRUPTED');
     const n = getRandomBytes(12);
-    const inner = gcm(k, n, innerAad(vault.id, p.cred)).encrypt(plain);
-    return { ...vault, key: wrap(kek, vault.id, inner), passkey: { cred: p.cred, salt: p.salt, n: bytesToHex(n) } };
+    return { cred: p.cred, salt: p.salt, n: bytesToHex(n), ct: bytesToHex(gcm(k, n, slotAad(id, p.cred)).encrypt(vaultKey)), kind: p.kind, at, gate: gateOf(p.prf, p.salt) };
   } finally {
-    plain.fill(0);
-    kek.fill(0);
     k.fill(0);
   }
 }
 
-/** Retire la passkey : les deux facteurs une dernière fois, puis l'extérieur emballe de nouveau la clé seule. */
-export async function disablePasskey(vault: ExtVault, password: string, prf: Uint8Array): Promise<ExtVault> {
-  if (!vault.passkey) throw new Error('NO_PASSKEY');
-  if (!isPrf(prf)) throw new Error('PASSKEY_REQUIRED');
+/** Ancien format : mot de passe (contenu extérieur) + PRF → clé du coffre. */
+function openLegacy(vault: ExtVault, inner: Uint8Array, prf: Uint8Array): Uint8Array {
+  const k = prfKey(prf, vault.passkey!.salt);
+  try {
+    return gcm(k, hexToBytes(vault.passkey!.n), innerAad(vault.id, vault.passkey!.cred)).decrypt(inner);
+  } catch {
+    throw new Error('WRONG_PASSKEY');
+  } finally {
+    k.fill(0);
+  }
+}
+
+/** Nouveau W, l'extérieur réemballé, une case par passkey donnée. */
+function rebuild(vault: ExtVault, kek: Uint8Array, vaultKey: Uint8Array, slots: { cred: string; salt: string; prf: Uint8Array; kind: PasskeyKind; at: number }[]): ExtVault {
+  const w = getRandomBytes(KEY_LEN);
+  try {
+    const { passkey: _old, ...rest } = vault;
+    return { ...rest, key: wrap(kek, vault.id, w), passkeys: slots.map((s) => makeSlot(vault.id, w, vaultKey, s, s.at)) };
+  } finally {
+    w.fill(0);
+  }
+}
+
+/**
+ * Ajoute une passkey (jusqu'à cinq). Il faut le mot de passe, la clé de la
+ * session ouverte (elle doit être celle du coffre) et, s'il y a déjà une
+ * passkey, la sortie PRF de l'une d'elles (`proof`) : un second facteur ne
+ * s'ajoute pas sans le premier.
+ */
+export async function addPasskey(
+  vault: ExtVault,
+  password: string,
+  sessionKey: Uint8Array,
+  proof: Uint8Array | undefined,
+  p: { cred: string; salt: string; prf: Uint8Array; kind: PasskeyKind },
+  at: number,
+): Promise<ExtVault> {
+  if (!CRED.test(p.cred) || !hex(p.salt, 64) || !isPrf(p.prf) || !PASSKEY_KINDS.includes(p.kind)) throw new Error('BAD_PASSKEY');
+  const known = vault.passkeys?.map((s) => s.cred) ?? (vault.passkey ? [vault.passkey.cred] : []);
+  if (known.includes(p.cred)) throw new Error('PASSKEY_EXISTS');
+  if (known.length >= MAX_PASSKEYS) throw new Error('TOO_MANY_PASSKEYS');
+  if (known.length && !isPrf(proof)) throw new Error('PASSKEY_REQUIRED');
   const { plain, kek } = await openOuter(vault, password);
-  const k = prfKey(prf, vault.passkey.salt);
   let vaultKey: Uint8Array | null = null;
   try {
-    try {
-      vaultKey = gcm(k, hexToBytes(vault.passkey.n), innerAad(vault.id, vault.passkey.cred)).decrypt(plain);
-    } catch {
-      throw new Error('WRONG_PASSKEY');
+    if (vault.passkeys) {
+      vaultKey = openSlots(vault, plain, proof!);
+      if (!sameBytes(vaultKey, sessionKey)) throw new Error('CORRUPTED');
+      return { ...vault, passkeys: [...vault.passkeys, makeSlot(vault.id, plain, vaultKey, p, at)] };
     }
-    const { passkey: _gone, ...rest } = vault;
+    if (vault.passkey) {
+      vaultKey = openLegacy(vault, plain, proof!);
+      if (!sameBytes(vaultKey, sessionKey)) throw new Error('CORRUPTED');
+      return rebuild(vault, kek, vaultKey, [{ cred: vault.passkey.cred, salt: vault.passkey.salt, prf: proof!, kind: 'device', at: 0 }, { ...p, at }]);
+    }
+    if (!sameBytes(plain, sessionKey)) throw new Error('CORRUPTED');
+    return rebuild(vault, kek, plain, [{ ...p, at }]);
+  } finally {
+    plain.fill(0);
+    kek.fill(0);
+    vaultKey?.fill(0);
+  }
+}
+
+/**
+ * Retire la passkey `cred` : mot de passe et une passkey (n'importe laquelle,
+ * `proof`) une dernière fois. La dernière retirée, le mot de passe suffit de
+ * nouveau.
+ */
+export async function removePasskey(vault: ExtVault, password: string, proof: Uint8Array, cred: string): Promise<ExtVault> {
+  if (!vault.passkeys && !vault.passkey) throw new Error('NO_PASSKEY');
+  if (!isPrf(proof)) throw new Error('PASSKEY_REQUIRED');
+  const known = vault.passkeys?.map((s) => s.cred) ?? [vault.passkey!.cred];
+  if (!known.includes(cred)) throw new Error('NO_PASSKEY');
+  const { plain, kek } = await openOuter(vault, password);
+  let vaultKey: Uint8Array | null = null;
+  try {
+    vaultKey = vault.passkeys ? openSlots(vault, plain, proof) : openLegacy(vault, plain, proof);
+    const left = (vault.passkeys ?? []).filter((s) => s.cred !== cred);
+    if (left.length) return { ...vault, passkeys: left };
+    const { passkey: _a, passkeys: _b, ...rest } = vault;
     return { ...rest, key: wrap(kek, vault.id, vaultKey) };
   } finally {
     plain.fill(0);
     kek.fill(0);
-    k.fill(0);
     vaultKey?.fill(0);
   }
+}
+
+/** Ancien format (une passkey) → format actuel, au déverrouillage (mot de passe et PRF justes en main). */
+export async function upgradeLegacyPasskey(vault: ExtVault, password: string, prf: Uint8Array): Promise<ExtVault> {
+  if (!vault.passkey) return vault;
+  const { plain, kek } = await openOuter(vault, password);
+  let vaultKey: Uint8Array | null = null;
+  try {
+    vaultKey = openLegacy(vault, plain, prf);
+    return rebuild(vault, kek, vaultKey, [{ cred: vault.passkey.cred, salt: vault.passkey.salt, prf, kind: 'device', at: 0 }]);
+  } finally {
+    plain.fill(0);
+    kek.fill(0);
+    vaultKey?.fill(0);
+  }
+}
+
+/** La sortie PRF est-elle celle d'une passkey du coffre ? (confirmation d'une signature, session ouverte) */
+export function passkeyMatches(vault: ExtVault, prf: Uint8Array): boolean {
+  if (!isPrf(prf)) return false;
+  return (vault.passkeys ?? []).some((s) => sameBytes(hexToBytes(gateOf(prf, s.salt)), hexToBytes(s.gate)));
+}
+
+/** Passkeys du coffre, pour les réglages et pour les demander (rien de secret). */
+export function passkeysOf(vault: ExtVault | null | undefined): { cred: string; salt: string; kind: PasskeyKind; at: number }[] {
+  if (!vault) return [];
+  if (vault.passkeys) return vault.passkeys.map(({ cred, salt, kind, at }) => ({ cred, salt, kind, at }));
+  return vault.passkey ? [{ cred: vault.passkey.cred, salt: vault.passkey.salt, kind: 'device', at: 0 }] : [];
 }
 
 export function addSecret(vault: ExtVault, vaultKey: Uint8Array, walletId: string, kind: SecretKind, secret: string): ExtVault {
@@ -243,7 +398,7 @@ export type DecoyVault = ExtVault & { byMain: { n: string; ct: string } };
 
 export function parseDecoyVault(raw: unknown): DecoyVault {
   const v = parseVault(raw) as DecoyVault;
-  if (v.passkey || !v.byMain || !hex(v.byMain.n, 24) || !hex(v.byMain.ct, (KEY_LEN + 16) * 2)) throw new Error('CORRUPTED');
+  if (v.passkey || v.passkeys || !v.byMain || !hex(v.byMain.n, 24) || !hex(v.byMain.ct, (KEY_LEN + 16) * 2)) throw new Error('CORRUPTED');
   return v;
 }
 
