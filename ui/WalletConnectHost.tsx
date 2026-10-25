@@ -440,9 +440,11 @@ export function WalletConnectHost() {
      * avant le code.
      */
     const companion = proposal.params?.sessionProperties?.kalyx_companion === '2';
+    // Le tableau de bord web (même liaison que l'extension) : nommé comme tel.
+    const companionWeb = companion && /^https:\/\/app\.kalyxwallet\.com\/?$/.test(String(meta.url ?? ''));
     return (
       <Overlay onCancel={() => { setConfirming(false); rejectProposal().catch(()=>{}); }}>
-        <Text style={typography.title}>{companion ? t('wcCompanionTitle') : t('dappConnection')}</Text>
+        <Text style={typography.title}>{companionWeb ? t('wcCompanionWebTitle') : companion ? t('wcCompanionTitle') : t('dappConnection')}</Text>
         <Card variant="glass">
           <DappHeader name={meta.name ?? 'dApp'} url={meta.url ?? ''} icon={meta.icons?.[0]} />
           <View style={{ marginTop: spacing(1.5), gap: spacing(0.25) }}>
@@ -471,7 +473,7 @@ export function WalletConnectHost() {
                   <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{name}</Text>
                 </View>
               ))}
-              <Text style={typography.muted}>{t('wcCompanionNote')}</Text>
+              <Text style={typography.muted}>{t(companionWeb ? 'wcCompanionWebNote' : 'wcCompanionNote')}</Text>
             </View>
           ) : accounts.length > 1 ? (
             <View style={{ marginTop: spacing(1.5), gap: spacing(0.75) }}>

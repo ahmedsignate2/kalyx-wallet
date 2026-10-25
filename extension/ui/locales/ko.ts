@@ -153,4 +153,5 @@ export default {
   pkKindThisPhone: '이 휴대폰', pkKindThisPhoneSub: '지문, 얼굴 또는 화면 잠금', e_PASSKEY_NOT_HERE: '이 브라우저는 확장 프로그램에서 패스키를 허용하지 않습니다(Android에서 흔함: Mises, Kiwi 등). 컴퓨터의 Chrome, Edge, Brave에서는 작동합니다. 여기서는 비밀번호가 보호해 줍니다.',
   reportIntro: '무슨 일이 있었는지 알려 주세요. Kalyx와 브라우저 버전만 추가되며 지갑 정보는 포함되지 않습니다.', reportEmpty: '먼저 무슨 일이 있었는지 적어 주세요.', reportTelegram: 'Telegram으로 보내기', reportCopy: '보고서 복사', reportCopied: '복사했습니다. {email}로 보내는 메일이나 Telegram에 붙여 넣으세요.', reportMail: '이메일로 ({email})', copyFailed: '여기서는 복사할 수 없습니다: 텍스트를 직접 선택하세요.',
   bkRule: '10자 이상, 문자와 숫자 또는 기호를 포함하고 확장 프로그램 비밀번호와 달라야 합니다.', bkPhoneNote: '휴대폰에 연결된 계정은 이 파일에 없습니다: 키는 Kalyx 앱에 있으니 앱에서 백업하세요.', skippedTitle: '복원되지 않은 지갑 {n}개', skippedHint: '파일에는 그대로 있습니다: Kalyx 앱에서 복원하거나 여기서 문구나 키를 가져오세요.',
+  webSignOut: '로그아웃', webSignOutBody: '휴대폰과의 연결이 닫히고 이 브라우저에는 Kalyx 데이터가 남지 않습니다. 자산은 움직이지 않습니다: 앱 안에 있습니다.', webIntro: '키는 휴대폰이 보관합니다. 여기서 모든 지갑을 보고 송금을 준비하며, 모든 작업은 Kalyx 앱에서 승인합니다.', webPt1: '이 컴퓨터에는 키가 없습니다', webPt2: '모든 송금, 스왑, 승인 취소는 휴대폰에서 승인', webPt3: '모든 지갑의 잔액, 토큰, NFT, 활동', webNoApp: '아직 Kalyx 앱이 없나요?', webIdle: '30분 동안 활동이 없어 로그아웃되었습니다. 계속하려면 휴대폰을 연결하세요.', webLinkCta: '내 휴대폰 연결',
 };

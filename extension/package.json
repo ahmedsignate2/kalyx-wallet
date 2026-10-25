@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
+    "build:web": "vite build --config web/vite.config.ts",
+    "test:web": "vite build --config web/vite.config.ts --mode test && node web/smoke.mjs",
     "zip": "wxt zip",
     "icons": "node scripts/gen-icons.mjs",
     "typecheck": "tsc --noEmit",

@@ -44,9 +44,7 @@ Les clés sont générées et gardées **sur l'appareil où vous les créez — 
 | :---: | :---: | :---: | :---: |
 | <img src="docs/screenshots/01-welcome.jpg" width="190" /> | <img src="docs/screenshots/05-send.jpg" width="190" /> | <img src="docs/screenshots/07-browser.jpg" width="190" /> | <img src="docs/screenshots/08-settings.jpg" width="190" /> |
 
-**Tableau de bord web** (ordinateur, navigateur mobile, Telegram) :
-
-<img src="docs/screenshots/14-web-dashboard.jpg" width="820" />
+**Tableau de bord web** : la même interface que l'extension en mode compagnon (voir plus bas).
 
 ---
 
@@ -79,7 +77,7 @@ Aucune adresse de perception n'est codée en dur. Le récapitulatif de swap affi
 - Pas d'audit de sécurité indépendant.
 - Android (APK signé, hors Play Store pour l'instant) ; pas encore d'app iOS. L'extension navigateur est en **bêta**.
 - Extension : les passkeys ne fonctionnent pas dans tous les navigateurs (souvent refusées aux extensions sur Android : Mises, Kiwi) ; le mot de passe reste alors la protection.
-- Tableau de bord web : TON n'y est pas signable (WalletConnect ne couvre pas TON) ; pas encore d'onglet Gagner ni de révocation d'autorisations côté web.
+- Tableau de bord web : TON n'y est pas signable (WalletConnect ne couvre pas TON) ; pas d'onglet Gagner, de marché ni de Copilote IA (absents de l'extension, dont il reprend l'interface).
 - Pas de mise à jour à distance : chaque correctif passe par un nouvel APK.
 - Plusieurs fonctions dépendent de services tiers (RPC, CoinGecko, GoPlus, LI.FI…) qui peuvent être lents, limités ou indisponibles.
 - Pas de wallet matériel (Ledger, Trezor…) pour l'instant.
@@ -121,7 +119,7 @@ Ethereum, BNB Chain, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll
 - **Autorisations de dépense** : liste et **révocation groupée**.
 
 ### 🖥️ Web et Telegram
-- **Tableau de bord** [app.kalyxwallet.com](https://app.kalyxwallet.com) (ordinateur, navigateur mobile, mini-app Telegram) : valeur totale et répartition (même portefeuille agrégé que l'app), jetons tous réseaux, NFT, activité filtrable, marché, envoyer / recevoir / swap, réseaux de test, Copilote IA. **Il ne détient aucune clé** : chaque signature est demandée au téléphone.
+- **Tableau de bord** [app.kalyxwallet.com](https://app.kalyxwallet.com) (ordinateur, navigateur mobile) : **l'interface de l'extension en mode compagnon**, avec le même code (`extension/web/`) : tous les portefeuilles et comptes du téléphone en une liaison (QR), solde agrégé, tokens tous réseaux, NFT, activité, envoyer / recevoir / swap / acheter, autorisations de tokens à révoquer, contacts, réglages. **Il ne détient aucune clé et ne demande aucun mot de passe** : chaque action se valide sur le téléphone ; après 30 min sans activité, la liaison se ferme et le navigateur oublie tout.
 - **Bot Telegram** : `/price`, `/gas`, `/scan`, `/alert` (alertes de prix), ouverture de la mini-app — voir [bot/README.md](bot/README.md).
 
 ### 🤖 Copilote IA
@@ -218,7 +216,7 @@ npm ci
 cp .env.example .env        # puis renseigner les clés utiles
 npx expo run:android        # compile et installe l'app de développement
 npm start                   # serveur Metro (rechargement du JS)
-npm run web                 # tableau de bord web en local
+npm run build:web --prefix extension   # tableau de bord web (extension/.output/web)
 ```
 
 Guides détaillés : [MOBILE_SETUP.md](MOBILE_SETUP.md) (lancer en local) et [ANDROID_GUIDE.md](ANDROID_GUIDE.md) (Android, builds, releases).
@@ -286,7 +284,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 **À venir / à renforcer :**
 - [ ] Audit de sécurité indépendant
 - [ ] App iOS, Play Store
-- [ ] Gagner et révocation d'autorisations dans le tableau de bord web ; TON signable depuis le web
+- [ ] Gagner dans le tableau de bord web ; TON signable depuis le web ; mini-app Telegram sur la nouvelle interface
 - [ ] Lightning, multisig / coffre partagé
 - [ ] Wallets matériels
 

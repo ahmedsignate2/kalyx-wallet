@@ -153,4 +153,5 @@ export default {
   pkKindThisPhone: 'このスマホ', pkKindThisPhoneSub: '指紋、顔、または画面ロック', e_PASSKEY_NOT_HERE: 'このブラウザでは拡張機能でパスキーを使えません（Android でよくあります：Mises、Kiwi など）。パソコンの Chrome、Edge、Brave では使えます。ここではパスワードがあなたを守ります。',
   reportIntro: '何が起きたか教えてください。追加されるのは Kalyx とブラウザのバージョンだけで、ウォレットの情報は含まれません。', reportEmpty: 'まず何が起きたか書いてください。', reportTelegram: 'Telegram で送信', reportCopy: 'レポートをコピー', reportCopied: 'コピーしました。{email} 宛てのメールか Telegram に貼り付けてください。', reportMail: 'メールで（{email}）', copyFailed: 'ここではコピーできません：テキストを手動で選択してください。',
   bkRule: '10 文字以上、英字と数字または記号を含み、拡張機能のパスワードとは別のもの。', bkPhoneNote: 'スマホと連携したアカウントはこのファイルに含まれません：鍵は Kalyx アプリにあるので、アプリからバックアップしてください。', skippedTitle: '{n} 件のウォレットを復元できませんでした', skippedHint: 'ファイルには残っています：Kalyx アプリで復元するか、ここでフレーズまたは鍵をインポートしてください。',
+  webSignOut: 'ログアウト', webSignOutBody: 'スマホとの連携を閉じ、このブラウザには Kalyx のデータが何も残りません。資産は動きません：アプリの中にあります。', webIntro: '鍵はスマホが保管します。ここではすべてのウォレットを確認し、送金を準備できます。操作はすべて Kalyx アプリで承認します。', webPt1: 'このパソコンには鍵がありません', webPt2: '送金・スワップ・取り消しはすべてスマホで承認', webPt3: 'すべてのウォレットの残高、トークン、NFT、アクティビティ', webNoApp: 'Kalyx アプリをまだお持ちでない？', webIdle: '30 分間操作がなかったためログアウトしました。続けるにはスマホを連携してください。', webLinkCta: 'スマホを連携',
 };

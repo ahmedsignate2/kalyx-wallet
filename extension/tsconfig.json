@@ -6,5 +6,5 @@
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": false
   },
-  "include": ["entrypoints", "lib", "ui", "wxt.config.ts", ".wxt/wxt.d.ts", "../lib/wc-compat.d.ts"]
+  "include": ["entrypoints", "lib", "ui", "web", "wxt.config.ts", ".wxt/wxt.d.ts", "../lib/wc-compat.d.ts"]
 }

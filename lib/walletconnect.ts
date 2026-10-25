@@ -369,6 +369,8 @@ export function pairErrorKey(e: unknown): 'linkExpiredBody' | 'wcRelayDown' | 'l
 
 /** Session ouverte par l'extension Kalyx en mode compagnon (son nom et son site déclarés ; pour l'affichage seulement). */
 export const isKalyxExtensionSession = (s: WcSession): boolean => s.name === 'Kalyx — extension' && /^https:\/\/kalyxwallet\.com\/?$/.test(s.url);
+/** Session du tableau de bord web Kalyx (app.kalyxwallet.com, même mode compagnon ; pour l'affichage seulement). */
+export const isKalyxWebSession = (s: WcSession): boolean => s.name === 'Kalyx — web' && /^https:\/\/app\.kalyxwallet\.com\/?$/.test(s.url);
 
 interface WcState {
   configured: boolean;

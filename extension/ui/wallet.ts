@@ -62,11 +62,19 @@ interface HomeData {
 }
 
 export interface WalletUiOptions {
-  /** Popup : bouton « panneau latéral ». Panneau : pas de bouton (on y est déjà). */
-  mode: 'popup' | 'panel';
+  /**
+   * Popup : bouton « panneau latéral ». Panneau : pas de bouton (on y est déjà).
+   * Web (app.kalyxwallet.com) : téléphone seul, sans mot de passe — ni verrou,
+   * ni clés locales, ni réglages qui n'existent que dans une extension.
+   */
+  mode: 'popup' | 'panel' | 'web';
   /** Écrans sans coffre (ou sans portefeuille) et verrouillé, fournis par la page. */
   onNoVault: (hasVault: boolean) => void;
   onLocked: () => void;
+  /** Web : relier (ou relier à nouveau) le téléphone, sur la page même. */
+  onLinkPhone?: () => void;
+  /** Web : se déconnecter de ce navigateur (liaison fermée, données effacées). */
+  onSignOut?: () => void;
 }
 
 const FIATS = ['eur', 'usd', 'gbp', 'chf', 'jpy', 'cad', 'aud'];
@@ -75,6 +83,9 @@ const short = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '');
 const names = (list: string[]) => (list.length <= 4 ? list.join(', ') : t('andMore', { list: list.slice(0, 4).join(', '), n: list.length - 4 }));
 
 export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
+  const web = opts.mode === 'web';
+  /** Relier le téléphone : l'onglet d'installation dans l'extension, la page même sur le web. */
+  const linkPhone = () => (web && opts.onLinkPhone ? opts.onLinkPhone() : void openOnboarding(opts.mode === 'popup', '#companion'));
   let data: HomeData | null = null;
   let tab: 'tokens' | 'nfts' | 'activity' = 'tokens';
   let nfts: (NftsView & { stale?: boolean }) | null = null;
@@ -216,7 +227,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       h('span', { class: 'spacer' }),
       opts.mode === 'popup' && icon(t('openSidePanel'), 'sidebar', openSidePanel),
       icon(t('settings'), 'gear', () => settings()),
-      icon(t('lock'), 'lock', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
+      web ? icon(t('webSignOut'), 'close', () => signOutSheet()) : icon(t('lock'), 'lock', async () => (await send({ type: 'vault:lock' }), opts.onLocked())),
     );
   }
 
@@ -266,9 +277,9 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       h(
         'div',
         { class: 'actions' },
-        h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), void openOnboardingTab()) } }, glyph('add', 18), t('addWallet')),
+        !web && h('button', { class: 'btn secondary', type: 'button', on: { click: () => (sheet.close(), void openOnboardingTab()) } }, glyph('add', 18), t('addWallet')),
         // Mode compagnon : un autre compte du téléphone (choisi sur le téléphone au moment du scan).
-        h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'link-phone', on: { click: () => (sheet.close(), void openOnboarding(opts.mode === 'popup', '#companion')) } }, glyph('scan', 18), t('compLinkMore')),
+        h('button', { class: 'btn secondary', type: 'button', 'data-testid': 'link-phone', on: { click: () => (sheet.close(), linkPhone()) } }, glyph('scan', 18), t('compLinkMore')),
       ),
     );
   }
@@ -344,7 +355,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       act('send primary', 'send', t('send'), go(() => sendScreen(app, home))),
       act('rx', 'receive', t('receive'), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))),
       act('swap', 'exchange', t('swShort'), go(() => swapScreen(app, home, { onPhone: current().w?.kind === 'companion' }))),
-      act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
+      // Sites connectés : le pont vers les dApps n'existe que dans l'extension.
+      !web && act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
     );
   }
 
@@ -431,10 +443,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
             {
               type: 'button',
               on: {
-                click: async () => {
-                  await browser.tabs.create({ url: browser.runtime.getURL('/onboarding.html#companion') });
-                  if (opts.mode === 'popup') window.close();
-                },
+                click: () => linkPhone(),
               },
             },
             t('compOption'),
@@ -936,9 +945,17 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         h('header', { class: 'bar' }, h('button', { class: 'link', type: 'button', on: { click: () => render() } }, glyph('back', 18), t('back'))),
         h('h1', {}, t('settings')),
         modeSwitch(),
-        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('language', t('language'), languageSelect()), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), expert && item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), item('clock', t('autoLock'), lock), item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => void openOnboarding(opts.mode === 'popup', '#companion'))),
+        group(t('setGeneral'), !!current().w && item('wallet', t('manageWallet'), null, () => manage(), 'manage-wallet'), item('currency', t('currency'), fiat), item('language', t('language'), languageSelect()), item('wallet', t('ctTitle'), null, () => (contactsScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-contacts'), expert && item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'), !web && item('clock', t('autoLock'), lock), !web && item('add', t('addWallet'), null, () => void openOnboardingTab()), item('scan', t('compLinkMore'), null, () => linkPhone())),
         look,
-        group(
+        web
+          ? group(
+              t('setSecurity'),
+              !!current().a?.evm && item('sign', t('apprTitle'), null, () => (allowancesScreen(app, () => settings('back')), navIn(app, 'fwd')), 'allowances'),
+              !expert && item('dapps', t('netTitle'), null, () => (networksScreen(app, () => settings('back')), navIn(app, 'fwd')), 'settings-networks'),
+              current().w?.kind === 'companion' && item('close', t('compUnlink'), null, () => unlinkPhone(), 'unlink-phone'),
+              item('lock', t('webSignOut'), null, () => signOutSheet(), 'web-sign-out'),
+            )
+          : group(
           t('setSecurity'),
           askPw,
           // Plafond journalier de dépense (dans la devise affichée).
@@ -1012,6 +1029,17 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     if (!w) return;
     await browser.tabs.create({ url: browser.runtime.getURL(`/onboarding.html#verify=${encodeURIComponent(w.id)}`) });
     if (opts.mode === 'popup') window.close();
+  }
+
+  /** Web : quitter ce navigateur — les liaisons se ferment, rien de Kalyx n'y reste. */
+  function signOutSheet() {
+    const go = h('button', { class: 'btn danger', type: 'button', 'data-testid': 'web-sign-out-confirm' }, t('webSignOut'));
+    const sheet = openSheet(t('webSignOut'), h('p', {}, t('webSignOutBody')), go);
+    go.addEventListener('click', () => {
+      go.disabled = true;
+      sheet.close();
+      opts.onSignOut?.();
+    });
   }
 
   /** Délier le téléphone : confirmation, puis le portefeuille du téléphone disparaît de l'extension. */

@@ -6,7 +6,7 @@ import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
-import { useWalletConnect, isKalyxExtensionSession, type WcSession } from '../lib/walletconnect';
+import { useWalletConnect, isKalyxExtensionSession, isKalyxWebSession, type WcSession } from '../lib/walletconnect';
 import { presenceOf, type Presence } from '../lib/wcPresence';
 import { useTonConnect } from '../lib/tonconnect/store';
 import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
@@ -209,6 +209,7 @@ function WcSessionCard({ s, lastSeen, checking, ago, onDisconnect }: { s: WcSess
   const { colors, typography } = useTheme();
   const t = useT();
   const ext = isKalyxExtensionSession(s);
+  const webDash = isKalyxWebSession(s);
   const state = presenceOf(lastSeen);
   const days = lastSeen ? Math.floor((Date.now() - lastSeen) / 86_400_000) : 0;
   const status = checking && state !== 'online'
@@ -229,7 +230,7 @@ function WcSessionCard({ s, lastSeen, checking, ago, onDisconnect }: { s: WcSess
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
         <SessionLogo url={s.url} presence={state} />
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text style={typography.body} numberOfLines={1}>{ext ? t('wcExtBadge') : s.name}</Text>
+          <Text style={typography.body} numberOfLines={1}>{ext ? t('wcExtBadge') : webDash ? t('wcWebBadge') : s.name}</Text>
           <Text numberOfLines={1} style={{ color: tone, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{status}</Text>
           <KText variant="label" numberOfLines={1}>{[host, expires].filter(Boolean).join(' · ')}</KText>
         </View>

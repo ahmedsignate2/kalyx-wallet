@@ -42,10 +42,10 @@ export interface WcClient {
 /** Le signe de vie part pour 6 h : le téléphone le reçoit à son prochain passage en ligne dans ce délai. */
 export const HEARTBEAT_TTL_MS = 6 * 3_600_000;
 
-async function defaultClient(): Promise<WcClient> {
+async function defaultClient(metadata: typeof METADATA = METADATA): Promise<WcClient> {
   if (!PROJECT_ID) throw new RpcError(4900, 'COMPANION_UNAVAILABLE');
   const { default: SignClient } = await import('@walletconnect/sign-client');
-  return (await SignClient.init({ projectId: PROJECT_ID, metadata: METADATA })) as unknown as WcClient;
+  return (await SignClient.init({ projectId: PROJECT_ID, metadata })) as unknown as WcClient;
 }
 
 const withTimeout = <T>(p: Promise<T>, ms: number, code: string) =>
@@ -78,13 +78,14 @@ export interface CompanionCandidate {
 /** Délai pour confirmer ; au-delà, la liaison est coupée. */
 const CONFIRM_TIMEOUT_MS = 3 * 60_000;
 
-export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<WcClient>; keepAlive?: () => void } = {}) {
+/** `metadata` : l'identité montrée au téléphone (l'extension, ou le tableau de bord web). */
+export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<WcClient>; keepAlive?: () => void; metadata?: typeof METADATA } = {}) {
   let clientP: Promise<WcClient> | null = null;
   let pairing: Promise<CompanionCandidate> | null = null;
   let pending: { c: CompanionCandidate; label: string; timer: ReturnType<typeof setTimeout> } | null = null;
 
   const client = () => {
-    clientP ??= (opts.client ?? defaultClient)().then((c) => {
+    clientP ??= (opts.client ?? (() => defaultClient(opts.metadata)))().then((c) => {
       // Session coupée depuis le téléphone (ou expirée) : le portefeuille compagnon le sait.
       const gone = (e: { topic: string }) => void wallets.markCompanionLost(e.topic).catch(() => {});
       c.on('session_delete', gone);
