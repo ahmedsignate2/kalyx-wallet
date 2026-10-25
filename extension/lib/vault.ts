@@ -57,6 +57,32 @@ import { openSecret, sealSecret, type SealedSecret } from '../../src/domain/back
 /** scrypt d'un mot de passe sur ordinateur : 2^17 (128 Mo, ~1 s), le maximum accepté par les bornes du cœur. */
 export const EXT_KDF = { N: 1 << 17, r: 8, p: 1 };
 
+/** Plancher de l'étalonnage : 2^15 (32 Mo), jamais en dessous. */
+export const EXT_KDF_FLOOR_LOG_N = 15;
+/** Temps visé pour la création du coffre sur l'appareil. */
+const KDF_BUDGET_MS = 3000;
+const PROBE_LOG_N = 12;
+
+/**
+ * Réglages scrypt adaptés à l'appareil : on chronomètre un petit calcul (2^12)
+ * et on garde le plus lourd, entre 2^15 et 2^17, qui tient dans ~3 s. Un
+ * ordinateur ou un Android récent reste à 2^17 ; un moteur lent (navigateurs
+ * iOS) descend, jamais sous 2^15. Les réglages sont écrits dans le coffre :
+ * le déverrouillage reprend exactement les mêmes.
+ */
+export async function calibrateKdf(
+  deps: { derive?: typeof deriveKey; now?: () => number } = {},
+): Promise<{ N: number; r: number; p: number }> {
+  const derive = deps.derive ?? deriveKey;
+  const now = deps.now ?? (() => performance.now());
+  const t0 = now();
+  await derive('kalyx-calibration', getRandomBytes(16), { N: 1 << PROBE_LOG_N, r: EXT_KDF.r, p: EXT_KDF.p });
+  const probe = Math.max(now() - t0, 0.01);
+  let logN = Math.log2(EXT_KDF.N);
+  while (logN > EXT_KDF_FLOOR_LOG_N && probe * 2 ** (logN - PROBE_LOG_N) > KDF_BUDGET_MS) logN--;
+  return { N: 1 << logN, r: EXT_KDF.r, p: EXT_KDF.p };
+}
+
 export type SecretKind = 'seed' | 'privateKey';
 
 export interface VaultEntry {

@@ -17,7 +17,7 @@
  */
 import type { Store } from './storage';
 import { isSealedKey, makeKeyBox, memoryWrapStore, type KeyBox, type SealedKey } from './keyBox';
-import { addPasskey as vaultAddPasskey, changeVaultPassword, checkVaultPassword, createDecoyVault, createVault, parseDecoyVault, parseVault, passkeyMatches, passkeysOf, recodeDecoyVault, removePasskey as vaultRemovePasskey, unlockVault, upgradeLegacyPasskey, type ExtVault, type PasskeyKind } from './vault';
+import { addPasskey as vaultAddPasskey, changeVaultPassword, checkVaultPassword, calibrateKdf, createDecoyVault, createVault, parseDecoyVault, parseVault, passkeyMatches, passkeysOf, recodeDecoyVault, removePasskey as vaultRemovePasskey, unlockVault, upgradeLegacyPasskey, type ExtVault, type PasskeyKind } from './vault';
 import { DECOY_DISK_PREFIX, PROFILE_KEY, profileOf, type Profile } from './profile';
 import { afterFailure, DEFAULT_AUTO_LOCK_MIN, NO_THROTTLE, passwordAccepted, validAutoLock, waitMs, type Throttle } from './policy';
 
@@ -166,7 +166,7 @@ export function makeSession(deps: SessionDeps) {
   async function create(password: string): Promise<void> {
     if ((await deps.disk.get(K.vault)) !== undefined) throw new SessionError('VAULT_EXISTS');
     if (!passwordAccepted(password)) throw new SessionError('WEAK_PASSWORD');
-    const { vault, vaultKey } = await createVault(password, deps.kdf);
+    const { vault, vaultKey } = await createVault(password, deps.kdf ?? (await calibrateKdf()));
     await deps.disk.set(K.vault, vault);
     await open(vaultKey);
   }
@@ -204,7 +204,8 @@ export function makeSession(deps: SessionDeps) {
     if (!vault) throw new SessionError('NO_VAULT');
     if (!passwordAccepted(newPassword)) throw new SessionError('WEAK_PASSWORD');
     // Profil leurre : c'est le code de contrainte qui change (même geste, même écran).
-    await deps.disk.set(await vaultKeyName(), await guarded(() => changeVaultPassword(vault, oldPassword, newPassword, deps.kdf)));
+    const kdf = deps.kdf ?? (await calibrateKdf());
+    await deps.disk.set(await vaultKeyName(), await guarded(() => changeVaultPassword(vault, oldPassword, newPassword, kdf)));
   }
 
   /**
@@ -268,7 +269,7 @@ export function makeSession(deps: SessionDeps) {
     await guarded(() => checkVaultPassword(here, password));
     if ((await profileOf(deps.session)) === 'decoy') {
       if (code === password) throw new SessionError('DURESS_SAME');
-      await deps.disk.set(DECOY_OWN_DURESS, (await createVault(code, deps.kdf)).vault);
+      await deps.disk.set(DECOY_OWN_DURESS, (await createVault(code, deps.kdf ?? (await calibrateKdf()))).vault);
       return;
     }
     // Le code ne doit pas ouvrir le vrai coffre (sinon il donnerait l'accès réel).
@@ -280,7 +281,8 @@ export function makeSession(deps: SessionDeps) {
     const key = await vaultKey();
     try {
       const raw = await deps.disk.get<unknown>(K.decoy);
-      const next = raw === undefined ? await createDecoyVault(code, key, deps.kdf) : await recodeDecoyVault(parseDecoyVault(raw), code, key, deps.kdf);
+      const kdf = deps.kdf ?? (await calibrateKdf());
+      const next = raw === undefined ? await createDecoyVault(code, key, kdf) : await recodeDecoyVault(parseDecoyVault(raw), code, key, kdf);
       await deps.disk.set(K.decoy, next);
     } finally {
       key.fill(0);

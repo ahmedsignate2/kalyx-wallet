@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { addSecret, changeVaultPassword, createVault, EXT_KDF, parseVault, readSecret, removeSecret, unlockVault } from './vault';
+import { describe, expect, it, test } from 'vitest';
+import { addSecret, calibrateKdf, changeVaultPassword, createVault, EXT_KDF, parseVault, readSecret, removeSecret, unlockVault } from './vault';
 import { createWalletsBackup, restoreBackup } from '../../src/domain/backup/cloudBackup';
 
 const FAST = { N: 1 << 10, r: 8, p: 1 };
@@ -79,5 +79,26 @@ describe('sauvegarde chiffrée du MOBILE', () => {
     const { vault, vaultKey } = await createVault(PW, FAST);
     const v = addSecret(vault, vaultKey, 'primary', 'seed', wallets[0].secret);
     expect(readSecret(v, vaultKey, 'primary').secret).toBe(PHRASE);
+  });
+});
+
+describe('calibrateKdf', () => {
+  const clock = (probeMs: number) => {
+    let t = 0;
+    return { derive: async () => { t += probeMs; return new Uint8Array(32); }, now: () => t };
+  };
+  it('garde 2^17 sur un appareil rapide', async () => {
+    expect((await calibrateKdf(clock(20))).N).toBe(1 << 17);
+  });
+  it('descend sur un moteur lent', async () => {
+    expect((await calibrateKdf(clock(150))).N).toBe(1 << 16);
+  });
+  it('ne descend jamais sous 2^15', async () => {
+    expect((await calibrateKdf(clock(5000))).N).toBe(1 << 15);
+  });
+  it('mesure réellement scrypt sans réglage imposé', async () => {
+    const k = await calibrateKdf();
+    expect(k.r).toBe(8);
+    expect(k.N).toBeGreaterThanOrEqual(1 << 15);
   });
 });
