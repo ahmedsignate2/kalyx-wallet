@@ -33,6 +33,8 @@ import { makeBuy } from '../lib/buy';
 import { makeProfiledStore } from '../lib/profile';
 import { makeSpendCap } from '../lib/spendCap';
 import { makeGrants } from '../lib/grants';
+import { ask, looksSecret, makeCopilotStore, PROVIDERS, systemPrompt, type AiProvider, type ChatMessage, type WalletDigest } from '../lib/copilot';
+import { LANG } from '../ui/i18n';
 
 declare const __KALYX_WEB_TEST__: boolean;
 
@@ -125,7 +127,74 @@ export function makeWebHost() {
   };
 
   const services = { home, send, whitelist, disk, companion, buy, allowances, txWatch, assets, nfts, contacts, swap, reset, cap, grants };
-  const handle = (msg: unknown): Promise<Reply> => handleInternal(session, wallets, msg, undefined, services);
+
+  /*
+   * COPILOTE IA (propre au web) : la clé reste ici, la requête part d'ici ;
+   * l'écran ne la revoit jamais. Le modèle reçoit un résumé sans adresse.
+   */
+  const copilot = makeCopilotStore(disk);
+  async function digest(): Promise<WalletDigest> {
+    const h = await home.get();
+    const pf = 'portfolio' in h ? h.portfolio : null;
+    const act = await home.activity(false).catch(() => null);
+    return {
+      fiat: 'fiat' in h && typeof h.fiat === 'string' ? h.fiat : 'usd',
+      total: pf?.total ?? null,
+      holdings: [...(pf?.main ?? []), ...(pf?.small ?? [])].map((x) => ({ symbol: x.symbol, chain: x.chainName, amount: x.amount, value: x.fiat })),
+      activity: (act?.rows ?? []).slice(0, 10).map((r) => ({ when: new Date(r.timestamp * 1000).toISOString().slice(0, 10), chain: r.chainName, what: r.title, amount: r.amount, failed: r.failed })),
+      accounts: 'wallets' in h && Array.isArray(h.wallets) ? h.wallets.reduce((n, w) => n + w.accounts.length, 0) : 0,
+    };
+  }
+  async function handleCopilot(m: Record<string, unknown>): Promise<Reply> {
+    switch (m.type) {
+      case 'copilot:status': {
+        const c = await copilot.config();
+        return { ok: true, configured: !!c, provider: c?.provider ?? null, chat: await copilot.chat() };
+      }
+      case 'copilot:save': {
+        const provider = m.provider as AiProvider;
+        if (!PROVIDERS.includes(provider) || typeof m.apiKey !== 'string' || m.apiKey.length > 400) return { ok: false, error: 'BAD_REQUEST' };
+        if (!m.apiKey.trim()) return { ok: false, error: 'AI_empty_key' };
+        const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 300) : undefined);
+        const customUrl = str(m.customUrl);
+        if (customUrl && !/^https:\/\//i.test(customUrl)) return { ok: false, error: 'BAD_REQUEST' };
+        const cfg = { provider, apiKey: m.apiKey, customUrl, customModel: str(m.customModel) };
+        // Testée avant d'être gardée : une clé refusée ne s'enregistre pas.
+        const r = await ask(cfg, 'Reply with: OK', [{ role: 'user', content: 'ping' }]);
+        if ('error' in r) return { ok: false, error: `AI_${r.error}`, params: { status: String(r.status ?? ''), detail: (r.detail ?? '').slice(0, 160) } };
+        await copilot.saveConfig(cfg);
+        return { ok: true };
+      }
+      case 'copilot:forget':
+        await copilot.forgetConfig();
+        await copilot.clearChat();
+        return { ok: true };
+      case 'copilot:clear':
+        await copilot.clearChat();
+        return { ok: true };
+      case 'copilot:ask': {
+        const text = typeof m.text === 'string' ? m.text.trim().slice(0, 2000) : '';
+        if (!text) return { ok: false, error: 'BAD_REQUEST' };
+        // Phrase de récupération ou clé privée : jamais envoyée à un fournisseur d'IA.
+        if (looksSecret(text)) return { ok: false, error: 'AI_SECRET' };
+        const cfg = await copilot.config();
+        if (!cfg) return { ok: false, error: 'AI_no_key' };
+        const chat: ChatMessage[] = [...(await copilot.chat()), { role: 'user', content: text }];
+        const r = await ask(cfg, systemPrompt(LANG, await digest()), chat);
+        if ('error' in r) return { ok: false, error: `AI_${r.error}`, params: { status: String(r.status ?? ''), detail: (r.detail ?? '').slice(0, 160) } };
+        const next: ChatMessage[] = [...chat, { role: 'assistant', content: r.text.slice(0, 6000) }];
+        await copilot.saveChat(next);
+        return { ok: true, chat: next };
+      }
+    }
+    return { ok: false, error: 'BAD_REQUEST' };
+  }
+
+  const handle = (msg: unknown): Promise<Reply> => {
+    const m = (msg ?? {}) as Record<string, unknown>;
+    if (typeof m.type === 'string' && m.type.startsWith('copilot:')) return handleCopilot(m).catch(() => ({ ok: false, error: 'INTERNAL' }));
+    return handleInternal(session, wallets, msg, undefined, services);
+  };
 
   /**
    * Coffre local prêt et ouvert, sans rien demander : créé à la première

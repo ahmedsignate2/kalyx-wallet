@@ -25,3 +25,18 @@ body { min-height: 100vh; min-height: 100dvh; }
 .web-options { gap: 8px; }
 .web-options .btn.ghost { min-height: 44px; }
 .center-self { align-self: center; }
+
+/* Copilote IA : la conversation en bulles, le champ en bas. */
+.copilot .ai-chat { display: flex; flex-direction: column; gap: 10px; min-height: 240px; max-height: 58vh; overflow-y: auto; padding: 4px 2px; }
+.ai-msg { max-width: 88%; padding: 10px 14px; border-radius: 18px; font-size: var(--fs-body); line-height: 21px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-msg.user { align-self: flex-end; background: var(--primary); color: var(--on-primary); border-bottom-right-radius: 6px; }
+.ai-msg.assistant { align-self: flex-start; background: var(--surface-1); border: 1px solid var(--border); border-bottom-left-radius: 6px; box-shadow: var(--depth); }
+.ai-msg.pending { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+.ai-sugs { display: flex; flex-direction: column; gap: 8px; align-items: stretch; margin-top: auto; }
+.ai-sugs .chip { white-space: normal; text-align: start; justify-content: flex-start; min-height: 40px; }
+.ai-form { display: flex; gap: 8px; align-items: flex-end; }
+.ai-form textarea { min-height: 52px; flex: 1; }
+.ai-form .btn { width: auto; flex: none; min-height: 52px; padding: 0 16px; }
+.ai-tools { display: flex; justify-content: space-between; gap: 12px; }
+.copilot .note { display: flex; align-items: flex-start; gap: 6px; }
+.act.ai .disc { color: var(--ink-swap); }

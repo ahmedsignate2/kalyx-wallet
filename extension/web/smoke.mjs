@@ -84,6 +84,32 @@ try {
   ok((await page.locator('.bar .icon[title], .bar .icon[aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.getAttribute('title')))).every((l) => !/verrouiller|lock/i.test(l ?? '')), 'pas de verrou (aucun mot de passe)');
   ok((await page.locator('.acts .act').count()) >= 4, 'actions : acheter, envoyer, recevoir, swap…');
 
+  // Copilote IA : clé testée puis gardée, réponses du fournisseur (simulé ici), secrets jamais envoyés.
+  const asked = [];
+  await page.route('https://api.deepseek.com/**', async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    asked.push(body);
+    const last = body.messages?.at(-1)?.content ?? '';
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ choices: [{ message: { content: last === 'ping' ? 'OK' : 'Réponse du Copilote' } }] }) });
+  });
+  await page.locator('.act.ai').click();
+  await page.locator('[data-testid=ai-key]').fill('sk-test-0000');
+  await page.locator('[data-testid=ai-save]').click();
+  await page.locator('[data-testid=ai-chat]').waitFor({ timeout: 15_000 });
+  ok(true, 'copilote : clé testée et enregistrée');
+  await page.locator('.ai-sugs .chip').first().click();
+  await page.locator('.ai-msg.assistant:not(.pending)').waitFor({ timeout: 15_000 });
+  ok((await page.locator('.ai-msg.assistant').last().textContent()) === 'Réponse du Copilote', 'copilote : réponse affichée');
+  const sys = asked.at(-1)?.messages?.[0]?.content ?? '';
+  ok(/TABLEAU DE BORD WEB/.test(sys) && !/0x9858EfFD232B4033E47d90003D41EC34EcaEda94/i.test(JSON.stringify(asked)), 'copilote : contexte du portefeuille sans adresse');
+  const before = asked.length;
+  await page.locator('[data-testid=ai-input]').fill('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
+  await page.locator('[data-testid=ai-send]').click();
+  await page.locator('.copilot .error:not(:empty)').waitFor();
+  ok(asked.length === before && (await page.locator('[data-testid=ai-input]').inputValue()) === '', 'copilote : phrase de récupération jamais envoyée');
+  await page.locator('.copilot .bar .link').click();
+  await page.locator('[data-testid=account]').waitFor();
+
   // Réglages : rien de ce qui suppose un mot de passe ou des clés locales.
   await page.locator('.bar .icon').filter({ has: page.locator('svg') }).nth(0).click();
   await page.locator('.settings').waitFor();
@@ -100,6 +126,7 @@ try {
   await page.locator('.web-title').waitFor({ timeout: 20_000 });
   const left = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('kx:kalyx.wallets') || k === 'kalyx.web.vaultKey'));
   ok(left.length === 0 || !left.includes('kx:kalyx.wallets'), 'déconnexion : portefeuilles effacés');
+  ok((await page.evaluate(() => Object.keys(localStorage).some((k) => k.includes('copilot')))) === false, 'déconnexion : clé du Copilote effacée');
 
   // Inactivité : revenu après 31 min → déconnecté, le message le dit.
   await page.evaluate(async () => {

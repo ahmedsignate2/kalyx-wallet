@@ -28,6 +28,7 @@ import { addTokenSheet, networksScreen } from './assetsScreen';
 import { addressWithContact, contactSheet, contactsScreen, loadContacts } from './contactsScreen';
 import { errorText, LOCALE, t } from './i18n';
 import { aboutScreen, faqScreen, languageSelect, SUPPORT_EMAIL } from './helpScreen';
+import { copilotScreen } from './copilotScreen';
 import { allowedSitesSheet, capSelect, duressSheet, loadAccess, phoneOnlyOffSheet, siteBanner, switchRow } from './securityScreen';
 import { getMode, getTheme, isExpert, setMode, setSounds, setTheme, soundsOn, type Mode, type Theme } from './prefs';
 import { play } from './sound';
@@ -355,8 +356,8 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
       act('send primary', 'send', t('send'), go(() => sendScreen(app, home))),
       act('rx', 'receive', t('receive'), go(() => receiveScreen(app, home, { close: opts.mode === 'popup' }))),
       act('swap', 'exchange', t('swShort'), go(() => swapScreen(app, home, { onPhone: current().w?.kind === 'companion' }))),
-      // Sites connectés : le pont vers les dApps n'existe que dans l'extension.
-      !web && act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
+      // Sites connectés : le pont vers les dApps n'existe que dans l'extension. Sur le web, le Copilote IA.
+      web ? act('ai', 'support', t('aiShort'), go(() => copilotScreen(app, () => render()))) : act('sites', 'dapps', t('sitesShort'), go(() => sitesScreen(app, home))),
     );
   }
 

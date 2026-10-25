@@ -77,7 +77,7 @@ Aucune adresse de perception n'est codée en dur. Le récapitulatif de swap affi
 - Pas d'audit de sécurité indépendant.
 - Android (APK signé, hors Play Store pour l'instant) ; pas encore d'app iOS. L'extension navigateur est en **bêta**.
 - Extension : les passkeys ne fonctionnent pas dans tous les navigateurs (souvent refusées aux extensions sur Android : Mises, Kiwi) ; le mot de passe reste alors la protection.
-- Tableau de bord web : TON n'y est pas signable (WalletConnect ne couvre pas TON) ; pas d'onglet Gagner, de marché ni de Copilote IA (absents de l'extension, dont il reprend l'interface).
+- Tableau de bord web : TON n'y est pas signable (WalletConnect ne couvre pas TON) ; pas d'onglet Gagner ni de marché (absents de l'extension, dont il reprend l'interface).
 - Pas de mise à jour à distance : chaque correctif passe par un nouvel APK.
 - Plusieurs fonctions dépendent de services tiers (RPC, CoinGecko, GoPlus, LI.FI…) qui peuvent être lents, limités ou indisponibles.
 - Pas de wallet matériel (Ledger, Trezor…) pour l'instant.
@@ -119,7 +119,7 @@ Ethereum, BNB Chain, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll
 - **Autorisations de dépense** : liste et **révocation groupée**.
 
 ### 🖥️ Web et Telegram
-- **Tableau de bord** [app.kalyxwallet.com](https://app.kalyxwallet.com) (ordinateur, navigateur mobile) : **l'interface de l'extension en mode compagnon**, avec le même code (`extension/web/`) : tous les portefeuilles et comptes du téléphone en une liaison (QR), solde agrégé, tokens tous réseaux, NFT, activité, envoyer / recevoir / swap / acheter, autorisations de tokens à révoquer, contacts, réglages. **Il ne détient aucune clé et ne demande aucun mot de passe** : chaque action se valide sur le téléphone ; après 30 min sans activité, la liaison se ferme et le navigateur oublie tout.
+- **Tableau de bord** [app.kalyxwallet.com](https://app.kalyxwallet.com) (ordinateur, navigateur mobile) : **l'interface de l'extension en mode compagnon**, avec le même code (`extension/web/`) : tous les portefeuilles et comptes du téléphone en une liaison (QR), solde agrégé, tokens tous réseaux, NFT, activité, envoyer / recevoir / swap / acheter, autorisations de tokens à révoquer, contacts, réglages, et le **Copilote IA** avec ta propre clé d'API (gardée dans le navigateur, envoyée seulement au fournisseur choisi ; le modèle voit tokens et activité, jamais les adresses). **Il ne détient aucune clé et ne demande aucun mot de passe** : chaque action se valide sur le téléphone ; après 30 min sans activité, la liaison se ferme et le navigateur oublie tout.
 - **Bot Telegram** : `/price`, `/gas`, `/scan`, `/alert` (alertes de prix), ouverture de la mini-app — voir [bot/README.md](bot/README.md).
 
 ### 🤖 Copilote IA
