@@ -6,7 +6,8 @@ import { View, Text, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { fonts, spacing, useTheme, fontSize, radii } from '../ui/theme';
-import { useWalletConnect } from '../lib/walletconnect';
+import { useWalletConnect, isKalyxExtensionSession, type WcSession } from '../lib/walletconnect';
+import { presenceOf, type Presence } from '../lib/wcPresence';
 import { useTonConnect } from '../lib/tonconnect/store';
 import { looksLikeTonConnect } from '../src/domain/tonconnect/connectLink';
 import { useDappActivity, type SigKind } from '../lib/dappActivity';
@@ -30,6 +31,14 @@ export default function WalletConnectScreen() {
   const pair = useWalletConnect((s) => s.pair);
   const disconnect = useWalletConnect((s) => s.disconnect);
   const disconnectAll = useWalletConnect((s) => s.disconnectAll);
+  const presence = useWalletConnect((s) => s.presence);
+  const checking = useWalletConnect((s) => s.checking);
+  const checkPresence = useWalletConnect((s) => s.checkPresence);
+  // À l'ouverture : chaque connexion est sondée (une réponse = elle est vraiment là).
+  useEffect(() => { if (ready) void checkPresence(); }, [ready, sessions.length, checkPresence]);
+  // Les « il y a 3 min » avancent tant que l'écran est ouvert.
+  const [, tick] = useState(0);
+  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 30_000); return () => clearInterval(id); }, []);
 
   const connections = useDappActivity((s) => s.connections);
   const signatures = useDappActivity((s) => s.signatures);
@@ -109,25 +118,26 @@ export default function WalletConnectScreen() {
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing(1) }}>
           <SectionLabel>{t('wcSessions')}</SectionLabel>
-          {sessions.length > 1 ? (
-            <Text onPress={() => disconnectAll()} style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{t('disconnectAll')}</Text>
-          ) : null}
+          <View style={{ flexDirection: 'row', gap: spacing(2) }}>
+            {sessions.length > 0 ? (
+              <Text onPress={() => void checkPresence()} accessibilityRole="button" style={{ color: colors.textSecondary, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{t('wcCheck')}</Text>
+            ) : null}
+            {sessions.length > 1 ? (
+              <Text onPress={() => disconnectAll()} accessibilityRole="button" style={{ color: colors.danger, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{t('disconnectAll')}</Text>
+            ) : null}
+          </View>
         </View>
         {sessions.length === 0 ? (
           <KText variant="label">{t('noWcSessions')}</KText>
         ) : (
-          sessions.map((s) => (
-            <Rise key={s.topic}>
-            <Card padding="xl" gap="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
-              <SessionLogo url={s.url} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={typography.body} numberOfLines={1}>{s.name}</Text>
-                <KText variant="label">{s.url.replace(/^https?:\/\//, '')}</KText>
-              </View>
-              <DangerPill label={t('disconnect')} onPress={() => disconnect(s.topic)} />
-            </Card>
-            </Rise>
-          ))
+          <>
+            {sessions.map((s) => (
+              <Rise key={s.topic}>
+                <WcSessionCard s={s} lastSeen={presence[s.topic]} checking={checking.includes(s.topic)} ago={ago} onDisconnect={() => void disconnect(s.topic)} />
+              </Rise>
+            ))}
+            <KText variant="label">{t('wcPresHow')}</KText>
+          </>
         )}
 
         {/* Apps TON connectées par TON Connect */}
@@ -190,8 +200,48 @@ export default function WalletConnectScreen() {
 }
 
 
-/** Logo du site + point vert qui pulse : la session est vivante. */
-function SessionLogo({ url }: { url: string }) {
+/**
+ * Une connexion WalletConnect, avec son état RÉEL : le point vert ne s'allume
+ * que si l'autre côté a répondu il y a peu ; sinon, la date de son dernier
+ * signe de vie, et pour l'extension Kalyx silencieuse, ce que ça veut dire.
+ */
+function WcSessionCard({ s, lastSeen, checking, ago, onDisconnect }: { s: WcSession; lastSeen?: number; checking: boolean; ago: (ts: number) => string; onDisconnect: () => void }) {
+  const { colors, typography } = useTheme();
+  const t = useT();
+  const ext = isKalyxExtensionSession(s);
+  const state = presenceOf(lastSeen);
+  const days = lastSeen ? Math.floor((Date.now() - lastSeen) / 86_400_000) : 0;
+  const status = checking && state !== 'online'
+    ? t('wcPresChecking')
+    : state === 'online'
+      ? t('wcPresOnline')
+      : state === 'recent'
+        ? t('wcPresSeen').replace('{ago}', ago(lastSeen!))
+        : state === 'silent'
+          ? t('wcPresSilent').replace('{n}', String(Math.max(1, days)))
+          : t('wcPresUnknown');
+  const left = s.expiry ? s.expiry - Date.now() : 0;
+  const expires = left <= 0 ? '' : left < 86_400_000 ? t('wcExpiresHours').replace('{n}', String(Math.max(1, Math.ceil(left / 3_600_000)))) : t('wcExpiresDays').replace('{n}', String(Math.ceil(left / 86_400_000)));
+  const host = s.url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const tone = state === 'online' ? colors.up : state === 'recent' ? colors.warning : colors.textSecondary;
+  return (
+    <Card padding="xl" gap="md" style={{ gap: spacing(1.25) }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing(1.5) }}>
+        <SessionLogo url={s.url} presence={state} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text style={typography.body} numberOfLines={1}>{ext ? t('wcExtBadge') : s.name}</Text>
+          <Text numberOfLines={1} style={{ color: tone, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{status}</Text>
+          <KText variant="label" numberOfLines={1}>{[host, expires].filter(Boolean).join(' · ')}</KText>
+        </View>
+        <DangerPill label={t('disconnect')} onPress={onDisconnect} />
+      </View>
+      {ext && (state === 'silent' || state === 'unknown') && !checking ? <KText variant="label">{t('wcExtSilentHint')}</KText> : null}
+    </Card>
+  );
+}
+
+/** Logo du site + point d'état : vert qui pulse (répond), ambre (vu récemment), gris (silencieux). Sans `presence` : connexion du navigateur ou TON, toujours locale. */
+function SessionLogo({ url, presence }: { url: string; presence?: Presence }) {
   const { colors } = useTheme();
   let host = '';
   try { host = new URL(url).host; } catch { host = url.replace(/^https?:\/\//, '').split('/')[0]; }
@@ -199,7 +249,11 @@ function SessionLogo({ url }: { url: string }) {
     <View style={{ width: 44, height: 44, borderRadius: radii.full, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
       <DappLogo host={host} size={30} />
       <View style={{ position: 'absolute', right: -1, bottom: -1, padding: 2, borderRadius: radii.sm, backgroundColor: colors.surface1 }}>
-        <Pulse size={8} color={colors.up} />
+        {!presence || presence === 'online' ? (
+          <Pulse size={8} color={colors.up} />
+        ) : (
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: presence === 'recent' ? colors.warning : colors.textTertiary ?? colors.textSecondary }} />
+        )}
       </View>
     </View>
   );

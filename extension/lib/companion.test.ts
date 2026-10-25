@@ -142,7 +142,7 @@ describe('mode compagnon : partie pure', () => {
 /** Client WalletConnect simulé : le « téléphone » répond par `answer`. */
 function fakeClient(answer: (method: string, params: unknown) => Promise<unknown>) {
   const handlers: Record<string, ((e: { topic: string }) => void)[]> = {};
-  const sessions = new Set<string>();
+  const sessions = new Map<string, Record<string, { chains?: string[]; methods?: string[]; accounts?: string[] }>>();
   const calls: { chainId: string; method: string; params: unknown; site?: string }[] = [];
   let approve: (s: { topic: string; namespaces: Record<string, { accounts?: string[] }>; sessionProperties?: Record<string, unknown> }) => void = () => {};
   const client: WcClient = {
@@ -159,13 +159,13 @@ function fakeClient(answer: (method: string, params: unknown) => Promise<unknown
     on(event, fn) {
       (handlers[event] ??= []).push(fn);
     },
-    session: { getAll: () => [...sessions].map((topic) => ({ topic })) },
+    session: { getAll: () => [...sessions].map(([topic, namespaces]) => ({ topic, namespaces })) },
   };
   return {
     client,
     calls,
     accept(topic: string, namespaces: Record<string, { accounts?: string[] }>, sessionProperties?: Record<string, unknown>) {
-      sessions.add(topic);
+      sessions.set(topic, namespaces);
       approve({ topic, namespaces, ...(sessionProperties ? { sessionProperties } : {}) });
     },
     drop(topic: string) {
@@ -413,3 +413,44 @@ describe('compagnon : tous les portefeuilles du téléphone en une liaison', () 
   });
 });
 
+
+describe('signe de vie vers le téléphone', () => {
+  test('kalyx_ping envoyé aux liaisons qui le connaissent ; liaison disparue marquée « à relier »', async () => {
+    const disk = makeStore(area());
+    const session = makeSession({ disk, session: makeStore(area()), alarms: { create() {}, clear() {} }, kdf: { N: 1 << 10, r: 8, p: 1 } });
+    const wallets = makeWallets(disk, session);
+    await session.create('Plage-Orange-47!');
+    const fake = fakeClient(async () => 'pong');
+    const companion = makeCompanion(wallets, { client: async () => fake.client });
+    await companion.start('Téléphone');
+    const waiting = companion.wait();
+    const n = ns([`eip155:1:${PHONE.address}`]) as Record<string, { chains?: string[]; methods?: string[]; accounts?: string[] }>;
+    n.eip155 = { ...n.eip155, chains: ['eip155:1'], methods: ['eth_sendTransaction', 'kalyx_ping'] };
+    fake.accept('topic-hb', n);
+    await waiting;
+    await companion.confirm('topic-hb', true);
+    expect(await companion.heartbeat()).toBe(1);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fake.calls.at(-1)).toMatchObject({ chainId: 'eip155:1', method: 'kalyx_ping' });
+    // Le téléphone a coupé (message de suppression manqué) : au prochain signe de vie, la liaison est marquée perdue.
+    fake.client.session.getAll().length && (await fake.client.disconnect({ topic: 'topic-hb', reason: { code: 6000, message: '' } }));
+    expect(await companion.heartbeat()).toBe(0);
+    expect((await wallets.list()).filter((w) => w.kind === 'companion').every((w) => w.lost)).toBe(true);
+  });
+
+  test('ancienne liaison sans kalyx_ping : rien n’est envoyé', async () => {
+    const disk = makeStore(area());
+    const session = makeSession({ disk, session: makeStore(area()), alarms: { create() {}, clear() {} }, kdf: { N: 1 << 10, r: 8, p: 1 } });
+    const wallets = makeWallets(disk, session);
+    await session.create('Plage-Orange-47!');
+    const fake = fakeClient(async () => null);
+    const companion = makeCompanion(wallets, { client: async () => fake.client });
+    await companion.start('Téléphone');
+    const waiting = companion.wait();
+    fake.accept('topic-old', ns([`eip155:1:${PHONE.address}`]));
+    await waiting;
+    await companion.confirm('topic-old', true);
+    expect(await companion.heartbeat()).toBe(0);
+    expect(fake.calls).toHaveLength(0);
+  });
+});

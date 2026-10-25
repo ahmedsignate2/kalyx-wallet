@@ -20,7 +20,7 @@ import { RpcError } from './rpcError';
 import { isValidBtcAddress } from '../../src/domain/validation/btcAddress';
 
 export const SOLANA_CAIP = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
-export const EVM_METHODS = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData_v4'];
+export const EVM_METHODS = ['eth_sendTransaction', 'personal_sign', 'eth_signTypedData_v4', 'kalyx_ping'];
 export const SOL_METHODS = ['solana_signMessage', 'solana_signTransaction', 'solana_signAllTransactions', 'solana_signAndSendTransaction'];
 /** Bitcoin (WalletConnect « bip122 », réseau principal) : envoi, montant en satoshis, signé et diffusé par le téléphone. */
 export const BTC_CAIP = 'bip122:000000000019d6689c085ae165831e93';

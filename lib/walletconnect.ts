@@ -28,6 +28,7 @@ import { listChains, getAdapter, getAdapterV2, withSigner, assertCurve, WcConnec
 import { handleSmartError } from './errorHandler';
 import { submitSolanaSigned } from './solanaSubmit';
 import { rememberHandledRequest, handledResponse, isExpiredRequest } from './wcHandled';
+import { loadPresence, savePresence } from './wcPresence';
 import type { IWeb3Wallet } from '@walletconnect/web3wallet';
 
 // Libellé lisible d'une méthode WalletConnect (pour la notification de signature).
@@ -354,6 +355,8 @@ export interface WcSession {
   name: string;
   url: string;
   icon?: string;
+  /** Fin de validité de la session (ms) : WalletConnect la ferme d'office à cette date. */
+  expiry?: number;
 }
 
 /** Échec d'appairage → phrase claire (QR expiré, relais injoignable, lien inutilisable), jamais le message brut du SDK. */
@@ -394,6 +397,14 @@ interface WcState {
   approveRequest: (unlock: Unlock, overrideData?: string) => Promise<void>;
   rejectRequest: () => Promise<void>;
   disconnect: (topic: string) => Promise<void>;
+  /** Dernier signe de vie de l'autre côté, par session (ms) — voir lib/wcPresence. */
+  presence: Record<string, number>;
+  /** Sessions en cours de vérification (ping envoyé, réponse attendue). */
+  checking: string[];
+  /** Ping de chaque session ouverte ; une réponse = signe de vie. */
+  checkPresence: () => Promise<void>;
+  /** Note un signe de vie de la session `topic`. */
+  seen: (topic: string) => void;
   /** Coupe TOUTES les sessions actives (ex. au verrouillage de Kalyx). */
   disconnectAll: () => Promise<void>;
   /** Coupe les sessions qui utilisent l'une de ces adresses (portefeuille supprimé). */
@@ -478,6 +489,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
   proposal: null,
   requestQueue: [],
   request: null,
+  presence: {},
+  checking: [],
 
   init: async () => {
     console.log('[KALYX-WC] init', { projectId: PROJECT_ID ? 'présent' : 'ABSENT', ready: !!get().wallet, initializing: _wcInitializing });
@@ -552,6 +565,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       console.log('[WC-IN] ==================================\n');
 
       const sessions = w.getActiveSessions();
+      if (request?.topic && sessions?.[request.topic]) get().seen(request.topic);
       if (!request?.topic || !sessions || !sessions[request.topic]) {
         console.error('[WC-IN] Topic introuvable ou expiré:', request?.topic);
         try {
@@ -600,6 +614,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         else if (method === 'eth_chainId') response = { result: evmId ? `0x${evmId.toString(16)}` : '0x1' };
         else if (method === 'wallet_getCapabilities' || method === 'wallet_getPermissions' || method === 'wallet_requestPermissions') response = { result: {} };
         else if (method === 'solana_getAccounts' || method === 'solana_requestAccounts') response = { result: acct?.solAddress ? [{ pubkey: acct.solAddress }] : [] };
+        // Signe de vie de l'extension Kalyx (mode compagnon) : déjà noté ci-dessus.
+        else if (method === 'kalyx_ping') response = { result: 'pong' };
         else response = { error: { code: -32601, message: `Method not supported: ${method}` } };
         await w.respondSessionRequest({ topic: request.topic, response: { id: request.id, jsonrpc: '2.0', ...response } }).catch(() => {});
         return;
@@ -633,6 +649,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       const label = tr(METHOD_LABELS[method] ?? 'wcReqGeneric');
       notifyIncoming(tr('notifWcActionTitle'), peer ? `${label} · ${peer}` : tr('notifWcActionOpen', { label }));
     });
+    // Ping de l'autre côté : il est là.
+    (w as any).engine?.signClient?.on?.('session_ping', (ev: { topic?: string }) => ev?.topic && get().seen(ev.topic));
     w.on('session_delete', (ev: { topic?: string }) => {
       // L'extension Kalyx (mode compagnon) s'est déliée : on le dit, ici comme en arrière-plan.
       const gone = get().sessions.find((x) => x.topic === ev?.topic);
@@ -668,7 +686,7 @@ export const useWalletConnect = create<WcState>((set, get) => ({
       if (long) void restartRelay(w);
       else void ensureRelay(w);
     });
-    set({ wallet: w, ready: true });
+    set({ wallet: w, ready: true, presence: await loadPresence() });
     get().refresh();
     } finally {
       _wcInitializing = false;
@@ -780,7 +798,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (evmAddrs.length) {
       supportedNamespaces.eip155 = {
         chains: evmCaips,
-        methods: evmMethods,
+        // L'extension Kalyx envoie un signe de vie (`kalyx_ping`) : répondu sans écran, il dit au téléphone qu'elle est toujours là.
+        methods: companion ? [...evmMethods, 'kalyx_ping'] : evmMethods,
         events: ['chainChanged', 'accountsChanged'],
         accounts: evmCaips.flatMap((c) => evmAddrs.map((a) => `${c}:${a}`)),
       };
@@ -830,8 +849,9 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (!namespaces || Object.keys(namespaces).length === 0) {
       throw new WcConnectError('NO_COMPATIBLE_CHAIN');
     }
+    let approvedTopic: string | undefined;
     try {
-      await wallet.approveSession({ id: proposal.id, namespaces: namespaces as any, ...(sessionProperties ? { sessionProperties } : {}) });
+      approvedTopic = (await wallet.approveSession({ id: proposal.id, namespaces: namespaces as any, ...(sessionProperties ? { sessionProperties } : {}) }))?.topic;
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       if (/expired|deleted|record/i.test(detail)) {
@@ -846,6 +866,8 @@ export const useWalletConnect = create<WcState>((set, get) => ({
     if (returnAfterApproval) returnToDapp(proposal.params?.proposer?.metadata);
     returnAfterApproval = false;
     get().refresh();
+    // La connexion qui vient de se nouer est le premier signe de vie.
+    if (approvedTopic) get().seen(approvedTopic);
   },
 
   rejectProposal: async () => {
@@ -1136,8 +1158,39 @@ export const useWalletConnect = create<WcState>((set, get) => ({
 
   disconnect: async (topic) => {
     if (isDecoySession()) return; // jamais toucher aux vraies connexions depuis le leurre
+    // Retirée de la liste TOUT DE SUITE : le relais peut mettre 8 s à répondre, la ligne restait affichée.
+    set({ sessions: get().sessions.filter((x) => x.topic !== topic) });
     await forceDisconnect(get().wallet, topic);
     get().refresh();
+  },
+
+  seen: (topic) => {
+    const presence = { ...get().presence, [topic]: Date.now() };
+    set({ presence });
+    void savePresence(presence, get().sessions.map((x) => x.topic).concat(topic));
+  },
+
+  checkPresence: async () => {
+    if (isDecoySession()) return;
+    const w = get().wallet;
+    if (!w) return;
+    const topics = get().sessions.map((x) => x.topic).filter((t) => !get().checking.includes(t));
+    if (!topics.length) return;
+    set({ checking: [...get().checking, ...topics] });
+    const ping = (w as any).engine?.signClient?.ping?.bind((w as any).engine.signClient) as ((a: { topic: string }) => Promise<void>) | undefined;
+    await Promise.all(
+      topics.map(async (topic) => {
+        try {
+          if (!ping) return;
+          await Promise.race([ping({ topic }), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10_000))]);
+          get().seen(topic);
+        } catch {
+          /* pas de réponse : le dernier signe de vie connu reste affiché */
+        } finally {
+          set({ checking: get().checking.filter((x) => x !== topic) });
+        }
+      }),
+    );
   },
 
   disconnectAddresses: async (addresses) => {
@@ -1173,8 +1226,12 @@ export const useWalletConnect = create<WcState>((set, get) => ({
         name: s.peer?.metadata?.name ?? 'dApp',
         url: s.peer?.metadata?.url ?? '',
         icon: s.peer?.metadata?.icons?.[0],
+        ...(Number.isFinite(s.expiry) ? { expiry: s.expiry * 1000 } : {}),
       })),
     });
+    // Les signes de vie des sessions fermées sont oubliés.
+    const alive = Object.keys(active);
+    if (Object.keys(get().presence).some((t) => !alive.includes(t))) void savePresence(get().presence, alive).then((presence) => set({ presence }));
   },
 }));
 /* eslint-enable @typescript-eslint/no-explicit-any */

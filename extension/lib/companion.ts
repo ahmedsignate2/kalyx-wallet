@@ -36,8 +36,11 @@ export interface WcClient {
   request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; expiryTimestamp?: number; kalyxSite?: string } }): Promise<T>;
   disconnect(a: { topic: string; reason: { code: number; message: string } }): Promise<void>;
   on(event: 'session_delete' | 'session_expire', fn: (e: { topic: string }) => void): void;
-  session: { getAll(): { topic: string }[] };
+  session: { getAll(): { topic: string; namespaces?: Record<string, { chains?: string[]; methods?: string[] }> }[] };
 }
+
+/** Le signe de vie part pour 6 h : le téléphone le reçoit à son prochain passage en ligne dans ce délai. */
+export const HEARTBEAT_TTL_MS = 6 * 3_600_000;
 
 async function defaultClient(): Promise<WcClient> {
   if (!PROJECT_ID) throw new RpcError(4900, 'COMPANION_UNAVAILABLE');
@@ -195,7 +198,40 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     await withTimeout(Promise.all(all), 5_000, 'COMPANION_OFFLINE').catch(() => {});
   }
 
-  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink, unlinkAll };
+  /**
+   * SIGNE DE VIE vers chaque téléphone relié (démarrage du navigateur, puis
+   * toutes les 3 h). Sans lui, le téléphone ne pouvait pas savoir si
+   * l'extension existait encore : une extension supprimée restait affichée
+   * « connectée » jusqu'à l'expiration de la session (7 jours).
+   * Au passage, le client relit les sessions : une liaison coupée depuis le
+   * téléphone est marquée « à relier » ici aussi.
+   * `kalyx_ping` n'existe que dans les liaisons récentes ; les anciennes n'en reçoivent pas.
+   */
+  async function heartbeat(): Promise<number> {
+    const linked = (await wallets.list()).filter((w) => w.kind === 'companion' && w.topic && !w.lost);
+    if (!linked.length || (!PROJECT_ID && !opts.client)) return 0;
+    const c = await withTimeout(client(), RELAY_TIMEOUT_MS, 'COMPANION_OFFLINE').catch(() => null);
+    if (!c) return 0;
+    const open = new Map(c.session.getAll().map((x) => [x.topic, x]));
+    let sent = 0;
+    for (const topic of new Set(linked.map((w) => w.topic!))) {
+      const sess = open.get(topic);
+      if (!sess) {
+        await wallets.markCompanionLost(topic).catch(() => {});
+        continue;
+      }
+      const evm = sess.namespaces?.eip155;
+      const chainId = evm?.chains?.[0];
+      if (!chainId || !evm?.methods?.includes('kalyx_ping')) continue;
+      const expiryTimestamp = Math.floor((Date.now() + HEARTBEAT_TTL_MS) / 1000);
+      // Sans attendre la réponse : le téléphone peut être hors ligne ; le relais garde le message.
+      void c.request({ topic, chainId, request: { method: 'kalyx_ping', params: [], expiryTimestamp } }).catch(() => {});
+      sent++;
+    }
+    return sent;
+  }
+
+  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink, unlinkAll, heartbeat };
 }
 
 export type Companion = ReturnType<typeof makeCompanion>;

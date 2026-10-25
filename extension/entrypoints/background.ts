@@ -108,6 +108,23 @@ export default defineBackground(() => {
   const grants = makeGrants({ disk });
   const GRANTS_ALARM = 'kalyx-grants';
   const GRANTS_NOTIF = 'kalyx-grants';
+  /*
+   * Signe de vie au téléphone (mode compagnon) : au plus un toutes les 30 min,
+   * quel que soit le nombre de réveils du service worker.
+   */
+  const HEARTBEAT_ALARM = 'kalyx-companion-heartbeat';
+  const HEARTBEAT_AT = 'kalyx.companion.heartbeatAt';
+  const companionHeartbeat = async () => {
+    try {
+      const last = Number((await browser.storage.local.get(HEARTBEAT_AT))[HEARTBEAT_AT] ?? 0);
+      if (Date.now() - last < 30 * 60_000) return;
+      await browser.storage.local.set({ [HEARTBEAT_AT]: Date.now() });
+      await companion.heartbeat();
+    } catch {
+      /* relais injoignable : prochain essai à la prochaine alarme */
+    }
+  };
+  void browser.alarms.get(HEARTBEAT_ALARM).then(async (a) => void (a || (await browser.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 180, delayInMinutes: 1 })))).catch(() => {});
   void browser.alarms.get(GRANTS_ALARM).then(async (a) => void (a || (await browser.alarms.create(GRANTS_ALARM, { periodInMinutes: 30 })))).catch(() => {});
   const remindGrants = async () => {
     const due = await grants.takeDue();
@@ -230,7 +247,10 @@ export default defineBackground(() => {
     if (a.name === AUTO_LOCK_ALARM) void session.lock();
     if (a.name === TX_ALARM) void txWatch.tick();
     if (a.name === GRANTS_ALARM) void remindGrants().catch(() => {});
+    if (a.name === HEARTBEAT_ALARM) void companionHeartbeat();
   });
+  // Démarrage du navigateur : le téléphone apprend tout de suite que l'extension est là.
+  browser.runtime.onStartup.addListener(() => void companionHeartbeat());
   /*
    * Mode parano : verrouillé aussi après 1 min sans activité de l'ordinateur
    * (au lieu de l'écran verrouillé seulement) et dès que Chrome perd le focus
