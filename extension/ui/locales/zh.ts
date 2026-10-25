@@ -150,4 +150,6 @@ export default {
   compWallets: '手机共享了 {w} 个钱包、{a} 个账户。请与应用核对。', compAccounts: '{n} 个账户',
   rk_spenderNotContract: '被授权方是普通地址而非合约：正规网站不会这样要求。', rk_spenderUnknown: '被授权方 Kalyx 不认识（不是常见协议）。',
   pkWhere: '在哪里创建通行密钥？', pkKindDevice: '这台电脑', pkKindDeviceSub: 'Touch ID、Windows Hello', pkKindPhone: '我的手机', pkKindPhoneSub: 'iPhone 或 Android，通过二维码：手机需在附近', pkKindKey: '安全密钥', pkKindKeySub: 'YubiKey 等', pkAddBackup: '添加备用通行密钥', pkManage: '管理我的通行密钥', pkAddedOn: '添加于 {date}', pkFirst: '你的第一个通行密钥', pkRemove: '移除', pkRemovedOne: '通行密钥已移除：其他的仍可打开保险库。', pkAddedDone: '通行密钥已添加：任一个配合密码都能打开保险库。', pkCount: '{n} 个通行密钥已启用', pkBackupTip: '只有一个通行密钥：丢失后将无法解锁。请添加手机作为备用。', pkMax: '最多五个通行密钥。', pkSignWith: '用我的通行密钥确认', pkSignOr: '或用密码', e_TOO_MANY_PASSKEYS: '最多五个通行密钥：请先移除一个。',
+  pkKindThisPhone: '这部手机', pkKindThisPhoneSub: '指纹、面容或锁屏密码', e_PASSKEY_NOT_HERE: '此浏览器不允许扩展使用通行密钥（Android 上常见：Mises、Kiwi…）。在电脑上的 Chrome、Edge 或 Brave 中可用。这里由密码保护你。',
+  reportIntro: '告诉我们发生了什么。只会附上 Kalyx 和浏览器的版本：不含钱包的任何信息。', reportEmpty: '请先写下发生了什么。', reportTelegram: '通过 Telegram 发送', reportCopy: '复制报告', reportCopied: '已复制。粘贴到发给 {email} 的邮件或 Telegram 中。', reportMail: '通过邮件（{email}）', copyFailed: '此处无法复制：请手动选择文本。',
 };

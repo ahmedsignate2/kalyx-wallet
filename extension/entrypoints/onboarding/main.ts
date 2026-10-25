@@ -20,7 +20,7 @@ import { passwordStrength } from '../../../src/security/passwordStrength';
 import { createBackupChallenge, unknownWords, type WordChallenge } from '../../../src/domain/wallet/backupChallenge';
 import { DEFAULT_AUTO_LOCK_MIN, MIN_PASSWORD_LENGTH, RESET_CONFIRM } from '../../lib/policy';
 import { languageSelect } from '../../ui/helpScreen';
-import { createPasskey, passkeyPrfAny, passkeySupported, unlockWith, type PasskeyKind, type PasskeyStatus } from '../../ui/passkey';
+import { createPasskey, onMobile, passkeyPrfAny, passkeySupported, unlockWith, PasskeyError, type PasskeyKind, type PasskeyStatus } from '../../ui/passkey';
 import { getMode, getTheme, setMode, setTheme, type Mode, type Theme } from '../../ui/prefs';
 import { play } from '../../ui/sound';
 
@@ -81,7 +81,7 @@ function welcome() {
 
 /* ── Passkeys (second facteur) : la liste, en ajouter une (ordinateur, téléphone, clé), en retirer une ── */
 type PkInfo = { cred: string; salt: string; kind: PasskeyKind; at: number };
-const PK_KINDS: { kind: PasskeyKind; icon: string; title: 'pkKindDevice' | 'pkKindPhone' | 'pkKindKey'; sub: 'pkKindDeviceSub' | 'pkKindPhoneSub' | 'pkKindKeySub' }[] = [
+const PK_KINDS: { kind: PasskeyKind; icon: string; title: 'pkKindDevice' | 'pkKindPhone' | 'pkKindKey' | 'pkKindThisPhone'; sub: 'pkKindDeviceSub' | 'pkKindPhoneSub' | 'pkKindKeySub' | 'pkKindThisPhoneSub' }[] = [
   { kind: 'device', icon: 'security', title: 'pkKindDevice', sub: 'pkKindDeviceSub' },
   { kind: 'phone', icon: 'scan', title: 'pkKindPhone', sub: 'pkKindPhoneSub' },
   { kind: 'key', icon: 'sign', title: 'pkKindKey', sub: 'pkKindKeySub' },
@@ -93,11 +93,14 @@ async function passkeyScreen() {
   const on = list.length > 0;
   const err = errorLine();
   const pw = h('input', { type: 'password', placeholder: t('pwCurrent'), autocomplete: 'current-password', 'data-testid': 'pk-password' });
-  let kind: PasskeyKind = on ? 'phone' : 'device';
+  // Sur un téléphone : « cet appareil » est le téléphone ; « mon téléphone » (par QR code) n'a pas de sens.
+  const mobile = onMobile();
+  const kinds = mobile ? PK_KINDS.filter((k) => k.kind !== 'phone').map((k) => (k.kind === 'device' ? { ...k, title: 'pkKindThisPhone' as const, sub: 'pkKindThisPhoneSub' as const } : k)) : PK_KINDS;
+  let kind: PasskeyKind = on && !mobile ? 'phone' : on ? 'key' : 'device';
   const picker = h(
     'div',
     { class: 'pk-kinds', role: 'radiogroup', 'aria-label': t('pkWhere') },
-    ...PK_KINDS.map((k) => {
+    ...kinds.map((k) => {
       const input = h('input', { type: 'radio', name: 'pk-kind', value: k.kind, checked: k.kind === kind, 'data-testid': `pk-kind-${k.kind}`, on: { change: () => (kind = k.kind) } });
       return h('label', { class: 'pk-kind' }, input, h('span', { class: 'pk-ico' }, glyph(k.icon, 18)), h('span', { class: 'grow' }, h('strong', {}, t(k.title)), h('small', { class: 'muted' }, t(k.sub))));
     }),
@@ -115,11 +118,17 @@ async function passkeyScreen() {
     try {
       r = await op();
     } catch (x) {
-      r = { ok: false, error: (x as Error).message };
+      r = { ok: false, error: (x as Error).message, ...((x as PasskeyError).detail ? { detail: (x as PasskeyError).detail } : {}) };
     }
     pw.value = '';
     btn.disabled = false;
-    if (!r.ok) return showError(err, r);
+    if (!r.ok) {
+      showError(err, r);
+      // Cause technique en clair à côté (utile au support) : NotSupportedError, SecurityError…
+      const detail = (r as { detail?: string }).detail;
+      if (detail) err.append(h('small', { class: 'muted', style: 'display:block' }, detail));
+      return;
+    }
     screen(
       h('h1', {}, t('pkTitle')),
       h('p', { class: 'banner', role: 'status', 'data-testid': 'pk-done' }, glyph('check', 18), h('span', {}, t(done))),
@@ -132,7 +141,7 @@ async function passkeyScreen() {
       'div',
       { class: 'pk-row', 'data-testid': 'pk-row' },
       h('span', { class: 'pk-ico' }, glyph(PK_KINDS.find((k) => k.kind === p.kind)?.icon ?? 'security', 18)),
-      h('span', { class: 'grow' }, h('strong', {}, t(PK_KINDS.find((k) => k.kind === p.kind)?.title ?? 'pkKindDevice')), h('small', { class: 'muted' }, p.at ? t('pkAddedOn', { date: new Date(p.at).toLocaleDateString() }) : t('pkFirst'))),
+      h('span', { class: 'grow' }, h('strong', {}, t(p.kind === 'device' && mobile ? 'pkKindThisPhone' : PK_KINDS.find((k) => k.kind === p.kind)?.title ?? 'pkKindDevice')), h('small', { class: 'muted' }, p.at ? t('pkAddedOn', { date: new Date(p.at).toLocaleDateString() }) : t('pkFirst'))),
       h('button', {
         class: 'btn secondary pk-remove',
         type: 'button',

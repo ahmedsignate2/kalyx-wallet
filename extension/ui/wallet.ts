@@ -967,7 +967,7 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
         group(
           t('setHelp'),
           item('faq', t('faq'), null, () => (faqScreen(app, () => settings('back')), navIn(app, 'fwd')), 'faq-open'),
-          item('support', t('reportIssue'), null, () => void reportIssue(), 'report'),
+          item('support', t('reportIssue'), null, () => reportIssue(), 'report'),
           item('about', t('about'), null, () => (aboutScreen(app, () => settings('back'), VERSION), navIn(app, 'fwd')), 'about-open'),
         ),
         h('p', { class: 'small muted note' }, t('reportNote')),
@@ -1034,10 +1034,33 @@ export function mountWallet(app: HTMLElement, opts: WalletUiOptions) {
     });
   }
 
-  /** Retour de bêta par e-mail : version et navigateur seulement, rien du portefeuille. */
-  async function reportIssue() {
-    const body = `${t('reportMailBody')}\n\n\n—\nKalyx ${VERSION}\n${navigator.userAgent}`;
-    await browser.tabs.create({ url: `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('reportMailSubject', { v: VERSION }))}&body=${encodeURIComponent(body)}` });
+  /**
+   * Signaler un problème : le texte de l'utilisateur, plus la version et le
+   * navigateur — rien du portefeuille (ni adresse, ni solde, ni secret).
+   * Envoi par Telegram (le canal du support, comme l'app), copie, ou e-mail en
+   * dernier recours : un lien `mailto:` seul ne faisait rien sans application
+   * de messagerie (souvent le cas sur Android).
+   */
+  function reportIssue() {
+    const text = h('textarea', { rows: 5, placeholder: t('reportMailBody'), 'aria-label': t('reportMailBody'), 'data-testid': 'report-text', maxLength: 2000 });
+    const status = h('p', { class: 'small muted', role: 'status', 'data-testid': 'report-status' });
+    const report = () => `${t('reportMailSubject', { v: VERSION })}\n\n${text.value.trim() || '—'}\n\n—\nKalyx ${VERSION}\n${navigator.userAgent}`;
+    const need = () => (text.value.trim() ? true : ((status.textContent = t('reportEmpty')), text.focus(), false));
+    const sheet = openSheet(
+      t('reportIssue'),
+      h('p', { class: 'small muted' }, t('reportIntro')),
+      text,
+      h('button', { class: 'btn', type: 'button', 'data-testid': 'report-telegram', on: { click: () => need() && void browser.tabs.create({ url: `https://t.me/kalyxntw?text=${encodeURIComponent(report())}` }).then(() => sheet.close()) } }, glyph('support', 18), t('reportTelegram')),
+      h('button', {
+        class: 'btn secondary',
+        type: 'button',
+        'data-testid': 'report-copy',
+        on: { click: () => need() && void navigator.clipboard.writeText(report()).then(() => (status.textContent = t('reportCopied', { email: SUPPORT_EMAIL })), () => (status.textContent = t('copyFailed'))) },
+      }, glyph('copy', 18), t('reportCopy')),
+      h('button', { class: 'link small', type: 'button', 'data-testid': 'report-mail', on: { click: () => need() && void browser.tabs.create({ url: `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('reportMailSubject', { v: VERSION }))}&body=${encodeURIComponent(report())}` }) } }, t('reportMail', { email: SUPPORT_EMAIL })),
+      status,
+    );
+    text.focus();
   }
 
   async function openSidePanel() {

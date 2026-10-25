@@ -12,7 +12,13 @@ import { base64urlnopad } from '@scure/base';
 import { bytesToHex } from '@noble/hashes/utils';
 import { send } from './dom';
 
-export class PasskeyError extends Error {}
+export class PasskeyError extends Error {
+  /** Nom de l'erreur WebAuthn d'origine (diagnostic, affiché à côté du message). */
+  detail?: string;
+}
+
+/** Téléphone ou tablette : « cet appareil » est le téléphone, et l'option « mon téléphone » n'a pas de sens. */
+export const onMobile = () => (navigator as { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile === true || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 
 const random = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 
@@ -24,7 +30,13 @@ function failure(e: unknown): PasskeyError {
   if (e instanceof PasskeyError) return e;
   if (name === 'NotAllowedError' || name === 'AbortError') return new PasskeyError('PASSKEY_CANCELLED');
   if (name === 'InvalidStateError') return new PasskeyError('PASSKEY_EXISTS');
-  return new PasskeyError('PASSKEY_FAILED');
+  /*
+   * Navigateur qui refuse WebAuthn à une extension (fréquent sur Android :
+   * Kiwi, Mises, Yandex…) ou sans ce type d'authentificateur : dit tel quel,
+   * plutôt qu'un « réessaie » qui ne marchera jamais.
+   */
+  if (name === 'NotSupportedError' || name === 'SecurityError' || name === 'TypeError') return Object.assign(new PasskeyError('PASSKEY_NOT_HERE'), { detail: name });
+  return Object.assign(new PasskeyError('PASSKEY_FAILED'), { detail: name ?? String(e).slice(0, 60) });
 }
 
 const prfOf = (c: Credential | null): string | null => {

@@ -1054,17 +1054,21 @@ async function onboarding() {
     await popup.emulateMedia({ colorScheme: 'light' });
     const ver = await popup.getByText('Version 0.9.0 beta').count();
     ver === 1 ? console.log('✓ version 0.9.0 beta affichée') : fail('version absente des réglages');
-    // Le mailto part vers l'application d'e-mail (pas d'onglet sans écran) : on lit l'adresse demandée.
+    // Signaler un problème : un formulaire, envoyé sur Telegram (le canal du support) — on lit le lien demandé.
     await popup.evaluate(() => {
       const create = chrome.tabs.create.bind(chrome.tabs);
-      chrome.tabs.create = (o) => ((window.__mail = o.url), o.url.startsWith('mailto:') ? Promise.resolve({}) : create(o));
+      chrome.tabs.create = (o) => ((window.__report = o.url), /^(mailto:|https:\/\/t\.me\/)/.test(o.url) ? Promise.resolve({}) : create(o));
     });
     await popup.locator('[data-testid=report]').click();
-    const mailUrl = (await popup.waitForFunction(() => window.__mail, null, { timeout: 5_000 }).then((h) => h.jsonValue()).catch(() => '')) ?? '';
-    const decoded = decodeURIComponent(mailUrl);
-    mailUrl.startsWith('mailto:support@kalyxwallet.com?subject=') && decoded.includes('0.9.0 beta') && !/0x[0-9a-fA-F]{40}/.test(decoded)
-      ? console.log('✓ signaler un problème : e-mail au support, version, aucune adresse')
-      : fail(`signaler : « ${mailUrl.slice(0, 120)} »`);
+    await popup.locator('[data-testid=report-telegram]').click();
+    (await popup.locator('[data-testid=report-status]').textContent())?.length ? console.log('✓ signaler : texte vide refusé') : fail('signaler sans texte');
+    await popup.locator('[data-testid=report-text]').fill('Le solde ne s’affiche pas');
+    await popup.locator('[data-testid=report-telegram]').click();
+    const repUrl = (await popup.waitForFunction(() => window.__report, null, { timeout: 5_000 }).then((h) => h.jsonValue()).catch(() => '')) ?? '';
+    const decoded = decodeURIComponent(repUrl);
+    repUrl.startsWith('https://t.me/kalyxntw?text=') && decoded.includes('Le solde ne s’affiche pas') && decoded.includes('0.9.0 beta') && !/0x[0-9a-fA-F]{40}/.test(decoded)
+      ? console.log('✓ signaler un problème : envoyé sur Telegram, texte + version, aucune adresse')
+      : fail(`signaler : « ${repUrl.slice(0, 120)} »`);
 
     // ── Gérer le portefeuille (vague 1) : renommer, ajouter un compte, clé privée, sauvegarde, mot de passe ──
     {
