@@ -19,6 +19,7 @@ import { checkPin, PIN_MAX, PIN_MIN } from '../src';
 import { isBiometricAvailable } from '../lib/biometrics';
 import { haptic } from '../lib/haptics';
 import { ensureInstallMarker } from '../lib/installMarker';
+import { showImportReport } from '../lib/importReport';
 
 /**
  * Création du PIN en 2 étapes sur le PinPad premium.
@@ -122,8 +123,7 @@ export default function SetPin() {
       if (extra.length) {
         usePendingRestore.getState().clear();
         try {
-          const added = await useWallet.getState().importWallets(extra, firstPin);
-          toast.success(t('backupRestoredCount').replace('{count}', String(added + 1)));
+          showImportReport(await useWallet.getState().importWallets(extra, firstPin), t, 1);
         } catch {
           toast.error(t('failed'), t('restorePartial'));
         }

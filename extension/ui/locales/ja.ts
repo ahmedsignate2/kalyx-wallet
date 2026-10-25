@@ -38,7 +38,7 @@ export default {
   e_BACKUP_UNREADABLE: 'このファイルは Kalyx のバックアップではありません。', e_BACKUP_NOT_A_BACKUP: 'このファイルは Kalyx のバックアップではありません。',
   e_BACKUP_CORRUPTED: 'バックアップが破損しているため開けません。', e_BACKUP_TOO_RECENT: '新しいバージョンで作成されたバックアップです：拡張機能を更新してください。',
   e_TOO_MANY_WALLETS: 'ウォレット数の上限に達しました。', e_INTERNAL: '問題が発生しました。もう一度お試しください。',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin（近日対応）', r_UNSUPPORTED_PHRASE: 'TON（近日対応）', r_DUPLICATE: '登録済み',
+  r_UNSUPPORTED_FAMILY: 'この鍵の種類はここでは未対応', r_UNSUPPORTED_PHRASE: 'このフレーズはここでは未対応', r_DUPLICATE: '登録済み',
   popupNoVault: 'このコンピューターで使うウェブ用ウォレット。', getStarted: 'はじめる', popupUnlockSub: 'パスワードを入力してください。',
   addWallet: 'ウォレットを追加', lock: 'ロック', unavailable: 'Kalyx が応答しません。ウィンドウを開き直してください。',
   tabTokens: 'トークン', tabActivity: 'アクティビティ', total: '合計額', totalUnknown: '金額不明',
@@ -152,4 +152,5 @@ export default {
   pkWhere: 'パスキーをどこに作成しますか？', pkKindDevice: 'このコンピューター', pkKindDeviceSub: 'Touch ID、Windows Hello', pkKindPhone: '自分のスマホ', pkKindPhoneSub: 'iPhone または Android、QR コードで：スマホを近くに置いてください', pkKindKey: 'セキュリティキー', pkKindKeySub: 'YubiKey など', pkAddBackup: '予備のパスキーを追加', pkManage: 'パスキーを管理', pkAddedOn: '{date} に追加', pkFirst: '最初のパスキー', pkRemove: '削除', pkRemovedOne: 'パスキーを削除しました：他のパスキーで引き続き開けます。', pkAddedDone: 'パスキーを追加しました：どれでもパスワードと一緒に金庫を開けます。', pkCount: '有効なパスキー：{n}', pkBackupTip: 'パスキーが 1 つだけです：失くすとロック解除できません。スマホを予備に追加してください。', pkMax: 'パスキーは最大 5 つまで。', pkSignWith: 'パスキーで確認', pkSignOr: 'またはパスワードで', e_TOO_MANY_PASSKEYS: 'パスキーは最大 5 つまで：先に 1 つ削除してください。',
   pkKindThisPhone: 'このスマホ', pkKindThisPhoneSub: '指紋、顔、または画面ロック', e_PASSKEY_NOT_HERE: 'このブラウザでは拡張機能でパスキーを使えません（Android でよくあります：Mises、Kiwi など）。パソコンの Chrome、Edge、Brave では使えます。ここではパスワードがあなたを守ります。',
   reportIntro: '何が起きたか教えてください。追加されるのは Kalyx とブラウザのバージョンだけで、ウォレットの情報は含まれません。', reportEmpty: 'まず何が起きたか書いてください。', reportTelegram: 'Telegram で送信', reportCopy: 'レポートをコピー', reportCopied: 'コピーしました。{email} 宛てのメールか Telegram に貼り付けてください。', reportMail: 'メールで（{email}）', copyFailed: 'ここではコピーできません：テキストを手動で選択してください。',
+  bkRule: '10 文字以上、英字と数字または記号を含み、拡張機能のパスワードとは別のもの。', bkPhoneNote: 'スマホと連携したアカウントはこのファイルに含まれません：鍵は Kalyx アプリにあるので、アプリからバックアップしてください。', skippedTitle: '{n} 件のウォレットを復元できませんでした', skippedHint: 'ファイルには残っています：Kalyx アプリで復元するか、ここでフレーズまたは鍵をインポートしてください。',
 };

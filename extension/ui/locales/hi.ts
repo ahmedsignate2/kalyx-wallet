@@ -35,7 +35,7 @@ export default {
   e_BACKUP_NOT_A_BACKUP: 'यह फ़ाइल Kalyx बैकअप नहीं है।', e_BACKUP_CORRUPTED: 'बैकअप खराब है: इसे खोला नहीं जा सकता।',
   e_BACKUP_TOO_RECENT: 'नए संस्करण से बना बैकअप: एक्सटेंशन अपडेट करें।',
   e_TOO_MANY_WALLETS: 'वॉलेट की अधिकतम संख्या पूरी हो गई।', e_INTERNAL: 'कुछ गलत हो गया। फिर कोशिश करें।',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin (जल्द ही)', r_UNSUPPORTED_PHRASE: 'TON (जल्द ही)', r_DUPLICATE: 'पहले से मौजूद',
+  r_UNSUPPORTED_FAMILY: 'यहाँ यह कुंजी प्रकार समर्थित नहीं', r_UNSUPPORTED_PHRASE: 'यहाँ यह वाक्यांश समर्थित नहीं', r_DUPLICATE: 'पहले से मौजूद',
   popupNoVault: 'वेब के लिए आपका वॉलेट, इसी कंप्यूटर पर।', getStarted: 'शुरू करें', popupUnlockSub: 'अपना पासवर्ड डालें।',
   addWallet: 'वॉलेट जोड़ें', lock: 'लॉक करें', unavailable: 'Kalyx जवाब नहीं दे रहा। विंडो फिर से खोलें।',
   tabTokens: 'टोकन', tabActivity: 'गतिविधि', total: 'कुल मूल्य', totalUnknown: 'मूल्य अज्ञात', updated: 'अपडेट किया गया {t}',
@@ -138,4 +138,5 @@ export default {
   pkWhere: 'पासकी कहाँ बनाएँ?', pkKindDevice: 'यह कंप्यूटर', pkKindDeviceSub: 'Touch ID, Windows Hello', pkKindPhone: 'मेरा फ़ोन', pkKindPhoneSub: 'iPhone या Android, QR कोड से: फ़ोन पास में होना चाहिए', pkKindKey: 'सुरक्षा कुंजी', pkKindKeySub: 'YubiKey और अन्य', pkAddBackup: 'बैकअप पासकी जोड़ें', pkManage: 'मेरी पासकी प्रबंधित करें', pkAddedOn: '{date} को जोड़ी गई', pkFirst: 'आपकी पहली पासकी', pkRemove: 'हटाएँ', pkRemovedOne: 'पासकी हटाई गई: बाकी अब भी वॉल्ट खोलती हैं।', pkAddedDone: 'पासकी जोड़ी गई: कोई भी, पासवर्ड के साथ, वॉल्ट खोलती है।', pkCount: '{n} पासकी सक्रिय', pkBackupTip: 'केवल एक पासकी: खो गई तो अनलॉक नहीं होगा। फ़ोन को बैकअप के रूप में जोड़ें।', pkMax: 'अधिकतम पाँच पासकी।', pkSignWith: 'मेरी पासकी से पुष्टि करें', pkSignOr: 'या पासवर्ड से', e_TOO_MANY_PASSKEYS: 'अधिकतम पाँच पासकी: पहले एक हटाएँ।',
   pkKindThisPhone: 'यह फ़ोन', pkKindThisPhoneSub: 'फ़िंगरप्रिंट, चेहरा या स्क्रीन लॉक', e_PASSKEY_NOT_HERE: 'यह ब्राउज़र एक्सटेंशन में पासकी की अनुमति नहीं देता (Android पर आम: Mises, Kiwi…)। कंप्यूटर पर Chrome, Edge या Brave में ये काम करती हैं। यहाँ आपका पासवर्ड ही सुरक्षा है।',
   reportIntro: 'बताइए क्या हुआ। केवल Kalyx और ब्राउज़र के संस्करण जोड़े जाते हैं: आपके वॉलेट से कुछ नहीं।', reportEmpty: 'पहले लिखें कि क्या हुआ।', reportTelegram: 'Telegram पर भेजें', reportCopy: 'रिपोर्ट कॉपी करें', reportCopied: 'कॉपी हुआ। इसे {email} पर संदेश में या Telegram पर चिपकाएँ।', reportMail: 'ईमेल से ({email})', copyFailed: 'यहाँ कॉपी नहीं हो सका: टेक्स्ट हाथ से चुनें।',
+  bkRule: 'कम से कम 10 अक्षर, अक्षरों और अंकों या चिह्नों के साथ, और एक्सटेंशन के पासवर्ड से अलग।', bkPhoneNote: 'फ़ोन से जुड़े खाते इस फ़ाइल में नहीं हैं: उनकी कुंजियाँ Kalyx ऐप में हैं, बैकअप ऐप से लें।', skippedTitle: '{n} वॉलेट वापस नहीं आए', skippedHint: 'वे फ़ाइल में अब भी हैं: उन्हें Kalyx ऐप में बहाल करें, या उनका वाक्यांश या कुंजी यहाँ आयात करें।',
 };

@@ -35,7 +35,7 @@ export default {
   e_BACKUP_NOT_A_BACKUP: 'هذا الملف ليس نسخة Kalyx احتياطية.', e_BACKUP_CORRUPTED: 'نسخة تالفة: لا يمكن فتحها.',
   e_BACKUP_TOO_RECENT: 'نسخة أنشأها إصدار أحدث: حدّث الإضافة.',
   e_TOO_MANY_WALLETS: 'تم بلوغ الحد الأقصى لعدد المحافظ.', e_INTERNAL: 'حدث خطأ ما. حاول مجددًا.',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin (قريبًا)', r_UNSUPPORTED_PHRASE: 'TON (قريبًا)', r_DUPLICATE: 'موجودة مسبقًا',
+  r_UNSUPPORTED_FAMILY: 'نوع المفتاح غير مدعوم هنا', r_UNSUPPORTED_PHRASE: 'العبارة غير مدعومة هنا', r_DUPLICATE: 'موجودة مسبقًا',
   popupNoVault: 'محفظتك للويب، على هذا الحاسوب.', getStarted: 'ابدأ', popupUnlockSub: 'أدخل كلمة المرور.',
   addWallet: 'إضافة محفظة', lock: 'قفل', unavailable: 'Kalyx لا تستجيب. أعد فتح النافذة.',
   tabTokens: 'التوكنات', tabActivity: 'النشاط', total: 'القيمة الإجمالية', totalUnknown: 'القيمة غير معروفة', updated: 'حُدِّث {t}',
@@ -138,4 +138,5 @@ export default {
   pkWhere: 'أين تُنشئ مفتاح المرور؟', pkKindDevice: 'هذا الكمبيوتر', pkKindDeviceSub: 'Touch ID أو Windows Hello', pkKindPhone: 'هاتفي', pkKindPhoneSub: 'iPhone أو Android عبر رمز QR: يجب أن يكون الهاتف قريبًا', pkKindKey: 'مفتاح أمان', pkKindKeySub: 'YubiKey وغيرها', pkAddBackup: 'إضافة مفتاح مرور احتياطي', pkManage: 'إدارة مفاتيح المرور', pkAddedOn: 'أُضيف في {date}', pkFirst: 'مفتاح مرورك الأول', pkRemove: 'إزالة', pkRemovedOne: 'أُزيل مفتاح المرور: البقية ما زالت تفتح الخزنة.', pkAddedDone: 'أُضيف مفتاح المرور: أيٌّ منها يفتح الخزنة مع كلمة مرورك.', pkCount: 'مفاتيح المرور النشطة: {n}', pkBackupTip: 'مفتاح مرور واحد فقط: إن فقدته فلن تستطيع فتح القفل. أضف هاتفك كاحتياطي.', pkMax: 'خمسة مفاتيح مرور كحد أقصى.', pkSignWith: 'التأكيد بمفتاح المرور', pkSignOr: 'أو بكلمة المرور', e_TOO_MANY_PASSKEYS: 'خمسة مفاتيح مرور كحد أقصى: أزل واحدًا أولًا.',
   pkKindThisPhone: 'هذا الهاتف', pkKindThisPhoneSub: 'البصمة أو الوجه أو قفل الشاشة', e_PASSKEY_NOT_HERE: 'هذا المتصفح لا يسمح بمفاتيح المرور داخل إضافة (شائع على Android: Mises وKiwi…). تعمل على الكمبيوتر في Chrome أو Edge أو Brave. هنا تبقى كلمة المرور هي حمايتك.',
   reportIntro: 'أخبرنا بما حدث. تُضاف فقط نسختا Kalyx والمتصفح: لا شيء من محفظتك.', reportEmpty: 'اكتب أولًا ما حدث.', reportTelegram: 'الإرسال عبر Telegram', reportCopy: 'نسخ التقرير', reportCopied: 'تم النسخ. الصقه في رسالة إلى {email} أو على Telegram.', reportMail: 'عبر البريد ({email})', copyFailed: 'تعذّر النسخ هنا: حدّد النص يدويًا.',
+  bkRule: '10 أحرف على الأقل، بحروف وأرقام أو رموز، ومختلفة عن كلمة مرور الإضافة.', bkPhoneNote: 'الحسابات المرتبطة بالهاتف ليست في هذا الملف: مفاتيحها في تطبيق Kalyx، انسخها احتياطيًا من التطبيق.', skippedTitle: 'لم تُستعد {n} محفظة', skippedHint: 'ما زالت في الملف: استعدها في تطبيق Kalyx، أو استورد عبارتها أو مفتاحها هنا.',
 };

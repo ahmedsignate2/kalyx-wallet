@@ -35,7 +35,7 @@ export default {
   e_BACKUP_NOT_A_BACKUP: 'Ten plik nie jest kopią zapasową Kalyx.', e_BACKUP_CORRUPTED: 'Uszkodzona kopia: nie można jej otworzyć.',
   e_BACKUP_TOO_RECENT: 'Kopia z nowszej wersji: zaktualizuj rozszerzenie.',
   e_TOO_MANY_WALLETS: 'Osiągnięto maksymalną liczbę portfeli.', e_INTERNAL: 'Coś poszło nie tak. Spróbuj ponownie.',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin (wkrótce)', r_UNSUPPORTED_PHRASE: 'TON (wkrótce)', r_DUPLICATE: 'już istnieje',
+  r_UNSUPPORTED_FAMILY: 'typ klucza nieobsługiwany tutaj', r_UNSUPPORTED_PHRASE: 'fraza nieobsługiwana tutaj', r_DUPLICATE: 'już istnieje',
   popupNoVault: 'Twój portfel do internetu, na tym komputerze.', getStarted: 'Zacznij', popupUnlockSub: 'Wpisz hasło.',
   addWallet: 'Dodaj portfel', lock: 'Zablokuj', unavailable: 'Kalyx nie odpowiada. Otwórz okno ponownie.',
   tabTokens: 'Tokeny', tabActivity: 'Aktywność', total: 'Łączna wartość', totalUnknown: 'Wartość nieznana', updated: 'Zaktualizowano {t}',
@@ -138,4 +138,5 @@ export default {
   pkWhere: 'Gdzie utworzyć passkey?', pkKindDevice: 'Ten komputer', pkKindDeviceSub: 'Touch ID, Windows Hello', pkKindPhone: 'Mój telefon', pkKindPhoneSub: 'iPhone lub Android, przez kod QR: telefon musi być w pobliżu', pkKindKey: 'Klucz bezpieczeństwa', pkKindKeySub: 'YubiKey i inne', pkAddBackup: 'Dodaj zapasowy passkey', pkManage: 'Zarządzaj passkeyami', pkAddedOn: 'Dodano {date}', pkFirst: 'Twój pierwszy passkey', pkRemove: 'Usuń', pkRemovedOne: 'Passkey usunięty: pozostałe nadal otwierają sejf.', pkAddedDone: 'Passkey dodany: każdy z nich otwiera sejf, razem z hasłem.', pkCount: 'Aktywne passkeye: {n}', pkBackupTip: 'Tylko jeden passkey: jeśli go zgubisz, nie odblokujesz. Dodaj telefon jako zapasowy.', pkMax: 'Najwyżej pięć passkeyów.', pkSignWith: 'Potwierdź passkeyem', pkSignOr: 'lub hasłem', e_TOO_MANY_PASSKEYS: 'Najwyżej pięć passkeyów: najpierw usuń jeden.',
   pkKindThisPhone: 'Ten telefon', pkKindThisPhoneSub: 'Odcisk palca, twarz lub blokada ekranu', e_PASSKEY_NOT_HERE: 'Ta przeglądarka nie pozwala na passkeye w rozszerzeniu (częste na Androidzie: Mises, Kiwi…). Działają na komputerze w Chrome, Edge lub Brave. Tutaj chroni Cię hasło.',
   reportIntro: 'Opisz, co się stało. Dodawane są tylko wersje Kalyx i przeglądarki: nic z Twojego portfela.', reportEmpty: 'Najpierw opisz, co się stało.', reportTelegram: 'Wyślij przez Telegram', reportCopy: 'Kopiuj raport', reportCopied: 'Skopiowano. Wklej w wiadomości do {email} lub na Telegramie.', reportMail: 'E-mailem ({email})', copyFailed: 'Nie można tu skopiować: zaznacz tekst ręcznie.',
+  bkRule: 'Co najmniej 10 znaków, z literami i cyframi lub symbolami, i inne niż hasło rozszerzenia.', bkPhoneNote: 'Konta połączone z telefonem nie są w tym pliku: ich klucze są w aplikacji Kalyx, zrób kopię w aplikacji.', skippedTitle: 'Nieprzywrócone portfele: {n}', skippedHint: 'Nadal są w pliku: przywróć je w aplikacji Kalyx albo zaimportuj tu ich frazę lub klucz.',
 };

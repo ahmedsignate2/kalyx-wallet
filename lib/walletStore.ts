@@ -271,7 +271,8 @@ interface WalletState {
    * restauration par-dessus une installation existante ne doit pas créer de
    * doublons, et l'utilisateur ne peut pas les distinguer une fois créés.
    */
-  importWallets: (wallets: readonly BackupWallet[], pin: string) => Promise<number>;
+  /** Ajoute les portefeuilles d'une sauvegarde ; ceux qui ne rentrent pas sont rendus, avec la raison (jamais en silence). */
+  importWallets: (wallets: readonly BackupWallet[], pin: string) => Promise<ImportReport>;
   /** Recrée les comptes (numéro + nom) d'une sauvegarde pour un portefeuille à phrase BIP-39. */
   restoreAccounts: (walletId: string, accounts: readonly { index: number; label: string }[], pin: string) => Promise<void>;
   /**
@@ -558,6 +559,12 @@ export function phraseKindForImport(mnemonic: string): RecoveryPhraseKind {
  * Le leurre n'est PAS dans la liste des portefeuilles : sa description vit à
  * part, dans le trousseau ; son coffre est chiffré avec le code de contrainte.
  */
+/** Bilan d'une restauration : ajoutés, et ceux qui ne sont pas rentrés (avec la raison). */
+export interface ImportReport {
+  added: number;
+  skipped: { label: string; reason: 'duplicate' | 'unsupported' | 'invalid' }[];
+}
+
 const K_DURESS = 'kalyx.duress';
 type DuressMeta = { id: string; label: string; avatar?: string };
 
@@ -2012,6 +2019,7 @@ export const useWallet = create<WalletState>((set, get) => ({
       }
     }
     let added = 0;
+    const skipped: ImportReport['skipped'] = [];
     // Code prouvé (ou premier portefeuille : c'est lui qui le fixe) : les imports qui suivent ne le reprouvent pas.
     provenPin = pin;
     try {
@@ -2019,23 +2027,37 @@ export const useWallet = create<WalletState>((set, get) => ({
       await withSealBatch(async () => {
         for (const w of list) {
           const fp = fingerprint(w.secret);
-          if (known.has(fp)) continue;
-          known.add(fp); // deux fois le même dans la sauvegarde : un seul portefeuille
-
-          if (w.type === 'privateKey') {
-            await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
-          } else {
-            await get().importWallet(w.secret, pin, w.label, { discover: false });
-            // La phrase est EN MAIN : la relire dans le coffre qu'on vient d'écrire coûtait un scrypt de plus.
-            if (w.accounts?.length) await restoreAccountsFrom(get().activeWalletId, canonicalMnemonic(w.secret), w.accounts);
+          if (known.has(fp)) {
+            skipped.push({ label: w.label, reason: 'duplicate' });
+            continue;
           }
-          added += 1;
+          known.add(fp); // deux fois le même dans la sauvegarde : un seul portefeuille
+          /*
+           * Un portefeuille qui ne rentre pas (famille pas encore prise en
+           * charge, secret illisible) est COMPTÉ et l'import continue : il
+           * arrêtait tout, et ceux d'après n'étaient jamais restaurés. Un code
+           * faux, lui, arrête tout (rien ne rentrerait).
+           */
+          try {
+            if (w.type === 'privateKey') {
+              await get().importPrivateKey(w.secret, pin, w.label, w.keyFamily ?? 'evm');
+            } else {
+              await get().importWallet(w.secret, pin, w.label, { discover: false });
+              // La phrase est EN MAIN : la relire dans le coffre qu'on vient d'écrire coûtait un scrypt de plus.
+              if (w.accounts?.length) await restoreAccountsFrom(get().activeWalletId, canonicalMnemonic(w.secret), w.accounts);
+            }
+            added += 1;
+          } catch (e) {
+            // Code faux, trop d'essais, panne de stockage : tout s'arrête (rien d'autre ne rentrerait).
+            if (!isWalletError(e) || e.code === 'WRONG_PIN' || e.code === 'INVALID_PIN' || e.code === 'LOCKED_OUT') throw e;
+            skipped.push({ label: w.label, reason: e.code === 'NOT_SUPPORTED' ? 'unsupported' : 'invalid' });
+          }
         }
       });
     } finally {
       provenPin = null;
     }
-    return added;
+    return { added, skipped };
   },
 
   restoreAccounts: async (walletId, list, pin) => {

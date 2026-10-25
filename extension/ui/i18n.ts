@@ -97,8 +97,8 @@ const fr = {
   e_BACKUP_TOO_RECENT: 'Sauvegarde créée par une version plus récente : mets l’extension à jour.',
   e_TOO_MANY_WALLETS: 'Nombre maximal de portefeuilles atteint.',
   e_INTERNAL: 'Une erreur est survenue. Réessaie.',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin (bientôt)',
-  r_UNSUPPORTED_PHRASE: 'TON (bientôt)',
+  r_UNSUPPORTED_FAMILY: 'type de clé non pris en charge ici',
+  r_UNSUPPORTED_PHRASE: 'phrase non prise en charge ici',
   r_DUPLICATE: 'déjà présent',
   popupNoVault: 'Ton portefeuille pour le web, sur cet ordinateur.',
   getStarted: 'Commencer',
@@ -306,6 +306,7 @@ const fr = {
   pkWhere: 'Où créer la passkey ?', pkKindDevice: 'Cet ordinateur', pkKindDeviceSub: 'Touch ID, Windows Hello', pkKindPhone: 'Mon téléphone', pkKindPhoneSub: 'iPhone ou Android, par QR code : le téléphone doit être à côté', pkKindKey: 'Clé de sécurité', pkKindKeySub: 'YubiKey et autres', pkAddBackup: 'Ajouter une passkey de secours', pkManage: 'Gérer mes passkeys', pkAddedOn: 'Ajoutée le {date}', pkFirst: 'Ta première passkey', pkRemove: 'Retirer', pkRemovedOne: 'Passkey retirée : les autres ouvrent toujours le coffre.', pkAddedDone: 'Passkey ajoutée : l’une ou l’autre ouvre le coffre, avec ton mot de passe.', pkCount: '{n} passkey(s) active(s)', pkBackupTip: 'Une seule passkey : si tu la perds, plus de déverrouillage. Ajoute ton téléphone en secours.', pkMax: 'Cinq passkeys au plus.', pkSignWith: 'Confirmer avec ma passkey', pkSignOr: 'ou avec ton mot de passe', e_TOO_MANY_PASSKEYS: 'Cinq passkeys au plus : retires-en une d’abord.',
   pkKindThisPhone: 'Ce téléphone', pkKindThisPhoneSub: 'Empreinte, visage ou code de l’écran', e_PASSKEY_NOT_HERE: 'Ce navigateur ne permet pas les passkeys dans une extension (fréquent sur Android : Mises, Kiwi…). Elles fonctionnent sur ordinateur, dans Chrome, Edge ou Brave. Le mot de passe reste ta protection ici.',
   reportIntro: 'Dis-nous ce qui s’est passé. Seules la version de Kalyx et celle du navigateur sont ajoutées : rien de ton portefeuille.', reportEmpty: 'Écris d’abord ce qui s’est passé.', reportTelegram: 'Envoyer sur Telegram', reportCopy: 'Copier le rapport', reportCopied: 'Copié. Colle-le dans un message à {email} ou sur Telegram.', reportMail: 'Par e-mail ({email})', copyFailed: 'Copie impossible ici : sélectionne le texte à la main.',
+  bkRule: 'Au moins 10 caractères, avec lettres et chiffres ou symboles, et différent du mot de passe de l’extension.', bkPhoneNote: 'Les comptes reliés au téléphone ne sont pas dans ce fichier : leurs clés vivent dans l’app Kalyx, sauvegarde-les depuis l’app.', skippedTitle: '{n} portefeuille(s) non repris', skippedHint: 'Ils restent dans le fichier : restaure-les dans l’app Kalyx, ou importe leur phrase ou leur clé ici.',
 };
 
 type Dict = typeof fr;
@@ -387,8 +388,8 @@ const en: Dict = {
   e_BACKUP_TOO_RECENT: 'Backup made by a newer version: update the extension.',
   e_TOO_MANY_WALLETS: 'Maximum number of wallets reached.',
   e_INTERNAL: 'Something went wrong. Try again.',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin (coming soon)',
-  r_UNSUPPORTED_PHRASE: 'TON (coming soon)',
+  r_UNSUPPORTED_FAMILY: 'key type not supported here',
+  r_UNSUPPORTED_PHRASE: 'phrase not supported here',
   r_DUPLICATE: 'already there',
   popupNoVault: 'Your wallet for the web, on this computer.',
   getStarted: 'Get started',
@@ -596,6 +597,7 @@ const en: Dict = {
   pkWhere: 'Where to create the passkey?', pkKindDevice: 'This computer', pkKindDeviceSub: 'Touch ID, Windows Hello', pkKindPhone: 'My phone', pkKindPhoneSub: 'iPhone or Android, via QR code: the phone must be nearby', pkKindKey: 'Security key', pkKindKeySub: 'YubiKey and others', pkAddBackup: 'Add a backup passkey', pkManage: 'Manage my passkeys', pkAddedOn: 'Added on {date}', pkFirst: 'Your first passkey', pkRemove: 'Remove', pkRemovedOne: 'Passkey removed: the others still open the vault.', pkAddedDone: 'Passkey added: either one opens the vault, with your password.', pkCount: '{n} passkey(s) on', pkBackupTip: 'Only one passkey: if you lose it, no more unlocking. Add your phone as a backup.', pkMax: 'Five passkeys at most.', pkSignWith: 'Confirm with my passkey', pkSignOr: 'or with your password', e_TOO_MANY_PASSKEYS: 'Five passkeys at most: remove one first.',
   pkKindThisPhone: 'This phone', pkKindThisPhoneSub: 'Fingerprint, face or screen lock', e_PASSKEY_NOT_HERE: 'This browser doesn’t allow passkeys in an extension (common on Android: Mises, Kiwi…). They work on a computer, in Chrome, Edge or Brave. Your password remains your protection here.',
   reportIntro: 'Tell us what happened. Only the Kalyx and browser versions are added: nothing from your wallet.', reportEmpty: 'First write what happened.', reportTelegram: 'Send on Telegram', reportCopy: 'Copy the report', reportCopied: 'Copied. Paste it in a message to {email} or on Telegram.', reportMail: 'By email ({email})', copyFailed: 'Can’t copy here: select the text by hand.',
+  bkRule: 'At least 10 characters, with letters and digits or symbols, and different from the extension password.', bkPhoneNote: 'Accounts linked to the phone aren’t in this file: their keys live in the Kalyx app, back them up from the app.', skippedTitle: '{n} wallet(s) not restored', skippedHint: 'They’re still in the file: restore them in the Kalyx app, or import their phrase or key here.',
 };
 
 export type Key = keyof Dict;

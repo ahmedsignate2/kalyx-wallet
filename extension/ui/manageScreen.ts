@@ -15,7 +15,7 @@ import { cascade, pulse } from './motion';
 import { shortAddr } from './address';
 import { errorText, t } from './i18n';
 import { passwordStrength } from '../../src/security/passwordStrength';
-import { MIN_PASSWORD_LENGTH } from '../lib/policy';
+import { MIN_PASSWORD_LENGTH, passwordAccepted } from '../lib/policy';
 
 export interface ManagedWallet {
   id: string;
@@ -225,14 +225,25 @@ export function exportBackupSheet() {
   const bk = strengthField(t('bkPassword'));
   const again = pwInput(t('bkConfirm'), 'new-password');
   const e = h('p', { class: 'error', role: 'alert' });
-  const go = h('button', { class: 'btn', type: 'button', 'data-testid': 'backup-export' }, t('bkExport'));
-  const sheet = openSheet(t('bkExport'), h('p', { class: 'small muted' }, t('bkNote')), pw, ...bk.nodes, again, e, go);
+  // Même règle que le service worker : le bouton ne s'active qu'avec un mot de passe assez fort pour le fichier.
+  const go = h('button', { class: 'btn', type: 'button', disabled: true, 'data-testid': 'backup-export' }, t('bkExport'));
+  const rule = h('p', { class: 'small muted', 'data-testid': 'bk-rule' }, t('bkRule'));
+  const ready = () => (go.disabled = !passwordAccepted(bk.input.value) || !again.value);
+  bk.input.addEventListener('input', ready);
+  again.addEventListener('input', ready);
+  // Comptes du téléphone (mode compagnon) : leurs clés sont dans l'app, pas dans ce fichier — dit avant d'exporter.
+  const phoneNote = h('div', { hidden: true, 'data-testid': 'bk-phone-note' });
+  void send<{ wallets: { kind?: string }[] }>({ type: 'wallet:list' }).then((r) => {
+    if (r.ok && r.wallets.some((w) => w.kind === 'companion')) phoneNote.replaceChildren(h('p', { class: 'banner', role: 'note' }, glyph('alert', 16), h('span', {}, t('bkPhoneNote')))), (phoneNote.hidden = false);
+  });
+  const sheet = openSheet(t('bkExport'), h('p', { class: 'small muted' }, t('bkNote')), phoneNote, pw, ...bk.nodes, rule, again, e, go);
   let count = 0;
   submit(
     go,
     e,
     async () => {
       if (bk.input.value !== again.value) return { ok: false, text: t('pwMismatch') };
+      if (!passwordAccepted(bk.input.value)) return { ok: false, error: 'WEAK_BACKUP_PASSWORD' };
       const r = await send<{ file: string; count: number }>({ type: 'wallet:export-backup', password: pw.value, backupPassword: bk.input.value });
       pw.value = '';
       if (!r.ok) return r;

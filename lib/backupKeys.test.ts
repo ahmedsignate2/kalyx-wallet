@@ -287,6 +287,21 @@ describe('Restauration depuis Drive : sauvegarde « à jour » seulement si l’
     expect(mockMarkBackup.mock.calls[0][1]).toBe(useLiveBackupDigest.getState().digest);
   });
 
+  it('restauration : un portefeuille illisible est compté, l’import continue ; un doublon est nommé', async () => {
+    expectRestoredBackup([{ label: 'Clé', type: 'privateKey', keyFamily: 'evm', secret: EVM_KEY }]);
+    const r = await W().importWallets(
+      [
+        { label: 'Abîmée', type: 'privateKey', keyFamily: 'evm', secret: 'pas une clé' },
+        { label: 'Clé', type: 'privateKey', keyFamily: 'evm', secret: EVM_KEY },
+        { label: 'Bonne', type: 'privateKey', keyFamily: 'evm', secret: '0x' + '11'.repeat(32) },
+      ],
+      PIN,
+    );
+    expect(r).toEqual({ added: 1, skipped: [{ label: 'Abîmée', reason: 'invalid' }, { label: 'Clé', reason: 'duplicate' }] });
+    expect(W().wallets.some((w) => w.label === 'Bonne')).toBe(true);
+    await teardownAutoSyncKeys();
+  });
+
   it('portefeuilles déjà présents : la sauvegarde reste à mettre à jour', async () => {
     mockMarkBackup.mockClear();
     expectRestoredBackup([{ label: 'Clé', type: 'privateKey', keyFamily: 'evm', secret: EVM_KEY }]);

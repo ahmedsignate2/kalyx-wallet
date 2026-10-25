@@ -35,7 +35,7 @@ export default {
   e_BACKUP_NOT_A_BACKUP: 'Bu dosya bir Kalyx yedeği değil.', e_BACKUP_CORRUPTED: 'Hasarlı yedek: açılamıyor.',
   e_BACKUP_TOO_RECENT: 'Daha yeni bir sürümle oluşturulmuş yedek: uzantıyı güncelle.',
   e_TOO_MANY_WALLETS: 'En fazla cüzdan sayısına ulaşıldı.', e_INTERNAL: 'Bir sorun oluştu. Tekrar dene.',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin (yakında)', r_UNSUPPORTED_PHRASE: 'TON (yakında)', r_DUPLICATE: 'zaten var',
+  r_UNSUPPORTED_FAMILY: 'anahtar türü burada desteklenmiyor', r_UNSUPPORTED_PHRASE: 'cümle burada desteklenmiyor', r_DUPLICATE: 'zaten var',
   popupNoVault: 'Bu bilgisayarda, web için cüzdanın.', getStarted: 'Başla', popupUnlockSub: 'Parolanı gir.',
   addWallet: 'Cüzdan ekle', lock: 'Kilitle', unavailable: 'Kalyx yanıt vermiyor. Pencereyi yeniden aç.',
   tabTokens: 'Token’lar', tabActivity: 'Etkinlik', total: 'Toplam değer', totalUnknown: 'Değer bilinmiyor', updated: 'Güncellendi {t}',
@@ -138,4 +138,5 @@ export default {
   pkWhere: 'Passkey nerede oluşturulsun?', pkKindDevice: 'Bu bilgisayar', pkKindDeviceSub: 'Touch ID, Windows Hello', pkKindPhone: 'Telefonum', pkKindPhoneSub: 'iPhone veya Android, QR kod ile: telefon yakında olmalı', pkKindKey: 'Güvenlik anahtarı', pkKindKeySub: 'YubiKey ve diğerleri', pkAddBackup: 'Yedek passkey ekle', pkManage: 'Passkey’lerimi yönet', pkAddedOn: '{date} tarihinde eklendi', pkFirst: 'İlk passkey’in', pkRemove: 'Kaldır', pkRemovedOne: 'Passkey kaldırıldı: diğerleri kasayı açmaya devam eder.', pkAddedDone: 'Passkey eklendi: herhangi biri şifrenle birlikte kasayı açar.', pkCount: '{n} passkey etkin', pkBackupTip: 'Yalnızca bir passkey: kaybedersen kilidi açamazsın. Telefonunu yedek olarak ekle.', pkMax: 'En fazla beş passkey.', pkSignWith: 'Passkey’imle onayla', pkSignOr: 'ya da şifrenle', e_TOO_MANY_PASSKEYS: 'En fazla beş passkey: önce birini kaldır.',
   pkKindThisPhone: 'Bu telefon', pkKindThisPhoneSub: 'Parmak izi, yüz veya ekran kilidi', e_PASSKEY_NOT_HERE: 'Bu tarayıcı bir uzantıda passkey kullanımına izin vermiyor (Android’de sık görülür: Mises, Kiwi…). Bilgisayarda Chrome, Edge veya Brave’de çalışırlar. Burada korumanı şifren sağlar.',
   reportIntro: 'Ne olduğunu anlat. Yalnızca Kalyx ve tarayıcı sürümleri eklenir: cüzdanından hiçbir şey eklenmez.', reportEmpty: 'Önce ne olduğunu yaz.', reportTelegram: 'Telegram’dan gönder', reportCopy: 'Raporu kopyala', reportCopied: 'Kopyalandı. {email} adresine veya Telegram’a yapıştır.', reportMail: 'E-postayla ({email})', copyFailed: 'Burada kopyalanamıyor: metni elle seç.',
+  bkRule: 'En az 10 karakter, harf ve rakam ya da sembol içermeli ve uzantı şifresinden farklı olmalı.', bkPhoneNote: 'Telefona bağlı hesaplar bu dosyada yok: anahtarları Kalyx uygulamasında, yedeklerini uygulamadan al.', skippedTitle: '{n} cüzdan geri yüklenmedi', skippedHint: 'Hâlâ dosyadalar: Kalyx uygulamasında geri yükle ya da cümlelerini veya anahtarlarını buradan içe aktar.',
 };

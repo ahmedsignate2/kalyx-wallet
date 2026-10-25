@@ -175,7 +175,7 @@ describe('magasin × TON, dans l’ordre où l’utilisateur le vit', () => {
     expect(ton.secret).toBe(tonPhrase.phrase);
     expect(classifyRecoveryPhrase(ton.secret)).toBe('ton');
     // Restaurer par-dessus : doublons détectés, rien n'est ajouté deux fois.
-    expect(await W().importWallets(all, PIN)).toBe(0);
+    expect(await W().importWallets(all, PIN)).toEqual({ added: 0, skipped: [{ label: expect.any(String), reason: "duplicate" }, { label: expect.any(String), reason: "duplicate" }] });
   });
 
   /*

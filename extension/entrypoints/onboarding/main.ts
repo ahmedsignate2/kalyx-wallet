@@ -575,9 +575,10 @@ function importBackupScreen() {
           if (!r.ok) return showError(err, r);
           pw.value = '';
           const notes = [t('added', { n: r.added.length })];
-          if (r.skipped.length) notes.push(t('skipped', { list: r.skipped.map((s) => `${s.label} (${reasonText(s.reason)})`).join(', ') }));
-          if (!r.added.length) return void (err.textContent = notes.join(' '));
-          finish(notes);
+          // Ce qui n'est PAS rentré se voit (bandeau d'alerte, un par ligne) : sinon on croit tout restauré.
+          const warns = r.skipped.map((s) => `${s.label} — ${reasonText(s.reason)}`);
+          if (!r.added.length) return void (err.textContent = [notes[0], t('skipped', { list: warns.join(', ') })].join(' '));
+          finish(notes, warns);
         },
       },
     },
@@ -657,7 +658,7 @@ void (async () => {
 })();
 
 /* ── Fin ── */
-async function finish(notes: string[] = []) {
+async function finish(notes: string[] = [], skipped: string[] = []) {
   // La phrase créée n'a plus rien à faire dans cette page.
   phrase = '';
   const [list, st] = await Promise.all([send<{ wallets: WalletMeta[] }>({ type: 'wallet:list' }), send<{ autoLockMin: number }>({ type: 'vault:status' })]);
@@ -667,6 +668,8 @@ async function finish(notes: string[] = []) {
     h('div', { class: 'success-badge' }, glyph('check', 34)),
     h('h1', {}, t('doneTitle')),
     ...notes.map((n) => h('p', { class: 'ok' }, n)),
+    skipped.length > 0 &&
+      h('div', { class: 'banner warn', role: 'alert', 'data-testid': 'import-skipped' }, glyph('warning', 18), h('div', { class: 'grow' }, h('strong', {}, t('skippedTitle', { n: skipped.length })), ...skipped.map((x) => h('p', { class: 'small' }, x)), h('p', { class: 'small muted' }, t('skippedHint')))),
     ...wallets.map((w) =>
       h(
         'div',

@@ -38,7 +38,7 @@ export default {
   e_BACKUP_UNREADABLE: '이 파일은 Kalyx 백업이 아닙니다.', e_BACKUP_NOT_A_BACKUP: '이 파일은 Kalyx 백업이 아닙니다.',
   e_BACKUP_CORRUPTED: '백업이 손상되어 열 수 없습니다.', e_BACKUP_TOO_RECENT: '더 최신 버전에서 만든 백업입니다. 확장 프로그램을 업데이트하세요.',
   e_TOO_MANY_WALLETS: '최대 지갑 수에 도달했습니다.', e_INTERNAL: '문제가 발생했습니다. 다시 시도하세요.',
-  r_UNSUPPORTED_FAMILY: 'Bitcoin(곧 지원)', r_UNSUPPORTED_PHRASE: 'TON(곧 지원)', r_DUPLICATE: '이미 있음',
+  r_UNSUPPORTED_FAMILY: '여기서 지원하지 않는 키 유형', r_UNSUPPORTED_PHRASE: '여기서 지원하지 않는 문구', r_DUPLICATE: '이미 있음',
   popupNoVault: '이 컴퓨터에서 쓰는 웹용 지갑.', getStarted: '시작하기', popupUnlockSub: '비밀번호를 입력하세요.',
   addWallet: '지갑 추가', lock: '잠금', unavailable: 'Kalyx가 응답하지 않습니다. 창을 다시 여세요.',
   tabTokens: '토큰', tabActivity: '활동', total: '총 가치', totalUnknown: '가치 알 수 없음',
@@ -152,4 +152,5 @@ export default {
   pkWhere: '패스키를 어디에 만들까요?', pkKindDevice: '이 컴퓨터', pkKindDeviceSub: 'Touch ID, Windows Hello', pkKindPhone: '내 휴대폰', pkKindPhoneSub: 'iPhone 또는 Android, QR 코드로: 휴대폰이 가까이 있어야 합니다', pkKindKey: '보안 키', pkKindKeySub: 'YubiKey 등', pkAddBackup: '예비 패스키 추가', pkManage: '내 패스키 관리', pkAddedOn: '{date}에 추가됨', pkFirst: '첫 번째 패스키', pkRemove: '제거', pkRemovedOne: '패스키를 제거했습니다: 나머지로 계속 금고를 열 수 있습니다.', pkAddedDone: '패스키를 추가했습니다: 어느 것이든 비밀번호와 함께 금고를 엽니다.', pkCount: '활성 패스키 {n}개', pkBackupTip: '패스키가 하나뿐입니다: 잃어버리면 잠금 해제할 수 없습니다. 휴대폰을 예비로 추가하세요.', pkMax: '패스키는 최대 5개입니다.', pkSignWith: '내 패스키로 확인', pkSignOr: '또는 비밀번호로', e_TOO_MANY_PASSKEYS: '패스키는 최대 5개입니다: 먼저 하나를 제거하세요.',
   pkKindThisPhone: '이 휴대폰', pkKindThisPhoneSub: '지문, 얼굴 또는 화면 잠금', e_PASSKEY_NOT_HERE: '이 브라우저는 확장 프로그램에서 패스키를 허용하지 않습니다(Android에서 흔함: Mises, Kiwi 등). 컴퓨터의 Chrome, Edge, Brave에서는 작동합니다. 여기서는 비밀번호가 보호해 줍니다.',
   reportIntro: '무슨 일이 있었는지 알려 주세요. Kalyx와 브라우저 버전만 추가되며 지갑 정보는 포함되지 않습니다.', reportEmpty: '먼저 무슨 일이 있었는지 적어 주세요.', reportTelegram: 'Telegram으로 보내기', reportCopy: '보고서 복사', reportCopied: '복사했습니다. {email}로 보내는 메일이나 Telegram에 붙여 넣으세요.', reportMail: '이메일로 ({email})', copyFailed: '여기서는 복사할 수 없습니다: 텍스트를 직접 선택하세요.',
+  bkRule: '10자 이상, 문자와 숫자 또는 기호를 포함하고 확장 프로그램 비밀번호와 달라야 합니다.', bkPhoneNote: '휴대폰에 연결된 계정은 이 파일에 없습니다: 키는 Kalyx 앱에 있으니 앱에서 백업하세요.', skippedTitle: '복원되지 않은 지갑 {n}개', skippedHint: '파일에는 그대로 있습니다: Kalyx 앱에서 복원하거나 여기서 문구나 키를 가져오세요.',
 };

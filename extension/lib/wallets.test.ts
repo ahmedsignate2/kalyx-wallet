@@ -6,7 +6,7 @@ import { makeStore, type StorageArea } from './storage';
 import { makeWallets } from './wallets';
 import { readSecret } from './vault';
 import { accountActivity, discoverAccounts, type Rpc } from './discovery';
-import { createWalletsBackup } from '../../src/domain/backup/cloudBackup';
+import { createWalletsBackup, restoreBackup } from '../../src/domain/backup/cloudBackup';
 import { deriveEvmAccount } from '../../src/crypto/hd';
 import { mnemonicToSeedSync } from '../../src/crypto/mnemonic';
 import { signerFor, signerAddress } from './signer';
@@ -265,6 +265,19 @@ describe('clés Bitcoin et phrases TON', () => {
     const s = await signerFor(session, wallets, w.id, 0, 'ton', w.accounts[0].ton!);
     expect(signerAddress(s, 'ton')).toBe(w.accounts[0].ton);
     await expect(wallets.addAccounts(w.id, [1])).rejects.toThrow('NOT_SUPPORTED');
+  });
+
+  test('phrase TON native, aller-retour : fichier de l’app → extension → fichier → lu comme l’app le lit', async () => {
+    const PHRASE = 'hospital stove relief fringe tongue always charge angry urge sentence again match nerve inquiry senior coconut label tumble carry category beauty bean road solution';
+    // Comme l'app l'écrit : une phrase TON est rangée en « seed », la lecture la reconnaît d'après la phrase.
+    const fromApp = await createWalletsBackup([{ label: 'Mon TON', type: 'seed', secret: PHRASE }], 'Sauvegarde-Mobile-9');
+    const r = await wallets.importBackup(fromApp, 'Sauvegarde-Mobile-9');
+    expect(r.skipped).toEqual([]);
+    expect(r.added[0]).toMatchObject({ label: 'Mon TON', phrase: 'ton' });
+    expect(r.added[0].accounts[0].ton).toBe('UQDSLOFVamNZzdy4LulclcCBEFkRReZ7WscBCLAw3Pg53h3h');
+    const { file } = await wallets.exportBackup('Sauvegarde-Retour-7');
+    const back = await restoreBackup(file, 'Sauvegarde-Retour-7');
+    expect(back.wallets).toEqual([expect.objectContaining({ label: 'Mon TON', type: 'seed', secret: PHRASE })]);
   });
 });
 

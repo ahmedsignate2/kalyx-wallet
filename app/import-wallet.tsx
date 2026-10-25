@@ -12,7 +12,6 @@ import { spacing, useTheme, fontSize, radii } from '../ui/theme';
 import { useWallet, phraseKindForImport } from '../lib/walletStore';
 import { useT, useSettings } from '../lib/settingsStore';
 import { friendlyTxError } from '../lib/txError';
-import { toast } from '../lib/toast';
 import {
   isWalletError,
   restoreBackup,
@@ -30,6 +29,7 @@ import {
 import { isDriveConfigured } from '../lib/googleDrive';
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { useResetToHome } from '../lib/nav';
+import { showImportReport } from '../lib/importReport';
 
 type Mode = 'phrase' | 'key' | 'backup';
 
@@ -188,8 +188,7 @@ export default function ImportWallet() {
         await importPrivateKey(text, pin, label, chosen);
       } else {
         if (!restored) return;
-        const added = await importWallets(restored, pin);
-        toast.success(t('backupRestoredCount').replace('{count}', String(added)));
+        showImportReport(await importWallets(restored, pin), t);
       }
       setAskPin(false);
       goHome();

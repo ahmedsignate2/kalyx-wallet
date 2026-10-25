@@ -29,6 +29,7 @@ import { classifyRecoveryPhrase, isWalletError, restoreBackup, type BackupError,
 import { KeyboardAvoid } from '../ui/KeyboardAvoid';
 import { useShallow } from 'zustand/react/shallow';
 import { ScreenDunes } from '../ui/nova';
+import { showImportReport } from '../lib/importReport';
 
 export default function RestoreDriveScreen() {
   // Phrase, clé ou mot de passe saisis ici : aucune capture d'écran.
@@ -156,10 +157,10 @@ export default function RestoreDriveScreen() {
     if (!pendingWallets?.length) return;
     setPinBusy(true);
     try {
-      const added = await importWallets(pendingWallets, pin);
+      const report = await importWallets(pendingWallets, pin);
       setPendingWallets(null);
       flow.reset();
-      toast.success(t('backupRestoredCount').replace('{count}', String(added)));
+      showImportReport(report, t);
       router.replace('/wallets');
     } catch (e) {
       // Code refusé : on secoue. Toute autre erreur (stockage, sauvegarde) est DITE —
