@@ -120,13 +120,23 @@ async function linkScreen(more = false) {
   const wait = h('p', { class: 'pill quiet status comp-wait', role: 'status' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('compWaiting'));
   const retry = h('button', { class: 'btn secondary', type: 'button', hidden: true, on: { click: () => void linkScreen(more) } }, t('retry'));
   const point = (icon: string, text: string) => h('li', {}, h('span', { class: 'ob-v-ico' }, glyph(icon, 18)), h('span', {}, text));
+  /*
+   * Sur un téléphone, on ne scanne pas son propre écran : « Ouvrir dans l'app
+   * Kalyx » (lien kalyx://wc) en premier, le QR replié pour un autre appareil.
+   * Partout : copier le lien, à coller dans l'app (WalletConnect → Coller).
+   */
+  const onPhone = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+  const steps = h('p', { class: 'small muted' }, t('compSteps'));
+  const qrWrap = h('div', { class: 'web-link', hidden: onPhone }, box, steps);
+  const options = h('div', { class: 'stack web-options', hidden: true });
   frame(
     idle && h('p', { class: 'banner warn', role: 'status' }, glyph('clock', 16), h('span', { class: 'grow' }, t('webIdle'))),
     more && h('button', { class: 'link', type: 'button', on: { click: () => void wallet.load() } }, glyph('back', 18), t('back')),
     h('h2', { class: 'web-title' }, t('compTitle')),
     !more && h('p', { class: 'muted' }, t('webIntro')),
     !more && h('ul', { class: 'ob-values' }, point('lock', t('webPt1')), point('scan', t('webPt2')), point('wallet', t('webPt3'))),
-    h('div', { class: 'web-link' }, box, h('p', { class: 'small muted' }, t('compSteps'))),
+    options,
+    qrWrap,
     wait,
     err,
     retry,
@@ -144,9 +154,50 @@ async function linkScreen(more = false) {
   box.removeAttribute('style');
   box.replaceChildren(qrSvg(st.uri, 200));
   box.setAttribute('aria-label', t('compTitle'));
+  options.replaceChildren(...linkOptions(st.uri, onPhone, qrWrap));
+  options.hidden = false;
   const got = await send<{ candidate: Candidate }>({ type: 'companion:wait' });
   if (!got.ok) return fail(got);
   confirmScreen(got.candidate);
+}
+
+/** Ouvrir l'app sur ce téléphone, afficher le QR pour un autre appareil, copier le lien. */
+function linkOptions(uri: string, onPhone: boolean, qrWrap: HTMLElement): Node[] {
+  const encoded = encodeURIComponent(uri);
+  const open = () => {
+    // L'app s'ouvre ; cet onglet reste ouvert et reçoit l'accord. App absente : la page relais propose de l'installer.
+    location.href = `kalyx://wc?uri=${encoded}`;
+    setTimeout(() => {
+      if (!document.hidden) window.open(`https://kalyxwallet.com/wc?uri=${encoded}`, '_blank', 'noopener,noreferrer');
+    }, 1500);
+  };
+  const label = h('span', {}, t('webCopyLink'));
+  const copy = h('button', { class: 'btn ghost', type: 'button', 'data-testid': 'copy-link' }, glyph('copy', 16), label);
+  copy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(uri);
+      label.textContent = t('webCopied');
+      setTimeout(() => (label.textContent = t('webCopyLink')), 2500);
+    } catch {
+      /* presse-papiers refusé : le QR reste là */
+    }
+  });
+  const toggle = h('button', { class: 'link small center-self', type: 'button' }, t('webShowQr'));
+  toggle.addEventListener('click', () => {
+    qrWrap.hidden = !qrWrap.hidden;
+    toggle.textContent = t(qrWrap.hidden ? 'webShowQr' : 'webHideQr');
+  });
+  return [
+    ...(onPhone
+      ? [
+          h('button', { class: 'btn', type: 'button', 'data-testid': 'open-app', on: { click: open } }, glyph('walletconnect', 18), t('webOpenApp')),
+          h('p', { class: 'small muted center-text' }, t('webSameDevice')),
+          toggle,
+        ]
+      : []),
+    copy,
+    h('p', { class: 'small muted center-text' }, t('webCopyHint')),
+  ];
 }
 
 function confirmScreen(c: Candidate) {
@@ -188,7 +239,7 @@ function confirmScreen(c: Candidate) {
 }
 
 declare const __KALYX_WEB_TEST__: boolean;
-if (__KALYX_WEB_TEST__) (window as unknown as { __kalyxWebTest: unknown }).__kalyxWebTest = { host, load: () => wallet.load(true) };
+if (__KALYX_WEB_TEST__) (window as unknown as { __kalyxWebTest: unknown }).__kalyxWebTest = { host, load: () => wallet.load(true), linkOptions: (uri: string, phone: boolean) => linkOptions(uri, phone, h('div')) };
 
 async function boot() {
   // Revenu après plus de 30 min : on repart de zéro (la liaison précédente est fermée).

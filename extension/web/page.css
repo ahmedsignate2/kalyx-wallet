@@ -22,3 +22,6 @@ body { min-height: 100vh; min-height: 100dvh; }
 .web-access .ob-values li { text-align: start; display: flex; align-items: center; gap: 12px; font-size: 14.5px; line-height: 19px; font-weight: 500; }
 .web-access .ob-v-ico { flex: none; width: 34px; height: 34px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--ink-send) 14%, var(--surface-2)); color: var(--ink-send); }
 .web-access a { color: var(--text); }
+.web-options { gap: 8px; }
+.web-options .btn.ghost { min-height: 44px; }
+.center-self { align-self: center; }

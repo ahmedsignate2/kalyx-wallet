@@ -154,4 +154,5 @@ export default {
   reportIntro: '告诉我们发生了什么。只会附上 Kalyx 和浏览器的版本：不含钱包的任何信息。', reportEmpty: '请先写下发生了什么。', reportTelegram: '通过 Telegram 发送', reportCopy: '复制报告', reportCopied: '已复制。粘贴到发给 {email} 的邮件或 Telegram 中。', reportMail: '通过邮件（{email}）', copyFailed: '此处无法复制：请手动选择文本。',
   bkRule: '至少 10 个字符，包含字母和数字或符号，且与扩展密码不同。', bkPhoneNote: '与手机关联的账户不在此文件中：它们的密钥在 Kalyx 应用里，请在应用中备份。', skippedTitle: '{n} 个钱包未恢复', skippedHint: '它们仍在文件中：请在 Kalyx 应用中恢复，或在此导入其助记词或私钥。',
   webSignOut: '退出', webSignOutBody: '与手机的关联会关闭，此浏览器中不会留下任何 Kalyx 数据。你的资产不会变动：它们在应用里。', webIntro: '密钥由手机保管。在这里你可以查看所有钱包并准备转账；每个操作都在 Kalyx 应用中确认。', webPt1: '这台电脑上没有任何密钥', webPt2: '每次转账、兑换或撤销都在手机上确认', webPt3: '所有钱包的余额、代币、NFT 和活动', webNoApp: '还没有 Kalyx 应用？', webIdle: '30 分钟无操作后已退出。关联手机即可继续。', webLinkCta: '关联我的手机',
+  webOpenApp: '在 Kalyx 应用中打开', webSameDevice: 'Kalyx 会在这部手机上打开：确认关联后回到本页面。', webShowQr: '显示二维码（其他设备）', webHideQr: '隐藏二维码', webCopyLink: '复制连接链接', webCopied: '链接已复制', webCopyHint: '在 Kalyx 应用中：WalletConnect，然后粘贴。',
 };

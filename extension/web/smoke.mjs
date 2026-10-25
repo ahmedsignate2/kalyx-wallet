@@ -47,6 +47,25 @@ try {
   await page.locator('.web-title').waitFor({ timeout: 20_000 });
   ok(true, 'écran de liaison affiché');
   ok((await page.locator('.ob-values li').count()) === 3, 'les trois promesses (aucune clé, validation au téléphone, tout voir)');
+  // Sans relais ici, le lien n'arrive pas : les options (ouvrir, copier) restent cachées tant qu'il n'y a pas de QR.
+  ok(await page.locator('.web-options').isHidden(), 'options du lien cachées tant que le QR n\u2019est pas prêt');
+
+  // Options du lien (une fois le QR prêt) : téléphone → « Ouvrir dans l'app » + QR replié ; partout → copier.
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: URL_ });
+  const opts = await page.evaluate(async () => {
+    const box = document.createElement('div');
+    box.id = 'opts-test';
+    box.append(...window.__kalyxWebTest.linkOptions('wc:test@2?relay-protocol=irn&symKey=00', true));
+    document.body.append(box);
+    const pc = document.createElement('div');
+    pc.append(...window.__kalyxWebTest.linkOptions('wc:test@2?relay-protocol=irn&symKey=00', false));
+    return { phoneOpen: !!box.querySelector('[data-testid=open-app]'), pcOpen: !!pc.querySelector('[data-testid=open-app]'), pcCopy: !!pc.querySelector('[data-testid=copy-link]') };
+  });
+  ok(opts.phoneOpen && !opts.pcOpen, 'téléphone : « Ouvrir dans l’app Kalyx » ; ordinateur : non');
+  ok(opts.pcCopy, 'ordinateur : « Copier le lien de connexion »');
+  await page.locator('#opts-test [data-testid=copy-link]').click();
+  ok((await page.evaluate(() => navigator.clipboard.readText())) === 'wc:test@2?relay-protocol=irn&symKey=00', 'lien copié dans le presse-papiers');
+  await page.evaluate(() => document.getElementById('opts-test')?.remove());
 
   // Aucune clé possible sur le web.
   const send = (m) => page.evaluate((msg) => window.browser.runtime.sendMessage(msg), m);
