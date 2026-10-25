@@ -29,7 +29,7 @@ import { useTokenStore } from '../lib/tokenStore';
 import { assertSessionAccount, useWalletConnect, SOLANA_DEVNET_CAIP } from '../lib/walletconnect';
 import { useLocked } from '../lib/lockState';
 import { useWallet, type Unlock } from '../lib/walletStore';
-import { accountDisplayName } from '../lib/walletNames';
+import { accountDisplayName, walletDisplayName, walletPosition } from '../lib/walletNames';
 import { useT, useSettings, useExplainT } from '../lib/settingsStore';
 import { sound } from '../lib/sound';
 import {
@@ -169,6 +169,9 @@ export function WalletConnectHost() {
   const rejectRequest = useWalletConnect((s) => s.rejectRequest);
   const account = useWallet((s) => s.account);
   const accounts = useWallet((s) => s.accounts);
+  // Portefeuilles qui signent (pas les adresses en lecture seule) : ceux qu'une extension Kalyx reçoit tous.
+  const allWallets = useWallet((s) => s.wallets);
+  const signingWallets = useMemo(() => allWallets.filter((w) => w.type !== 'watch').map((w) => walletDisplayName(w, walletPosition(allWallets, w.id), t)), [allWallets, t]);
   const activeAccountIndex = useWallet((s) => s.activeAccountIndex);
 
   const [confirming, setConfirming] = useState(false);
@@ -429,9 +432,17 @@ export function WalletConnectHost() {
 
   if (proposal) {
     const meta = proposal.params?.proposer?.metadata ?? {};
+    /*
+     * Extension Kalyx (mode compagnon, v2) : elle reçoit TOUS les portefeuilles
+     * et comptes du téléphone en une liaison — choisir « un compte » n'aurait
+     * aucun effet. On dit donc exactement ce qui est partagé ; et comme un site
+     * pourrait se dire « extension Kalyx », cette portée est écrite en clair
+     * avant le code.
+     */
+    const companion = proposal.params?.sessionProperties?.kalyx_companion === '2';
     return (
       <Overlay onCancel={() => { setConfirming(false); rejectProposal().catch(()=>{}); }}>
-        <Text style={typography.title}>{t('dappConnection')}</Text>
+        <Text style={typography.title}>{companion ? t('wcCompanionTitle') : t('dappConnection')}</Text>
         <Card variant="glass">
           <DappHeader name={meta.name ?? 'dApp'} url={meta.url ?? ''} icon={meta.icons?.[0]} />
           <View style={{ marginTop: spacing(1.5), gap: spacing(0.25) }}>
@@ -451,7 +462,18 @@ export function WalletConnectHost() {
             jamais. Affiché uniquement à partir de deux comptes, pour ne pas
             encombrer le cas courant.
           */}
-          {accounts.length > 1 ? (
+          {companion ? (
+            <View testID="wc-companion-scope" style={{ marginTop: spacing(1.5), gap: spacing(0.5) }}>
+              <Text style={typography.muted}>{t('wcCompanionShares').replace('{count}', String(signingWallets.length))}</Text>
+              {signingWallets.map((name, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="wallet" size={14} color={colors.textSecondary} />
+                  <Text style={{ color: colors.text, fontFamily: fonts.semibold, fontSize: fontSize.sm }}>{name}</Text>
+                </View>
+              ))}
+              <Text style={typography.muted}>{t('wcCompanionNote')}</Text>
+            </View>
+          ) : accounts.length > 1 ? (
             <View style={{ marginTop: spacing(1.5), gap: spacing(0.75) }}>
               <Text style={typography.muted}>{t('wcChooseAccount')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing(0.75) }}>
