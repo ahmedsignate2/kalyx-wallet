@@ -143,6 +143,7 @@ describe('mode compagnon : partie pure', () => {
 function fakeClient(answer: (method: string, params: unknown) => Promise<unknown>) {
   const handlers: Record<string, ((e: { topic: string }) => void)[]> = {};
   const sessions = new Map<string, Record<string, { chains?: string[]; methods?: string[]; accounts?: string[] }>>();
+  const props = new Map<string, Record<string, unknown> | undefined>();
   const calls: { chainId: string; method: string; params: unknown; site?: string }[] = [];
   let approve: (s: { topic: string; namespaces: Record<string, { accounts?: string[] }>; sessionProperties?: Record<string, unknown> }) => void = () => {};
   const client: WcClient = {
@@ -159,13 +160,14 @@ function fakeClient(answer: (method: string, params: unknown) => Promise<unknown
     on(event, fn) {
       (handlers[event] ??= []).push(fn);
     },
-    session: { getAll: () => [...sessions].map(([topic, namespaces]) => ({ topic, namespaces })) },
+    session: { getAll: () => [...sessions].map(([topic, namespaces]) => ({ topic, namespaces, sessionProperties: props.get(topic) })) },
   };
   return {
     client,
     calls,
     accept(topic: string, namespaces: Record<string, { accounts?: string[] }>, sessionProperties?: Record<string, unknown>) {
       sessions.set(topic, namespaces);
+      props.set(topic, sessionProperties);
       approve({ topic, namespaces, ...(sessionProperties ? { sessionProperties } : {}) });
     },
     drop(topic: string) {
@@ -452,5 +454,24 @@ describe('signe de vie vers le téléphone', () => {
     await companion.confirm('topic-old', true);
     expect(await companion.heartbeat()).toBe(0);
     expect(fake.calls).toHaveLength(0);
+  });
+});
+
+describe('accord reçu pendant que la page dormait', () => {
+  test('resume retrouve la session acceptée, la confirmation l’enregistre ; une session déjà reliée est ignorée', async () => {
+    const disk = makeStore(area());
+    const session = makeSession({ disk, session: makeStore(area()), alarms: { create() {}, clear() {} }, kdf: { N: 1 << 10, r: 8, p: 1 } });
+    const wallets = makeWallets(disk, session);
+    await session.create('Plage-Orange-47!');
+    const fake = fakeClient(async () => null);
+    const companion = makeCompanion(wallets, { client: async () => fake.client });
+    await companion.start('Téléphone');
+    // L'accord arrive, mais personne n'attend (page suspendue, autre onglet).
+    fake.accept('topic-late', ns([`eip155:1:${PHONE.address}`]), { kalyx_accounts: JSON.stringify([{ w: 'w1', wl: 'Principal', i: 0, l: 'Compte 1', e: PHONE.address }]) });
+    const cand = await companion.resume('Téléphone', false);
+    expect(cand?.topic).toBe('topic-late');
+    await companion.confirm('topic-late', true);
+    expect((await wallets.list()).some((w) => w.topic === 'topic-late')).toBe(true);
+    expect(await companion.resume('Téléphone', false)).toBeNull();
   });
 });

@@ -105,7 +105,39 @@ interface Candidate {
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
 /** Relier le téléphone : QR, attente, puis « c'est bien ton téléphone ? » avant d'enregistrer quoi que ce soit. */
+/**
+ * L'accord du téléphone peut arriver pendant que la page dort (l'app Kalyx
+ * ouverte par-dessus, sur le même téléphone), ou dans un autre onglet du site
+ * (l'app rouvre souvent la page dans un onglet neuf). On le cherche donc aussi
+ * dans les sessions déjà reçues : à l'ouverture, au retour sur la page, et
+ * toutes les 3 s tant qu'on attend.
+ */
+let linkGen = 0;
+let stopWatch: (() => void) | null = null;
+async function resumeOnce(restart: boolean): Promise<boolean> {
+  const r = await send<{ candidate: Candidate | null }>({ type: 'companion:resume', label: t('phoneBadge'), restart }).catch(() => null);
+  if (!r?.ok || !r.candidate) return false;
+  stopWatch?.();
+  confirmScreen(r.candidate);
+  return true;
+}
+function watchForApproval(gen: number) {
+  stopWatch?.();
+  const onVisible = () => void (document.visibilityState === 'visible' && gen === linkGen && resumeOnce(true));
+  const timer = setInterval(() => void (gen === linkGen && document.visibilityState === 'visible' && resumeOnce(false)), 3000);
+  document.addEventListener('visibilitychange', onVisible);
+  addEventListener('focus', onVisible);
+  stopWatch = () => {
+    clearInterval(timer);
+    document.removeEventListener('visibilitychange', onVisible);
+    removeEventListener('focus', onVisible);
+    stopWatch = null;
+  };
+}
+
 async function linkScreen(more = false) {
+  const gen = ++linkGen;
+  stopWatch?.();
   const err = h('p', { class: 'error', role: 'alert' });
   let idle = false;
   try {
@@ -116,6 +148,8 @@ async function linkScreen(more = false) {
   }
   const av = await send<{ available: boolean }>({ type: 'companion:available' });
   if (!av.ok || !av.available) return frame(h('p', { class: 'muted' }, t('compUnavailable')));
+  // Un accord déjà reçu (autre onglet, page rouverte par l'app) : directement la confirmation.
+  if (!more && (await resumeOnce(false))) return;
   const box = h('div', { class: 'qr skel web-qr', style: 'width:224px;height:224px' });
   const wait = h('p', { class: 'pill quiet status comp-wait', role: 'status' }, h('img', { class: 'spin-logo', src: '/icon/32.png', alt: '' }), t('compWaiting'));
   const retry = h('button', { class: 'btn secondary', type: 'button', hidden: true, on: { click: () => void linkScreen(more) } }, t('retry'));
@@ -156,7 +190,10 @@ async function linkScreen(more = false) {
   box.setAttribute('aria-label', t('compTitle'));
   options.replaceChildren(...linkOptions(st.uri, onPhone, qrWrap));
   options.hidden = false;
+  watchForApproval(gen);
   const got = await send<{ candidate: Candidate }>({ type: 'companion:wait' });
+  if (gen !== linkGen || !app.querySelector('.web-link')) return; // déjà confirmé par ailleurs, ou écran quitté
+  stopWatch?.();
   if (!got.ok) return fail(got);
   confirmScreen(got.candidate);
 }
@@ -201,6 +238,8 @@ function linkOptions(uri: string, onPhone: boolean, qrWrap: HTMLElement): Node[]
 }
 
 function confirmScreen(c: Candidate) {
+  linkGen++;
+  stopWatch?.();
   const err = h('p', { class: 'error', role: 'alert' });
   const decide = async (accept: boolean, btn: HTMLButtonElement) => {
     btn.disabled = true;

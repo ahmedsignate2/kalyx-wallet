@@ -36,7 +36,9 @@ export interface WcClient {
   request<T>(a: { topic: string; chainId: string; request: { method: string; params: unknown; expiryTimestamp?: number; kalyxSite?: string } }): Promise<T>;
   disconnect(a: { topic: string; reason: { code: number; message: string } }): Promise<void>;
   on(event: 'session_delete' | 'session_expire', fn: (e: { topic: string }) => void): void;
-  session: { getAll(): { topic: string; namespaces?: Record<string, { chains?: string[]; methods?: string[] }> }[] };
+  session: { getAll(): { topic: string; namespaces?: Record<string, { chains?: string[]; methods?: string[]; accounts?: string[] }>; sessionProperties?: Record<string, unknown>; peer?: { metadata?: { name?: string; url?: string } } }[] };
+  /** Transport du relais (navigateur : relancé au retour au premier plan, la page a pu être suspendue). */
+  core?: { relayer?: { restartTransport?: () => Promise<void> } };
 }
 
 /** Le signe de vie part pour 6 h : le téléphone le reçoit à son prochain passage en ligne dans ce délai. */
@@ -103,27 +105,56 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     const { uri, approval } = await withTimeout(c.connect(proposal(evmIds)), RELAY_TIMEOUT_MS, 'COMPANION_OFFLINE');
     if (!uri) throw new RpcError(-32603, 'COMPANION_NO_URI');
     if (pending) void drop(pending.c.topic);
-    pairing = withTimeout(approval(), PAIRING_TIMEOUT_MS, 'COMPANION_PAIRING_TIMEOUT').then(async (s) => {
-      let acc: ReturnType<typeof companionWallets>;
-      try {
-        acc = companionWallets(s.namespaces, s.sessionProperties);
-      } catch (e) {
-        await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Comptes illisibles' } }).catch(() => {});
-        throw e;
-      }
-      if (!acc.wallets.length) {
-        await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Aucun compte partagé' } }).catch(() => {});
-        throw new RpcError(4100, 'COMPANION_NO_ACCOUNT');
-      }
-      const meta = s.peer?.metadata ?? {};
-      const peer = { name: String(meta.name ?? '').slice(0, 60), url: String(meta.url ?? '').slice(0, 120) };
-      const first = acc.wallets[0].accounts[0];
-      const cand: CompanionCandidate = { topic: s.topic, wallets: acc.wallets, evm: first?.evm, solana: first?.solana, bitcoin: first?.bitcoin, evmChains: acc.evmChains, peer };
-      pending = { c: cand, label, timer: setTimeout(() => void drop(cand.topic), CONFIRM_TIMEOUT_MS) };
-      return cand;
-    });
+    pairing = withTimeout(approval(), PAIRING_TIMEOUT_MS, 'COMPANION_PAIRING_TIMEOUT').then((s) => candidateOf(c, s, label));
     pairing.catch(() => {});
     return { uri };
+  }
+
+  /** Session acceptée par le téléphone → candidat à confirmer (rien d'enregistré). Comptes illisibles ou absents : liaison coupée. */
+  async function candidateOf(c: WcClient, s: { topic: string; namespaces?: Record<string, { accounts?: string[] }>; sessionProperties?: Record<string, unknown>; peer?: { metadata?: { name?: string; url?: string } } }, label: string): Promise<CompanionCandidate> {
+    let acc: ReturnType<typeof companionWallets>;
+    try {
+      acc = companionWallets((s.namespaces ?? {}) as never, s.sessionProperties);
+    } catch (e) {
+      await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Comptes illisibles' } }).catch(() => {});
+      throw e;
+    }
+    if (!acc.wallets.length) {
+      await c.disconnect({ topic: s.topic, reason: { code: 6000, message: 'Aucun compte partagé' } }).catch(() => {});
+      throw new RpcError(4100, 'COMPANION_NO_ACCOUNT');
+    }
+    const meta = s.peer?.metadata ?? {};
+    const peer = { name: String(meta.name ?? '').slice(0, 60), url: String(meta.url ?? '').slice(0, 120) };
+    const first = acc.wallets[0].accounts[0];
+    const cand: CompanionCandidate = { topic: s.topic, wallets: acc.wallets, evm: first?.evm, solana: first?.solana, bitcoin: first?.bitcoin, evmChains: acc.evmChains, peer };
+    if (pending?.c.topic !== cand.topic) {
+      if (pending) clearTimeout(pending.timer);
+      pending = { c: cand, label, timer: setTimeout(() => void drop(cand.topic), CONFIRM_TIMEOUT_MS) };
+    }
+    return cand;
+  }
+
+  /**
+   * Accord du téléphone arrivé « ailleurs » : la page était en arrière-plan
+   * (l'app Kalyx ouverte par-dessus), ou un autre onglet du même site l'a reçu.
+   * Le client WalletConnect garde la session ; on la retrouve et on demande la
+   * confirmation ici. Relance d'abord le transport : un navigateur mobile coupe
+   * la connexion d'une page suspendue sans le lui dire.
+   */
+  async function resume(label: string, restart = true): Promise<CompanionCandidate | null> {
+    if (!PROJECT_ID && !opts.client) return null;
+    const c = await withTimeout(client(), RELAY_TIMEOUT_MS, 'COMPANION_OFFLINE').catch(() => null);
+    if (!c) return null;
+    if (restart) await c.core?.relayer?.restartTransport?.().catch(() => {});
+    const linked = new Set((await wallets.list()).filter((w) => w.kind === 'companion' && w.topic).map((w) => w.topic!));
+    const s = c.session.getAll().find((x) => !linked.has(x.topic) && typeof x.sessionProperties?.kalyx_accounts === 'string');
+    return s ? candidateOf(c, s, label).catch(() => null) : null;
+  }
+
+  /** Retour au premier plan : le transport du relais repart (messages en attente relus). */
+  async function wake(): Promise<void> {
+    const c = await clientP?.catch(() => null);
+    await c?.core?.relayer?.restartTransport?.().catch(() => {});
   }
 
   async function drop(topic: string) {
@@ -131,6 +162,8 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
       clearTimeout(pending.timer);
       pending = null;
     }
+    // Confirmée entre-temps (dans un autre onglet du site) : surtout ne pas la couper.
+    if ((await wallets.list()).some((w) => w.kind === 'companion' && w.topic === topic)) return;
     const c = await client().catch(() => null);
     await c?.disconnect({ topic, reason: { code: 6000, message: 'Liaison refusée dans l’extension' } }).catch(() => {});
   }
@@ -232,7 +265,7 @@ export function makeCompanion(wallets: Wallets, opts: { client?: () => Promise<W
     return sent;
   }
 
-  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink, unlinkAll, heartbeat };
+  return { available: () => !!PROJECT_ID || !!opts.client, start, wait, confirm, request, unlink, unlinkAll, heartbeat, resume, wake };
 }
 
 export type Companion = ReturnType<typeof makeCompanion>;

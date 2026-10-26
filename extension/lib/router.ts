@@ -596,6 +596,12 @@ export async function handleInternal(session: Session, wallets: Wallets, msg: un
         // Rien n'est enregistré ici : l'appareil et les adresses s'affichent, l'utilisateur confirme.
         return { ok: true, candidate: await companion.wait() };
       }
+      case 'companion:resume': {
+        // Accord du téléphone reçu pendant que la page dormait (ou dans un autre onglet) : à confirmer ici.
+        if (!companion) break;
+        await unlocked();
+        return { ok: true, candidate: await companion.resume(optLabel(m.label) ?? 'Téléphone', m.restart !== false) };
+      }
       case 'companion:confirm': {
         if (!companion || !str(m.topic, 128) || typeof m.accept !== 'boolean') return { ok: false, error: 'BAD_REQUEST' };
         await unlocked();
