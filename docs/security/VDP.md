@@ -84,9 +84,12 @@ latest published version. All their source code is in this repository.
 
 ## How to report
 
-Submit through the Kalyx Wallet program on HackerOne. If you cannot use
-HackerOne, write to **support@kalyxwallet.com** with "SECURITY" in the
-subject.
+Write to **security@kalyxwallet.com**, or submit through the Kalyx Wallet
+program on HackerOne. Every email gets an immediate acknowledgement with a
+ticket number (KLX-YYYY-NNNN); keep it in the subject when you follow up.
+Reports are sorted automatically by severity and component, but **every
+security report is read and answered by a person** — the automatic
+acknowledgement never validates, rejects or closes a report.
 
 A good report contains: the affected asset and version (app version, extension
 version, commit hash), the steps to reproduce, the impact, and a proof of

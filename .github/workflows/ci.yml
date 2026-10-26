@@ -79,3 +79,25 @@ jobs:
         run: npm run build --prefix extension && npm run hash --prefix extension
       - name: Webapp (app.kalyxwallet.com) : build
         run: npm run build:web --prefix extension
+
+  # Boîte mail (security@, support@) : tri par IA, accusés, escalade. IA simulée dans les tests.
+  mail:
+    name: Boîte mail (typecheck, tests, documentation à jour)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mail/package-lock.json
+      - name: Install
+        run: npm ci --prefix mail
+      - name: Documentation de l'assistant à jour (FAQ, site, guide Android)
+        working-directory: mail
+        run: npm run knowledge && git diff --exit-code -- src/knowledge.generated.ts
+      - name: Typecheck
+        run: npm run typecheck --prefix mail
+      - name: Tests
+        run: npm test --prefix mail

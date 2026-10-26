@@ -92,6 +92,8 @@ expo-env.d.ts
 *.txt
 # Licences d'assets tiers : doivent rester dans le dépôt.
 !assets/**/LICENSE*.txt
+# security.txt (RFC 9116) du site : publié avec lui.
+!web/public/.well-known/security.txt
 credentials.json
 *.p12
 *.mobileprovision

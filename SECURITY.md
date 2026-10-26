@@ -17,9 +17,10 @@ in scope in [`docs/security/SCOPE.md`](docs/security/SCOPE.md).
 
 Please report privately — **never** through public GitHub Issues:
 
-- HackerOne: the Kalyx Wallet program (preferred).
-- Email: support@kalyxwallet.com (put "SECURITY" in the subject) if you cannot
-  use HackerOne.
+- Email: **security@kalyxwallet.com**. Every report gets an immediate
+  acknowledgement with a ticket number (KLX-YYYY-NNNN) and is read by a person;
+  keep the ticket number in the subject when you follow up.
+- HackerOne: the Kalyx Wallet program.
 
 Include: the affected asset and version (app version, extension version or
 commit hash), steps to reproduce, impact, and a proof of concept. You will get

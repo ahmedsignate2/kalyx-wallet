@@ -185,6 +185,7 @@ kalyx-wallet/
 ├── web/              Site kalyxwallet.com (Next.js, Cloudflare)
 ├── bot/              Bot Telegram (Cloudflare Worker + D1)
 ├── ton-proxy/        Proxy TonAPI : la clé TonAPI reste côté serveur (Cloudflare Worker)
+├── mail/             Boîte security@ / support@ : tri par IA, accusés, escalade (Cloudflare Email Worker)
 ├── scripts/          Gardes CI, génération (logos, textes légaux), publication des releases
 ├── docs/             Documentation technique et de conception
 ├── .eas/workflows/   Build de production + publication automatique
@@ -331,7 +332,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 ## 🤝 Contribuer et signaler
 
 - 💡 Suggestions et retours de bêta : Telegram [@kalyxntw](https://t.me/kalyxntw) · X [@kalyxntw](https://x.com/kalyxntw) · ou depuis l'app (Support)
-- 🐛 Bugs : GitHub Issues — 🔐 Vulnérabilités : **jamais** en public, via le programme HackerOne ([politique](docs/security/VDP.md)) ou support@kalyxwallet.com
+- 🐛 Bugs : GitHub Issues — 🔐 Vulnérabilités : **jamais** en public, à **security@kalyxwallet.com** (accusé immédiat avec numéro de ticket, lu par une personne) ou via le programme HackerOne ([politique](docs/security/VDP.md))
 
 Ne transmettez **jamais** une phrase de récupération, une clé privée, un PIN, un mot de passe ou un jeton. Kalyx ne vous les demandera jamais.
 

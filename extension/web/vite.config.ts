@@ -51,7 +51,8 @@ const HEADERS = `/*
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 `;
-const SECURITY_TXT = `Contact: mailto:support@kalyxwallet.com
+const SECURITY_TXT = `Contact: mailto:security@kalyxwallet.com
+Contact: mailto:support@kalyxwallet.com
 Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/SECURITY.md
 Preferred-Languages: fr, en
 Canonical: https://app.kalyxwallet.com/.well-known/security.txt
