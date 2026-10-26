@@ -8,7 +8,9 @@ afford to lose until an audit has been published in this repository.
 
 ## Reporting a vulnerability
 
-Kalyx Wallet runs a **vulnerability disclosure program (VDP) on HackerOne**.
+Kalyx Wallet runs a **vulnerability disclosure program (VDP) on HackerOne**,
+without monetary rewards: valid reports are credited publicly (with your
+consent) in the release notes and on the program page.
 The full policy — priorities, rules of engagement, response targets, safe
 harbor — is in [`docs/security/VDP.md`](docs/security/VDP.md), and the assets
 in scope in [`docs/security/SCOPE.md`](docs/security/SCOPE.md).
