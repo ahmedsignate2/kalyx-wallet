@@ -96,3 +96,6 @@ credentials.json
 *.p12
 *.mobileprovision
 *.pem
+
+# Écrit par scripts/publish-release.mjs pendant la publication ; l'empreinte officielle est jointe à chaque release.
+kalyx-wallet.apk.sha256
