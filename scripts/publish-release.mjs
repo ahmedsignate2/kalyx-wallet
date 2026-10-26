@@ -13,6 +13,8 @@
  *
  * Variables :
  *   BUILD_ID            identifiant du build EAS (sortie du job de build)
+ *   EXPO_TOKEN          fourni par EAS aux workflows : lecture du build par l'API
+ *                       d'Expo (sinon, repli sur eas-cli)
  *   GH_RELEASE_TOKEN    jeton GitHub (Contents: Read and write sur le dépôt de
  *                       releases) — variable d'environnement EAS « production »,
  *                       visibilité Secret
@@ -40,14 +42,43 @@ if (!TOKEN) {
 }
 
 // 1. Le build EAS
-let build;
-try {
+/*
+ * D'abord l'API d'Expo avec EXPO_TOKEN (secret fourni par EAS aux workflows) :
+ * eas-cli, lui, lit app.config.ts et a besoin des dépendances du projet, que
+ * ce job n'installe pas (« build:view command failed »). eas-cli reste en
+ * secours (exécution locale, dépendances installées).
+ */
+async function buildFromApi() {
+  if (!process.env.EXPO_TOKEN) throw new Error('EXPO_TOKEN absent');
+  const r = await fetch('https://api.expo.dev/graphql', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.EXPO_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: 'query($id: ID!) { builds { byId(buildId: $id) { status appVersion appBuildVersion gitCommitHash artifacts { buildUrl applicationArchiveUrl } } } }',
+      variables: { id: BUILD_ID },
+    }),
+  });
+  const json = await r.json().catch(() => null);
+  const b = json?.data?.builds?.byId;
+  if (!r.ok || !b) throw new Error(`HTTP ${r.status} ${JSON.stringify(json?.errors ?? json).slice(0, 300)}`);
+  return b;
+}
+function buildFromCli() {
   // Le jeton GitHub n'est PAS transmis à eas-cli (téléchargé à la volée) : il n'en a pas besoin.
   const { GH_RELEASE_TOKEN: _omit, ...env } = process.env;
   const out = execFileSync('npx', ['--yes', 'eas-cli@latest', 'build:view', BUILD_ID, '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], env });
-  build = JSON.parse(out.slice(out.indexOf('{')));
-} catch (e) {
-  fail(`Lecture du build ${BUILD_ID} impossible sur EAS : ${e.message}`);
+  return JSON.parse(out.slice(out.indexOf('{')));
+}
+let build;
+try {
+  build = await buildFromApi();
+} catch (apiErr) {
+  console.warn(`API Expo : ${apiErr.message} — essai avec eas-cli.`);
+  try {
+    build = buildFromCli();
+  } catch (e) {
+    fail(`Lecture du build ${BUILD_ID} impossible sur EAS : ${apiErr.message} / ${e.message}`);
+  }
 }
 const apkUrl = build?.artifacts?.applicationArchiveUrl || build?.artifacts?.buildUrl;
 if (build?.status && build.status !== 'FINISHED') fail(`Le build ${BUILD_ID} n’est pas terminé (statut : ${build.status}).`);
