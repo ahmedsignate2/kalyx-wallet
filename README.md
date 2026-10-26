@@ -26,7 +26,7 @@ Les clés sont générées et gardées **sur l'appareil où vous les créez — 
 | 📲 **Télécharger (Android)** | [kalyxwallet.com/download](https://kalyxwallet.com/download) — APK + empreinte SHA-256 sur [kalyx-wallet-release](https://github.com/ahmedsignate2/kalyx-wallet-release/releases/latest) |
 | 🧩 **Extension navigateur (bêta)** | Chrome, Edge, Brave : portefeuille complet (clés chiffrées sur l'ordinateur) ou **mode compagnon** (clés sur le téléphone, chaque signature validée dans l'app). EVM, Solana, Bitcoin, TON. |
 | 🖥️ **Tableau de bord web** | [app.kalyxwallet.com](https://app.kalyxwallet.com) — la même interface que l'extension, reliée au téléphone par QR (WalletConnect) : aucune clé, aucun mot de passe |
-| ✈️ **Telegram** | Mini-app (même tableau de bord) + bot : cours, gas, analyse de token, alertes de prix |
+| ✈️ **Telegram** | Mini-app (le tableau de bord web) + bot : cours, gas, analyse de token, alertes de prix |
 | 🌐 **Site** | [kalyxwallet.com](https://kalyxwallet.com) — FAQ, confidentialité, conditions, mentions légales |
 
 ---
@@ -118,6 +118,15 @@ Ethereum, BNB Chain, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll
 - **WalletConnect v2** (EVM, Solana, Bitcoin), **TON Connect** (pont JS intégré, ton_proof, signData).
 - **Navigateur intégré** avec onglets, signatures expliquées (SIWE, EIP-712, Permit/Permit2, ordres NFT), confirmation avant tout changement de réseau demandé par un site.
 - **Autorisations de dépense** : liste et **révocation groupée**.
+- **Suivi des connexions** : pour chaque site ou extension relié, son dernier signe de vie réel (point vert seulement s'il répond), sa date d'expiration, et une déconnexion immédiate.
+
+### 🧩 Extension navigateur (bêta)
+- **Deux modes** : portefeuille complet (coffre chiffré sur l'ordinateur : scrypt + AES-256-GCM, mot de passe fort imposé, jusqu'à 5 passkeys en second facteur) ou **mode compagnon** (aucune clé : tous les portefeuilles et comptes du téléphone reliés par QR, chaque signature validée dans l'app).
+- **EVM, Solana, Bitcoin, TON** : soldes agrégés, tokens, NFT, activité, envoyer, recevoir, swap, achat.
+- **Pont vers les dApps** : EIP-1193 / EIP-6963, Wallet Standard Solana et Bitcoin ; permissions par site, présence limitée aux sites autorisés au choix.
+- **Fenêtre de signature** : explication en clair, simulation (EVM, Solana), **score de risque 0-100** (même moteur que l'app), maintien pour signer quand le score est élevé, mot de passe redemandé par défaut, plafond journalier, rappel de révocation des autorisations.
+- **Code de contrainte** (profil leurre), liste blanche, verrouillage automatique et mode parano, sauvegarde chiffrée compatible avec l'app.
+- 15 langues, thèmes Nuit / Crème, mode Débutant / Expert. Code : [`extension/`](extension/README.md).
 
 ### 🖥️ Web et Telegram
 - **Tableau de bord** [app.kalyxwallet.com](https://app.kalyxwallet.com) (ordinateur, navigateur mobile) : **l'interface de l'extension en mode compagnon**, avec le même code (`extension/web/`) : tous les portefeuilles et comptes du téléphone en une liaison (QR), solde agrégé, tokens tous réseaux, NFT, activité, envoyer / recevoir / swap / acheter, autorisations de tokens à révoquer, contacts, réglages, et le **Copilote IA** avec ta propre clé d'API (gardée dans le navigateur, envoyée seulement au fournisseur choisi ; le modèle voit tokens et activité, jamais les adresses). **Il ne détient aucune clé et ne demande aucun mot de passe** : chaque action se valide sur le téléphone ; après 30 min sans activité, la liaison se ferme et le navigateur oublie tout.
@@ -137,10 +146,11 @@ Assistant intégré qui lit le contexte du portefeuille (jamais les clés) et pr
 
 ```
 ┌──────────────────────────────┐   ┌──────────────────────────────┐
-│  📱 APP (Expo / RN)          │   │  🖥️ WEB + TELEGRAM (ui/web)   │
-│  app/  écrans Expo Router    │   │  tableau de bord, mini-app   │
-│  ui/   design system (kit)   │   │  aucune clé — WalletConnect  │
-│  lib/  stores, coffre, WC…   │◄──┤  → signature sur le téléphone │
+│  📱 APP (Expo / RN)          │   │  🧩 EXTENSION (extension/)    │
+│  app/  écrans Expo Router    │   │  coffre chiffré ou compagnon │
+│  ui/   design system (kit)   │◄──┤  pont dApps, signature       │
+│  lib/  stores, coffre, WC…   │   │  🖥️ WEB (extension/web) :     │
+│                              │◄──┤  même interface, aucune clé  │
 └──────────────┬───────────────┘   └──────────────────────────────┘
                │
 ┌──────────────▼───────────────┐   ┌──────────────────────────────┐
@@ -152,7 +162,7 @@ Assistant intégré qui lit le contexte du portefeuille (jamais les clés) et pr
 └──────────────────────────────┘   └──────────────────────────────┘
 ```
 
-`src/` est le moteur TypeScript (sans React) exposé par `src/index.ts`. L'app, le web et les tests l'utilisent tous de la même façon.
+`src/` est le moteur TypeScript (sans React) exposé par `src/index.ts`. L'app, l'extension, le tableau de bord web et les tests l'utilisent tous de la même façon. Le tableau de bord web n'est pas un second code : c'est l'interface de l'extension, construite comme un site (`extension/web/`), en mode compagnon.
 
 ### 🔑 Dérivation
 
@@ -168,7 +178,8 @@ Assistant intégré qui lit le contexte du portefeuille (jamais les clés) et pr
 ```
 kalyx-wallet/
 ├── app/              Écrans (Expo Router)
-├── ui/               Design system (ui/kit), écrans partagés, ui/web = tableau de bord
+├── ui/               Design system (ui/kit), écrans partagés (ui/web : ancien tableau de bord, plus déployé)
+├── extension/        Extension navigateur (WXT, MV3) ; extension/web = tableau de bord app.kalyxwallet.com
 ├── lib/              Logique applicative : stores, coffre, WalletConnect, TON Connect, earn, IA…
 ├── src/              Moteur : crypto, chains (evm/btc/sol/ton), tx, swap, wc, tonconnect, security
 ├── web/              Site kalyxwallet.com (Next.js, Cloudflare)
@@ -196,7 +207,8 @@ kalyx-wallet/
 | Données | Alchemy, Etherscan V2, Helius, TonAPI, CoinGecko, DefiLlama, GoPlus |
 | Swap | LI.FI, Relay, Jupiter, STON.fi |
 | Web / services | Next.js, Cloudflare Workers, D1, KV |
-| Tests / CI | Jest, GitHub Actions |
+| Extension | WXT (Manifest V3), TypeScript sans framework, Vite (tableau de bord web) |
+| Tests / CI | Jest (app), Vitest (extension), Playwright (tests de bout en bout de l'extension et du web), GitHub Actions |
 | Build / distribution | EAS Build + EAS Workflows → GitHub Releases |
 
 ---
@@ -244,9 +256,16 @@ Ce sont des clés d'API **publiques** (intégrées au JS). Ne mettez jamais une 
 ```bash
 npm run typecheck
 npm test
+
+# extension et tableau de bord web
+npm ci --prefix extension
+npm test --prefix extension
+npm run build --prefix extension
+npm run test:smoke --prefix extension     # extension chargée dans Chromium
+npm run test:web --prefix extension       # tableau de bord web, sous sa CSP de production
 ```
 
-La [CI](.github/workflows/ci.yml) exécute à chaque push : typecheck strict, tests Jest, garde anti-log de secrets, garde des fichiers interdits (`scripts/check-repo-files.mjs`) et garde d'usage des adresses par chaîne (`scripts/check-address-usage.mjs`).
+La [CI](.github/workflows/ci.yml) exécute à chaque push : typecheck strict, tests Jest, garde anti-log de secrets, garde des fichiers interdits (`scripts/check-repo-files.mjs`) et garde d'usage des adresses par chaîne (`scripts/check-address-usage.mjs`) ; pour l'extension : typecheck, tests, build avec empreinte, build du tableau de bord web.
 
 ---
 
@@ -280,7 +299,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 
 ## 🗺️ État du projet
 
-**En place :** wallet EVM / Bitcoin / Solana / TON · multi-portefeuilles et lecture seule · PIN, biométrie, verrouillage · code de contrainte · liste blanche · sauvegarde chiffrée et Google Drive · envoi avec simulation et anti-empoisonnement · historique filtrable et CSV · swap / bridge · Gagner · WalletConnect et TON Connect · navigateur dApps · révocation d'autorisations · tableau de bord web et mini-app Telegram · bot Telegram · Copilote IA · alertes de prix · 15 langues · réseaux de test.
+**En place :** wallet EVM / Bitcoin / Solana / TON · multi-portefeuilles et lecture seule · PIN, biométrie, verrouillage · code de contrainte · liste blanche · sauvegarde chiffrée et Google Drive · envoi avec simulation et anti-empoisonnement · historique filtrable et CSV · swap / bridge · Gagner · WalletConnect et TON Connect · navigateur dApps · révocation d'autorisations · suivi des connexions · extension navigateur (complète ou compagnon) · tableau de bord web et mini-app Telegram · bot Telegram · Copilote IA · alertes de prix · 15 langues · réseaux de test.
 
 **À venir / à renforcer :**
 - [ ] Audit de sécurité indépendant
@@ -302,6 +321,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 | [ANDROID_GUIDE.md](ANDROID_GUIDE.md) | Android : émulateur, téléphone, builds EAS, releases |
 | [STORE_LISTING.md](STORE_LISTING.md) | Textes de fiche store |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribuer |
+| [extension/README.md](extension/README.md) | Extension navigateur et tableau de bord web : build, tests, architecture |
 | [docs/](docs/) | Conception : cahier des charges, architecture, sécurité, réseaux, TON, design, carte d'audit |
 | [bot/README.md](bot/README.md) · [ton-proxy/README.md](ton-proxy/README.md) | Services Cloudflare |
 | [docs/vente/](docs/vente/README.md) | Vente : dossier de vente, audit de propriété intellectuelle, annonce, modèle de licence en marque blanche |

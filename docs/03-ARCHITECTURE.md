@@ -7,9 +7,12 @@
 > - Dérivation Ed25519 maison en **SLIP-0010** (`src/crypto/slip10.ts`), partagée par
 >   Solana et TON — pas de `ed25519-hd-key`.
 > - **TON** a rejoint EVM, Bitcoin et Solana (voir [10-TON.md](10-TON.md)).
-> - Un **tableau de bord web** (`ui/web/`, aussi mini-app Telegram) réutilise le moteur
->   et les stores, sans jamais détenir de clé : il demande les signatures au téléphone
->   par WalletConnect.
+> - Une **extension navigateur** (`extension/`, Manifest V3) réutilise le moteur : coffre
+>   chiffré sur l'ordinateur, ou mode compagnon sans clé (signatures validées sur le
+>   téléphone par WalletConnect).
+> - Le **tableau de bord web** (`extension/web/`, aussi mini-app Telegram) est l'interface
+>   de l'extension en mode compagnon, construite comme un site : aucune clé, aucun mot
+>   de passe, chaque action validée sur le téléphone.
 > - Pas de mise à jour à distance (OTA) : chaque version est un APK construit sur EAS.
 
 ## 3.1 Stack
@@ -115,4 +118,4 @@ Services Kalyx existants (Cloudflare), tous **sans aucune clé** :
 - **`web/`** — site kalyxwallet.com et relais de paiement ;
 - **`ton-proxy/`** — proxy TonAPI (la clé TonAPI reste côté serveur, routes en liste blanche) ;
 - **`bot/`** — bot Telegram : ne garde que l'identifiant Telegram, la langue et les alertes de prix ;
-- **app.kalyxwallet.com** — tableau de bord web statique (`ui/web/`), signatures relayées au téléphone.
+- **app.kalyxwallet.com** — tableau de bord web statique (`extension/web/`), signatures relayées au téléphone.

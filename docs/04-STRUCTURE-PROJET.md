@@ -2,7 +2,7 @@
 
 > Structure **réelle** du dépôt (bêta ouverte, octobre 2026). Les couches suivent
 > [03-ARCHITECTURE.md](03-ARCHITECTURE.md) : le moteur `src/` ne dépend jamais de
-> React ; l'app, le tableau de bord web et les tests l'utilisent par `src/index.ts`.
+> React ; l'app, l'extension, le tableau de bord web et les tests l'utilisent par `src/index.ts`.
 
 ```
 kalyx-wallet/
@@ -18,8 +18,8 @@ kalyx-wallet/
 │
 ├── ui/                       Interface
 │   ├── kit/                  Design system : Button, HoldButton, Sheet, AmountKeypad, ActivityRow…
-│   ├── web/                  Tableau de bord web + mini-app Telegram (WebDashboard, SendFlow,
-│   │                         SwapScreen, WebTokens, WebActivity, AgentPanel…)
+│   ├── web/                  Ancien tableau de bord web (Expo web) et mini-app Telegram ;
+│   │                         le tableau de bord publié vient désormais de extension/web
 │   ├── browser/              Navigateur dApps
 │   └── *.tsx                 Écrans partagés : SignSheet, TxPreview, WalletConnectHost,
 │                             TonConnectHost, TestnetSection, PinPad, ConfirmUnlock…
@@ -28,7 +28,8 @@ kalyx-wallet/
 │   ├── walletStore.ts        Portefeuilles, comptes, déverrouillage, signatures
 │   ├── portfolio/            Portefeuille agrégé, soldes de test, historique de valeur, NFT
 │   ├── walletconnect.ts      WalletConnect côté téléphone (approbation, requêtes)
-│   ├── webConnect.ts         WalletConnect côté tableau de bord web
+│   ├── wcPresence.ts         Suivi des connexions (en ligne, silencieuse, expirée)
+│   ├── webConnect.ts         WalletConnect de l'ancien tableau de bord web
 │   ├── tonconnect/ · ton/    TON Connect, outils TON
 │   ├── earn/                 Moteur Gagner (staking, prêt)
 │   ├── decoyCurtain.ts       Session leurre (code de contrainte)
@@ -51,6 +52,16 @@ kalyx-wallet/
 │   │   ├── approvals/ · tokens/ · nft/ · prices/ · ens/ · qr/ · pay/ · export/ · backup/
 │   │   └── wallet/ · keys/ · validation/ · errors.ts
 │   └── index.ts              Point d'entrée public du moteur
+│
+├── extension/                Extension de navigateur (Manifest V3, WXT) + tableau de bord web
+│   ├── entrypoints/          Service worker, popup, panneau latéral, onboarding,
+│   │                         fenêtre d'approbation, pont dApps (inpage, relay)
+│   ├── lib/                  Coffre, sessions, mode compagnon (WalletConnect), dApps,
+│   │                         envoi, swap, portefeuille, Copilote, routeur de messages
+│   ├── ui/                   Écrans, sélecteur (picker), feuilles, 15 langues (i18n + locales/)
+│   ├── web/                  Tableau de bord web app.kalyxwallet.com : mêmes écrans que
+│   │                         l'extension, relié au téléphone, sans aucune clé
+│   └── scripts/              Build (registryPlugin), icônes, test de fumée Chromium
 │
 ├── web/                      Site kalyxwallet.com (Next.js, 15 langues, pages légales)
 ├── bot/                      Bot Telegram (Cloudflare Worker + D1 + KV)
@@ -76,6 +87,7 @@ kalyx-wallet/
 - **Aucun secret dans `.env`** : seulement des clés d'API publiques (`EXPO_PUBLIC_*`).
 - **`polyfills.ts` est importé en toute première ligne** de l'entrée de l'app.
 - **Textes** : toute chaîne visible passe par `lib/i18n.ts` (15 langues) ou
-  `ui/web/webI18n.ts` pour le web ; pas de français codé en dur.
+  `extension/ui/i18n.ts` (+ `extension/ui/locales/`) pour l'extension et le tableau
+  de bord web ; pas de français codé en dur.
 - **Tests** à côté des fichiers (`*.test.ts`), surtout pour `src/crypto`, `src/security`,
   les adaptateurs de chaînes et le décodage des signatures.

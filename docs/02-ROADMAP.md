@@ -14,7 +14,7 @@ Chaque phase est **livrable et testable** seule. On ne passe à la suivante qu'u
 | 5 — Confort & durcissement | 🟡 | Multi-portefeuilles, lecture seule, mode Débutant/Expert, **code de contrainte (portefeuille leurre)** à la place du « wallet caché », alertes de prix, contacts, liste blanche, 15 langues. **Reste : audit externe.** |
 | 6 — Écosystème | ✅ | Swap/bridge (LI.FI, Jupiter, STON.fi), Gagner (Lido, Rocket Pool, Benqi, Jito, Marinade, Aave, Tonstakers) |
 | 7 — Services régulés | ⬜ | Non commencé (volontairement) |
-| 8 — Multi-plateforme | 🟡 | Tableau de bord web + mini-app Telegram (signés sur le téléphone). Pas d'extension ni d'app desktop. |
+| 8 — Multi-plateforme | 🟡 | Extension navigateur (bêta : complète ou compagnon) + tableau de bord web et mini-app Telegram (signés sur le téléphone). Pas d'app desktop. |
 | 9 — Sécurité avancée | ⬜ | Wallets matériels, multisig, ERC-4337 : à venir |
 | 10 — Intelligence | 🟡 | Explication de chaque signature, analyse de risque, Copilote IA (fournisseur au choix de l'utilisateur, clé personnelle — pas encore local) |
 
