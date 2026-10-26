@@ -42,9 +42,11 @@ The highest-impact issues for a self-custody wallet, in priority order:
 
 ## Scope
 
-See [`SCOPE.md`](SCOPE.md) for the list of assets. In short: the Android app, the browser
-extension, the web dashboard, the Telegram bot, the Cloudflare relay and the
-release pipeline. All their source code is in this repository.
+See [`SCOPE.md`](SCOPE.md) for the list of assets, their current versions and
+the assets that are out of scope. In short: the Android app, the browser
+extension, the web dashboard (`https://app.kalyxwallet.com`), the Telegram bot,
+the Cloudflare relay, the marketing site and the release pipeline, in their
+latest published version. All their source code is in this repository.
 
 ### Out of scope
 

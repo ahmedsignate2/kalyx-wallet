@@ -1,7 +1,7 @@
 name: Extension — paquet du store
 
 # Fabrique le .zip à déposer sur le Chrome Web Store, après typecheck et tests.
-# Lancement manuel (onglet Actions) ou tag `extension-v*` (ex. extension-v0.9.0) ;
+# Lancement manuel (onglet Actions) ou tag `extension-v*` (ex. extension-v0.10.0) ;
 # avec un tag, le paquet est aussi joint à une release GitHub.
 on:
   workflow_dispatch:
