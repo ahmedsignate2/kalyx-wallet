@@ -90,8 +90,8 @@ const pl: Dict = {
         label: 'zdanie na podpis',
       },
       {
-        title: 'Na komputerze i w Telegramie.',
-        text: 'Panel app.kalyxwallet.com i mini-aplikacja w Telegramie pokazują salda, tokeny, NFT i rynek oraz przygotowują przelewy i wymiany. Nie przechowują żadnego klucza: każdy podpis zatwierdzasz na telefonie, przez WalletConnect.',
+        title: 'Rozszerzenie, web, Telegram.',
+        text: 'Rozszerzenie dla Chrome, Edge i Brave łączy się z telefonem przez kod QR: klucze i podpisy zostają w telefonie. app.kalyxwallet.com i mini-aplikacja w Telegramie mają ten sam interfejs, bez klucza i hasła.',
         value: '0',
         label: 'kluczy poza telefonem',
       }
@@ -241,7 +241,7 @@ const pl: Dict = {
     sub: 'Dwanaście słów, PIN i wszystko, co właśnie przeczytałeś. Kalyx jest darmowy, bez konta i bez abonamentu.',
     cta: 'Pobierz APK na Androida',
     telegram: 'Obserwuj na Telegramie',
-    note: 'iOS i rozszerzenie przeglądarki wkrótce.',
+    note: 'Rozszerzenie dla Chrome, Edge i Brave: beta na zaproszenie. iOS wkrótce.',
     verify: 'Sprawdź plik: każde wydanie publikuje sumę SHA-256 i jest podpisane tym samym kluczem.',
     verifyLink: 'Zobacz wydania',
   },

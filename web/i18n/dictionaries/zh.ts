@@ -89,8 +89,8 @@ const zh: Dict = {
         label: '句话对应一次签名',
       },
       {
-        title: '在电脑上，也在 Telegram 里。',
-        text: 'app.kalyxwallet.com 面板和 Telegram 小程序显示余额、代币、NFT 与行情，并准备转账和兑换。它们不保存任何密钥：每次签名都通过 WalletConnect 在你的手机上确认。',
+        title: '扩展、网页与 Telegram。',
+        text: 'Chrome、Edge 和 Brave 扩展通过二维码连接你的手机：密钥和签名都留在手机上。app.kalyxwallet.com 与 Telegram 小程序使用同一界面，没有密钥也没有密码。',
         value: '0',
         label: '手机之外的密钥',
       }
@@ -240,7 +240,7 @@ const zh: Dict = {
     sub: '十二个词，一个 PIN，以及你刚读到的一切。Kalyx 免费，无需账户，没有订阅。',
     cta: '下载 Android APK',
     telegram: '在 Telegram 关注',
-    note: 'iOS 与浏览器扩展即将推出。',
+    note: 'Chrome、Edge 和 Brave 扩展：邀请制测试版。iOS 即将推出。',
     verify: '验证文件：每个版本都会发布其 SHA-256 校验和，并使用同一密钥签名。',
     verifyLink: '查看版本',
   },

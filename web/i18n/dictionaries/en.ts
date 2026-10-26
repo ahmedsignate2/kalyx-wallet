@@ -90,8 +90,8 @@ const en: Dict = {
         label: 'sentence per signature',
       },
       {
-        title: 'On your computer, and in Telegram.',
-        text: 'The app.kalyxwallet.com dashboard and the Telegram mini app show balances, tokens, NFTs and the market, and prepare your sends and swaps. They hold no key: every signature is approved on your phone, through WalletConnect.',
+        title: 'Extension, web and Telegram.',
+        text: 'The Chrome, Edge and Brave extension links to your phone by QR code: your keys stay there, every signature is approved there. app.kalyxwallet.com and the Telegram mini app share its interface, with no key or password.',
         value: '0',
         label: 'keys off your phone',
       }
@@ -241,7 +241,7 @@ const en: Dict = {
     sub: 'Twelve words, a PIN, and everything you just read. Kalyx is free, with no account and no subscription.',
     cta: 'Download the Android APK',
     telegram: 'Follow on Telegram',
-    note: 'iOS and browser extension coming.',
+    note: 'Chrome, Edge and Brave extension: invite-only beta. iOS coming.',
     verify: 'Verify the file: every release publishes its SHA-256 checksum and is signed with the same key.',
     verifyLink: 'See releases',
   },

@@ -174,7 +174,7 @@ export function Specs({ t }: { t: Dict }) {
   return (
     <section className="bg-black px-5 pb-24 sm:px-8">
       <div className="mx-auto grid max-w-page grid-cols-2 gap-y-10 border-t border-white/15 pt-12 sm:grid-cols-4">
-        {['65', '15', '190+', '0'].map((v, i) => (
+        {['65', '15', '270', '0'].map((v, i) => (
           <div key={t.vision.stats[i]} className="text-center">
             <CountUp value={v} className="grad-warm block font-display text-6xl font-semibold leading-none tracking-[-0.05em] sm:text-7xl" />
             <p className="mt-3 text-[15px] text-white/55">{t.vision.stats[i]}</p>

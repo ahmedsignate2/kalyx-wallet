@@ -90,8 +90,8 @@ const it: Dict = {
         label: 'frase per firma',
       },
       {
-        title: 'Sul computer, e in Telegram.',
-        text: 'La dashboard app.kalyxwallet.com e la mini app di Telegram mostrano saldi, token, NFT e mercato, e preparano invii e swap. Non detengono alcuna chiave: ogni firma si approva sul telefono, tramite WalletConnect.',
+        title: 'Estensione, web e Telegram.',
+        text: 'L’estensione per Chrome, Edge e Brave si collega al telefono con un QR: le chiavi restano lì e ogni firma si approva lì. app.kalyxwallet.com e la mini app di Telegram hanno la stessa interfaccia, senza chiavi né password.',
         value: '0',
         label: 'chiavi fuori dal telefono',
       }
@@ -241,7 +241,7 @@ const it: Dict = {
     sub: 'Dodici parole, un PIN e tutto ciò che hai appena letto. Kalyx è gratuito, senza account e senza abbonamento.',
     cta: 'Scarica l’APK Android',
     telegram: 'Segui su Telegram',
-    note: 'iOS ed estensione per browser in arrivo.',
+    note: 'Estensione per Chrome, Edge e Brave: beta su invito. iOS in arrivo.',
     verify: 'Verifica il file: ogni versione pubblica il proprio checksum SHA-256 ed è firmata con la stessa chiave.',
     verifyLink: 'Vedi le release',
   },
