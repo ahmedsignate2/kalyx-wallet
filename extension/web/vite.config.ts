@@ -51,8 +51,21 @@ const HEADERS = `/*
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 `;
+const SECURITY_TXT = `Contact: mailto:support@kalyxwallet.com
+Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/SECURITY.md
+Preferred-Languages: fr, en
+Canonical: https://app.kalyxwallet.com/.well-known/security.txt
+Expires: 2027-10-26T00:00:00.000Z
+`;
 function headers(): Plugin {
-  return { name: 'kalyx-web-headers', generateBundle() { this.emitFile({ type: 'asset', fileName: '_headers', source: HEADERS }); } };
+  return {
+    name: 'kalyx-web-headers',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: '_headers', source: HEADERS });
+      // RFC 9116 : où signaler une faille (programme HackerOne, voir SECURITY.md).
+      this.emitFile({ type: 'asset', fileName: '.well-known/security.txt', source: SECURITY_TXT });
+    },
+  };
 }
 
 const RELAY_URL = 'https://kalyx-ton-proxy.ahamedsignate2.workers.dev';
