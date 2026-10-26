@@ -36,7 +36,7 @@ Après une modification de `.env`, relancer avec le cache vidé : `npx expo star
 ```bash
 npx expo run:android   # app native (Android Studio ou téléphone USB) — à refaire après un changement natif
 npm start              # serveur Metro : recharge le JavaScript
-npm run web            # tableau de bord web (app.kalyxwallet.com) en local
+npm run build:web      # tableau de bord web (app.kalyxwallet.com) → dist/
 ```
 
 **Expo Go ne suffit pas** : l'app utilise des modules natifs (SecureStore,
@@ -59,7 +59,7 @@ C'est ce que la CI exécute à chaque push.
 |---|---|
 | `app/` | Écrans (Expo Router) |
 | `ui/kit/` | Composants du design system |
-| `ui/web/` | Tableau de bord web et mini-app Telegram |
+| `extension/` | Extension navigateur ; `extension/web/` = tableau de bord web et mini-app Telegram |
 | `lib/` | Stores, coffre chiffré, WalletConnect, TON Connect, earn, IA, i18n (15 langues dans `lib/i18n.ts`) |
 | `src/` | Moteur sans React : crypto, adaptateurs de chaînes, transactions, swap, sécurité |
 
