@@ -90,8 +90,8 @@ const ja: Dict = {
         label: '署名ごとに一文',
       },
       {
-        title: 'パソコンでも、Telegram でも。',
-        text: 'app.kalyxwallet.com のダッシュボードと Telegram ミニアプリは、残高・トークン・NFT・相場を表示し、送金やスワップを準備します。鍵は一切持たず、署名はすべて WalletConnect 経由でスマホ上で承認します。',
+        title: '拡張機能、Web、Telegram。',
+        text: 'Chrome・Edge・Brave 向け拡張機能は QR コードでスマホと連携し、鍵と署名はスマホに残ります。app.kalyxwallet.com と Telegram ミニアプリは同じ画面で、鍵もパスワードもありません。',
         value: '0',
         label: 'スマホの外にある鍵',
       }
@@ -241,7 +241,7 @@ const ja: Dict = {
     sub: '12 の単語、ひとつの PIN、そして今読んだすべて。Kalyx は無料、アカウント不要、サブスクリプションなし。',
     cta: 'Android 版 APK をダウンロード',
     telegram: 'Telegram でフォロー',
-    note: 'iOS とブラウザ拡張は近日公開。',
+    note: 'Chrome・Edge・Brave 拡張機能：招待制ベータ。iOS は近日公開。',
     verify: 'ファイルを検証：各リリースは SHA-256 チェックサムを公開し、同じ鍵で署名されています。',
     verifyLink: 'リリースを見る',
   },

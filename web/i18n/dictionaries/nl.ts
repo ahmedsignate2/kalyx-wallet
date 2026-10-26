@@ -90,8 +90,8 @@ const nl: Dict = {
         label: 'zin per handtekening',
       },
       {
-        title: 'Op je computer, en in Telegram.',
-        text: 'Het dashboard app.kalyxwallet.com en de Telegram-mini-app tonen saldi, tokens, NFT’s en de markt, en bereiden verzendingen en swaps voor. Ze bewaren geen sleutel: elke handtekening keur je goed op je telefoon, via WalletConnect.',
+        title: 'Extensie, web en Telegram.',
+        text: 'De extensie voor Chrome, Edge en Brave koppelt via een QR-code met je telefoon: sleutels en handtekeningen blijven daar. app.kalyxwallet.com en de Telegram-mini-app hebben dezelfde interface, zonder sleutel of wachtwoord.',
         value: '0',
         label: 'sleutels buiten je telefoon',
       }
@@ -241,7 +241,7 @@ const nl: Dict = {
     sub: 'Twaalf woorden, een pincode en alles wat je net hebt gelezen. Kalyx is gratis, zonder account en zonder abonnement.',
     cta: 'Android-APK downloaden',
     telegram: 'Volg op Telegram',
-    note: 'iOS en browserextensie volgen.',
+    note: 'Extensie voor Chrome, Edge en Brave: bèta op uitnodiging. iOS volgt.',
     verify: 'Controleer het bestand: elke versie publiceert zijn SHA-256-checksum en is met dezelfde sleutel ondertekend.',
     verifyLink: 'Releases bekijken',
   },

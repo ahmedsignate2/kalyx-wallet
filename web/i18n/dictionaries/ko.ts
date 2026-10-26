@@ -90,8 +90,8 @@ const ko: Dict = {
         label: '서명당 한 문장',
       },
       {
-        title: '컴퓨터에서도, 텔레그램에서도.',
-        text: 'app.kalyxwallet.com 대시보드와 텔레그램 미니 앱은 잔액, 토큰, NFT, 시세를 보여 주고 송금과 스왑을 준비합니다. 키는 하나도 보관하지 않습니다. 모든 서명은 WalletConnect로 휴대폰에서 승인합니다.',
+        title: '확장 프로그램, 웹, 텔레그램.',
+        text: 'Chrome, Edge, Brave 확장 프로그램은 QR 코드로 휴대폰과 연결되며, 키와 서명은 휴대폰에 남습니다. app.kalyxwallet.com과 텔레그램 미니 앱은 같은 화면을 쓰며 키도 비밀번호도 없습니다.',
         value: '0',
         label: '휴대폰 밖의 키',
       }
@@ -241,7 +241,7 @@ const ko: Dict = {
     sub: '열두 단어, PIN 하나, 그리고 방금 읽은 모든 것. Kalyx는 무료이며 계정도 구독도 필요 없습니다.',
     cta: 'Android APK 다운로드',
     telegram: 'Telegram에서 팔로우',
-    note: 'iOS와 브라우저 확장 프로그램은 곧 출시됩니다.',
+    note: 'Chrome, Edge, Brave 확장 프로그램: 초대제 베타. iOS는 곧 출시됩니다.',
     verify: '파일 검증: 모든 릴리스는 SHA-256 체크섬을 공개하며 동일한 키로 서명됩니다.',
     verifyLink: '릴리스 보기',
   },

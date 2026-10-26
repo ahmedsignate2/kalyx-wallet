@@ -90,8 +90,8 @@ const tr: Dict = {
         label: 'imza başına cümle',
       },
       {
-        title: 'Bilgisayarda ve Telegram’da.',
-        text: 'app.kalyxwallet.com paneli ve Telegram mini uygulaması bakiyeleri, tokenları, NFT’leri ve piyasayı gösterir, gönderim ve takaslarını hazırlar. Hiçbir anahtar tutmazlar: her imza WalletConnect ile telefonunda onaylanır.',
+        title: 'Uzantı, web ve Telegram.',
+        text: 'Chrome, Edge ve Brave uzantısı telefonuna QR kodla bağlanır: anahtarlar ve imzalar telefonda kalır. app.kalyxwallet.com ve Telegram mini uygulaması aynı arayüzü kullanır; anahtar da şifre de yoktur.',
         value: '0',
         label: 'telefon dışında anahtar',
       }
@@ -241,7 +241,7 @@ const tr: Dict = {
     sub: 'On iki kelime, bir PIN ve az önce okuduğunuz her şey. Kalyx ücretsizdir, hesap ve abonelik gerektirmez.',
     cta: 'Android APK’yı indir',
     telegram: 'Telegram’da takip edin',
-    note: 'iOS ve tarayıcı uzantısı yakında.',
+    note: 'Chrome, Edge ve Brave uzantısı: davetle beta. iOS yakında.',
     verify: 'Dosyayı doğrula: her sürüm SHA-256 özetini yayınlar ve aynı anahtarla imzalanır.',
     verifyLink: 'Sürümleri gör',
   },

@@ -90,8 +90,8 @@ const de: Dict = {
         label: 'Satz pro Signatur',
       },
       {
-        title: 'Am Computer und in Telegram.',
-        text: 'Das Dashboard app.kalyxwallet.com und die Telegram-Mini-App zeigen Guthaben, Token, NFTs und Markt und bereiten Überweisungen und Swaps vor. Sie halten keinen Schlüssel: Jede Signatur bestätigst du auf deinem Handy, per WalletConnect.',
+        title: 'Erweiterung, Web, Telegram.',
+        text: 'Die Erweiterung für Chrome, Edge und Brave verbindet sich per QR-Code mit deinem Handy: Schlüssel und Signaturen bleiben dort. app.kalyxwallet.com und die Telegram-Mini-App haben dieselbe Oberfläche, ohne Schlüssel und Passwort.',
         value: '0',
         label: 'Schlüssel außerhalb deines Handys',
       }
@@ -241,7 +241,7 @@ const de: Dict = {
     sub: 'Zwölf Wörter, eine PIN und alles, was du gerade gelesen hast. Kalyx ist kostenlos, ohne Konto und ohne Abo.',
     cta: 'Android-APK herunterladen',
     telegram: 'Auf Telegram folgen',
-    note: 'iOS und Browser-Erweiterung folgen.',
+    note: 'Erweiterung für Chrome, Edge und Brave: Beta auf Einladung. iOS folgt.',
     verify: 'Datei prüfen: Jede Version veröffentlicht ihre SHA-256-Prüfsumme und ist mit demselben Schlüssel signiert.',
     verifyLink: 'Releases ansehen',
   },
