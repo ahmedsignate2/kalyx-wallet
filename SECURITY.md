@@ -8,20 +8,26 @@ afford to lose until an audit has been published in this repository.
 
 ## Reporting a vulnerability
 
-Please report privately — **never** through public GitHub Issues.
+Kalyx Wallet runs a **vulnerability disclosure program (VDP) on HackerOne**.
+The full policy — priorities, rules of engagement, response targets, safe
+harbor — is in [`docs/security/VDP.md`](docs/security/VDP.md), and the assets
+in scope in [`docs/security/SCOPE.md`](docs/security/SCOPE.md).
 
-- Telegram: [@kalyxntw](https://t.me/kalyxntw)
-- Email: support@kalyxwallet.com (put "SECURITY" in the subject)
-- X: [@kalyxntw](https://x.com/kalyxntw) (DM)
+Please report privately — **never** through public GitHub Issues:
 
-Include: a description, the affected component (app, web dashboard, Telegram
-bot, marketing site), steps to reproduce, impact, and a proof of concept if
-appropriate. You will get an acknowledgement within 72 hours and a status
-update within 7 days. Please allow a reasonable time to fix before any public
-disclosure; you will be credited in the release notes if you wish.
+- HackerOne: the Kalyx Wallet program (preferred).
+- Email: support@kalyxwallet.com (put "SECURITY" in the subject) if you cannot
+  use HackerOne.
+
+Include: the affected asset and version (app version, extension version or
+commit hash), steps to reproduce, impact, and a proof of concept. You will get
+a first response within 3 business days. Coordinated disclosure: by default
+90 days after the report or when the fix ships, whichever comes first; you
+will be credited if you wish.
 
 **Never send** recovery phrases, private keys, PINs, passwords, API keys or
 authentication tokens in a report — real or test. We will never ask for them.
+Test with your own wallets, on test networks whenever possible.
 
 ## Scope
 
@@ -54,11 +60,16 @@ Out of scope:
 - Social engineering of users, phishing sites imitating Kalyx (please still
   tell us so we can warn users).
 - Denial of service against public endpoints.
+- The previous web dashboard code (`ui/web/`, `lib/webConnect.ts`): kept for
+  reference, no longer deployed (`app.kalyxwallet.com` is built from
+  `extension/web/`).
 
 ## Safe harbor
 
 Good-faith research that respects this policy (no data destruction, no access
-to other users' data, no service disruption) will not be met with legal action.
+to other users' data, no service disruption, no use of real funds) is
+authorized and will not be met with legal action. The program adopts the
+HackerOne Gold Standard Safe Harbor statement (see `docs/security/VDP.md`).
 
 ## Security model (summary)
 
