@@ -3,6 +3,6 @@
     "message": "Kalyx Wallet"
   },
   "extDescription": {
-    "message": "适用于 Ethereum、EVM 网络和 Solana 的非托管钱包。你的密钥加密保存在你的电脑上。"
+    "message": "适用于 Ethereum、EVM 网络、Solana、Bitcoin 和 TON 的非托管钱包。你的密钥加密保存在你的电脑上。"
   }
 }

@@ -3,6 +3,6 @@
     "message": "Kalyx Wallet"
   },
   "extDescription": {
-    "message": "Ethereum、EVM ネットワーク、Solana のためのノンカストディアルウォレット。鍵はあなたのコンピューターに暗号化して保存されます。"
+    "message": "Ethereum、EVM ネットワーク、Solana、Bitcoin、TON のためのノンカストディアルウォレット。鍵はあなたのコンピューターに暗号化して保存されます。"
   }
 }

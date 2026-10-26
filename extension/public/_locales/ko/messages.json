@@ -3,6 +3,6 @@
     "message": "Kalyx Wallet"
   },
   "extDescription": {
-    "message": "Ethereum, EVM 네트워크, Solana를 위한 비수탁형 지갑. 키는 내 컴퓨터에 암호화되어 보관됩니다."
+    "message": "Ethereum, EVM 네트워크, Solana, Bitcoin, TON를 위한 비수탁형 지갑. 키는 내 컴퓨터에 암호화되어 보관됩니다."
   }
 }
