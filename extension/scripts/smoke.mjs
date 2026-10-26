@@ -17,6 +17,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const VERSION = JSON.parse(await readFile(join(HERE, '../package.json'), 'utf8')).version;
 const EXT = join(HERE, '../.output/chrome-mv3');
 const PW = process.env.PLAYWRIGHT_PATH ?? '/opt/node22/lib/node_modules/playwright/index.mjs';
 const { chromium } = await import(pathToFileURL(PW).href);
@@ -1058,8 +1059,8 @@ async function onboarding() {
     await popup.waitForTimeout(350);
     if (SHOTS) for (const scheme of ['light', 'dark']) await popup.emulateMedia({ colorScheme: scheme }), await new Promise((r) => setTimeout(r, 350)), await popup.screenshot({ path: join(SHOTS, `settings-${scheme}.png`) });
     await popup.emulateMedia({ colorScheme: 'light' });
-    const ver = await popup.getByText('Version 0.9.0 beta').count();
-    ver === 1 ? console.log('✓ version 0.9.0 beta affichée') : fail('version absente des réglages');
+    const ver = await popup.getByText(`Version ${VERSION} beta`).count();
+    ver === 1 ? console.log(`✓ version ${VERSION} beta affichée`) : fail('version absente des réglages');
     // Signaler un problème : un formulaire, envoyé sur Telegram (le canal du support) — on lit le lien demandé.
     await popup.evaluate(() => {
       const create = chrome.tabs.create.bind(chrome.tabs);
@@ -1072,7 +1073,7 @@ async function onboarding() {
     await popup.locator('[data-testid=report-telegram]').click();
     const repUrl = (await popup.waitForFunction(() => window.__report, null, { timeout: 5_000 }).then((h) => h.jsonValue()).catch(() => '')) ?? '';
     const decoded = decodeURIComponent(repUrl);
-    repUrl.startsWith('https://t.me/kalyxntw?text=') && decoded.includes('Le solde ne s’affiche pas') && decoded.includes('0.9.0 beta') && !/0x[0-9a-fA-F]{40}/.test(decoded)
+    repUrl.startsWith('https://t.me/kalyxntw?text=') && decoded.includes('Le solde ne s’affiche pas') && decoded.includes(`${VERSION} beta`) && !/0x[0-9a-fA-F]{40}/.test(decoded)
       ? console.log('✓ signaler un problème : envoyé sur Telegram, texte + version, aucune adresse')
       : fail(`signaler : « ${repUrl.slice(0, 120)} »`);
 

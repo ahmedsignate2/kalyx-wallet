@@ -10,10 +10,10 @@ Dans GitHub : onglet **Actions** → **Extension — paquet du store** →
 **Run workflow** (branche `main`). Au bout de quelques minutes, l'artefact
 `kalyx-extension` contient :
 
-- `kalyx-extension-0.9.0-chrome.zip` : le fichier à déposer ;
+- `kalyx-extension-0.10.0-chrome.zip` : le fichier à déposer ;
 - `SHA256SUMS.txt` et `BUILD-HASH.txt` : les empreintes.
 
-Avec un tag `extension-v0.9.0` (poussé sur `main`), la même action crée en
+Avec un tag `extension-v0.10.0` (poussé sur `main`), la même action crée en
 plus une release GitHub « bêta » avec ces fichiers.
 
 Sur un ordinateur, sans GitHub : `npm ci` (racine), `npm ci --prefix extension`,
