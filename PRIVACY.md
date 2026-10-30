@@ -1,6 +1,6 @@
 # Politique de confidentialité — Kalyx Wallet
 
-_Dernière mise à jour : 3 octobre 2026_
+_Dernière mise à jour : 30 octobre 2026_
 
 > Généré par `scripts/gen-legal-md.mjs` depuis `web/content/privacy.ts` (source unique, aussi affichée par l'app et le site). Le français fait foi.
 
@@ -76,6 +76,14 @@ L'extension Kalyx Wallet (Chrome et navigateurs Chromium) est un portefeuille no
 
 ## 8. Vos droits (RGPD)
 Les seules données personnelles que l'éditeur peut détenir sont celles du bot Telegram (§ 6) et les messages que vous adressez volontairement au support. Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition, ainsi que du droit d'introduire une réclamation auprès de la CNIL (cnil.fr). Pour les exercer : support@kalyxwallet.com. Les données de l'application, elles, ne quittent pas votre appareil : vous en gardez l'entière maîtrise.
+
+Messages adressés au support (support@ et security@kalyxwallet.com) :
+• Ils sont reçus par la messagerie de l'éditeur, hébergée par OVHcloud (France), où ils restent.
+• Pour vous répondre vite, un tri automatique les lit : un modèle d'IA exécuté par Cloudflare (Workers AI) les classe et, pour une question courante, rédige une réponse à partir de la seule documentation officielle, relue automatiquement avant envoi. Un signalement de sécurité, une perte de fonds ou une demande commerciale ou juridique est toujours traité par une personne.
+• Une phrase de récupération ou une clé privée repérée dans un message est masquée avant tout traitement.
+• Les réponses partent par Resend (service d'envoi d'e-mails) ; le mainteneur reçoit le message (secrets masqués) et un résumé par e-mail et sur Telegram.
+• Le suivi de votre dossier conserve votre adresse, l'objet, un résumé et son état, jamais le corps du message. Ces éléments sont effacés 12 mois après la clôture du dossier.
+• Base légale : votre demande, à laquelle nous avons un intérêt légitime à répondre. Aucun usage publicitaire, aucune revente. Les prestataires cités peuvent traiter des données hors de l'Union européenne, avec les garanties prévues par le RGPD (clauses contractuelles types).
 
 ## 9. Notifications & alertes
 Toutes les notifications générées par Kalyx Wallet sont strictement locales (générées au niveau du système d'exploitation de votre téléphone). Aucun serveur distant de notification push n'est sollicité, ce qui garantit qu'aucun jeton d'appareil (device push token) n'est jamais transmis à un tiers.

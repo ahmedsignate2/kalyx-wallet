@@ -270,7 +270,7 @@ const ja: Dict = {
     notice: '以下の文書はフランス語で作成されています。法的効力を持つのはフランス語版のみです。',
     privacyTitle: 'プライバシーポリシー',
     privacyIntro: 'Kalyx にとってプライバシーはオプションではなく、アーキテクチャの土台です。データを収集しないことで、あなたのデータを守ります。',
-    privacyMeta: ['更新：2026 年 10 月 19 日', 'Kalyx', 'フランス法および GDPR'],
+    privacyMeta: ['更新：2026 年 10 月 30 日', 'Kalyx', 'フランス法および GDPR'],
     privacyContact: 'データについてのご質問は？',
     termsTitle: '利用規約',
     termsIntro: 'Kalyx Wallet を使用する前に、この規約をよくお読みください。責任ある利用の枠組みと、ノンカストディアルモデルの特性を定めています。',

@@ -1,6 +1,6 @@
 # Conditions d'utilisation — Kalyx Wallet
 
-_Dernière mise à jour : 3 octobre 2026_
+_Dernière mise à jour : 30 octobre 2026_
 
 > Généré par `scripts/gen-legal-md.mjs` depuis `web/content/terms.ts` (source unique, aussi affichée par l'app et le site). Le français fait foi.
 

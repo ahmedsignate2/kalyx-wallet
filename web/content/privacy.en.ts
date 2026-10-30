@@ -87,7 +87,15 @@ Price, gas and token-scan commands query public services (CoinGecko, DefiLlama, 
   {
     id: 'droits',
     title: '8. Your rights (GDPR)',
-    body: `The only personal data the publisher may hold is the Telegram bot data (section 6) and the messages you voluntarily send to support. You have the right of access, rectification, erasure, restriction and objection, and the right to lodge a complaint with the CNIL (cnil.fr) or your local authority. To exercise them: support@kalyxwallet.com. App data never leaves your device: you keep full control of it.`,
+    body: `The only personal data the publisher may hold is the Telegram bot data (section 6) and the messages you voluntarily send to support. You have the right of access, rectification, erasure, restriction and objection, and the right to lodge a complaint with the CNIL (cnil.fr) or your local authority. To exercise them: support@kalyxwallet.com. App data never leaves your device: you keep full control of it.
+
+Messages sent to support (support@ and security@kalyxwallet.com):
+• They are received by the publisher's mailbox, hosted by OVHcloud (France), where they remain.
+• To reply quickly, an automated triage reads them: an AI model run by Cloudflare (Workers AI) classifies them and, for a common question, drafts an answer based only on the official documentation, reviewed automatically before sending. A security report, a loss of funds or a commercial or legal request is always handled by a person.
+• A recovery phrase or private key spotted in a message is masked before any processing.
+• Replies are sent through Resend (an email delivery service); the maintainer receives the message (secrets masked) and a summary by email and on Telegram.
+• Tracking your case keeps your address, the subject, a summary and its status, never the message body. These are deleted 12 months after the case is closed.
+• Legal basis: your request, which we have a legitimate interest in answering. No advertising use, no resale. The providers listed may process data outside the European Union, with the safeguards provided by the GDPR (standard contractual clauses).`,
   },
   {
     id: 'notifications',
