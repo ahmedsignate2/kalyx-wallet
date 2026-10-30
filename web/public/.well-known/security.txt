@@ -1,6 +1,7 @@
 Contact: mailto:security@kalyxwallet.com
-Contact: mailto:support@kalyxwallet.com
-Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/SECURITY.md
-Preferred-Languages: fr, en
+Contact: https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new
+Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/docs/security/VDP.md
+Acknowledgments: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/docs/security/ACKNOWLEDGMENTS.md
+Preferred-Languages: en, fr
 Canonical: https://kalyxwallet.com/.well-known/security.txt
 Expires: 2027-10-26T00:00:00.000Z

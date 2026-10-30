@@ -1,8 +1,9 @@
 # Kalyx Wallet — Vulnerability Disclosure Program
 
-This is the policy text of the Kalyx Wallet vulnerability disclosure program
-(VDP) on HackerOne. It is kept here so that it is versioned with the code; the
-program page on HackerOne is the authoritative copy once published.
+This is the policy of the Kalyx Wallet vulnerability disclosure program
+(VDP). It is versioned with the code, in this repository, which is the
+reference: if the program is also listed on a platform, the program page there
+repeats this text.
 
 Kalyx Wallet is a non-custodial crypto wallet: an Android app, a browser
 extension, a web dashboard (`app.kalyxwallet.com`), a Telegram bot and a
@@ -11,7 +12,7 @@ Kalyx account, no custody server and no telemetry.
 
 This is a **vulnerability disclosure program without monetary rewards**.
 Valid reports are acknowledged publicly (with your consent) in the release
-notes and on the HackerOne program page.
+notes and in [`ACKNOWLEDGMENTS.md`](ACKNOWLEDGMENTS.md).
 
 ## What we want to hear about
 
@@ -84,9 +85,10 @@ latest published version. All their source code is in this repository.
 
 ## How to report
 
-Write to **security@kalyxwallet.com**, or submit through the Kalyx Wallet
-program on HackerOne. Every email gets an immediate acknowledgement with a
-ticket number (KLX-YYYY-NNNN); keep it in the subject when you follow up.
+Use **[GitHub private vulnerability reporting](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new)** (a private
+advisory on this repository) or write to **security@kalyxwallet.com**. Every
+email gets an immediate acknowledgement with a ticket number (KLX-YYYY-NNNN);
+keep it in the subject when you follow up.
 Reports are sorted automatically by severity and component, but **every
 security report is read and answered by a person** — the automatic
 acknowledgement never validates, rejects or closes a report.
@@ -117,5 +119,8 @@ We will not pursue or support legal action against you for security research
 conducted in good faith and in accordance with this policy. Activities that
 follow this policy are considered authorized. If a third party brings legal
 action against you for activities that followed this policy, we will make it
-known that your actions were authorized. This program adopts the HackerOne
-Gold Standard Safe Harbor statement.
+known that your actions were authorized. We will not ask you to waive
+these protections, and we consider research under this policy to be exempt
+from the anti-circumvention provisions of our terms of use and of the
+source-available license of this repository. This statement is aligned with
+the disclose.io core terms.

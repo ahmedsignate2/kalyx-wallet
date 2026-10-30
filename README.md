@@ -10,7 +10,7 @@
 ![No independent audit](https://img.shields.io/badge/security%20audit-none%20yet-orange)
 [![License: proprietary, source-available](https://img.shields.io/badge/license-proprietary%20%C2%B7%20source--available-lightgrey)](LICENSE)
 [![Security policy](https://img.shields.io/badge/security-policy-critical)](SECURITY.md)
-[![Vulnerability disclosure: HackerOne](https://img.shields.io/badge/VDP-HackerOne-494649)](docs/security/VDP.md)
+[![Vulnerability disclosure program](https://img.shields.io/badge/VDP-open-494649)](docs/security/VDP.md)
 
 Kalyx Wallet est un **wallet crypto non-custodial** pour Android, accompagné d'une **extension navigateur** (bêta), d'un **tableau de bord web**, d'une **mini-app Telegram** et d'un **bot Telegram**. Il est construit avec **React Native, Expo et TypeScript** (l'extension : TypeScript, WXT, Manifest V3).
 
@@ -60,7 +60,7 @@ Les clés sont générées et gardées **sur l'appareil où vous les créez — 
 | **Sous la contrainte** | Un **code de contrainte** ouvre un **portefeuille leurre** : les vrais portefeuilles, contacts et historiques restent invisibles. |
 | **Liste blanche** | Envois limités aux adresses approuvées ; un ajout ou une désactivation ne prend effet qu'après **24 h**. |
 | **Audit indépendant** | **Aucun à ce jour.** |
-| **Signaler une faille** | Programme de divulgation (VDP) sur **HackerOne** — politique : [docs/security/VDP.md](docs/security/VDP.md), périmètre : [docs/security/SCOPE.md](docs/security/SCOPE.md), à défaut support@kalyxwallet.com. Jamais via les Issues publiques. |
+| **Signaler une faille** | Programme de divulgation (VDP) — [signalement privé GitHub](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new) ou **security@kalyxwallet.com** ; politique : [docs/security/VDP.md](docs/security/VDP.md), périmètre : [docs/security/SCOPE.md](docs/security/SCOPE.md). Jamais via les Issues publiques. |
 
 ## 💸 Frais — transparence
 
@@ -315,7 +315,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 | Document | Contenu |
 |---|---|
 | [SECURITY.md](SECURITY.md) | Modèle de sécurité, signalement de failles |
-| [docs/security/VDP.md](docs/security/VDP.md) · [SCOPE.md](docs/security/SCOPE.md) | Programme de divulgation de vulnérabilités (HackerOne) : règles, périmètre, délais, safe harbor |
+| [docs/security/VDP.md](docs/security/VDP.md) · [SCOPE.md](docs/security/SCOPE.md) | Programme de divulgation de vulnérabilités : règles, périmètre, délais, safe harbor ([remerciements](docs/security/ACKNOWLEDGMENTS.md)) |
 | [PRIVACY.md](PRIVACY.md) · [TERMS.md](TERMS.md) | Confidentialité et conditions (générés depuis le site : `node scripts/gen-legal-md.mjs`) |
 | [MOBILE_SETUP.md](MOBILE_SETUP.md) | Lancer l'app en local |
 | [ANDROID_GUIDE.md](ANDROID_GUIDE.md) | Android : émulateur, téléphone, builds EAS, releases |
@@ -331,7 +331,7 @@ Il n'y a **pas de mise à jour à distance (OTA)** : tout changement passe par u
 ## 🤝 Contribuer et signaler
 
 - 💡 Suggestions et retours de bêta : Telegram [@kalyxntw](https://t.me/kalyxntw) · X [@kalyxntw](https://x.com/kalyxntw) · ou depuis l'app (Support)
-- 🐛 Bugs : GitHub Issues — 🔐 Vulnérabilités : **jamais** en public, à **security@kalyxwallet.com** (accusé immédiat avec numéro de ticket, lu par une personne) ou via le programme HackerOne ([politique](docs/security/VDP.md))
+- 🐛 Bugs : GitHub Issues — 🔐 Vulnérabilités : **jamais** en public, à **security@kalyxwallet.com** (accusé immédiat avec numéro de ticket, lu par une personne) ou par le [signalement privé GitHub](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new) ([politique](docs/security/VDP.md))
 
 Ne transmettez **jamais** une phrase de récupération, une clé privée, un PIN, un mot de passe ou un jeton. Kalyx ne vous les demandera jamais.
 

@@ -81,7 +81,7 @@ signature, fuite de donnée · **P2** fonctionnement, confort.
 | E4 | Dépendances (`npm audit`) | P1 | ⚠️ | 5 alertes, toutes via `@walletconnect/web3wallet` (voir A5). |
 | E5 | Proxy TON (Worker) | P1 | ✅ | Liste blanche stricte, aucun journal. À redéployer par toi. |
 | E6 | Bot Telegram | P2 | ✅ | Webhook signé. Déployé depuis kalyx-wallet. |
-| E7 | Tableau de bord web (`extension/web`, `web/`) | P1 | ⚠️ | Reconstruit sur l'interface de l'extension en mode compagnon : aucune clé, aucun mot de passe, création ou import de clé refusés (`PHONE_ONLY`), CSP stricte avec Trusted Types, déconnexion et effacement après 30 min d'inactivité, test de bout en bout sous la CSP publiée. Reste : revue externe (programme HackerOne). |
+| E7 | Tableau de bord web (`extension/web`, `web/`) | P1 | ⚠️ | Reconstruit sur l'interface de l'extension en mode compagnon : aucune clé, aucun mot de passe, création ou import de clé refusés (`PHONE_ONLY`), CSP stricte avec Trusted Types, déconnexion et effacement après 30 min d'inactivité, test de bout en bout sous la CSP publiée. Reste : revue externe (programme de divulgation). |
 | E8 | Runtime natif / OTA incompatible | P1 | ✅ | Sans objet : plus d'OTA. |
 | E9 | Chaîne de publication des APK | P0 | ✅ | Build sur EAS, publication par `scripts/publish-release.mjs` avec SHA-256 joint ; jeton GitHub limité au dépôt de releases, stocké en variable EAS secrète. |
 | E10 | « Maintenir pour envoyer » sur navigateur mobile | P2 | ✅ | Appui long : plus de sélection ni de menu « Copier » qui interrompait le maintien (Android Chrome, iOS Safari, Telegram). |

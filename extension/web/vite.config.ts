@@ -52,9 +52,10 @@ const HEADERS = `/*
   Cache-Control: public, max-age=31536000, immutable
 `;
 const SECURITY_TXT = `Contact: mailto:security@kalyxwallet.com
-Contact: mailto:support@kalyxwallet.com
-Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/SECURITY.md
-Preferred-Languages: fr, en
+Contact: https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new
+Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/docs/security/VDP.md
+Acknowledgments: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/docs/security/ACKNOWLEDGMENTS.md
+Preferred-Languages: en, fr
 Canonical: https://app.kalyxwallet.com/.well-known/security.txt
 Expires: 2027-10-26T00:00:00.000Z
 `;
@@ -63,7 +64,7 @@ function headers(): Plugin {
     name: 'kalyx-web-headers',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: '_headers', source: HEADERS });
-      // RFC 9116 : où signaler une faille (programme HackerOne, voir SECURITY.md).
+      // RFC 9116 : où signaler une faille (programme de divulgation, voir docs/security/VDP.md).
       this.emitFile({ type: 'asset', fileName: '.well-known/security.txt', source: SECURITY_TXT });
     },
   };

@@ -8,19 +8,25 @@ afford to lose until an audit has been published in this repository.
 
 ## Reporting a vulnerability
 
-Kalyx Wallet runs a **vulnerability disclosure program (VDP) on HackerOne**,
-without monetary rewards: valid reports are credited publicly (with your
-consent) in the release notes and on the program page.
+Kalyx Wallet runs a **vulnerability disclosure program (VDP)** without
+monetary rewards: valid reports are credited publicly (with your consent) in
+the release notes and in
+[`docs/security/ACKNOWLEDGMENTS.md`](docs/security/ACKNOWLEDGMENTS.md).
 The full policy — priorities, rules of engagement, response targets, safe
 harbor — is in [`docs/security/VDP.md`](docs/security/VDP.md), and the assets
 in scope in [`docs/security/SCOPE.md`](docs/security/SCOPE.md).
 
 Please report privately — **never** through public GitHub Issues:
 
+- GitHub: **[Report a vulnerability](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new)** — a private security
+  advisory on this repository, visible only to you and the maintainer.
 - Email: **security@kalyxwallet.com**. Every report gets an immediate
   acknowledgement with a ticket number (KLX-YYYY-NNNN) and is read by a person;
   keep the ticket number in the subject when you follow up.
-- HackerOne: the Kalyx Wallet program.
+
+If the program is also listed on a vulnerability-disclosure platform, the link
+is added here and in `security.txt`; this repository stays the reference for
+the policy and the scope.
 
 Include: the affected asset and version (app version, extension version or
 commit hash), steps to reproduce, impact, and a proof of concept. You will get
@@ -66,13 +72,18 @@ Out of scope:
 - The previous web dashboard code (`ui/web/`, `lib/webConnect.ts`): kept for
   reference, no longer deployed (`app.kalyxwallet.com` is built from
   `extension/web/`).
+- Kalyx's internal support tooling (`support.kalyxwallet.com`, the support
+  mail worker and its `*.workers.dev` address, the support Telegram bot): not
+  part of the product, not in this repository, protected by Cloudflare Access.
+  Do not test it; if you notice an exposure of report data, tell us by email.
 
 ## Safe harbor
 
 Good-faith research that respects this policy (no data destruction, no access
 to other users' data, no service disruption, no use of real funds) is
-authorized and will not be met with legal action. The program adopts the
-HackerOne Gold Standard Safe Harbor statement (see `docs/security/VDP.md`).
+authorized and will not be met with legal action. The full safe-harbor
+statement, aligned with the disclose.io core terms, is in
+`docs/security/VDP.md`.
 
 ## Security model (summary)
 
