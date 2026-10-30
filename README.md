@@ -185,7 +185,6 @@ kalyx-wallet/
 ├── web/              Site kalyxwallet.com (Next.js, Cloudflare)
 ├── bot/              Bot Telegram (Cloudflare Worker + D1)
 ├── ton-proxy/        Proxy TonAPI : la clé TonAPI reste côté serveur (Cloudflare Worker)
-├── mail/             Boîte security@ / support@ : tri par IA, accusés, escalade (Cloudflare Email Worker)
 ├── scripts/          Gardes CI, génération (logos, textes légaux), publication des releases
 ├── docs/             Documentation technique et de conception
 ├── .eas/workflows/   Build de production + publication automatique

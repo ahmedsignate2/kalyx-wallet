@@ -66,8 +66,6 @@ kalyx-wallet/
 ├── web/                      Site kalyxwallet.com (Next.js, 15 langues, pages légales)
 ├── bot/                      Bot Telegram (Cloudflare Worker + D1 + KV)
 ├── ton-proxy/                Proxy TonAPI (Cloudflare Worker, clé côté serveur)
-├── mail/                     Boîte security@ / support@ (Cloudflare Email Worker) : tri par
-│                             Workers AI, accusé de réception, escalade Gmail + Telegram
 ├── scripts/                  Gardes CI (check-repo-files, check-address-usage), génération
 │                             (logos, textes légaux, assets store), publish-release.mjs
 ├── docs/                     Cette documentation, captures, démo
