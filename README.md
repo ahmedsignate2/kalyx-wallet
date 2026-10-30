@@ -60,7 +60,7 @@ Les clés sont générées et gardées **sur l'appareil où vous les créez — 
 | **Sous la contrainte** | Un **code de contrainte** ouvre un **portefeuille leurre** : les vrais portefeuilles, contacts et historiques restent invisibles. |
 | **Liste blanche** | Envois limités aux adresses approuvées ; un ajout ou une désactivation ne prend effet qu'après **24 h**. |
 | **Audit indépendant** | **Aucun à ce jour.** |
-| **Signaler une faille** | Programme de divulgation (VDP) — [signalement privé GitHub](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new) ou **security@kalyxwallet.com** ; politique : [docs/security/VDP.md](docs/security/VDP.md), périmètre : [docs/security/SCOPE.md](docs/security/SCOPE.md). Jamais via les Issues publiques. |
+| **Signaler une faille** | Programme de divulgation (VDP) sur [Intake Security](https://intakesecurity.io/programs/kalyx-wallet) — ou [signalement privé GitHub](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new) ou **security@kalyxwallet.com** ; politique : [docs/security/VDP.md](docs/security/VDP.md), périmètre : [docs/security/SCOPE.md](docs/security/SCOPE.md). Jamais via les Issues publiques. |
 
 ## 💸 Frais — transparence
 

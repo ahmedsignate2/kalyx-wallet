@@ -2,8 +2,8 @@
 
 This is the policy of the Kalyx Wallet vulnerability disclosure program
 (VDP). It is versioned with the code, in this repository, which is the
-reference: if the program is also listed on a platform, the program page there
-repeats this text.
+reference. The program is published on Intake Security:
+https://intakesecurity.io/programs/kalyx-wallet, which repeats this text.
 
 Kalyx Wallet is a non-custodial crypto wallet: an Android app, a browser
 extension, a web dashboard (`app.kalyxwallet.com`), a Telegram bot and a
@@ -85,7 +85,7 @@ latest published version. All their source code is in this repository.
 
 ## How to report
 
-Use **[GitHub private vulnerability reporting](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new)** (a private
+Submit through **[the program on Intake Security](https://intakesecurity.io/programs/kalyx-wallet/submit)**, use **[GitHub private vulnerability reporting](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new)** (a private
 advisory on this repository) or write to **security@kalyxwallet.com**. Every
 email gets an immediate acknowledgement with a ticket number (KLX-YYYY-NNNN);
 keep it in the subject when you follow up.

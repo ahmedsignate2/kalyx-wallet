@@ -18,15 +18,15 @@ in scope in [`docs/security/SCOPE.md`](docs/security/SCOPE.md).
 
 Please report privately — **never** through public GitHub Issues:
 
+- Intake Security: **[the Kalyx Wallet program](https://intakesecurity.io/programs/kalyx-wallet)** — [submit a report](https://intakesecurity.io/programs/kalyx-wallet/submit).
 - GitHub: **[Report a vulnerability](https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new)** — a private security
   advisory on this repository, visible only to you and the maintainer.
 - Email: **security@kalyxwallet.com**. Every report gets an immediate
   acknowledgement with a ticket number (KLX-YYYY-NNNN) and is read by a person;
   keep the ticket number in the subject when you follow up.
 
-If the program is also listed on a vulnerability-disclosure platform, the link
-is added here and in `security.txt`; this repository stays the reference for
-the policy and the scope.
+This repository stays the reference for the policy and the scope; the program
+page on Intake Security repeats them.
 
 Include: the affected asset and version (app version, extension version or
 commit hash), steps to reproduce, impact, and a proof of concept. You will get

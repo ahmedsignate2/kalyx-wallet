@@ -1,5 +1,7 @@
 # Publier le VDP sur une plateforme — kit prêt à coller
 
+**Publié** sur Intake Security : https://intakesecurity.io/programs/kalyx-wallet · référencé dans l'annuaire disclose.io (diodb).
+
 Ce dépôt est la **référence** du programme : politique [`VDP.md`](VDP.md),
 périmètre [`SCOPE.md`](SCOPE.md) (copie importable [`scope.csv`](scope.csv)),
 remerciements [`ACKNOWLEDGMENTS.md`](ACKNOWLEDGMENTS.md). Une plateforme ne fait
@@ -62,4 +64,4 @@ concept. Remind: never include a recovery phrase, private key, PIN, password or 
 - [ ] Site et dashboard redéployés (nouveau `security.txt`).
 - [ ] Versions de `SCOPE.md` / `scope.csv` = dernière release publiée.
 - [ ] Un essai de bout en bout : un mail de test à security@ reçoit son accusé et arrive dans le dashboard support.
-- [ ] Lien de la plateforme ajouté partout (§ 2), si une plateforme est choisie.
+- [x] Lien de la plateforme ajouté partout (§ 2) : Intake Security.

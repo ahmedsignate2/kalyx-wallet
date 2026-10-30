@@ -52,6 +52,7 @@ const HEADERS = `/*
   Cache-Control: public, max-age=31536000, immutable
 `;
 const SECURITY_TXT = `Contact: mailto:security@kalyxwallet.com
+Contact: https://intakesecurity.io/programs/kalyx-wallet/submit
 Contact: https://github.com/ahmedsignate2/kalyx-wallet/security/advisories/new
 Policy: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/docs/security/VDP.md
 Acknowledgments: https://github.com/ahmedsignate2/kalyx-wallet/blob/main/docs/security/ACKNOWLEDGMENTS.md
