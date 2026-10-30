@@ -24,6 +24,7 @@ const REVIEWED = {
   'ui/BtcAccelerate.tsx': 1, // ouvert sur Bitcoin actif
   'ui/TokenPicker.tsx': 5, // variable locale, calculée par addressForChain (TON compris)
   'lib/walletStore.ts': 13, // le coffre lui-même
+  'lib/solanaProvider.ts': 2, // script injecté : `account` y est le compte Wallet Standard renvoyé par sol_connect (toujours Solana)
 };
 
 const files = execFileSync('git', ['ls-files', '-z', '--', '*.ts', '*.tsx'], { encoding: 'utf8' })
