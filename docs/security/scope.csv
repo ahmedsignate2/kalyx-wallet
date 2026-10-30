@@ -1,6 +1,6 @@
 identifier,asset_type,instruction,eligible_for_bounty,eligible_for_submission,max_severity
 com.kalyx.wallet,OTHER_APK,"Android app, latest release (1.0.0 build 11, v1.0.0-11) from https://kalyxwallet.com/download; verify kalyx-wallet.apk.sha256. Source: app/, lib/, src/, ui/. Use your own test wallets and test networks.",false,true,critical
-Kalyx Wallet browser extension (Chromium),OTHER,"Chrome / Edge / Brave, version 0.10.0. Chrome Web Store listing under review: until then, build from source (extension/: npm ci && npm run build, load .output/chrome-mv3 unpacked) at the latest main commit. Vault, passkeys, dApp bridge, approval window, companion mode.",false,true,critical
+Kalyx Wallet browser extension (Chromium),OTHER,"Chrome / Edge / Brave, version 0.10.0: https://github.com/ahmedsignate2/kalyx-wallet/releases/tag/extension-v0.10.0 (kalyx-extension-0.10.0-chrome.zip, check SHA256SUMS.txt, load unpacked). Chrome Web Store listing under review. Vault, passkeys, dApp bridge, approval window, companion mode.",false,true,critical
 https://app.kalyxwallet.com,URL,"Web dashboard = the extension interface in companion mode (no keys, no password). Source: extension/web/.",false,true,high
 kalyx-ton-proxy.ahamedsignate2.workers.dev,URL,"Cloudflare relay (ton-proxy/). No load testing, no rate-limit exhaustion.",false,true,high
 https://kalyxwallet.com,URL,"Marketing site and download page (web/).",false,true,medium
