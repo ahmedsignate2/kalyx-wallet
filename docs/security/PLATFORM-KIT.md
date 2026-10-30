@@ -10,7 +10,7 @@ que les reprendre. Ce fichier sert à remplir son formulaire sans rien réécrir
 | Canal | État | Action |
 | --- | --- | --- |
 | security@kalyxwallet.com | actif : accusé immédiat avec numéro KLX, tri, alerte Telegram | — |
-| Signalement privé GitHub | **à activer** | Dépôt → **Settings → Advanced Security** (ou *Code security*) → **Private vulnerability reporting → Enable**. Le bouton « Report a vulnerability » apparaît alors dans l'onglet *Security*. Coche aussi *Watch → All activity* pour être notifié. |
+| Signalement privé GitHub | actif (bouton « Report a vulnerability » de l'onglet *Security*) | Pour être notifié : *Watch → All activity* sur le dépôt, ou *Custom → Security alerts*. |
 | `security.txt` (RFC 9116) | à jour dans le code | Redéployer le site (`web/`) et le dashboard (`extension/web/`) pour publier la nouvelle version. |
 | Annuaire disclose.io (diodb) | gratuit, à demander | Référence le programme dans l'annuaire public des politiques de divulgation (https://github.com/disclose/diodb). |
 
@@ -58,7 +58,7 @@ concept. Remind: never include a recovery phrase, private key, PIN, password or 
 
 ## 4. Avant d'ouvrir le programme au public
 
-- [ ] Signalement privé GitHub activé (§ 1).
+- [x] Signalement privé GitHub activé (§ 1).
 - [ ] Site et dashboard redéployés (nouveau `security.txt`).
 - [ ] Versions de `SCOPE.md` / `scope.csv` = dernière release publiée.
 - [ ] Un essai de bout en bout : un mail de test à security@ reçoit son accusé et arrive dans le dashboard support.
