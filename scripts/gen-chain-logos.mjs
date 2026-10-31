@@ -18,7 +18,7 @@
  * l'image distante, puis sur le cercle lettré.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -72,6 +72,9 @@ const chains = Object.values(configs).filter((c) => c && typeof c === 'object' &
  * web3icons renvoie d'autres marques — vérifié sur planche le 2026-09-27.
  */
 const svgPath = (kind, id) => join(core, `dist/svgs/${kind}/background/${id}.svg.js`);
+/** Logos officiels absents de web3icons, vérifiés à la main (voir leur README). */
+const EXTRA = join(ROOT, 'scripts/chain-logos-extra');
+const extra = [];
 /*
  * Pastilles affichées en rond : un glyphe qui remplit tout le carré (Base) voit
  * ses coins frôler le bord du disque. On le recentre, réduit, dans la pastille.
@@ -87,7 +90,11 @@ for (const chain of chains) {
   const network = BY_NAME[chain.id] ?? (chain.evmChainId != null ? byChainId.get(Number(chain.evmChainId)) : undefined);
   let file = network && existsSync(svgPath('networks', network)) ? svgPath('networks', network) : undefined;
   if (!file || !existsSync(file)) {
-    missing.push(chain.id);
+    const own = join(EXTRA, `${chain.id}.svg`);
+    if (existsSync(own)) {
+      logos[chain.id] = compact(readFileSync(own, 'utf8'));
+      extra.push(chain.id);
+    } else missing.push(chain.id);
     continue;
   }
   const svg = compact((await import(pathToFileURL(file).href)).default);
@@ -107,6 +114,7 @@ writeFileSync(
 // Software without restriction, subject to the above copyright notice being
 // included in all copies. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY.
 //
+// Logos officiels hors web3icons (scripts/chain-logos-extra) : ${extra.join(', ') || 'aucun'}.
 // Sans logo embarqué (image distante) : ${missing.join(', ') || 'aucun'}.
 
 export const CHAIN_LOGO_SVG: Readonly<Record<string, string>> = {

@@ -22,13 +22,13 @@ describe('chainIconUrl', () => {
     expect(url).toContain('rsz_morph.jpg');
   });
 
-  it('renvoie undefined sans logo embarqué ni icône distante (repli lettré)', () => {
-    expect(chainIconUrl('memecore')).toBeUndefined();
+  it('embarque les logos officiels hors web3icons (scripts/chain-logos-extra)', () => {
+    expect(chainIconUrl('memecore')).toBe(CHAIN_LOGO_PREFIX + 'memecore');
   });
 
-  it('chaque réseau a une icône, sauf ceux explicitement laissés au repli lettré', () => {
+  it('chaque réseau a une icône', () => {
     const sansIcone = listChains({ includeTestnets: true }).filter((c) => !chainIconUrl(c.id)).map((c) => c.id);
-    expect(sansIcone).toEqual(['memecore']);
+    expect(sansIcone).toEqual([]);
   });
 });
 
