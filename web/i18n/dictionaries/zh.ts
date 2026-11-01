@@ -240,7 +240,7 @@ const zh: Dict = {
     sub: '十二个词，一个 PIN，以及你刚读到的一切。Kalyx 免费，无需账户，没有订阅。',
     cta: '下载 Android APK',
     telegram: '在 Telegram 关注',
-    note: 'Chrome、Edge 和 Brave 扩展：邀请制测试版。iOS 即将推出。',
+    note: 'Chrome、Edge 和 Brave 扩展：测试版已在 Chrome 应用商店上架。iOS 即将推出。',
     verify: '验证文件：每个版本都会发布其 SHA-256 校验和，并使用同一密钥签名。',
     verifyLink: '查看版本',
   },

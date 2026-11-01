@@ -241,7 +241,7 @@ const ko: Dict = {
     sub: '열두 단어, PIN 하나, 그리고 방금 읽은 모든 것. Kalyx는 무료이며 계정도 구독도 필요 없습니다.',
     cta: 'Android APK 다운로드',
     telegram: 'Telegram에서 팔로우',
-    note: 'Chrome, Edge, Brave 확장 프로그램: 초대제 베타. iOS는 곧 출시됩니다.',
+    note: 'Chrome, Edge, Brave 확장 프로그램: Chrome 웹 스토어에서 베타 버전 이용 가능. iOS는 곧 출시됩니다.',
     verify: '파일 검증: 모든 릴리스는 SHA-256 체크섬을 공개하며 동일한 키로 서명됩니다.',
     verifyLink: '릴리스 보기',
   },

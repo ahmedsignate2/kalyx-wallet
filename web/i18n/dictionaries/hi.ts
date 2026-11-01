@@ -241,7 +241,7 @@ const hi: Dict = {
     sub: 'बारह शब्द, एक PIN, और वह सब जो आपने अभी पढ़ा। Kalyx मुफ़्त है, बिना खाते और बिना सदस्यता के।',
     cta: 'Android APK डाउनलोड करें',
     telegram: 'Telegram पर फ़ॉलो करें',
-    note: 'Chrome, Edge और Brave एक्सटेंशन: आमंत्रण पर बीटा। iOS जल्द।',
+    note: 'Chrome, Edge और Brave एक्सटेंशन: बीटा Chrome Web Store पर उपलब्ध। iOS जल्द।',
     verify: 'फ़ाइल जाँचें: हर रिलीज़ अपना SHA-256 चेकसम प्रकाशित करती है और उसी कुंजी से साइन होती है।',
     verifyLink: 'रिलीज़ देखें',
   },

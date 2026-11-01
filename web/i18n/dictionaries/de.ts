@@ -241,7 +241,7 @@ const de: Dict = {
     sub: 'Zwölf Wörter, eine PIN und alles, was du gerade gelesen hast. Kalyx ist kostenlos, ohne Konto und ohne Abo.',
     cta: 'Android-APK herunterladen',
     telegram: 'Auf Telegram folgen',
-    note: 'Erweiterung für Chrome, Edge und Brave: Beta auf Einladung. iOS folgt.',
+    note: 'Erweiterung für Chrome, Edge und Brave: Beta im Chrome Web Store verfügbar. iOS folgt.',
     verify: 'Datei prüfen: Jede Version veröffentlicht ihre SHA-256-Prüfsumme und ist mit demselben Schlüssel signiert.',
     verifyLink: 'Releases ansehen',
   },

@@ -241,7 +241,7 @@ const nl: Dict = {
     sub: 'Twaalf woorden, een pincode en alles wat je net hebt gelezen. Kalyx is gratis, zonder account en zonder abonnement.',
     cta: 'Android-APK downloaden',
     telegram: 'Volg op Telegram',
-    note: 'Extensie voor Chrome, Edge en Brave: bèta op uitnodiging. iOS volgt.',
+    note: 'Extensie voor Chrome, Edge en Brave: bèta beschikbaar in de Chrome Web Store. iOS volgt.',
     verify: 'Controleer het bestand: elke versie publiceert zijn SHA-256-checksum en is met dezelfde sleutel ondertekend.',
     verifyLink: 'Releases bekijken',
   },

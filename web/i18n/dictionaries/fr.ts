@@ -244,7 +244,7 @@ const fr = {
     sub: 'Douze mots, un PIN, et tout ce que vous venez de lire. Kalyx est gratuit, sans compte et sans abonnement.',
     cta: 'Télécharger l’APK Android',
     telegram: 'Suivre sur Telegram',
-    note: 'Extension Chrome, Edge et Brave : bêta sur invitation. iOS à venir.',
+    note: 'Extension Chrome, Edge et Brave : bêta disponible sur le Chrome Web Store. iOS à venir.',
     verify: 'Vérifiez le fichier : chaque version publie son empreinte SHA-256 et est signée avec la même clé.',
     verifyLink: 'Voir les releases',
   },

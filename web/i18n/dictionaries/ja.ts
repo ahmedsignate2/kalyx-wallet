@@ -241,7 +241,7 @@ const ja: Dict = {
     sub: '12 の単語、ひとつの PIN、そして今読んだすべて。Kalyx は無料、アカウント不要、サブスクリプションなし。',
     cta: 'Android 版 APK をダウンロード',
     telegram: 'Telegram でフォロー',
-    note: 'Chrome・Edge・Brave 拡張機能：招待制ベータ。iOS は近日公開。',
+    note: 'Chrome・Edge・Brave 拡張機能：ベータ版を Chrome ウェブストアで公開中。iOS は近日公開。',
     verify: 'ファイルを検証：各リリースは SHA-256 チェックサムを公開し、同じ鍵で署名されています。',
     verifyLink: 'リリースを見る',
   },

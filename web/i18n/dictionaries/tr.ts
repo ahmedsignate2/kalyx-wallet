@@ -241,7 +241,7 @@ const tr: Dict = {
     sub: 'On iki kelime, bir PIN ve az önce okuduğunuz her şey. Kalyx ücretsizdir, hesap ve abonelik gerektirmez.',
     cta: 'Android APK’yı indir',
     telegram: 'Telegram’da takip edin',
-    note: 'Chrome, Edge ve Brave uzantısı: davetle beta. iOS yakında.',
+    note: 'Chrome, Edge ve Brave uzantısı: beta sürümü Chrome Web Store’da. iOS yakında.',
     verify: 'Dosyayı doğrula: her sürüm SHA-256 özetini yayınlar ve aynı anahtarla imzalanır.',
     verifyLink: 'Sürümleri gör',
   },

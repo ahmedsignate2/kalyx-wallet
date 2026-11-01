@@ -241,7 +241,7 @@ const en: Dict = {
     sub: 'Twelve words, a PIN, and everything you just read. Kalyx is free, with no account and no subscription.',
     cta: 'Download the Android APK',
     telegram: 'Follow on Telegram',
-    note: 'Chrome, Edge and Brave extension: invite-only beta. iOS coming.',
+    note: 'Chrome, Edge and Brave extension: beta available on the Chrome Web Store. iOS coming.',
     verify: 'Verify the file: every release publishes its SHA-256 checksum and is signed with the same key.',
     verifyLink: 'See releases',
   },
