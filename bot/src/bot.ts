@@ -2,6 +2,9 @@
  *  données publiques (prix, gas, sécurité d'un token), poser des alertes. */
 import { Bot, InlineKeyboard, type Context, type NextFunction } from 'grammy';
 import { esc, familyOf, rateLimited, type Env } from './env';
+
+/** Scans pour tout le bot, par minute : plusieurs comptes Telegram ne peuvent pas saturer GoPlus ensemble. */
+export const SCAN_GLOBAL_PER_MINUTE = 30;
 import { LANGS, LANG_LABEL, strings, toLang, type Lang } from './i18n';
 import { fmtCompact, fmtFiat, getGas, getPrice, resolveCoinId } from './market';
 import { scanToken } from './scan';
@@ -32,7 +35,7 @@ export function createBot(env: Env): Bot<Ctx> {
     const id = ctx.from?.id;
     const stored = id ? await userLangOrNull(env, id).catch(() => null) : null;
     ctx.lang = toLang(stored ?? ctx.from?.language_code);
-    if (id && (await rateLimited(env, String(id), 20, 60))) {
+    if (id && (await rateLimited(env, env.USER_LIMIT, String(id), 20, 60))) {
       await ctx.reply(t(ctx).rateLimited);
       return;
     }
@@ -108,7 +111,8 @@ export function createBot(env: Env): Bot<Ctx> {
     // Hash de transaction (EVM 32 octets hex, Solana signature base58 ~88 car.) : pas une adresse.
     if (/^0x[a-fA-F0-9]{64}$/.test(a) || /^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(a)) return ctx.reply(t(ctx).scanIsTxHash, HTML);
     if (!a || !familyOf(a) || familyOf(a) === 'bitcoin') return ctx.reply(t(ctx).scanUsage, HTML);
-    if (ctx.from && (await rateLimited(env, `scan:${ctx.from.id}`, 5, 60))) return ctx.reply(t(ctx).rateLimited);
+    if (ctx.from && (await rateLimited(env, env.SCAN_LIMIT, `scan:${ctx.from.id}`, 5, 60))) return ctx.reply(t(ctx).rateLimited);
+    if (await rateLimited(env, env.SCAN_GLOBAL, 'scan:all', SCAN_GLOBAL_PER_MINUTE, 60)) return ctx.reply(t(ctx).rateLimited);
     await ctx.reply(t(ctx).scanRunning);
     const r = await scanToken(a).catch(() => null);
     if (r === 'not_token') return ctx.reply(t(ctx).scanNotToken, HTML);

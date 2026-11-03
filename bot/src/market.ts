@@ -1,5 +1,5 @@
 /** Prix (CoinGecko → DefiLlama/Binance, cache KV 60 s) et gas (PublicNode, cache 60 s). */
-import { fetchJson, type Env } from './env';
+import { cacheGet, cachePut, fetchJson, type Env } from './env';
 
 const CG = 'https://api.coingecko.com/api/v3';
 
@@ -24,7 +24,7 @@ export function resolveCoinId(q: string): string {
 export async function getPrice(env: Env, id: string, fiat = 'usd'): Promise<CoinPrice | null> {
   if (!/^[a-z0-9-]{2,60}$/.test(id)) return null;
   const key = `price:${id}:${fiat}`;
-  const cached = await env.CACHE.get(key);
+  const cached = await cacheGet(env, key);
   if (cached) return JSON.parse(cached) as CoinPrice;
   let out: CoinPrice | null = null;
   try {
@@ -48,7 +48,7 @@ export async function getPrice(env: Env, id: string, fiat = 'usd'): Promise<Coin
     }
     out = { id, symbol: l.symbol.toUpperCase(), name: l.symbol.toUpperCase(), price: fiat === 'usd' ? l.price : l.price, change24h, marketCap: 0 };
   }
-  await env.CACHE.put(key, JSON.stringify(out), { expirationTtl: 60 });
+  await cachePut(env, key, JSON.stringify(out), 60);
   return out;
 }
 
@@ -118,7 +118,7 @@ const TRANSFER_GAS = 21_000;
 export interface GasRow { name: string; gwei: number | null; usdTransfer: number | null }
 
 export async function getGas(env: Env): Promise<{ evm: GasRow[]; solanaPriority: number | null }> {
-  const cached = await env.CACHE.get('gas');
+  const cached = await cacheGet(env, 'gas');
   if (cached) return JSON.parse(cached);
   const prices = await getPrices(env, ['ethereum', 'matic-network', 'binancecoin']).catch(() => ({} as Record<string, number>));
   const evm = await Promise.all(EVM_RPCS.map(async (c): Promise<GasRow> => {
@@ -143,6 +143,6 @@ export async function getGas(env: Env): Promise<{ evm: GasRow[]; solanaPriority:
     solanaPriority = null;
   }
   const out = { evm, solanaPriority };
-  await env.CACHE.put('gas', JSON.stringify(out), { expirationTtl: 60 });
+  await cachePut(env, 'gas', JSON.stringify(out), 60);
   return out;
 }

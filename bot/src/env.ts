@@ -8,6 +8,15 @@ export interface Env {
   SUPPORT_URL: string;
   DB: D1Database;
   CACHE: KVNamespace;
+  /** Limiteurs de débit Cloudflare (wrangler.toml) : aucun stockage consommé. Absents en local. */
+  USER_LIMIT?: RateLimiter;
+  SCAN_LIMIT?: RateLimiter;
+  SCAN_GLOBAL?: RateLimiter;
+}
+
+/** Liaison « ratelimit » des Workers : `limit()` répond `success: false` au-delà du quota de la fenêtre. */
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
 }
 
 /** Échappe le texte pour parse_mode HTML — on n'utilise JAMAIS Markdown : une
@@ -31,13 +40,52 @@ export function familyOf(a: string): 'evm' | 'solana' | 'bitcoin' | null {
   return null;
 }
 
-/** Limitation de débit par utilisateur (KV) : `max` appels par fenêtre de `windowSec`. */
-export async function rateLimited(env: Env, key: string, max: number, windowSec: number): Promise<boolean> {
-  const k = `rl:${key}:${Math.floor(Date.now() / 1000 / windowSec)}`;
-  const cur = Number((await env.CACHE.get(k)) ?? '0');
-  if (cur >= max) return true;
-  await env.CACHE.put(k, String(cur + 1), { expirationTtl: Math.max(60, windowSec + 5) });
+/**
+ * Limitation de débit : `true` si la clé a dépassé son quota.
+ *
+ * Le limiteur intégré de Cloudflare ne consomme rien. L'ancien compteur en KV
+ * écrivait à chaque message, et le KV gratuit n'accepte que 1 000 écritures
+ * par jour pour tout le compte : au-delà, le bot ne répondait plus. Le KV ne
+ * sert plus que de repli (développement local, liaison absente).
+ *
+ * En cas de panne du limiteur, on laisse passer : mieux vaut un bot qui répond
+ * qu'un bot muet. Les services appelés ont leurs propres limites et le cache.
+ */
+export async function rateLimited(env: Env, limiter: RateLimiter | undefined, key: string, max: number, windowSec: number): Promise<boolean> {
+  if (limiter) {
+    try {
+      return !(await limiter.limit({ key })).success;
+    } catch {
+      return false;
+    }
+  }
+  try {
+    const k = `rl:${key}:${Math.floor(Date.now() / 1000 / windowSec)}`;
+    const cur = Number((await env.CACHE.get(k)) ?? '0');
+    if (cur >= max) return true;
+    await env.CACHE.put(k, String(cur + 1), { expirationTtl: Math.max(60, windowSec + 5) });
+  } catch {
+    /* KV indisponible ou quota atteint : on laisse passer */
+  }
   return false;
+}
+
+/** Lecture du cache : `null` si absent ou si le KV est indisponible. */
+export async function cacheGet(env: Env, key: string): Promise<string | null> {
+  try {
+    return await env.CACHE.get(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Écriture du cache, sans jamais faire échouer la commande (KV en panne ou quota du jour atteint). */
+export async function cachePut(env: Env, key: string, value: string, ttlSec: number): Promise<void> {
+  try {
+    await env.CACHE.put(key, value, { expirationTtl: ttlSec });
+  } catch {
+    /* la réponse part quand même, simplement sans cache */
+  }
 }
 
 /** fetch avec délai maximal (les API publiques peuvent pendre). */

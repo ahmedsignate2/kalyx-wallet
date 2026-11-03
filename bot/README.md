@@ -24,7 +24,9 @@ Réponses dans les 15 langues de l'app (fr, en, es, pt, de, it, nl, pl, tr, ru, 
 ## Sécurité
 - Webhook Telegram authentifié par `X-Telegram-Bot-Api-Secret-Token` (comparaison à temps constant).
 - Messages en `parse_mode: HTML` avec échappement systématique (jamais de Markdown : une adresse ou un pseudo ne peut pas injecter de formatage).
-- Limitation de débit par utilisateur (KV), 5 scans / minute.
+- Limitation de débit par les limiteurs intégrés de Cloudflare (`wrangler.toml`, sans écriture KV) : 20 messages / minute par personne, 5 scans / minute par personne, 30 scans / minute pour tout le bot (GoPlus public).
+- Aucune clé d'API : prix, gas et scans passent par des services publics gratuits (CoinGecko, DefiLlama, Binance, RPC publicnode et Solana, GoPlus), avec 60 s de cache. Rien à épuiser ni à facturer.
+- KV ou limiteur indisponible (panne, quota gratuit de 1 000 écritures / jour atteint) : le bot continue de répondre, sans cache.
 - Suppression d'alerte autorisée par le `telegram_id` dans le `WHERE` : un identifiant deviné ne donne accès à rien.
 - 20 alertes ouvertes au maximum par personne : le cron relit toutes les alertes toutes les 5 minutes.
 - Aucune donnée sensible en base (voir `schema.sql`).
