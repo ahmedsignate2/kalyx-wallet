@@ -61,6 +61,8 @@ import { saveTabs, loadTabs } from '../../lib/browserTabs';
 import { useBrowserPresence } from '../../lib/browserPresence';
 import { useWalletConnect, pairErrorKey } from '../../lib/walletconnect';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
+import { buildConnectLinkScanner, parseConnectLinkMessage } from '../../src/domain/web/connectLinkScanner';
+import { clipConnectLink } from '../../src/domain/qr/clipConnect';
 import { extractWcUri, isWcPairingUri } from '../../src/domain/qr/deeplink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildSolanaProvider, parseSolTxParams, solMessageParam, solAccountPayload, sigToBase64, solEmitJs, type SolTxMode } from '../../lib/solanaProvider';
@@ -447,6 +449,8 @@ export default function Browser() {
    * metamask:/tg:/mailto: étaient ignorés en silence, et http:// filait vers Safari.
    * C'est donc ICI que tout est trié.
    */
+  /** Proposition de connexion (définie plus bas) : passe par une référence, le filtre de navigation reste mémoïsé. */
+  const offerRef = useRef<((raw: string, host: string, tabId: string, opts?: { onIgnore?: () => void; tapped?: boolean }) => void) | null>(null);
   const onShouldStart = useCallback((req: { url: string; navigationType?: string; isTopFrame?: boolean }) => {
     const u = req.url;
     // iOS appelle aussi ce filtre pour les iframes (captcha, widgets) : jamais d'alerte ni d'app externe pour eux.
@@ -481,10 +485,23 @@ export default function Browser() {
       }
       return false;
     }
+    /*
+     * TON CONNECT, PORTEFEUILLE CHOISI DANS LA FENÊTRE DU SITE. Tant que Kalyx
+     * n'est pas dans la liste officielle, le kit TON du site ne le voit pas et
+     * ouvre le lien d'un autre portefeuille (Tonkeeper…) : on propose de
+     * connecter Kalyx à la place ; « Ignorer » ouvre le portefeuille choisi.
+     */
+    if (/^https:\/\//i.test(u) && looksLikeTonConnect(u)) {
+      const id = activeRef.current;
+      const host = originOf(tabsRef.current.find((x) => x.id === id)?.url ?? '');
+      offerRef.current?.(u, host, id, { tapped: true, onIgnore: () => void Linking.openURL(u).catch(() => {}) });
+      return false;
+    }
     if (!/^https:\/\//i.test(u) && looksLikeTonConnect(u)) {
+      const pageHost = originOf(tabsRef.current.find((x) => x.id === activeRef.current)?.url ?? '') || undefined;
       void useTonConnect
         .getState()
-        .openLink(u)
+        .openLink(u, pageHost ? { pageHost } : undefined)
         .then((err) => {
           if (err) toast.error(t('connectionFailed'), t(err as never));
         });
@@ -552,7 +569,7 @@ export default function Browser() {
   // Fournisseur EVM + pont TON Connect (le site TON demande la connexion directement au wallet).
   // Jeton de page, tiré une fois : seuls les scripts injectés dans la page principale le connaissent.
   const pageToken = useMemo(() => bytesToHexToken(), []);
-  const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildSolanaProvider(pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken), [chainIdHex, pageToken]);
+  const injected = useMemo(() => buildInjectedProvider(chainIdHex, pageToken) + '\n' + buildSolanaProvider(pageToken) + '\n' + buildTonJsBridge(tcDeviceInfo(), pageToken) + '\n' + buildConnectLinkScanner(pageToken), [chainIdHex, pageToken]);
   const inject = useCallback((js: string) => webref.current?.injectJavaScript(js), []);
   // Passage sur une adresse suivie : les sites connectés perdent le compte (ils ne doivent pas voir l'adresse suivie).
   useEffect(() => {
@@ -640,6 +657,40 @@ export default function Browser() {
       }, 2500),
     );
   }, []);
+  /**
+   * QR DE CONNEXION AFFICHÉ PAR LA PAGE (src/domain/web/connectLinkScanner) :
+   * WalletConnect ou TON Connect. Proposé une fois par lien, onglet actif
+   * seulement, « Ignorer » par défaut ; ensuite la fenêtre de connexion
+   * habituelle. TON : le manifeste doit appartenir à la page qui l'affiche.
+   */
+  const offeredLinks = useRef(new Set<string>());
+  const offerPageConnect = useCallback((raw: string, host: string, tabId: string, opts?: { onIgnore?: () => void; tapped?: boolean }) => {
+    const found = clipConnectLink(raw);
+    if (!found || !host || activeRef.current !== tabId) return;
+    // QR vu par le script : une fois par lien. Lien touché par l'utilisateur : toujours demandé.
+    if (!opts?.tapped && offeredLinks.current.has(found.link)) return;
+    offeredLinks.current.add(found.link);
+    const go = () => {
+      if (found.kind === 'tonconnect') {
+        void useTonConnect
+          .getState()
+          .openLink(found.link, { pageHost: host })
+          .then((err) => err && toast.error(t('connectionFailed'), t(err as never)));
+      } else {
+        void useWalletConnect.getState().pair(found.link).catch((e) => toast.error(t('connectionFailed'), t(pairErrorKey(e))));
+      }
+    };
+    Alert.alert(
+      t('pageConnectTitle'),
+      fill(t('pageConnectBody'), { site: host, kind: found.kind === 'tonconnect' ? 'TON Connect' : 'WalletConnect' }),
+      [
+        { text: t('clipIgnore'), style: 'cancel', onPress: opts?.onIgnore },
+        { text: t('connect'), onPress: go },
+      ],
+      { cancelable: true },
+    );
+  }, [t]);
+  offerRef.current = offerPageConnect;
   const respondPending = useCallback(
     (p: { id: number; origin: string; tabId: string }, result: unknown, err?: { code: number; message: string }) => deliverTo(p.origin, p.tabId, respondJs(p.id, result, err)),
     [deliverTo],
@@ -1177,6 +1228,11 @@ export default function Browser() {
             onScroll={onWebScroll}
             injectedJavaScriptBeforeContentLoaded={injected}
             onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
+              const shown = parseConnectLinkMessage(e.nativeEvent.data, pageToken);
+              if (shown !== null) {
+                offerPageConnect(shown, originOf(e.nativeEvent.url ?? activeTab.url ?? ''), activeTab.id);
+                return;
+              }
               const ack = parseDappAck(e.nativeEvent.data, pageToken);
               if (ack !== null) {
                 const h = awaitingAck.current.get(ack);

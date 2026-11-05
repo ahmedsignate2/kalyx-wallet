@@ -86,7 +86,8 @@ interface TcState {
   hydrated: boolean;
   hydrate: () => Promise<void>;
   /** Lien ou QR scanné. Rend un message d'erreur lisible, ou null si la demande est affichée. */
-  openLink: (text: string) => Promise<string | null>;
+  /** `pageHost` : page du navigateur intégré qui affichait ce lien ; son manifeste doit lui appartenir. */
+  openLink: (text: string, opts?: { pageHost?: string }) => Promise<string | null>;
   approveConnect: (unlock: Unlock) => Promise<void>;
   rejectConnect: () => Promise<void>;
   /** `expected` : identité (`pendingKey`) de la demande MONTRÉE — une autre n'est jamais signée ni refusée à sa place. */
@@ -325,7 +326,7 @@ export const useTonConnect = create<TcState>((set, get) => {
       relisten();
     },
 
-    openLink: async (text) => {
+    openLink: async (text, opts) => {
       const link = parseConnectLink(text);
       console.log('[KALYX-TC] openLink', { parsed: !!link });
       if (!link) return 'tcInvalidLink';
@@ -333,6 +334,8 @@ export const useTonConnect = create<TcState>((set, get) => {
       console.log('[KALYX-TC] manifest', { url: link.request.manifestUrl, ok: !!manifest });
       if (!manifest) return 'tcManifestError';
       if (!manifestOriginMatches(link.request.manifestUrl, manifest)) return 'tcManifestMismatch';
+      // Lien lu sur une page du navigateur : un site piégé ne peut pas demander une connexion au nom d'un autre.
+      if (opts?.pageHost !== undefined && !pageMatchesManifest(opts.pageHost, manifest)) return 'tcManifestMismatch';
       const proof = link.request.items.find((i) => i.name === 'ton_proof') as { payload?: string } | undefined;
       set({ queue: [...get().queue, { kind: 'connect', link, manifest, domain: manifestDomain(manifest), proofPayload: proof?.payload }] });
       return null;

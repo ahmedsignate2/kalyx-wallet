@@ -87,6 +87,12 @@ beforeAll(() => {
 beforeEach(() => clearTonInFlight());
 
 describe('TON Connect, du QR à la transaction', () => {
+  it('lien lu sur une page du navigateur : refusé si le manifeste appartient à un autre site', async () => {
+    const before = useTonConnect.getState().queue.length;
+    expect(await useTonConnect.getState().openLink(link, { pageHost: 'app-ston.fi.evil.example' })).toBe('tcManifestMismatch');
+    expect(useTonConnect.getState().queue).toHaveLength(before);
+  });
+
   it('connexion : ton_addr + ton_proof valides, sur le pont de Tonkeeper', async () => {
     expect(await useTonConnect.getState().openLink(link)).toBeNull();
     expect(useTonConnect.getState().queue[0]).toMatchObject({ kind: 'connect', domain: 'app.ston.fi' });
