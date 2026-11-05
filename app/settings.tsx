@@ -22,8 +22,8 @@ import { useShallow } from 'zustand/react/shallow';
 export default function Settings() {
   const { colors, typography } = useTheme();
   const t = useT();
-  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLockMinutes, privacyGuard, setPrivacyGuard } =
-    useSettings(useShallow((s) => ({ profileName: s.profileName, setProfileName: s.setProfileName, language: s.language, fiat: s.fiat, setFiat: s.setFiat, biometricEnabled: s.biometricEnabled, setBiometricEnabled: s.setBiometricEnabled, themePref: s.themePref, setThemePref: s.setThemePref, notifTx: s.notifTx, notifPrice: s.notifPrice, setNotifPref: s.setNotifPref, autoLockMinutes: s.autoLockMinutes, setAutoLockMinutes: s.setAutoLockMinutes, privacyGuard: s.privacyGuard, setPrivacyGuard: s.setPrivacyGuard })));
+  const { profileName, setProfileName, language, fiat, setFiat, biometricEnabled, setBiometricEnabled, themePref, setThemePref, notifTx, notifPrice, setNotifPref, autoLockMinutes, setAutoLockMinutes, privacyGuard, setPrivacyGuard, clipConnect, setClipConnect } =
+    useSettings(useShallow((s) => ({ profileName: s.profileName, setProfileName: s.setProfileName, language: s.language, fiat: s.fiat, setFiat: s.setFiat, biometricEnabled: s.biometricEnabled, setBiometricEnabled: s.setBiometricEnabled, themePref: s.themePref, setThemePref: s.setThemePref, notifTx: s.notifTx, notifPrice: s.notifPrice, setNotifPref: s.setNotifPref, autoLockMinutes: s.autoLockMinutes, setAutoLockMinutes: s.setAutoLockMinutes, privacyGuard: s.privacyGuard, setPrivacyGuard: s.setPrivacyGuard, clipConnect: s.clipConnect, setClipConnect: s.setClipConnect })));
   const enableBiometric = useWallet((s) => s.enableBiometric);
   const disableBiometric = useWallet((s) => s.disableBiometric);
   const reset = useWallet((s) => s.reset);
@@ -186,6 +186,7 @@ export default function Settings() {
           ))}
         </View>
         <SettingRow divider icon="eye" title={t('privacyScreen')} hint={t('privacyScreenHint')} right={<Switch value={privacyGuard} onValueChange={setPrivacyGuard} />} />
+        <SettingRow divider icon="walletconnect" title={t('clipConnectT')} hint={t('clipConnectHint')} right={<Switch value={clipConnect} onValueChange={setClipConnect} />} />
         <SettingRow divider icon="pin" title={t('changePin')} onPress={() => router.push('/change-pin')} />
         <SettingRow divider icon="phrase" title={t('revealPhrase')} onPress={() => router.push('/reveal-phrase')} />
         <SettingRow divider icon="copy" title={t('revealPrivateKey')} onPress={() => router.push('/reveal-private-key')} />

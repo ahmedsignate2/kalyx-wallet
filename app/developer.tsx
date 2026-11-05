@@ -51,7 +51,7 @@ const MONO = monoFont;
 
 /** Réglages NON sensibles montrés dans l'inspecteur et l'export (liste blanche). */
 const SETTINGS_WHITELIST = [
-  'language', 'fiat', 'uiMode', 'themePref', 'showTestnets', 'securityScan', 'autoLockMinutes', 'privacyGuard',
+  'language', 'fiat', 'uiMode', 'themePref', 'showTestnets', 'securityScan', 'autoLockMinutes', 'privacyGuard', 'clipConnect',
   'biometricEnabled', 'notifTx', 'notifPrice', 'soundEnabled', 'hapticsEnabled', 'aiToolsEnabled', 'debugJournalEnabled',
 ] as const;
 

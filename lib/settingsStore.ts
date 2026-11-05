@@ -50,6 +50,8 @@ interface SettingsState {
   autoLockMinutes: number;
   /** Écran de garde : masque le contenu dans le sélecteur d'apps récentes. */
   privacyGuard: boolean;
+  /** Lien de connexion (WalletConnect, TON Connect) copié : proposé à l'ouverture de l'app. */
+  clipConnect: boolean;
   /** Sons de l'application (triptyque succès, etc) */
   soundEnabled: boolean;
   /**
@@ -91,6 +93,7 @@ interface SettingsState {
   setFlag: (key: 'securityScan' | 'showTestnets', on: boolean) => void;
   setAutoLockMinutes: (min: number) => void;
   setPrivacyGuard: (on: boolean) => void;
+  setClipConnect: (on: boolean) => void;
   setSoundEnabled: (on: boolean) => void;
   setAiToolsEnabled: (on: boolean) => void;
   setHapticsEnabled: (on: boolean) => void;
@@ -104,7 +107,7 @@ interface SettingsState {
 
 type Persisted = Pick<
   SettingsState,
-  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt' | 'backupDigest' | 'debugJournalEnabled'
+  | 'profileName' | 'language' | 'fiat' | 'biometricEnabled' | 'uiMode' | 'themePref' | 'favorites' | 'pinLength' | 'notifTx' | 'notifPrice' | 'securityScan' | 'showTestnets' | 'autoLockMinutes' | 'privacyGuard' | 'clipConnect' | 'soundEnabled' | 'aiToolsEnabled' | 'hapticsEnabled' | 'backupVerified' | 'encryptedBackupAt' | 'driveBackupAt' | 'backupDigest' | 'debugJournalEnabled'
 >;
 
 /*
@@ -142,6 +145,7 @@ function write(s: Persisted) {
     showTestnets: s.showTestnets,
     autoLockMinutes: s.autoLockMinutes,
     privacyGuard: s.privacyGuard,
+    clipConnect: s.clipConnect,
     soundEnabled: s.soundEnabled,
     aiToolsEnabled: s.aiToolsEnabled,
     hapticsEnabled: s.hapticsEnabled,
@@ -169,6 +173,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
   showTestnets: false, // testnets/devnets cachés par défaut (activables via Développeur)
   autoLockMinutes: 3,
   privacyGuard: true,
+  clipConnect: true,
   soundEnabled: true,
   aiToolsEnabled: false,
   hapticsEnabled: true,
@@ -197,6 +202,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
       showTestnets: s?.showTestnets === true, // défaut false (caché) sauf activation explicite
       autoLockMinutes: typeof s?.autoLockMinutes === 'number' ? (s.autoLockMinutes as number) : 3,
       privacyGuard: s?.privacyGuard !== false,
+      clipConnect: s?.clipConnect !== false,
       soundEnabled: s?.soundEnabled !== false,
       // Opt-in strict : absent en stockage = désactivé.
       aiToolsEnabled: s?.aiToolsEnabled === true,
@@ -330,6 +336,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAutoLockMinutes: (min) => {
     set({ autoLockMinutes: min });
     persist({ autoLockMinutes: min });
+  },
+  setClipConnect: (clipConnect) => {
+    set({ clipConnect });
+    persist({ clipConnect });
   },
   setPrivacyGuard: (privacyGuard) => {
     set({ privacyGuard });
