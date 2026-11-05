@@ -3,7 +3,7 @@ import { PinPromptModal } from '../ui/PinPromptModal';
 import { HeroOrb, Pills, Rise, ScreenDunes } from '../ui/nova';
 import { fill } from '../lib/i18n';
 import { useNoScreenCapture } from '../lib/useNoScreenCapture';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -68,6 +68,17 @@ export default function ImportWallet() {
   /** Fenêtre PIN ouverte : tout a été vérifié, il ne reste qu'à chiffrer. */
   const [askPin, setAskPin] = useState(false);
   const [pinError, setPinError] = useState(0);
+  /**
+   * Import terminé : l'accueil ne s'ouvre qu'APRÈS la fermeture de la fenêtre du
+   * code. Fermer la fenêtre et vider la pile d'écrans dans le même instant
+   * fermait l'app sur Android (le portefeuille, lui, était bien enregistré).
+   */
+  const [imported, setImported] = useState(false);
+  useEffect(() => {
+    if (!imported || askPin) return;
+    const h = setTimeout(goHome, 400); // fin de l'animation de fermeture (slide)
+    return () => clearTimeout(h);
+  }, [imported, askPin, goHome]);
   /** Sauvegarde déjà déchiffrée (avant le PIN), prête à importer. */
   const [restored, setRestored] = useState<BackupWallet[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -191,7 +202,7 @@ export default function ImportWallet() {
         showImportReport(await importWallets(restored, pin), t);
       }
       setAskPin(false);
-      goHome();
+      setImported(true);
     } catch (e) {
       // Seul un PIN faux fait secouer le pavé ; le reste est dit en clair, traduit.
       if (isWalletError(e) && e.code === 'WRONG_PIN') setPinError((n) => n + 1);
@@ -374,7 +385,7 @@ export default function ImportWallet() {
       </Card>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <View style={{ height: spacing(1) }} />
-      <Button label={busy ? t('importing') : t('importAction')} loading={busy} disabled={!text.trim() || bad.length > 0} onPress={onContinue} />
+      <Button label={busy ? t('importing') : t('importAction')} loading={busy} disabled={imported || !text.trim() || bad.length > 0} onPress={onContinue} />
       </ScrollView>
       <PinPromptModal
         visible={askPin}

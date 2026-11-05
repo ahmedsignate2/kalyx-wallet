@@ -91,7 +91,8 @@ export default function Import() {
     try {
       await importWallet(pendingMnemonic, pin);
       setPendingMnemonic(null);
-      router.replace('/wallets');
+      // Après la fermeture de la fenêtre du code : fermer et changer d'écran d'un coup fermait l'app sur Android.
+      setTimeout(() => router.replace('/wallets'), 400);
     } catch (e) {
       /*
        * Seul un PIN faux fait secouer le clavier. Tout le reste était pris pour

@@ -161,7 +161,8 @@ export default function RestoreDriveScreen() {
       setPendingWallets(null);
       flow.reset();
       showImportReport(report, t);
-      router.replace('/wallets');
+      // Après la fermeture de la fenêtre du code : fermer et changer d'écran d'un coup fermait l'app sur Android.
+      setTimeout(() => router.replace('/wallets'), 400);
     } catch (e) {
       // Code refusé : on secoue. Toute autre erreur (stockage, sauvegarde) est DITE —
       // la prendre pour un mauvais code faisait retaper le bon code sans fin.
