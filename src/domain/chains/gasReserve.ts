@@ -1,7 +1,7 @@
 /**
  * Réserve de gas DYNAMIQUE : combien de monnaie native garder pour qu'une
  * transaction (swap, bridge, dépôt) passe — estimée sur le RPC du réseau,
- * jamais codée en dur par chaîne (65 réseaux au catalogue).
+ * jamais codée en dur par chaîne (64 réseaux au catalogue).
  *
  * - EVM : `getFeeData()` → (maxFeePerGas ?? gasPrice) × gas d'un swap type
  *   (250 000) × marge de sécurité (+15 %). Sur un L2, le coût inclut de fait la

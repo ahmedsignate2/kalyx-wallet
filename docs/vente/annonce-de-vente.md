@@ -6,7 +6,7 @@ Deux textes prêts à coller ; les crochets \[…\] sont à compléter avec tes 
 
 ## Annonce complète (Acquire.com, Flippa)
 
-**Titre** : Kalyx Wallet — portefeuille crypto non-custodial multi-chaînes (65 réseaux), app Android + web + Telegram, code propriétaire complet
+**Titre** : Kalyx Wallet — portefeuille crypto non-custodial multi-chaînes (64 réseaux), app Android + web + Telegram, code propriétaire complet
 
 **En une phrase** : un portefeuille crypto prêt à lancer, où les clés restent sur le téléphone et chaque signature est expliquée avant d'être donnée.
 
@@ -18,7 +18,7 @@ Deux textes prêts à coller ; les crochets \[…\] sont à compléter avec tes 
 
 **Produit**
 
-- 65 réseaux en un seul solde : Bitcoin, Ethereum et ses Layer 2, Solana, TON.
+- 64 réseaux en un seul solde : Bitcoin, Ethereum et ses Layer 2, Solana, TON.
 - Swap et bridge (LI.FI, Relay, Jupiter, STON.fi), staking (Aave, Lido, Jito, Tonstakers…).
 - WalletConnect v2, TON Connect, navigateur de dApps, révocation groupée des autorisations.
 - 15 langues, copilote IA avec la clé de l'utilisateur.
@@ -37,11 +37,11 @@ Deux textes prêts à coller ; les crochets \[…\] sont à compléter avec tes 
 
 ## Version courte (message direct)
 
-Objet : Rachat ou licence — Kalyx Wallet, wallet non-custodial 65 réseaux
+Objet : Rachat ou licence — Kalyx Wallet, wallet non-custodial 64 réseaux
 
 Bonjour \[prénom\],
 
-J'ai construit Kalyx Wallet, un portefeuille crypto non-custodial pour Android, avec tableau de bord web et mini-app Telegram. Il gère 65 réseaux (EVM, Bitcoin, Solana, TON), le swap, le staking, WalletConnect et TON Connect, en 15 langues. Il intègre aussi des protections rares : code de contrainte, liste blanche à 24 h, simulation Anti-Drainer.
+J'ai construit Kalyx Wallet, un portefeuille crypto non-custodial pour Android, avec tableau de bord web et mini-app Telegram. Il gère 64 réseaux (EVM, Bitcoin, Solana, TON), le swap, le staking, WalletConnect et TON Connect, en 15 langues. Il intègre aussi des protections rares : code de contrainte, liste blanche à 24 h, simulation Anti-Drainer.
 
 Le code est complet et propriétaire, couvert par 1 734 tests, avec une chaîne de release automatisée. Je cherche un repreneur, ou un partenaire pour une licence en marque blanche.
 

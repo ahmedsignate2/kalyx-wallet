@@ -4,7 +4,7 @@ const pl: Dict = {
   meta: {
     title: 'Kalyx Wallet — Niepowierniczy, wielołańcuchowy portfel kryptowalut',
     description:
-      'Twoje klucze zostają w Twoim telefonie. Bitcoin, Ethereum, TON, Solana i 65 sieci, każdy podpis wyjaśniony przed podpisaniem. Za darmo, bez konta.',
+      'Twoje klucze zostają w Twoim telefonie. Bitcoin, Ethereum, TON, Solana i 64 sieci, każdy podpis wyjaśniony przed podpisaniem. Za darmo, bez konta.',
   },
   nav: {
     how: 'Jak to działa',
@@ -61,8 +61,8 @@ const pl: Dict = {
     steps: [
       {
         title: 'Jedno saldo. Wszystkie Twoje sieci.',
-        text: 'Bitcoin, Ethereum i jego Layer 2, Solana: 65 sieci zsumowane w jedną liczbę, jedną krzywą. Saldo pojawia się z pamięci podręcznej, zanim sieć odpowie.',
-        value: '65',
+        text: 'Bitcoin, Ethereum i jego Layer 2, Solana: 64 sieci zsumowane w jedną liczbę, jedną krzywą. Saldo pojawia się z pamięci podręcznej, zanim sieć odpowie.',
+        value: '64',
         label: 'sieci',
       },
       {

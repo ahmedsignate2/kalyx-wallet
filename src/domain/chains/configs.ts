@@ -382,7 +382,7 @@ export const UNICHAIN: ChainConfig = {
 };
 export const WORLDCHAIN: ChainConfig = {
   id: 'worldchain', name: 'World Chain', family: 'evm', evmChainId: 480, nativeSymbol: 'ETH', nativeDecimals: 18,
-  rpcUrls: viaRelay('worldchain-mainnet', ['https://worldchain-mainnet.gateway.tenderly.co', 'https://worldchain.drpc.org']), explorerUrl: 'https://worldscan.org', coingeckoId: 'ethereum',
+  rpcUrls: viaRelay('worldchain-mainnet', ['https://worldchain-mainnet.g.alchemy.com/public', 'https://worldchain.drpc.org']), explorerUrl: 'https://worldscan.org', coingeckoId: 'ethereum',
   coingeckoPlatform: 'world-chain',
 };
 export const SEI: ChainConfig = {
@@ -553,11 +553,6 @@ export const MERLIN: ChainConfig = {
   id: 'merlin', name: 'Merlin', family: 'evm', evmChainId: 4200, nativeSymbol: 'BTC', nativeDecimals: 18,
   rpcUrls: ['https://rpc.merlinchain.io', 'https://merlin.drpc.org'], explorerUrl: 'https://scan.merlinchain.io', coingeckoId: 'bitcoin',
   coingeckoPlatform: 'merlin-chain',
-};
-export const DEGEN: ChainConfig = {
-  id: 'degen', name: 'Degen', family: 'evm', evmChainId: 666666666, nativeSymbol: 'DEGEN', nativeDecimals: 18,
-  rpcUrls: ['https://rpc.degen.tips'], explorerUrl: 'https://explorer.degen.tips', coingeckoId: 'degen-base',
-  coingeckoPlatform: 'degen',
 };
 export const MEMECORE: ChainConfig = {
   id: 'memecore', name: 'MemeCore', family: 'evm', evmChainId: 4352, nativeSymbol: 'M', nativeDecimals: 18,
@@ -738,7 +733,6 @@ export const ALL_CHAINS: ChainConfig[] = [
   HEMI,
   BITLAYER,
   MERLIN,
-  DEGEN,
   MEMECORE,
   MONAD_TESTNET,
   BITCOIN,

@@ -26,7 +26,7 @@ Les assets graphiques sont dans `assets/store/`.
 **Nom de l'app :** `Kalyx — Wallet Crypto`
 
 **Description courte** (80 caractères max) :
-> Wallet crypto non-custodial : 65 réseaux, swap, staking, dApps. Tes clés, tes cryptos.
+> Wallet crypto non-custodial : 64 réseaux, swap, staking, dApps. Tes clés, tes cryptos.
 
 **Description complète :**
 
@@ -34,7 +34,7 @@ Les assets graphiques sont dans `assets/store/`.
 >
 > Tes clés privées restent sur ton téléphone, chiffrées — jamais sur nos serveurs. Tu gardes le contrôle total de tes fonds.
 >
-> **✦ 65 réseaux**
+> **✦ 64 réseaux**
 > Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche… + Bitcoin, Solana et TON. Une seule app pour tout.
 >
 > **✦ Envoie & reçois**
@@ -73,7 +73,7 @@ Les assets graphiques sont dans `assets/store/`.
 **App name:** `Kalyx — Crypto Wallet`
 
 **Short description** (80 chars max):
-> Non-custodial crypto wallet: 65 networks, swap, staking, dApps. Your keys, your crypto.
+> Non-custodial crypto wallet: 64 networks, swap, staking, dApps. Your keys, your crypto.
 
 **Full description:**
 
@@ -81,7 +81,7 @@ Les assets graphiques sont dans `assets/store/`.
 >
 > Your private keys stay encrypted on your device — never on our servers. You keep full control of your funds.
 >
-> **✦ 65 networks** — Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche… plus Bitcoin, Solana and TON.
+> **✦ 64 networks** — Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche… plus Bitcoin, Solana and TON.
 > **✦ Send & receive** — native coins and tokens (ERC-20, SPL), ENS names, QR, address book, balance check.
 > **✦ Built-in Swap & Bridge** — trade and move across chains without leaving the app.
 > **✦ Earn** — staking and lending: Lido, Rocket Pool, Benqi, Jito, Marinade, Aave, Tonstakers.
@@ -101,7 +101,7 @@ Les assets graphiques sont dans `assets/store/`.
 Capture **6 à 8 écrans** (téléphone, portrait, ≥ 1080×1920). Ordre conseillé + légende à ajouter :
 
 1. **Accueil / portefeuille** — solde total + courbe → « Tous tes actifs, en un coup d'œil »
-2. **Liste des réseaux** (avec logos) → « 65 réseaux : ETH, Base, Solana, Bitcoin, TON… »
+2. **Liste des réseaux** (avec logos) → « 64 réseaux : ETH, Base, Solana, Bitcoin, TON… »
 3. **Swap** (devis affiché) → « Swap & bridge au meilleur prix »
 4. **Navigateur dApps** (accueil premium) → « Uniswap, OpenSea… dans ton wallet »
 5. **Fenêtre de signature** (TxPreview / approbation) → « Tu vois toujours ce que tu signes »

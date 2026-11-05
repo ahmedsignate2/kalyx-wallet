@@ -4,7 +4,7 @@ const tr: Dict = {
   meta: {
     title: 'Kalyx Wallet — Saklama gerektirmeyen, çok zincirli kripto cüzdan',
     description:
-      'Anahtarlarınız telefonunuzda kalır. Bitcoin, Ethereum, TON, Solana ve 65 ağ; her imza, imzalamadan önce açıklanır. Ücretsiz, hesapsız.',
+      'Anahtarlarınız telefonunuzda kalır. Bitcoin, Ethereum, TON, Solana ve 64 ağ; her imza, imzalamadan önce açıklanır. Ücretsiz, hesapsız.',
   },
   nav: {
     how: 'Nasıl çalışır',
@@ -61,8 +61,8 @@ const tr: Dict = {
     steps: [
       {
         title: 'Tek bakiye. Tüm zincirleriniz.',
-        text: 'Bitcoin, Ethereum ve Layer 2’leri, Solana: 65 ağ tek bir rakamda, tek bir eğride. Bakiye, ağ yanıt vermeden önce önbellekten görünür.',
-        value: '65',
+        text: 'Bitcoin, Ethereum ve Layer 2’leri, Solana: 64 ağ tek bir rakamda, tek bir eğride. Bakiye, ağ yanıt vermeden önce önbellekten görünür.',
+        value: '64',
         label: 'ağ',
       },
       {

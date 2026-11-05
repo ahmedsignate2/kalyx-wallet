@@ -5,7 +5,7 @@
 [![CI](https://github.com/ahmedsignate2/kalyx-wallet/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedsignate2/kalyx-wallet/actions/workflows/ci.yml)
 ![Bêta ouverte](https://img.shields.io/badge/statut-b%C3%AAta%20ouverte-DDB565)
 ![Non-custodial](https://img.shields.io/badge/keys-non--custodial-2ea44f)
-![65 réseaux](https://img.shields.io/badge/r%C3%A9seaux-65-5B8CFF)
+![64 réseaux](https://img.shields.io/badge/r%C3%A9seaux-64-5B8CFF)
 ![15 langues](https://img.shields.io/badge/langues-15-informational)
 ![No independent audit](https://img.shields.io/badge/security%20audit-none%20yet-orange)
 [![License: proprietary, source-available](https://img.shields.io/badge/license-proprietary%20%C2%B7%20source--available-lightgrey)](LICENSE)
@@ -95,10 +95,10 @@ Aucune adresse de perception n'est codée en dur. Le récapitulatif de swap affi
 - PIN avec anti-brute-force (horloge murale + monotone), biométrie, verrouillage automatique.
 - Sauvegarde **chiffrée** (fichier, mot de passe distinct du PIN, scrypt + AES-256-GCM) et sauvegarde **Google Drive** de tous les portefeuilles.
 
-### 🔗 65 réseaux
-**62 réseaux EVM + Bitcoin + Solana + TON**, derrière une même interface d'adaptateur :
+### 🔗 64 réseaux
+**61 réseaux EVM + Bitcoin + Solana + TON**, derrière une même interface d'adaptateur :
 
-Ethereum, BNB Chain, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast, zkSync Era, Gnosis, Mantle, Celo, Berachain, Hyperliquid, Sonic, Cronos, Moonbeam, Metis, Polygon zkEVM, Mode, Manta Pacific, opBNB, Taiko, Unichain, World Chain, Sei, Flare, Kava, Aurora, Fantom, Fraxtal, Ink, Soneium, Abstract, Zora, Lisk, Boba Network, BOB, Immutable zkEVM, Astar, Fuse, Kaia, Gravity, Rootstock, Ronin, ApeChain, Core, ZetaChain, Etherlink, Story, Zircuit, Plume, Morph, Swellchain, Superseed, Hemi, Bitlayer, Merlin, Degen, MemeCore, **Bitcoin**, **Solana**, **TON**.
+Ethereum, BNB Chain, Polygon, Base, Arbitrum, Optimism, Avalanche, Linea, Scroll, Blast, zkSync Era, Gnosis, Mantle, Celo, Berachain, Hyperliquid, Sonic, Cronos, Moonbeam, Metis, Polygon zkEVM, Mode, Manta Pacific, opBNB, Taiko, Unichain, World Chain, Sei, Flare, Kava, Aurora, Fantom, Fraxtal, Ink, Soneium, Abstract, Zora, Lisk, Boba Network, BOB, Immutable zkEVM, Astar, Fuse, Kaia, Gravity, Rootstock, Ronin, ApeChain, Core, ZetaChain, Etherlink, Story, Zircuit, Plume, Morph, Swellchain, Superseed, Hemi, Bitlayer, Merlin, MemeCore, **Bitcoin**, **Solana**, **TON**.
 
 **Réseaux de test** (masqués par défaut, jamais comptés dans le total) : Sepolia, Base Sepolia, Monad Testnet, Solana Devnet, TON Testnet. Une fois affichés, leurs soldes apparaissent dans une section à part de l'accueil, et ils sont utilisables depuis le tableau de bord web. Plus des **réseaux EVM personnalisés** (Chain ID vérifié auprès du RPC).
 

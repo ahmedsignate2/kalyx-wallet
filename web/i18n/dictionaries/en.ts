@@ -4,7 +4,7 @@ const en: Dict = {
   meta: {
     title: 'Kalyx Wallet — Non-custodial, multi-chain crypto wallet',
     description:
-      'Your keys stay on your phone. Bitcoin, Ethereum, TON, Solana and 65 networks, every signature explained before you sign. Free, no account.',
+      'Your keys stay on your phone. Bitcoin, Ethereum, TON, Solana and 64 networks, every signature explained before you sign. Free, no account.',
   },
   nav: {
     how: 'How it works',
@@ -61,8 +61,8 @@ const en: Dict = {
     steps: [
       {
         title: 'One balance. All your chains.',
-        text: 'Bitcoin, Ethereum and its Layer 2s, Solana: 65 networks aggregated into one number, one curve. The balance shows from cache before the network even answers.',
-        value: '65',
+        text: 'Bitcoin, Ethereum and its Layer 2s, Solana: 64 networks aggregated into one number, one curve. The balance shows from cache before the network even answers.',
+        value: '64',
         label: 'networks',
       },
       {

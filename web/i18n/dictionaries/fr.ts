@@ -6,7 +6,7 @@ const fr = {
   meta: {
     title: 'Kalyx Wallet — Portefeuille crypto non-custodial, multi-chaînes',
     description:
-      'Vos clés restent sur votre téléphone. Bitcoin, Ethereum, TON, Solana et 65 réseaux, chaque signature expliquée avant de signer. Gratuit, sans compte.',
+      'Vos clés restent sur votre téléphone. Bitcoin, Ethereum, TON, Solana et 64 réseaux, chaque signature expliquée avant de signer. Gratuit, sans compte.',
   },
   nav: {
     how: 'Comment ça marche',
@@ -64,8 +64,8 @@ const fr = {
     steps: [
       {
         title: 'Un solde. Toutes vos chaînes.',
-        text: 'Bitcoin, Ethereum et ses Layer 2, Solana : 65 réseaux agrégés en un seul chiffre, une seule courbe. Le solde s’affiche depuis le cache avant même que le réseau réponde.',
-        value: '65',
+        text: 'Bitcoin, Ethereum et ses Layer 2, Solana : 64 réseaux agrégés en un seul chiffre, une seule courbe. Le solde s’affiche depuis le cache avant même que le réseau réponde.',
+        value: '64',
         label: 'réseaux',
       },
       {

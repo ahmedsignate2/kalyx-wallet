@@ -4,7 +4,7 @@ const nl: Dict = {
   meta: {
     title: 'Kalyx Wallet — Non-custodial multi-chain cryptowallet',
     description:
-      'Je sleutels blijven op je telefoon. Bitcoin, Ethereum, TON, Solana en 65 netwerken, elke handtekening uitgelegd vóór je tekent. Gratis, zonder account.',
+      'Je sleutels blijven op je telefoon. Bitcoin, Ethereum, TON, Solana en 64 netwerken, elke handtekening uitgelegd vóór je tekent. Gratis, zonder account.',
   },
   nav: {
     how: 'Hoe het werkt',
@@ -61,8 +61,8 @@ const nl: Dict = {
     steps: [
       {
         title: 'Eén saldo. Al je chains.',
-        text: 'Bitcoin, Ethereum en zijn Layer 2’s, Solana: 65 netwerken samengevat in één getal, één curve. Het saldo verschijnt uit de cache nog vóór het netwerk antwoordt.',
-        value: '65',
+        text: 'Bitcoin, Ethereum en zijn Layer 2’s, Solana: 64 netwerken samengevat in één getal, één curve. Het saldo verschijnt uit de cache nog vóór het netwerk antwoordt.',
+        value: '64',
         label: 'netwerken',
       },
       {

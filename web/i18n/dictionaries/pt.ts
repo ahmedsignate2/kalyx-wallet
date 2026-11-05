@@ -4,7 +4,7 @@ const pt: Dict = {
   meta: {
     title: 'Kalyx Wallet — Carteira cripto não custodial e multichain',
     description:
-      'As suas chaves ficam no seu telemóvel. Bitcoin, Ethereum, TON, Solana e 65 redes, cada assinatura explicada antes de assinar. Grátis, sem conta.',
+      'As suas chaves ficam no seu telemóvel. Bitcoin, Ethereum, TON, Solana e 64 redes, cada assinatura explicada antes de assinar. Grátis, sem conta.',
   },
   nav: {
     how: 'Como funciona',
@@ -61,8 +61,8 @@ const pt: Dict = {
     steps: [
       {
         title: 'Um saldo. Todas as suas redes.',
-        text: 'Bitcoin, Ethereum e as suas Layer 2, Solana: 65 redes agregadas num único número, numa única curva. O saldo aparece a partir da cache antes de a rede responder.',
-        value: '65',
+        text: 'Bitcoin, Ethereum e as suas Layer 2, Solana: 64 redes agregadas num único número, numa única curva. O saldo aparece a partir da cache antes de a rede responder.',
+        value: '64',
         label: 'redes',
       },
       {

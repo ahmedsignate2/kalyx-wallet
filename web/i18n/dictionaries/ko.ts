@@ -62,7 +62,7 @@ const ko: Dict = {
       {
         title: '하나의 잔액. 모든 체인.',
         text: 'Bitcoin, Ethereum과 그 Layer 2, Solana: 63개 네트워크를 하나의 숫자, 하나의 곡선으로. 잔액은 네트워크가 응답하기 전에 캐시에서 먼저 표시됩니다.',
-        value: '65',
+        value: '64',
         label: '네트워크',
       },
       {

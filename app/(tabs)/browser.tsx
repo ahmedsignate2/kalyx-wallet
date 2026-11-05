@@ -69,6 +69,7 @@ import { phishingSiteStatus, type PhishingVerdict } from '../../src/domain/secur
 import { catalogEntry, dappCompat, isLookalike, lookalikeOf, siteShield, type DappCompat } from '../../src/domain/web/dappCatalog';
 import {
   getAdapter,
+  hasChain,
   describeSolanaTransaction,
   formatTokenAmount,
   listChains,
@@ -305,7 +306,7 @@ export default function Browser() {
     loadBrowserPrefs().then((p) => { setEngine(p.engine); setForceDark(p.forceDark); });
     loadTabs().then((saved) => {
       if (!saved || saved.tabs.length === 0) return;
-      const restored: Tab[] = saved.tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, canBack: false, canFwd: false, incognito: false, chainId: t.chainId ?? activeChain, desktop: false }));
+      const restored: Tab[] = saved.tabs.map((t) => ({ id: t.id, url: t.url, title: t.title, canBack: false, canFwd: false, incognito: false, chainId: t.chainId && hasChain(t.chainId) ? t.chainId : activeChain, desktop: false })); // réseau retiré depuis (Degen, réseau perso) : l'écran tombait
       setTabs(restored);
       setActiveId(restored.some((t) => t.id === saved.activeId) ? saved.activeId : restored[0].id);
     });

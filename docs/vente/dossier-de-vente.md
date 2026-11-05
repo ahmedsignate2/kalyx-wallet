@@ -10,7 +10,7 @@ Ce qui est cédé : le code source complet (licence propriétaire, tous droits r
 
 | Indicateur | Valeur |
 | --- | --- |
-| Réseaux pris en charge | 65 (62 EVM + Bitcoin, Solana, TON), plus 5 réseaux de test |
+| Réseaux pris en charge | 64 (61 EVM + Bitcoin, Solana, TON), plus 5 réseaux de test |
 | Langues | 15 |
 | Tests automatisés | 1 734 (tous au vert) |
 | Surfaces | App Android, web, mini-app Telegram, bot Telegram |
@@ -19,7 +19,7 @@ Ce qui est cédé : le code source complet (licence propriétaire, tous droits r
 
 ## Produit
 
-Un seul solde agrégé sur 65 réseaux, et chaque signature expliquée en une phrase avant d'être donnée.
+Un seul solde agrégé sur 64 réseaux, et chaque signature expliquée en une phrase avant d'être donnée.
 
 | Domaine | Fonctions |
 | --- | --- |
@@ -69,7 +69,7 @@ flowchart LR
   T["Mini-app Telegram"] -- WalletConnect --> P
   B["Bot Telegram<br/>(Cloudflare)"] -.-> T
   R["Relais TON<br/>(Cloudflare)"] -.-> P
-  P --> C["Blockchains<br/>(65 réseaux)"]
+  P --> C["Blockchains<br/>(64 réseaux)"]
 ```
 
 Le web et la mini-app préparent ; seul le téléphone détient les clés et signe.
