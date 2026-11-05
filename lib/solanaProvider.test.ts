@@ -55,10 +55,11 @@ describe('fournisseur Solana injecté', () => {
 it('une dApp Wallet Standard voit Kalyx, se connecte et fait signer', async () => {
   const listeners: Record<string, ((e: any) => void)[]> = {};
   const posted: any[] = [];
+  const acks: any[] = []; // accusés de réception, à part des demandes
   const win: any = {
     addEventListener: (t: string, fn: any) => (listeners[t] = listeners[t] || []).push(fn),
     dispatchEvent: (e: any) => (listeners[e.type] || []).forEach((fn) => fn(e)),
-    ReactNativeWebView: { postMessage: (m: string) => posted.push(JSON.parse(m)) },
+    ReactNativeWebView: { postMessage: (m: string) => { const x = JSON.parse(m); (x.__kalyxAck ? acks : posted).push(x); } },
   };
   class CE { type: string; detail: any; constructor(t: string, o: any) { this.type = t; this.detail = o?.detail; } }
   const wallets: any[] = [];
@@ -74,6 +75,7 @@ it('une dApp Wallet Standard voit Kalyx, se connecte et fait signer', async () =
   expect(posted[0]).toMatchObject({ method: 'sol_connect', k: 'T' });
   win.__kalyxResolve(posted[0].id, { address: 'Addr111', publicKey: pk }, null);
   const { accounts } = await conn;
+  expect(acks).toEqual([{ __kalyxAck: 1, id: posted[0].id, k: 'T' }]); // la page confirme avoir reçu la connexion
   expect(accounts[0].address).toBe('Addr111');
   expect(Array.from(accounts[0].publicKey)).toEqual(Array(32).fill(7));
   expect(changes).toHaveLength(1);

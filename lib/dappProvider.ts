@@ -130,6 +130,20 @@ export interface DappRequest {
  * fermeture du script injecté dans la page principale : un message sans lui
  * vient d'ailleurs et est ignoré.
  */
+/**
+ * Accusé de réception d'une réponse (EVM ou Solana) : la page a bien résolu la
+ * demande `id`. Même jeton de page que les demandes ; null pour tout le reste.
+ */
+export function parseDappAck(raw: string, token: string): number | null {
+  try {
+    const m = JSON.parse(raw) as { __kalyxAck?: unknown; id?: unknown; k?: unknown };
+    if (m?.__kalyxAck !== 1 || !token || m.k !== token || typeof m.id !== 'number') return null;
+    return m.id;
+  } catch {
+    return null;
+  }
+}
+
 export function parseDappMessage(raw: string, token: string): DappRequest | null {
   try {
     const m = JSON.parse(raw) as Partial<DappRequest> & { k?: unknown };
@@ -212,6 +226,8 @@ export function buildInjectedProvider(chainIdHex: string, token: string): string
     var p = pending[id];
     if (!p) return;
     delete pending[id];
+    /* Accusé de réception : sans lui, l'app recharge la page après une connexion (le site n'avait rien reçu). */
+    try { window.ReactNativeWebView.postMessage(JSON.stringify({ __kalyxAck: 1, id: id, k: ${JSON.stringify(token)} })); } catch (e) {}
     if (error) {
       var err = new Error(error.message || 'Refusé par l\\'utilisateur');
       err.code = error.code || 4001;

@@ -64,7 +64,7 @@ import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { extractWcUri, isWcPairingUri } from '../../src/domain/qr/deeplink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildSolanaProvider, parseSolTxParams, solMessageParam, solAccountPayload, sigToBase64, solEmitJs, type SolTxMode } from '../../lib/solanaProvider';
-import { buildInjectedProvider, parseDappMessage, respondJs, emitJs, rpcProxy, RpcProxyError, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
+import { buildInjectedProvider, parseDappMessage, parseDappAck, respondJs, emitJs, rpcProxy, RpcProxyError, READONLY_METHODS, type DappRequest } from '../../lib/dappProvider';
 import { phishingSiteStatus, type PhishingVerdict } from '../../src/domain/security/goplus';
 import { catalogEntry, dappCompat, isLookalike, lookalikeOf, siteShield, type DappCompat } from '../../src/domain/web/dappCatalog';
 import {
@@ -614,6 +614,32 @@ export default function Browser() {
     }
     inject(js);
   }, [inject]);
+  /**
+   * CONNEXION SANS RAFRAÎCHIR. Après « Connecter », la page doit accuser
+   * réception de la réponse. Sans accusé (réponse écartée, page qui ne l'a pas
+   * prise), le site restait « non connecté » jusqu'à ce que l'utilisateur pense
+   * à rafraîchir. On recharge donc l'onglet nous-mêmes : la connexion est déjà
+   * enregistrée, le site la retrouve en se rechargeant.
+   */
+  const awaitingAck = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const clearAcks = useCallback(() => {
+    for (const h of awaitingAck.current.values()) clearTimeout(h);
+    awaitingAck.current.clear();
+  }, []);
+  useEffect(() => clearAcks, [clearAcks]);
+  const expectAck = useCallback((p: { id: number; tabId: string; origin: string }) => {
+    const prev = awaitingAck.current.get(p.id);
+    if (prev) clearTimeout(prev);
+    awaitingAck.current.set(
+      p.id,
+      setTimeout(() => {
+        awaitingAck.current.delete(p.id);
+        if (activeRef.current !== p.tabId) return; // onglet quitté entre-temps : rien à recharger
+        technicalLogger.logDapp('connect_unacknowledged_reload', p.origin, { tabId: p.tabId }, true);
+        webref.current?.reload();
+      }, 2500),
+    );
+  }, []);
   const respondPending = useCallback(
     (p: { id: number; origin: string; tabId: string }, result: unknown, err?: { code: number; message: string }) => deliverTo(p.origin, p.tabId, respondJs(p.id, result, err)),
     [deliverTo],
@@ -883,6 +909,7 @@ export default function Browser() {
         await w.verifyConnect(unlock);
         connected.current.add(solKey(pending.origin, tb?.incognito));
         respondPending(pending, solAccountPayload(solAddress));
+        expectAck(pending);
         if (pendingRef.current === pending) pendingRef.current = null;
         if (!tb?.incognito) {
           activity.addConnection({ host: pending.origin, url: `https://${pending.origin}`, title: tb?.title || pending.origin });
@@ -918,6 +945,7 @@ export default function Browser() {
       await useWallet.getState().verifyConnect(unlock);
       connected.current.add(connKey(pending.origin, tb?.incognito));
       respondPending(pending, [evmAddress]);
+      expectAck(pending);
       /*
        * Demande RÉPONDUE : libérée avant l'animation (la feuille reste affichée).
        * Une signature demandée aussitôt connecté (SIWE) ne doit pas recevoir -32002.
@@ -1137,7 +1165,10 @@ export default function Browser() {
                 if (tab && (tab.canBack !== canGoBack || tab.canFwd !== !!canGoForward)) updateTab(activeTab.id, { canBack: canGoBack, canFwd: !!canGoForward });
               }
             }}
-            onLoadStart={() => setLoadSeq((n) => n + 1)}
+            onLoadStart={() => {
+              clearAcks(); // nouvelle page : l'ancienne n'a plus rien à confirmer
+              setLoadSeq((n) => n + 1);
+            }}
             onError={(e: { nativeEvent?: { description?: string; code?: number } }) => {
               const errDesc = e.nativeEvent?.description || `${t('networkError')}${e.nativeEvent?.code ? ` (${e.nativeEvent.code})` : ''}`;
               setWebError(errDesc);
@@ -1146,6 +1177,13 @@ export default function Browser() {
             onScroll={onWebScroll}
             injectedJavaScriptBeforeContentLoaded={injected}
             onMessage={(e: { nativeEvent: { data: string; url?: string } }) => {
+              const ack = parseDappAck(e.nativeEvent.data, pageToken);
+              if (ack !== null) {
+                const h = awaitingAck.current.get(ack);
+                if (h) clearTimeout(h);
+                awaitingAck.current.delete(ack);
+                return;
+              }
               const tc = parseTcJsMessage(e.nativeEvent.data, pageToken);
               if (tc) {
                 const host = originOf(e.nativeEvent.url ?? activeTab.url ?? '');

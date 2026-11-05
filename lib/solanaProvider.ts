@@ -107,6 +107,7 @@ export function buildSolanaProvider(token: string): string {
     var p = pending[id];
     if (!p) return prevResolve ? prevResolve(id, result, error) : undefined;
     delete pending[id];
+    try { window.ReactNativeWebView.postMessage(JSON.stringify({ __kalyxAck: 1, id: id, k: K })); } catch (e) {}
     if (error) {
       var err = new Error(error.message || 'Refusé');
       err.code = error.code || 4001;
