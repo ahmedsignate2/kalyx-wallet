@@ -25,6 +25,7 @@ import { RootErrorBoundary, ErrorScreen } from '../ui/ErrorBoundary';
 import { WalletConnectHost } from '../ui/WalletConnectHost';
 import { TonConnectHost } from '../ui/TonConnectHost';
 import { ClipboardConnectHost } from '../ui/ClipboardConnectHost';
+import { ConnectOfferSheet } from '../ui/ConnectOfferSheet';
 import { WebDashboard } from '../ui/web/WebDashboard';
 import { ToastHost } from '../ui/ToastHost';
 import { AutoLock } from '../ui/AutoLock';
@@ -340,6 +341,7 @@ export default function RootLayout() {
         <WalletConnectHost />
         <TonConnectHost />
         <ClipboardConnectHost />
+        <ConnectOfferSheet />
         <ToastHost />
         <AutoLock />
         <PrivacyScreen />

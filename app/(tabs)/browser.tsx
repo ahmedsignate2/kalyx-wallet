@@ -63,6 +63,7 @@ import { useWalletConnect, pairErrorKey } from '../../lib/walletconnect';
 import { looksLikeTonConnect } from '../../src/domain/tonconnect/connectLink';
 import { buildConnectLinkScanner, parseConnectLinkMessage } from '../../src/domain/web/connectLinkScanner';
 import { clipConnectLink } from '../../src/domain/qr/clipConnect';
+import { offerConnect } from '../../lib/connectOffer';
 import { extractWcUri, isWcPairingUri } from '../../src/domain/qr/deeplink';
 import { loadBrowserPrefs, saveEngine, saveForceDark, ENGINES, VERIFIED_DAPPS, type SearchEngine } from '../../lib/browserPrefs';
 import { buildSolanaProvider, parseSolTxParams, solMessageParam, solAccountPayload, sigToBase64, solEmitJs, type SolTxMode } from '../../lib/solanaProvider';
@@ -680,15 +681,7 @@ export default function Browser() {
         void useWalletConnect.getState().pair(found.link).catch((e) => toast.error(t('connectionFailed'), t(pairErrorKey(e))));
       }
     };
-    Alert.alert(
-      t('pageConnectTitle'),
-      fill(t('pageConnectBody'), { site: host, kind: found.kind === 'tonconnect' ? 'TON Connect' : 'WalletConnect' }),
-      [
-        { text: t('clipIgnore'), style: 'cancel', onPress: opts?.onIgnore },
-        { text: t('connect'), onPress: go },
-      ],
-      { cancelable: true },
-    );
+    offerConnect({ kind: found.kind, site: host, onConnect: go, onIgnore: opts?.onIgnore });
   }, [t]);
   offerRef.current = offerPageConnect;
   const respondPending = useCallback(

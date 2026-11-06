@@ -12,7 +12,7 @@
  * détection se coupe dans Réglages.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useWallet } from '../lib/walletStore';
 import { useSettings, useT } from '../lib/settingsStore';
@@ -20,7 +20,7 @@ import { isDecoySession } from '../lib/sessionMode';
 import { useTonConnect } from '../lib/tonconnect/store';
 import { useWalletConnect, pairErrorKey } from '../lib/walletconnect';
 import { toast } from '../lib/toast';
-import { fill } from '../lib/i18n';
+import { offerConnect } from '../lib/connectOffer';
 import { clipConnectLink } from '../src/domain/qr/clipConnect';
 
 /** Liens déjà proposés pendant cette ouverture de l'app (acceptés ou ignorés). */
@@ -54,15 +54,7 @@ export function ClipboardConnectHost() {
             .catch((e) => toast.error(t('connectionFailed'), t(pairErrorKey(e))));
         }
       };
-      Alert.alert(
-        t('clipFoundTitle'),
-        fill(t('clipFoundBody'), { kind: found.kind === 'tonconnect' ? 'TON Connect' : 'WalletConnect' }),
-        [
-          { text: t('clipIgnore'), style: 'cancel' },
-          { text: t('connect'), onPress: go },
-        ],
-        { cancelable: true },
-      );
+      offerConnect({ kind: found.kind, onConnect: go });
     } catch {
       /* presse-papiers illisible : rien à proposer */
     } finally {
